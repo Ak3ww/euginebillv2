@@ -469,6 +469,21 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
 
 <!-- AUTO-CHANGELOG:START -->
 
+### v2.25.13 — 2026-05-01
+
+### Fixed
+- **Password PPPoE tidak berubah saat approval pembayaran manual** — Ditambahkan diagnostic logging di approval handler untuk membuktikan bahwa `pppoe_users.password` tidak berubah saat pembayaran disetujui. Perubahan yang terlihat di `radcheck.value` adalah perilaku yang disengaja (sinkronisasi RADIUS). Ditambahkan `autoComplete="new-password"` di modal edit user untuk mencegah browser autofill mengisi field password secara diam-diam.
+- **Gambar bukti pembayaran manual tidak tampil** — URL gambar yang tersimpan di DB adalah path relatif (`/uploads/...`) sehingga komponen `Image` Next.js tidak bisa merendernya. Diperbaiki dengan membangun URL absolut menggunakan `NEXT_PUBLIC_BASE_URL` sebelum dikirim ke client.
+- **Error approval pembayaran manual (500)** — Prisma update `manualPayment.status` gagal karena field `updatedAt` tidak ada di schema. Diperbaiki dengan menghapus field `updatedAt` dari data update.
+- **Logo APK mobile tidak tampil** — Aset icon APK tidak ter-resolve dengan benar. Diperbaiki path resolusi icon.
+
+### Changed
+- **Diagnostic logging approval manual payment** — Log password sebelum dan sesudah transaksi approval agar dapat diverifikasi via `pm2 logs`.
+
+### Files
+- `src/app/api/manual-payments/[id]/route.ts` — Diagnostic logging + fix `updatedAt` field
+- `src/components/UserDetailModal.tsx` — `autoComplete="new-password"` pada field password
+
 ### v2.25.12 — 2026-04-30
 
 ### Added
@@ -539,31 +554,6 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
 - `src/app/admin/settings/isolation/mikrotik/page.tsx` — script firewall/NAT pakai `src-address-list=isolir`
 - `src/app/admin/AdminClientLayout.tsx` — nav entry Subdomain Routing
 - `src/locales/id.json` — translation key `subdomainRouting`
-
-### v2.25.8 — 2026-05-02
-
-### Added
-- **WAN Management di GenieACS Device Detail** — Halaman detail perangkat GenieACS kini mendukung manajemen koneksi WAN lengkap:
-  - **Add WAN**: Tombol "Add WAN" di Quick Actions dan di header seksi WAN. Modal add menampilkan pemilihan Connection Type (PPPoE/IP), Nama koneksi, WANDevice index (port binding) 1–2, dan WANConnectionDevice index 1–8 untuk binding ke LAN port spesifik. Implementasi via GenieACS `addObject` diikuti `setParameterValues` pada instance baru.
-  - **Edit WAN**: Edit username/password PPPoE, VLAN ID (0–4094), VLAN Priority (0–7), Service Type, dan toggle Enable/Disable per koneksi WAN. Implementasi via `setParameterValues` multi-parameter.
-  - **Delete WAN**: Tombol hapus per kartu WAN, implementasi via GenieACS `deleteObject`.
-  - **VLAN Configuration**: Set `X_HW_VLAN` (Huawei), `X_ZTE-COM_VLANIDMark`, `X_CMCC_VLANIDMark`, dan `X_HW_VLANPriority` dalam satu request.
-  - **Service Type**: Pilihan INTERNET, TR069, VOIP, IPTV, INTERNET_TR069, OTHER — dikirim ke `X_HW_ServiceList` dan `X_ZTE-COM_ServiceList`.
-  - **Port Binding**: WANDevice.{N} dan WANConnectionDevice.{N} bisa dipilih saat add WAN.
-- **WAN Connection Display dengan Badge** — Kartu WAN menampilkan badge: service type (oranye), VLAN ID (cyan), connection type (abu), status connected/disconnected. Path TR-069 ditampilkan dalam teks monospace kecil.
-- **In-Memory Cache untuk Device List GenieACS** — `GET /api/settings/genieacs/devices` kini menggunakan cache di level modul (PM2 process-persistent):
-  - TTL 60 detik; response langsung dari cache saat masih fresh.
-  - **Stale-while-revalidate**: Jika cache sudah kedaluwarsa, data lama langsung dikembalikan ke client (tanpa blocking) sambil refresh dilakukan di background secara async.
-  - Cache key menggunakan hash `host:username` — otomatis invalid jika kredensial GenieACS berubah.
-  - Response menyertakan field `fromCache: boolean` dan `cacheAge: number` (ms).
-  - Strategi ini membuat halaman Perangkat GenieACS terasa instan setelah load pertama.
-
-### API Files
-- `src/app/api/settings/genieacs/devices/route.ts` — cache ditambahkan (module-level stale-while-revalidate)
-- `src/app/api/genieacs/devices/[deviceId]/wan/route.ts` — API WAN baru (POST update, PUT add, DELETE)
-
-### UI Files
-- `src/app/admin/genieacs/devices/page.tsx` — WAN modal lengkap (add/edit/delete + VLAN/service/port binding)
 
 <!-- AUTO-CHANGELOG:END -->
 
