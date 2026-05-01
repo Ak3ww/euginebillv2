@@ -160,10 +160,13 @@ export default function PayManualPage({ params }: { params: Promise<{ token: str
         },
         body: JSON.stringify({
           invoiceId: invoice?.id,
-          pppoeUserId: userId,
+          userId,
           amount: invoice?.amount,
-          proofImage: proofImageUrl,
-          ...formData,
+          receiptImage: proofImageUrl,
+          bankName: formData.bankName,
+          accountName: formData.accountName,
+          paymentDate: formData.transferDate,
+          notes: formData.notes,
         }),
       });
       

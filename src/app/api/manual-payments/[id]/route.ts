@@ -79,11 +79,13 @@ export async function GET(
 // PATCH - Approve or reject manual payment
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
-    const { action, rejectionReason } = body;
+    const { action: rawAction, rejectionReason } = body;
+    const action = typeof rawAction === 'string' ? rawAction.toUpperCase() : rawAction;
 
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -111,7 +113,7 @@ export async function PATCH(
     }
     
     const manualPayment = await prisma.manualPayment.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         invoice: true,
         user: {
@@ -200,7 +202,7 @@ export async function PATCH(
       // Atomic transaction: all related records written together
       await prisma.$transaction(async (tx) => {
         await tx.manualPayment.update({
-          where: { id: params.id },
+          where: { id },
           data: {
             status: 'APPROVED',
             approvedBy,
@@ -392,7 +394,7 @@ export async function PATCH(
       const company = await prisma.company.findFirst();
       
       await prisma.manualPayment.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           status: 'REJECTED',
           rejectionReason,
@@ -523,9 +525,10 @@ export async function PATCH(
 // DELETE - Delete manual payment (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
@@ -536,7 +539,7 @@ export async function DELETE(
     }
 
     await prisma.manualPayment.delete({
-      where: { id: params.id },
+      where: { id },
     });
     
     return NextResponse.json({
