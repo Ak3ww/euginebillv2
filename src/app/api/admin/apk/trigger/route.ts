@@ -10,6 +10,7 @@ import { join } from 'path';
 import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import { deflateSync } from 'zlib';
+import { tmpdir } from 'os';
 
 const execAsync = promisify(exec);
 
@@ -569,6 +570,7 @@ async function writeProjectToDisk(
 
   let logoConverted = false;
   if (logoPath && existsSync(logoPath)) {
+    // Tier 1: ImageMagick convert
     try {
       await execAsync('which convert', { timeout: 3000 });
       for (const [density, size] of Object.entries(densitySizes)) {
@@ -580,7 +582,58 @@ async function writeProjectToDisk(
         copyFileSync(outPng, join(projectDir, `app/src/main/res/mipmap-${density}/ic_launcher_round.png`));
       }
       logoConverted = true;
-    } catch { /* ImageMagick not available or resize failed — fall through */ }
+    } catch { /* ImageMagick not available — try next tier */ }
+
+    // Tier 2: Python3 + Pillow (common on Ubuntu VPS) — uses temp file to avoid quoting issues
+    if (!logoConverted) {
+      try {
+        await execAsync('python3 -c "from PIL import Image"', { timeout: 5000 });
+        const pyScriptPath = join(tmpdir(), `salfanet_icon_resize_${Date.now()}.py`);
+        const outputPaths: Record<string, string> = {};
+        for (const density of Object.keys(densitySizes)) {
+          outputPaths[density] = join(projectDir, `app/src/main/res/mipmap-${density}/ic_launcher.png`);
+        }
+        const pyLines: string[] = [
+          'from PIL import Image',
+          `src = r'${logoPath.replace(/\\/g, '/')}'`,
+          'sizes = {',
+          ...Object.entries(densitySizes).map(([d, s]) =>
+            `  '${d}': (${s}, r'${outputPaths[d].replace(/\\/g, '/')}'),`
+          ),
+          '}',
+          'for density, (size, out) in sizes.items():',
+          '    img = Image.open(src).convert("RGBA")',
+          '    bg = Image.new("RGBA", img.size, (255,255,255,255))',
+          '    bg.paste(img, mask=img.split()[3] if img.mode=="RGBA" else None)',
+          '    img = bg.convert("RGB")',
+          '    img.thumbnail((size, size), Image.LANCZOS)',
+          '    final = Image.new("RGB", (size, size), (255,255,255))',
+          '    final.paste(img, ((size-img.width)//2, (size-img.height)//2))',
+          '    final.save(out, "PNG")',
+        ];
+        writeFileSync(pyScriptPath, pyLines.join('\n'));
+        await execAsync(`python3 "${pyScriptPath}"`, { timeout: 60000 });
+        for (const [density, outPng] of Object.entries(outputPaths)) {
+          copyFileSync(outPng, join(projectDir, `app/src/main/res/mipmap-${density}/ic_launcher_round.png`));
+        }
+        logoConverted = true;
+      } catch { /* Pillow not available — try next tier */ }
+    }
+
+    // Tier 3: Direct PNG copy — no resize, Android handles scaling automatically
+    if (!logoConverted) {
+      const ext = logoPath.toLowerCase().split('.').pop() ?? '';
+      if (ext === 'png' || ext === 'jpg' || ext === 'jpeg') {
+        try {
+          const logoBuf = readFileSync(logoPath);
+          for (const density of Object.keys(densitySizes)) {
+            writeFileSync(join(projectDir, `app/src/main/res/mipmap-${density}/ic_launcher.png`), logoBuf);
+            writeFileSync(join(projectDir, `app/src/main/res/mipmap-${density}/ic_launcher_round.png`), logoBuf);
+          }
+          logoConverted = true;
+        } catch { /* fall through to solid color */ }
+      }
+    }
   }
 
   if (!logoConverted) {
