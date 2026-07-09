@@ -626,11 +626,8 @@ export async function updatePppoeUser(
               { allowDisconnect: true }
             );
           }
+          }
         }
-      }
-        }
-      } catch (syncError) {
-        console.error('RADIUS CoA re-sync error:', syncError);
       }
     }
   }
