@@ -626,11 +626,9 @@ export async function updatePppoeUser(
               { allowDisconnect: true }
             );
           }
-          }
         }
       }
     }
-  }
 
   // Status change: CoA disconnect
   if (data.status && data.status !== currentUser.status) {
