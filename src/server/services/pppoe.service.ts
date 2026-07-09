@@ -496,7 +496,20 @@ export async function updatePppoeUser(
         if (/^\d{4}-\d{2}-\d{2}$/.test(expStr)) {
           const [y, m, d] = expStr.split('-').map(Number);
           return { expiredAt: new Date(Date.UTC(y, m - 1, d, 16, 59, 59, 999)) };
-       // RADIUS or MikroTik re-sync if critical fields changed (including status change)
+        }
+        return { expiredAt: new Date(expStr) };
+      })()),
+      ...(data.autoRenewal !== undefined && { autoRenewal: data.autoRenewal }),
+      ...(data.autoIsolationEnabled !== undefined && { autoIsolationEnabled: data.autoIsolationEnabled }),
+      ...(data.idCardNumber !== undefined && { idCardNumber: data.idCardNumber }),
+      ...(data.idCardPhoto !== undefined && { idCardPhoto: data.idCardPhoto }),
+      ...(data.installationPhotos !== undefined && { installationPhotos: data.installationPhotos }),
+      ...(data.followRoad !== undefined && { followRoad: !!data.followRoad }),
+      ...(data.registeredAt && { createdAt: new Date(data.registeredAt) }),
+    } as never,
+  });
+
+  // RADIUS or MikroTik re-sync if critical fields changed (including status change)
   if (data.username || data.password || data.profileId || data.ipAddress !== undefined || data.routerId !== undefined || (data.status && data.status !== currentUser.status)) {
     const oldUsername = currentUser.username;
     const newUsername = data.username || currentUser.username;
@@ -615,8 +628,10 @@ export async function updatePppoeUser(
           }
         }
       }
-    } catch (syncError) {
-      console.error('RADIUS re-sync error:', syncError);
+        }
+      } catch (syncError) {
+        console.error('RADIUS CoA re-sync error:', syncError);
+      }
     }
   }
 
