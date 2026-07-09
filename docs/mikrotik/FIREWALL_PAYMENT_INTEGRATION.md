@@ -630,9 +630,9 @@ Base URL: https://billing.isp-provider.com
 **Cloudflare Tunnel Setup**:
 ```bash
 # On server
-cloudflared tunnel create salfanet-radius
-cloudflared tunnel route dns salfanet-radius billing.isp-provider.com
-cloudflared tunnel run salfanet-radius
+cloudflared tunnel create EugineBill-radius
+cloudflared tunnel route dns EugineBill-radius billing.isp-provider.com
+cloudflared tunnel run EugineBill-radius
 ```
 
 **MikroTik Script**:

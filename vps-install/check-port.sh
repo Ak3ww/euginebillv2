@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS - Port Conflict Checker & Resolver
+# EugineBill RADIUS - Port Conflict Checker & Resolver
 # ============================================================================
 # Check and kill processes using port 3000
 # ============================================================================
@@ -142,7 +142,7 @@ if [ -n "$PIDS" ]; then
             echo -e "${YELLOW}Manual cleanup commands:${NC}"
             echo "  lsof -ti:$PORT | xargs kill -9"
             echo "  pm2 kill"
-            echo "  systemctl restart salfanet-radius"
+            echo "  systemctl restart EugineBill-radius"
             exit 1
         else
             echo -e "${GREEN}[✓] Port $PORT is now free!${NC}"
@@ -163,7 +163,7 @@ echo -e "${CYAN}============================================${NC}"
 echo "  Check port: lsof -i:$PORT"
 echo "  Kill port: lsof -ti:$PORT | xargs kill -9"
 echo "  Check PM2: pm2 list"
-echo "  PM2 logs: pm2 logs salfanet-radius"
-echo "  Restart PM2: pm2 restart salfanet-radius"
+echo "  PM2 logs: pm2 logs EugineBill-radius"
+echo "  Restart PM2: pm2 restart EugineBill-radius"
 echo "  Kill PM2: pm2 kill"
 echo ""

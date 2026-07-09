@@ -79,7 +79,7 @@ npx expo install @react-native-firebase/app @react-native-firebase/messaging
     ],
     "android": {
       "googleServicesFile": "./google-services.json",
-      "package": "com.yourcompany.salfanetradiuscustomer"
+      "package": "com.yourcompany.EugineBillradiuscustomer"
     }
   }
 }
@@ -247,7 +247,7 @@ eas login
 ### 2. Configure EAS Build
 
 \`\`\`bash
-cd c:\\Users\\yanz\\Downloads\\salfanet-radius-main\\mobile-app
+cd c:\\Users\\yanz\\Downloads\\EugineBill-radius-main\\mobile-app
 eas build:configure
 \`\`\`
 
@@ -286,11 +286,11 @@ Akan membuat file \`eas.json\`:
 \`\`\`json
 {
   "expo": {
-    "name": "Salfanet Customer",
-    "slug": "salfanet-customer",
+    "name": "EugineBill Customer",
+    "slug": "EugineBill-customer",
     "version": "1.0.0",
     "android": {
-      "package": "com.salfanet.customer",
+      "package": "com.EugineBill.customer",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

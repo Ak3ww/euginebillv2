@@ -266,7 +266,7 @@ export async function generateVouchers(data: GenerateVouchersInput, session: Ses
   let syncCount = 0;
   try {
     const profileName = profile.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const mikrotikProfile = profile.groupProfile || 'SALFANET';
+    const mikrotikProfile = profile.groupProfile || 'EugineBill';
 
     let sessionTimeout = 0;
     switch (profile.validityUnit) {

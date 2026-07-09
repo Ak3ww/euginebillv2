@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =========================================
-# SALFANET RADIUS - File Watcher Deploy
+# EugineBill RADIUS - File Watcher Deploy
 # =========================================
 # Watch for file changes and deploy automatically
 # Perfect for staging/development environments
@@ -9,7 +9,7 @@
 # Usage: ./watch-deploy.sh
 # =========================================
 
-APP_DIR="${APP_DIR:-/var/www/salfanet-radius}"
+APP_DIR="${APP_DIR:-/var/www/EugineBill-radius}"
 CHECK_INTERVAL=60  # Check every 60 seconds
 
 echo "👁️  Starting file watcher for $APP_DIR"

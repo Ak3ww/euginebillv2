@@ -1,6 +1,6 @@
-﻿# Panduan Setup SALFANET RADIUS di Proxmox LXC
+# Panduan Setup EugineBill RADIUS di Proxmox LXC
 
-Panduan lengkap untuk deploy SALFANET RADIUS di dalam **Proxmox LXC Container** —
+Panduan lengkap untuk deploy EugineBill RADIUS di dalam **Proxmox LXC Container** —
 mulai dari membuat container, konfigurasi host, hingga menjalankan installer.
 
 ---
@@ -12,7 +12,7 @@ mulai dari membuat container, konfigurasi host, hingga menjalankan installer.
 3. [Konfigurasi Host Proxmox](#3-konfigurasi-host-proxmox)
 4. [Setting Jaringan LXC](#4-setting-jaringan-lxc)
 5. [Proxmox Firewall](#5-proxmox-firewall)
-6. [Install SALFANET RADIUS di LXC](#6-install-salfanet-radius-di-lxc)
+6. [Install EugineBill RADIUS di LXC](#6-install-EugineBill-radius-di-lxc)
 7. [Akses Aplikasi](#7-akses-aplikasi)
 8. [Port Forwarding (Opsional)](#8-port-forwarding-opsional)
 9. [Troubleshooting](#9-troubleshooting)
@@ -43,7 +43,7 @@ mulai dari membuat container, konfigurasi host, hingga menjalankan installer.
    | Field | Nilai yang Direkomendasikan |
    |-------|---------------------------|
    | CT ID | `100` (atau bebas) |
-   | Hostname | `salfanet-radius` |
+   | Hostname | `EugineBill-radius` |
    | Password | *(isi password root)* |
    | Template | `ubuntu-22.04-standard` |
    | Disk | minimal `20 GB` |
@@ -66,7 +66,7 @@ pveam download local ubuntu-22.04-standard_22.04-1_amd64.tar.zst
 # Buat container (ganti nilai sesuai kebutuhan)
 pct create 100 \
   local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst \
-  --hostname salfanet-radius \
+  --hostname EugineBill-radius \
   --password YourRootPass123 \
   --cores 2 \
   --memory 2048 \
@@ -233,7 +233,7 @@ EOF
 
 ---
 
-## 6. Install SALFANET RADIUS di LXC
+## 6. Install EugineBill RADIUS di LXC
 
 ### 6.1 Masuk ke Container
 
@@ -259,29 +259,29 @@ apt install -y git unzip curl wget
 Di Windows (PowerShell):
 ```powershell
 # Export dulu dari project folder
-cd C:\Users\yanz\Downloads\salfanet-radius-main\production
+cd C:\Users\yanz\Downloads\EugineBill-radius-main\production
 .\export-production.ps1
 
 # Upload ZIP ke container
-scp ..\salfanet-radius-*.zip root@192.168.1.50:/root/
+scp ..\EugineBill-radius-*.zip root@192.168.1.50:/root/
 ```
 
 Di dalam container:
 ```bash
 cd /root
-unzip salfanet-radius-*.zip
-cd salfanet-radius
+unzip EugineBill-radius-*.zip
+cd EugineBill-radius
 ```
 
 **Cara B — Copy langsung via Proxmox host (jika file ada di host):**
 
 ```bash
 # Di Proxmox host
-pct push 100 /path/to/salfanet-radius.zip /root/salfanet-radius.zip
+pct push 100 /path/to/EugineBill-radius.zip /root/EugineBill-radius.zip
 
 # Di container
-cd /root && unzip salfanet-radius.zip
-cd salfanet-radius
+cd /root && unzip EugineBill-radius.zip
+cd EugineBill-radius
 ```
 
 ### 6.4 Jalankan Installer
@@ -308,7 +308,7 @@ Step 0: Pilih Environment
 
 Step 0: Pilih User
   > [1] Gunakan user existing (ubuntu/root)
-  > [2] Buat user khusus: salfanet
+  > [2] Buat user khusus: EugineBill
 
   IP yang terdeteksi: 192.168.1.50 (Private - Proxmox LXC)
   Gunakan IP ini? [Y/n]:  → tekan Enter
@@ -343,7 +343,7 @@ http://192.168.1.50/admin
 ### Lokasi File Info Instalasi
 
 ```bash
-cat /var/www/salfanet-radius/INSTALLATION_INFO.txt
+cat /var/www/EugineBill-radius/INSTALLATION_INFO.txt
 ```
 
 ---
@@ -377,7 +377,7 @@ chmod +x /usr/local/bin/cloudflared
 cloudflared tunnel login
 
 # Buat tunnel
-cloudflared tunnel create salfanet-radius
+cloudflared tunnel create EugineBill-radius
 
 # Konfigurasi
 mkdir -p ~/.cloudflared
@@ -386,7 +386,7 @@ tunnel: <TUNNEL_ID>
 credentials-file: /root/.cloudflared/<TUNNEL_ID>.json
 
 ingress:
-  - hostname: salfanet.yourdomain.com
+  - hostname: EugineBill.yourdomain.com
     service: http://localhost:80
   - service: http_status:404
 EOF
@@ -450,7 +450,7 @@ ss -tlnp | grep -E "80|443|3000"
 
 # Cek PM2
 pm2 list
-pm2 logs salfanet-radius --lines 50
+pm2 logs EugineBill-radius --lines 50
 ```
 
 ### MySQL gagal start di LXC
@@ -530,12 +530,12 @@ pct set 100 --swap 1024         # Tambah swap
 pct set 100 --features nesting=1,tun=1  # Enable PPP/TUN
 
 # Snapshot (backup cepat sebelum update)
-pct snapshot 100 before-update --description "Before SALFANET update"
+pct snapshot 100 before-update --description "Before EugineBill update"
 pct listsnapshot 100
 pct rollback 100 before-update
 
 # Clone container
-pct clone 100 101 --hostname salfanet-radius-2
+pct clone 100 101 --hostname EugineBill-radius-2
 ```
 
 ---

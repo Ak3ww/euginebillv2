@@ -134,7 +134,7 @@ export async function testTelegramConnection(
   options: TelegramSendOptions
 ): Promise<{ success: boolean; error?: string }> {
   const now = formatInTimeZone(new Date(), 'Asia/Jakarta', 'dd MMM yyyy HH:mm');
-  const testMessage = `🤖 <b>SALFANET RADIUS - Test Connection</b>\n\n✅ Bot connection successful!\n\n📅 ${now} WIB`;
+  const testMessage = `🤖 <b>EugineBill RADIUS - Test Connection</b>\n\n✅ Bot connection successful!\n\n📅 ${now} WIB`;
   
   return await sendTelegramMessage(options, testMessage);
 }

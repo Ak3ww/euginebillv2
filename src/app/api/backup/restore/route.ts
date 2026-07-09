@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { restoreBackup } from '@/server/services/backup.service';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     // Stream file to disk to avoid memory spike with large SQL files
     // (loading into memory crashes PM2's max_memory_restart threshold)
     const ext = isGzip ? (file.name.endsWith('.sql.gz') ? '.sql.gz' : '.gz') : '.sql';
-    const tmpDir = path.join(os.tmpdir(), 'salfanet-restore');
+    const tmpDir = path.join(os.tmpdir(), 'EugineBill-restore');
     await mkdir(tmpDir, { recursive: true });
     const tempFilepath = path.join(tmpDir, `restore_temp_${Date.now()}${ext}`);
 

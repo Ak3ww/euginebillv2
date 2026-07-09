@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
@@ -15,19 +15,20 @@ export async function GET() {
     if (!company) {
       // Return default if no company exists
       return NextResponse.json({
-        name: 'SALFANET RADIUS',
-        email: 'admin@salfanet.com',
+        name: 'EugineBill RADIUS',
+        email: 'admin@EugineBill.com',
         phone: '+62 812-3456-7890',
         address: 'Jakarta, Indonesia',
         baseUrl: 'http://localhost:3000',
         adminPhone: '+62 812-3456-7890',
         timezone: 'Asia/Jakarta',
         logo: null,
-        poweredBy: 'SALFANET RADIUS',
-        footerAdmin: 'Powered by SALFANET RADIUS',
-        footerCustomer: 'Powered by SALFANET RADIUS',
-        footerTechnician: 'Powered by SALFANET RADIUS',
-        footerAgent: 'Powered by SALFANET RADIUS',
+        poweredBy: 'EugineBill RADIUS',
+        footerAdmin: 'Powered by EugineBill RADIUS',
+        footerCustomer: 'Powered by EugineBill RADIUS',
+        footerTechnician: 'Powered by EugineBill RADIUS',
+        footerAgent: 'Powered by EugineBill RADIUS',
+        radiusEnabled: false,
       });
     }
 
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
           footerAgent: data.footerAgent,
           bankAccounts: bankAccounts,
           invoiceGenerateDays: data.invoiceGenerateDays ? parseInt(data.invoiceGenerateDays) : undefined,
+          radiusEnabled: data.radiusEnabled ?? false,
         },
       });
     } else {
@@ -98,12 +100,13 @@ export async function POST(request: Request) {
           timezone: data.timezone,
           poweredBy: data.poweredBy,
           customerIdPrefix: data.customerIdPrefix ?? null,
-          footerAdmin: data.footerAdmin || 'Powered by SALFANET RADIUS',
-          footerCustomer: data.footerCustomer || 'Powered by SALFANET RADIUS',
-          footerTechnician: data.footerTechnician || 'Powered by SALFANET RADIUS',
-          footerAgent: data.footerAgent || 'Powered by SALFANET RADIUS',
+          footerAdmin: data.footerAdmin || 'Powered by EugineBill RADIUS',
+          footerCustomer: data.footerCustomer || 'Powered by EugineBill RADIUS',
+          footerTechnician: data.footerTechnician || 'Powered by EugineBill RADIUS',
+          footerAgent: data.footerAgent || 'Powered by EugineBill RADIUS',
           bankAccounts: bankAccounts,
           invoiceGenerateDays: data.invoiceGenerateDays ? parseInt(data.invoiceGenerateDays) : 7,
+          radiusEnabled: data.radiusEnabled ?? false,
         },
       });
     }

@@ -10,29 +10,29 @@ export const dynamic = 'force-dynamic';
 
 const ROLES = {
   admin: {
-    label: 'Salfanet Admin',
-    pkg: 'net.salfanet.admin',
+    label: 'EugineBill Admin',
+    pkg: 'net.EugineBill.admin',
     color: '#1e40af',
     pathSuffix: '/admin',
     icon: 'admin',
   },
   customer: {
-    label: 'Salfanet Customer',
-    pkg: 'net.salfanet.customer',
+    label: 'EugineBill Customer',
+    pkg: 'net.EugineBill.customer',
     color: '#0891b2',
     pathSuffix: '/customer',
     icon: 'customer',
   },
   technician: {
-    label: 'Salfanet Teknisi',
-    pkg: 'net.salfanet.technician',
+    label: 'EugineBill Teknisi',
+    pkg: 'net.EugineBill.technician',
     color: '#059669',
     pathSuffix: '/technician',
     icon: 'technician',
   },
   agent: {
-    label: 'Salfanet Agent',
-    pkg: 'net.salfanet.agent',
+    label: 'EugineBill Agent',
+    pkg: 'net.EugineBill.agent',
     color: '#7c3aed',
     pathSuffix: '/agent',
     icon: 'agent',
@@ -95,7 +95,7 @@ class MainActivity : AppCompatActivity() {
             displayZoomControls  = false
             cacheMode            = WebSettings.LOAD_DEFAULT
             mixedContentMode     = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-            userAgentString      = userAgentString + " SalfanetApp/2.0"
+            userAgentString      = userAgentString + " EugineBillApp/2.0"
         }
         // Disable overscroll glow/bounce effect
         webView.overScrollMode = android.view.View.OVER_SCROLL_NEVER
@@ -389,7 +389,7 @@ function readmeTxt(appName: string, role: string, startUrl: string, pkg: string)
 
 ## Catatan
 - APK ini adalah WebView wrapper yang membuka URL di atas
-- Tidak ada backend yang dibutuhkan — semua data dari server Salfanet
+- Tidak ada backend yang dibutuhkan — semua data dari server EugineBill
 - Untuk update URL: edit file \`app/src/main/java/${pkg.replace(/\./g, '/')}/MainActivity.kt\`
 `;
 }

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { promises as fs } from 'fs';
@@ -186,7 +186,7 @@ log_bin_trust_function_creators = 1
 `;
         
         // Write config through temp file to avoid shell interpolation.
-        const tempConfigPath = `/tmp/salfanet-timezone-${Date.now()}.cnf`;
+        const tempConfigPath = `/tmp/EugineBill-timezone-${Date.now()}.cnf`;
         await fs.writeFile(tempConfigPath, mysqlConfigContent, 'utf-8');
         await execFileAsync('sudo', ['cp', tempConfigPath, '/etc/mysql/mysql.conf.d/timezone.cnf']);
         await fs.unlink(tempConfigPath).catch(() => undefined);

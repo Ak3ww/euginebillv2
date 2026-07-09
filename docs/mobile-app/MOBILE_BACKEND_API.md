@@ -7,7 +7,7 @@
 
 ## 📦 Summary
 
-Semua backend API endpoints untuk mobile app SALFANET RADIUS telah berhasil dibuat dan siap digunakan!
+Semua backend API endpoints untuk mobile app EugineBill RADIUS telah berhasil dibuat dan siap digunakan!
 
 ### ✅ What Was Created
 
@@ -369,7 +369,7 @@ Field: file (image file)
 curl -X POST \
   -H "Authorization: Bearer {token}" \
   -F "file=@proof.jpg" \
-  https://api.salfanet.com/api/customer/payments/456/proof
+  https://api.EugineBill.com/api/customer/payments/456/proof
 ```
 
 **Response Success (200)**:
@@ -739,7 +739,7 @@ API_URL=http://192.168.1.XXX:3000  # Ganti dengan IP lokal Anda
 
 ### Testing dengan Postman/Thunder Client
 
-1. **Create Collection**: "SALFANET Mobile API"
+1. **Create Collection**: "EugineBill Mobile API"
 2. **Add Environment**: 
    - `baseUrl`: `http://localhost:3000`
    - `token`: (will be set after login)

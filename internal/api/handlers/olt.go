@@ -11,11 +11,11 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"github.com/s4lfanet/salfanet-radius-go/internal/db/models"
-	"github.com/s4lfanet/salfanet-radius-go/internal/olt/poller"
-	"github.com/s4lfanet/salfanet-radius-go/internal/olt/telnet"
-	"github.com/s4lfanet/salfanet-radius-go/internal/olt/vendors/zte"
-	"github.com/s4lfanet/salfanet-radius-go/internal/ws"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/db/models"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/olt/poller"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/olt/telnet"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/olt/vendors/zte"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/ws"
 )
 
 // OLTHandler handles OLT-related API endpoints.

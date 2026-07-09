@@ -1,4 +1,4 @@
-# Roadmap Restructuring — SALFANET RADIUS
+# Roadmap Restructuring — EugineBill RADIUS
 ## Arsitektur Next.js Clean Monolith
 
 > **Status Keseluruhan:** ✅ Semua Phase Selesai — Siap Deploy VPS (pending manual testing on VPS)  
@@ -328,7 +328,7 @@ Integrasikan cron jobs ke dalam `src/server/jobs/`, bersihkan sisa-sisa migratio
 - [x] `npm run test:run` → 15/15 passing
 - [x] `npm run lint` → no errors (eslint.config.mjs fixed + 3 lint errors fixed)
 - [x] `npm run build:vps` → exit code 0, semua 309 halaman compiled
-- [x] `export-production.ps1 -NoBuild` → ZIP 66.4 MB siap (`salfanet-radius-v2.10.25-20260310-082213.zip`)
+- [x] `export-production.ps1 -NoBuild` → ZIP 66.4 MB siap (`EugineBill-radius-v2.10.25-20260310-082213.zip`)
 - [ ] Upload ZIP ke VPS & jalankan `vps-installer.sh`
 - [ ] Manual test semua 5 portal di VPS
 - [ ] Manual test semua cron melalui admin trigger
@@ -383,6 +383,6 @@ Integrasikan cron jobs ke dalam `src/server/jobs/`, bersihkan sisa-sisa migratio
 | Phase 3 — Features | ✅ Selesai | Mar 10 | Mar 10 | Zod, 7 feature slices, shared validators, component dirs — [PHASE_3_COMPLETE.md](./restructuring/PHASE_3_COMPLETE.md) |
 | Phase 4 — API Thinning | ✅ Selesai | Mar 10 | Mar 10 | 2 service extractions, helpers applied, 25 PrismaClient bugs fixed — [PHASE_4_COMPLETE.md](./restructuring/PHASE_4_COMPLETE.md) |
 | Phase 5 — Jobs & Cleanup | ✅ Selesai | Mar 10 | Mar 10 | ESLint fixed, 4 missing jobs added, 44 proxy files deleted, 270 imports updated, tsc+lint+build+tests semua clean, ZIP ready |
-| VPS Deployment | ✅ Selesai | Mar 10 | Mar 10 | Update v2.10.9→v2.10.25 berhasil: 66.4 MB uploaded, rebuilt on VPS, PM2 online (salfanet-radius + salfanet-cron), HTTP 200 login & admin pages, cron executing |
+| VPS Deployment | ✅ Selesai | Mar 10 | Mar 10 | Update v2.10.9→v2.10.25 berhasil: 66.4 MB uploaded, rebuilt on VPS, PM2 online (EugineBill-radius + EugineBill-cron), HTTP 200 login & admin pages, cron executing |
 
 Legend: 📅 Belum dimulai · 🔄 In Progress · ✅ Selesai · ⚠️ Blocked

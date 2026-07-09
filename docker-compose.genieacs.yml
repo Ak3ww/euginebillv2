@@ -1,6 +1,6 @@
 # docker-compose.genieacs.yml
 #
-# Template layanan GenieACS untuk diintegrasikan ke stack Salfanet-Radius.
+# Template layanan GenieACS untuk diintegrasikan ke stack EugineBill-Radius.
 # Merge ke docker-compose.yml utama Anda, atau jalankan terpisah:
 #   docker compose -f docker-compose.genieacs.yml up -d
 #

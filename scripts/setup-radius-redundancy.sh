@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# SALFANET RADIUS — Redundant VPN Connectivity Setup
+# EugineBill RADIUS — Redundant VPN Connectivity Setup
 # =============================================================================
 # Konfigurasi VPS sebagai L2TP/IPsec LNS (server) sebagai jalur backup RADIUS.
 #
@@ -39,12 +39,12 @@ L2TP_POOL_START="172.16.211.100"
 L2TP_POOL_END="172.16.211.150"
 
 # Directories & files
-STATE_DIR="/etc/salfanet/l2tp-redundancy"
+STATE_DIR="/etc/EugineBill/l2tp-redundancy"
 STATE_FILE="${STATE_DIR}/${MIKROTIK_NAME}.conf"
-WATCHDOG_SCRIPT="/usr/local/sbin/salfanet-radius-watchdog.sh"
-WATCHDOG_SERVICE="/etc/systemd/system/salfanet-radius-watchdog.service"
-IP_UP_SCRIPT="/etc/ppp/ip-up.d/50-salfanet-l2tp"
-IP_DOWN_SCRIPT="/etc/ppp/ip-down.d/50-salfanet-l2tp"
+WATCHDOG_SCRIPT="/usr/local/sbin/EugineBill-radius-watchdog.sh"
+WATCHDOG_SERVICE="/etc/systemd/system/EugineBill-radius-watchdog.service"
+IP_UP_SCRIPT="/etc/ppp/ip-up.d/50-EugineBill-l2tp"
+IP_DOWN_SCRIPT="/etc/ppp/ip-down.d/50-EugineBill-l2tp"
 PPP_OPTS_LNS="/etc/ppp/options.xl2tpd.lns"
 
 # ── Credential generation ─────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ fi
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║     SALFANET RADIUS Redundancy Setup                     ║"
+echo "║     EugineBill RADIUS Redundancy Setup                     ║"
 echo "╠══════════════════════════════════════════════════════════╣"
 printf "║  MikroTik Name  : %-38s ║\n" "$MIKROTIK_NAME"
 printf "║  WireGuard IP   : %-38s ║\n" "$MIKROTIK_WG_IP"
@@ -129,11 +129,11 @@ echo "✔  L2TP credentials dikonfigurasi"
 
 # ── 5. IPsec PSK ──────────────────────────────────────────────────────────────
 # Hapus entry lama untuk MikroTik ini
-sed -i "/SALFANET-REDUNDANCY-${MIKROTIK_NAME}/,+1d" /etc/ipsec.secrets 2>/dev/null || true
+sed -i "/EugineBill-REDUNDANCY-${MIKROTIK_NAME}/,+1d" /etc/ipsec.secrets 2>/dev/null || true
 
 cat >> /etc/ipsec.secrets << EOF
 
-# SALFANET-REDUNDANCY-${MIKROTIK_NAME}
+# EugineBill-REDUNDANCY-${MIKROTIK_NAME}
 %any %any : PSK "${IPSEC_PSK}"
 EOF
 echo "✔  IPsec PSK dikonfigurasi"
@@ -168,11 +168,11 @@ cat > "$IP_UP_SCRIPT" << 'EOF'
 # Args: $1=iface $2=tty $3=speed $4=local_ip $5=remote_ip
 IFACE="$1"
 REMOTE_IP="$5"
-STATE_DIR="/etc/salfanet/l2tp-redundancy"
+STATE_DIR="/etc/EugineBill/l2tp-redundancy"
 
 # Simpan info ppp interface aktif
 echo "${IFACE} ${REMOTE_IP}" > "${STATE_DIR}/active-ppp"
-logger "SALFANET-L2TP: UP - iface=${IFACE} remote=${REMOTE_IP}"
+logger "EugineBill-L2TP: UP - iface=${IFACE} remote=${REMOTE_IP}"
 
 # Load semua konfigurasi MikroTik
 for conf in "${STATE_DIR}"/*.conf; do
@@ -181,7 +181,7 @@ for conf in "${STATE_DIR}"/*.conf; do
   source "$conf"
   # Tambah route MikroTik WG IP via ppp dengan metric tinggi (backup)
   ip route add "${MIKROTIK_WG_IP}/32" dev "$IFACE" metric 200 2>/dev/null || true
-  logger "SALFANET-L2TP: Added backup route ${MIKROTIK_WG_IP}/32 dev ${IFACE}"
+  logger "EugineBill-L2TP: Added backup route ${MIKROTIK_WG_IP}/32 dev ${IFACE}"
 done
 EOF
 chmod +x "$IP_UP_SCRIPT"
@@ -193,14 +193,14 @@ cat > "$IP_DOWN_SCRIPT" << 'EOF'
 # Dipanggil pppd saat L2TP connection turun
 # Args: $1=iface $5=remote_ip
 IFACE="$1"
-STATE_DIR="/etc/salfanet/l2tp-redundancy"
+STATE_DIR="/etc/EugineBill/l2tp-redundancy"
 
 for conf in "${STATE_DIR}"/*.conf; do
   [ -f "$conf" ] || continue
   # shellcheck disable=SC1090
   source "$conf"
   ip route del "${MIKROTIK_WG_IP}/32" dev "$IFACE" metric 200 2>/dev/null || true
-  logger "SALFANET-L2TP: DOWN - removed backup route ${MIKROTIK_WG_IP}/32"
+  logger "EugineBill-L2TP: DOWN - removed backup route ${MIKROTIK_WG_IP}/32"
 done
 
 rm -f "${STATE_DIR}/active-ppp"
@@ -212,16 +212,16 @@ echo "✔  ip-down script dikonfigurasi"
 cat > "$WATCHDOG_SCRIPT" << 'WATCHDOG_EOF'
 #!/bin/bash
 # =============================================================================
-# SALFANET RADIUS Failover Watchdog
+# EugineBill RADIUS Failover Watchdog
 # Monitor WireGuard peer connectivity → failover routing via L2TP backup
 # =============================================================================
-STATE_DIR="/etc/salfanet/l2tp-redundancy"
+STATE_DIR="/etc/EugineBill/l2tp-redundancy"
 WG_IFACE="wg0"
 CHECK_INTERVAL=15       # detik antar check
 PING_COUNT=3
 PING_TIMEOUT=4
 
-log() { logger "SALFANET-WATCHDOG: $*"; echo "[$(date '+%H:%M:%S')] $*"; }
+log() { logger "EugineBill-WATCHDOG: $*"; echo "[$(date '+%H:%M:%S')] $*"; }
 
 while true; do
   for conf in "${STATE_DIR}"/*.conf; do
@@ -279,8 +279,8 @@ echo "✔  Watchdog script dikonfigurasi"
 # ── 9. Systemd service ────────────────────────────────────────────────────────
 cat > "$WATCHDOG_SERVICE" << EOF
 [Unit]
-Description=SALFANET RADIUS Failover Watchdog
-Documentation=https://github.com/s4lfanet/salfanet-radius
+Description=EugineBill RADIUS Failover Watchdog
+Documentation=https://github.com/s4lfanet/EugineBill-radius
 After=network-online.target wg-quick@wg0.service xl2tpd.service freeradius.service
 Wants=network-online.target
 
@@ -291,7 +291,7 @@ Restart=always
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=salfanet-watchdog
+SyslogIdentifier=EugineBill-watchdog
 
 [Install]
 WantedBy=multi-user.target
@@ -300,7 +300,7 @@ echo "✔  Systemd service dikonfigurasi"
 
 # ── 10. Simpan state file ─────────────────────────────────────────────────────
 cat > "$STATE_FILE" << EOF
-# SALFANET RADIUS Redundancy — state file untuk ${MIKROTIK_NAME}
+# EugineBill RADIUS Redundancy — state file untuk ${MIKROTIK_NAME}
 # Dibuat: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
 MIKROTIK_NAME="${MIKROTIK_NAME}"
 MIKROTIK_WG_IP="${MIKROTIK_WG_IP}"
@@ -320,10 +320,10 @@ echo "✔  State file disimpan: $STATE_FILE"
 echo ""
 echo "── Restart services..."
 systemctl daemon-reload
-systemctl enable salfanet-radius-watchdog.service
+systemctl enable EugineBill-radius-watchdog.service
 systemctl restart xl2tpd
 systemctl restart ipsec
-systemctl restart salfanet-radius-watchdog.service
+systemctl restart EugineBill-radius-watchdog.service
 
 # Verifikasi
 sleep 2
@@ -331,7 +331,7 @@ echo ""
 echo "── Status services:"
 systemctl is-active xl2tpd    && echo "✔  xl2tpd: active" || echo "❌  xl2tpd: inactive"
 systemctl is-active ipsec      && echo "✔  ipsec: active"  || echo "❌  ipsec: inactive"
-systemctl is-active salfanet-radius-watchdog && echo "✔  watchdog: active" || echo "❌  watchdog: inactive"
+systemctl is-active EugineBill-radius-watchdog && echo "✔  watchdog: active" || echo "❌  watchdog: inactive"
 
 # ── 12. Print MikroTik commands ───────────────────────────────────────────────
 echo ""
@@ -373,5 +373,5 @@ echo "║  - Saat WireGuard drop: route ke 172.16.212.1 otomatis via L2TP ║"
 echo "║  - Failover time: ~30-60 detik (LCP echo + check-gateway)       ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
-echo "Log watchdog: journalctl -f -u salfanet-radius-watchdog"
+echo "Log watchdog: journalctl -f -u EugineBill-radius-watchdog"
 echo "Test koneksi: ping -I wg0 ${MIKROTIK_WG_IP}"

@@ -27,8 +27,8 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       locale: 'id',
       company: {
-        name: 'SALFANET RADIUS',
-        email: 'admin@salfanet.com',
+        name: 'EugineBill RADIUS',
+        email: 'admin@EugineBill.com',
         phone: '+62 812-3456-7890',
         address: 'Jakarta, Indonesia',
         baseUrl: '',
@@ -67,7 +67,7 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: 'salfanet-settings',
+      name: 'EugineBill-settings',
       onRehydrateStorage: () => (state) => {
         // Sync timezone lib after rehydration
         if (state?.company.timezone) {

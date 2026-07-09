@@ -8,9 +8,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 
-	"github.com/s4lfanet/salfanet-radius-go/internal/db/models"
-	"github.com/s4lfanet/salfanet-radius-go/internal/notify"
-	"github.com/s4lfanet/salfanet-radius-go/internal/radius"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/db/models"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/notify"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/radius"
 )
 
 // PPPoEHandler handles all PPPoE user/customer/profile/area endpoints.

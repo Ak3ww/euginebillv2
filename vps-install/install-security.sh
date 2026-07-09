@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS VPS Installer - Security Module
+# EugineBill RADIUS VPS Installer - Security Module
 # ============================================================================
 # Step 8: Fail2ban (brute-force protection) + UFW Firewall configuration
 # + Daily disk cleanup cronjob
@@ -137,19 +137,19 @@ setup_cleanup_cron() {
     print_step "Step 8c: Setting up daily disk cleanup"
 
     # Tulis cleanup script ke /usr/local/bin/
-    print_info "Writing /usr/local/bin/salfanet-cleanup.sh..."
-    cat > /usr/local/bin/salfanet-cleanup.sh << 'CLEANUPSCRIPT'
+    print_info "Writing /usr/local/bin/EugineBill-cleanup.sh..."
+    cat > /usr/local/bin/EugineBill-cleanup.sh << 'CLEANUPSCRIPT'
 #!/bin/bash
 # ============================================================
-# Salfanet VPS Disk Cleanup Script
+# EugineBill VPS Disk Cleanup Script
 # Berjalan via cron setiap hari jam 02:00 WIB
-# Log di /var/log/salfanet-cleanup.log
+# Log di /var/log/EugineBill-cleanup.log
 # ============================================================
 
-LOG=/var/log/salfanet-cleanup.log
+LOG=/var/log/EugineBill-cleanup.log
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
-echo "[$TIMESTAMP] === Salfanet Cleanup Start ===" >> $LOG
+echo "[$TIMESTAMP] === EugineBill Cleanup Start ===" >> $LOG
 echo "[$TIMESTAMP] Disk before: $(df -h / | tail -1)" >> $LOG
 
 # 1. Systemd journal - simpan max 200MB / 7 hari
@@ -174,24 +174,24 @@ apt-get clean -y >> $LOG 2>&1
 find /tmp -maxdepth 1 -mtime +3 -name "*.zip" -delete 2>/dev/null
 find /tmp -maxdepth 1 -mtime +3 -name "*.log" -delete 2>/dev/null
 find /tmp -maxdepth 1 -mtime +3 -name "kotlin-daemon.*" -delete 2>/dev/null
-find /tmp -maxdepth 1 -mtime +1 -name "salfanet-build-*" -type d -exec rm -rf {} + 2>/dev/null
-find /tmp -maxdepth 1 -mtime +1 -name "salfanet-next-build*" -delete 2>/dev/null
+find /tmp -maxdepth 1 -mtime +1 -name "EugineBill-build-*" -type d -exec rm -rf {} + 2>/dev/null
+find /tmp -maxdepth 1 -mtime +1 -name "EugineBill-next-build*" -delete 2>/dev/null
 
 # 6. PM2 logs - truncate jika > 20MB per file
 find /root/.pm2/logs -name "*.log" -size +20M -exec truncate -s 10M {} \; 2>/dev/null
 
 # 7. Gradle cache lama (> 30 hari tidak dipakai)
-find /var/data/salfanet/gradle-cache -type f -atime +30 -delete 2>/dev/null
-find /var/data/salfanet/gradle-cache -type d -empty -delete 2>/dev/null
+find /var/data/EugineBill/gradle-cache -type f -atime +30 -delete 2>/dev/null
+find /var/data/EugineBill/gradle-cache -type d -empty -delete 2>/dev/null
 
 # 8. APK build temp > 1 hari
-find /tmp -maxdepth 1 -name "salfanet-apk-*" -type d -mtime +1 -exec rm -rf {} + 2>/dev/null
+find /tmp -maxdepth 1 -name "EugineBill-apk-*" -type d -mtime +1 -exec rm -rf {} + 2>/dev/null
 
 # 9. FreeRADIUS old logs
 find /var/log/freeradius -name "*.log.*" -mtime +30 -delete 2>/dev/null
 
 # 10. Prune old update backups — keep only 2 most recent
-BACKUP_BASE=/root/salfanet-backups
+BACKUP_BASE=/root/EugineBill-backups
 if [ -d "$BACKUP_BASE" ]; then
     BACKUP_COUNT=$(ls -1t "$BACKUP_BASE" 2>/dev/null | wc -l)
     if [ "$BACKUP_COUNT" -gt 2 ]; then
@@ -221,16 +221,16 @@ echo "[$TIMESTAMP_END] === Cleanup Done ===" >> $LOG
 echo "" >> $LOG
 CLEANUPSCRIPT
 
-    chmod +x /usr/local/bin/salfanet-cleanup.sh
+    chmod +x /usr/local/bin/EugineBill-cleanup.sh
 
     # Pasang cronjob harian jam 02:00 (idempotent — hapus entry lama dulu)
-    ( crontab -l 2>/dev/null | grep -v salfanet-cleanup
-      echo "0 2 * * * /usr/local/bin/salfanet-cleanup.sh"
+    ( crontab -l 2>/dev/null | grep -v EugineBill-cleanup
+      echo "0 2 * * * /usr/local/bin/EugineBill-cleanup.sh"
     ) | crontab -
 
-    print_success "Cleanup script terpasang di /usr/local/bin/salfanet-cleanup.sh"
+    print_success "Cleanup script terpasang di /usr/local/bin/EugineBill-cleanup.sh"
     print_success "Cronjob: setiap hari jam 02:00 WIB"
-    print_info "Log: /var/log/salfanet-cleanup.log"
+    print_info "Log: /var/log/EugineBill-cleanup.log"
 }
 
 # ============================================================================
@@ -252,7 +252,7 @@ install_security() {
     print_info "  fail2ban-client status sshd          # Lihat IP yang di-ban"
     print_info "  fail2ban-client set sshd unbanip IP  # Buka ban IP tertentu"
     print_info "  ufw status verbose                   # Status firewall"
-    print_info "  bash /usr/local/bin/salfanet-cleanup.sh  # Cleanup manual"
+    print_info "  bash /usr/local/bin/EugineBill-cleanup.sh  # Cleanup manual"
 }
 
 # Jika dijalankan langsung (bukan di-source)

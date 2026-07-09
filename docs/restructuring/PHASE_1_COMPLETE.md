@@ -8,7 +8,7 @@
 ## Apa yang Dilakukan
 
 ### 1. Backup Project
-- Backup folder: `c:\Users\yanz\Downloads\salfanet-radius-BACKUP-PRE-RESTRUCTURE\`
+- Backup folder: `c:\Users\yanz\Downloads\EugineBill-radius-BACKUP-PRE-RESTRUCTURE\`
 - 490 file di `src/` berhasil di-mirror (tanpa node_modules/.next)
 
 ### 2. Buat Struktur Folder Baru

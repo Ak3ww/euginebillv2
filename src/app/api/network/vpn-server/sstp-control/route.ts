@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { exec } from 'child_process';
@@ -56,13 +56,13 @@ export async function POST(request: NextRequest) {
         command = `
 # [1] Pastikan ssl-intercept.so tersedia (perlu install-vpn-client.sh)
 if [ ! -f /etc/vpn/ssl-intercept.so ]; then
-  APP_DIR=/var/www/salfanet-radius
+  APP_DIR=/var/www/EugineBill-radius
   if [ -f "$APP_DIR/vps-install/install-vpn-client.sh" ]; then
     echo "[auto-install] Menjalankan install-vpn-client.sh..."
     bash "$APP_DIR/vps-install/install-vpn-client.sh" 2>&1
   else
     echo "ERROR: /etc/vpn/ssl-intercept.so tidak ada."
-    echo "Jalankan: bash /var/www/salfanet-radius/vps-install/install-vpn-client.sh"
+    echo "Jalankan: bash /var/www/EugineBill-radius/vps-install/install-vpn-client.sh"
     exit 1
   fi
 fi

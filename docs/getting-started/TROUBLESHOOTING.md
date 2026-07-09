@@ -1,4 +1,4 @@
-# SALFANET RADIUS - Troubleshooting Guide
+# EugineBill RADIUS - Troubleshooting Guide
 
 ## Common Installation Issues
 
@@ -90,7 +90,7 @@ sudo systemctl restart freeradius
 **Check Connection:**
 ```bash
 # Test MySQL connection
-mysql -u salfanet_user -p salfanet_radius
+mysql -u EugineBill_user -p EugineBill_radius
 
 # Check if MySQL is running
 sudo systemctl status mysql
@@ -99,7 +99,7 @@ sudo systemctl status mysql
 **Fix Permissions:**
 ```bash
 # Grant all privileges
-sudo mysql -e "GRANT ALL PRIVILEGES ON salfanet_radius.* TO 'salfanet_user'@'localhost'; FLUSH PRIVILEGES;"
+sudo mysql -e "GRANT ALL PRIVILEGES ON EugineBill_radius.* TO 'EugineBill_user'@'localhost'; FLUSH PRIVILEGES;"
 ```
 
 ---
@@ -110,7 +110,7 @@ sudo mysql -e "GRANT ALL PRIVILEGES ON salfanet_radius.* TO 'salfanet_user'@'loc
 
 **Check PM2 Logs:**
 ```bash
-pm2 logs salfanet-radius --lines 50
+pm2 logs EugineBill-radius --lines 50
 pm2 status
 ```
 
@@ -127,7 +127,7 @@ pm2 status
 
 2. **Missing Dependencies:**
    ```bash
-   cd /var/www/salfanet-radius
+   cd /var/www/EugineBill-radius
    npm install
    npm run build
    ```
@@ -135,7 +135,7 @@ pm2 status
 3. **Environment Variables:**
    ```bash
    # Check .env file
-   cat /var/www/salfanet-radius/.env
+   cat /var/www/EugineBill-radius/.env
    
    # Verify DATABASE_URL, NEXTAUTH_URL, NEXTAUTH_SECRET
    ```
@@ -173,13 +173,13 @@ sudo iptables -L -n -v
 **Generate New Self-Signed Certificate:**
 ```bash
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout /etc/ssl/private/salfanet.key \
-  -out /etc/ssl/certs/salfanet.crt
+  -keyout /etc/ssl/private/EugineBill.key \
+  -out /etc/ssl/certs/EugineBill.crt
 ```
 
 **Update Nginx:**
 ```bash
-sudo nano /etc/nginx/sites-available/salfanet-radius
+sudo nano /etc/nginx/sites-available/EugineBill-radius
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -192,7 +192,7 @@ sudo systemctl reload nginx
 
 **Clear Cache and Rebuild:**
 ```bash
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 sudo rm -rf .next
 sudo rm -rf node_modules
 sudo npm install
@@ -214,12 +214,12 @@ npm --version
 **Fix Ownership:**
 ```bash
 # Set correct owner
-sudo chown -R www-data:www-data /var/www/salfanet-radius
+sudo chown -R www-data:www-data /var/www/EugineBill-radius
 
 # Set correct permissions
-sudo find /var/www/salfanet-radius -type d -exec chmod 755 {} \;
-sudo find /var/www/salfanet-radius -type f -exec chmod 644 {} \;
-sudo chmod +x /var/www/salfanet-radius/*.sh
+sudo find /var/www/EugineBill-radius -type d -exec chmod 755 {} \;
+sudo find /var/www/EugineBill-radius -type f -exec chmod 644 {} \;
+sudo chmod +x /var/www/EugineBill-radius/*.sh
 ```
 
 ---
@@ -246,7 +246,7 @@ pm2 monit
 **Logs:**
 ```bash
 # Application logs
-pm2 logs salfanet-radius
+pm2 logs EugineBill-radius
 
 # Nginx access log
 sudo tail -f /var/log/nginx/access.log
@@ -277,7 +277,7 @@ pm2 status
 If issues persist:
 
 1. **Check Logs First:**
-   - Application: `pm2 logs salfanet-radius`
+   - Application: `pm2 logs EugineBill-radius`
    - System: `/var/log/syslog`
    - Nginx: `/var/log/nginx/error.log`
 
@@ -332,23 +332,23 @@ Run this complete health check:
 
 ```bash
 #!/bin/bash
-echo "=== SALFANET RADIUS Health Check ==="
+echo "=== EugineBill RADIUS Health Check ==="
 echo ""
 echo "1. Services Status:"
 sudo systemctl is-active nginx mysql freeradius
-pm2 list | grep salfanet-radius
+pm2 list | grep EugineBill-radius
 echo ""
 echo "2. Ports:"
 sudo netstat -tlnp | grep -E '(80|443|3005|1812|1813|3799)'
 echo ""
 echo "3. Disk Space:"
-df -h /var/www/salfanet-radius
+df -h /var/www/EugineBill-radius
 echo ""
 echo "4. Memory:"
 free -h
 echo ""
 echo "5. Database:"
-mysql -u salfanet_user -p -e "SELECT COUNT(*) FROM radcheck;" salfanet_radius
+mysql -u EugineBill_user -p -e "SELECT COUNT(*) FROM radcheck;" EugineBill_radius
 echo ""
 echo "6. Application URL:"
 curl -I http://localhost:3005

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { getIsolationSettings, getCidrRange } from '@/server/services/isolation.service';
@@ -57,7 +57,7 @@ add name=pool-isolir ranges=${ipRange.startIp}-${ipRange.endIp}
 add name=isolir local-address=${ipRange.gateway} remote-address=pool-isolir \\
     rate-limit=${uploadLimit}/${downloadLimit} \\
     session-timeout=1d use-compression=no use-encryption=no \\
-    comment="SALFANET RADIUS - Isolation Profile"
+    comment="EugineBill RADIUS - Isolation Profile"
 # NOTE: Tambahkan dns-server dan bridge sesuai konfigurasi router Anda jika diperlukan
 
 # ============================================

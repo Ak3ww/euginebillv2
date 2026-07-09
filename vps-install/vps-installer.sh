@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS - Main Installer
+# EugineBill RADIUS - Main Installer
 # ============================================================================
 # Satu installer untuk semua environment:
 #   - Public VPS (DigitalOcean, Vultr, Hetzner, Linode, dll)
@@ -238,7 +238,7 @@ confirm_installation() {
 # ============================================================================
 
 run_installation() {
-    print_step "Starting SALFANET RADIUS Installation"
+    print_step "Starting EugineBill RADIUS Installation"
     
     # Step 1: System Setup
     print_info "Running Step 1: System Setup..."
@@ -326,7 +326,7 @@ create_installation_info() {
     
     cat > "${INSTALL_INFO_FILE}" <<EOF
 ============================================
-SALFANET RADIUS - Installation Information
+EugineBill RADIUS - Installation Information
 ============================================
 
 Installation Date : $(date)
@@ -371,7 +371,7 @@ Firewall (UFW)  : $([ "${SKIP_UFW}" = "true" ] && echo "DILEWATI - konfigurasi d
 [>] CUSTOMER MOBILE APP
 -----------------------
 APK Status      : $([ "${APK_BUILT:-false}" = "true" ] && echo "Sudah dibuild" || echo "Belum dibuild")
-APK Download URL: $([ -n "${VPS_DOMAIN:-}" ] && echo "https://${VPS_DOMAIN}/downloads/salfanet-radius.apk" || echo "http://${VPS_IP}/downloads/salfanet-radius.apk")
+APK Download URL: $([ -n "${VPS_DOMAIN:-}" ] && echo "https://${VPS_DOMAIN}/downloads/EugineBill-radius.apk" || echo "http://${VPS_IP}/downloads/EugineBill-radius.apk")
 Build APK       : bash ${APP_DIR}/vps-install/install-apk.sh
 Rebuild APK     : bash ${APP_DIR}/vps-install/install-apk.sh --rebuild
 APK Status Cek  : bash ${APP_DIR}/vps-install/install-apk.sh --status
@@ -400,7 +400,7 @@ MySQL     : $(systemctl is-active mysql 2>/dev/null || echo 'N/A')
 FreeRADIUS: $(systemctl is-active freeradius 2>/dev/null || echo 'N/A')
 Nginx     : $(systemctl is-active nginx 2>/dev/null || echo 'N/A')
 Redis     : $(systemctl is-active redis-server 2>/dev/null || echo 'tidak diinstall')
-PM2 App   : $(pm2 list 2>/dev/null | grep -q "salfanet-radius.*online" && echo "online" || echo "offline")
+PM2 App   : $(pm2 list 2>/dev/null | grep -q "EugineBill-radius.*online" && echo "online" || echo "offline")
 
 [>] NETWORK / FIREWALL
 ----------------------
@@ -422,8 +422,8 @@ NOTE Proxmox LXC:
 ------------------
 # Application Management
 pm2 status                          # Cek status app
-pm2 logs salfanet-radius            # Lihat logs
-pm2 restart salfanet-radius         # Restart app
+pm2 logs EugineBill-radius            # Lihat logs
+pm2 restart EugineBill-radius         # Restart app
 ${APP_DIR}/deploy.sh                # Deploy update
 
 # Database
@@ -440,7 +440,7 @@ tail -f /var/log/freeradius/radius.log  # Logs
 1. Akses aplikasi : $([ -n "${VPS_DOMAIN:-}" ] && echo "https://${VPS_DOMAIN}" || echo "http://${VPS_IP}")
 2. Login admin, ganti password
 3. Tambahkan NAS/router di pengaturan RADIUS
-4. Bagikan link APK ke customer: $([ -n "${VPS_DOMAIN:-}" ] && echo "https://${VPS_DOMAIN}/downloads/salfanet-radius.apk" || echo "http://${VPS_IP}/downloads/salfanet-radius.apk")
+4. Bagikan link APK ke customer: $([ -n "${VPS_DOMAIN:-}" ] && echo "https://${VPS_DOMAIN}/downloads/EugineBill-radius.apk" || echo "http://${VPS_IP}/downloads/EugineBill-radius.apk")
 $([ "${REDIS_INSTALLED:-false}" = "false" ] && echo "5. [Opsional] Install Redis: bash ${APP_DIR}/vps-install/install-redis.sh" || echo "")
 $([ "${DEPLOY_ENV}" = "vps" ] && [ -z "${VPS_DOMAIN:-}" ] && echo "6. Setup SSL: certbot --nginx -d yourdomain.com" || \
   echo "6. [Opsional] Setup Cloudflare Tunnel untuk akses dari internet")
@@ -475,9 +475,9 @@ show_final_summary() {
     fi
     if [ "${APK_BUILT:-false}" = "true" ]; then
         if [ -n "${VPS_DOMAIN:-}" ]; then
-        echo -e "  APK DL  : ${WHITE}https://${VPS_DOMAIN}/downloads/salfanet-radius.apk${NC}"
+        echo -e "  APK DL  : ${WHITE}https://${VPS_DOMAIN}/downloads/EugineBill-radius.apk${NC}"
         else
-        echo -e "  APK DL  : ${WHITE}http://${VPS_IP}/downloads/salfanet-radius.apk${NC}"
+        echo -e "  APK DL  : ${WHITE}http://${VPS_IP}/downloads/EugineBill-radius.apk${NC}"
         fi
     else
         echo -e "  ${YELLOW}APK belum dibuild. Jalankan: bash ${APP_DIR}/vps-install/install-apk.sh${NC}"
@@ -520,7 +520,7 @@ show_final_summary() {
     fi
     echo ""
     echo -e "${CYAN}Perintah Berguna:${NC}"
-    echo "  Lihat logs : sudo su - ${APP_USER} -c 'pm2 logs salfanet-radius'"
+    echo "  Lihat logs : sudo su - ${APP_USER} -c 'pm2 logs EugineBill-radius'"
     echo "  Restart app: sudo su - ${APP_USER} -c 'pm2 restart all'"
     echo "  PM2 status : sudo su - ${APP_USER} -c 'pm2 list'"
     echo "  Deploy update: ${APP_DIR}/deploy.sh"

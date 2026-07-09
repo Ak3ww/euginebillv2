@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { sendTelegramMessage } from '@/server/services/notifications/telegram.service';
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     // 1. Send to General Chat (no topic)
     const generalResult = await sendTelegramMessage(
       { botToken, chatId },
-      `🤖 <b>SALFANET RADIUS - Test Connection</b>\n\n✅ General chat connection successful!\n\n📅 ${now} WIB`
+      `🤖 <b>EugineBill RADIUS - Test Connection</b>\n\n✅ General chat connection successful!\n\n📅 ${now} WIB`
     );
     results.push({ location: 'General Chat', success: generalResult.success, error: generalResult.error });
 
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (backupTopicId) {
       const backupResult = await sendTelegramMessage(
         { botToken, chatId, topicId: backupTopicId },
-        `💾 <b>SALFANET RADIUS - Database Backup Topic Test</b>\n\n✅ Backup topic connection successful!\nThis topic will receive database backup files.\n\n📅 ${now} WIB`
+        `💾 <b>EugineBill RADIUS - Database Backup Topic Test</b>\n\n✅ Backup topic connection successful!\nThis topic will receive database backup files.\n\n📅 ${now} WIB`
       );
       results.push({ location: 'Backup Topic', success: backupResult.success, error: backupResult.error });
     }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     if (healthTopicId) {
       const healthResult = await sendTelegramMessage(
         { botToken, chatId, topicId: healthTopicId },
-        `🏥 <b>SALFANET RADIUS - Health Check Topic Test</b>\n\n✅ Health topic connection successful!\nThis topic will receive database health reports.\n\n📅 ${now} WIB`
+        `🏥 <b>EugineBill RADIUS - Health Check Topic Test</b>\n\n✅ Health topic connection successful!\nThis topic will receive database health reports.\n\n📅 ${now} WIB`
       );
       results.push({ location: 'Health Topic', success: healthResult.success, error: healthResult.error });
     }

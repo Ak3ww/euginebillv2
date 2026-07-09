@@ -1,10 +1,10 @@
-﻿# FreeRADIUS Configuration Files
+# FreeRADIUS Configuration Files
 
 **Updated:** April 15, 2026 — Re-synced from running VPS (`103.151.140.110`) via pscp
 
 ## Configuration Overview
 
-These files are the **authoritative source** for the FreeRADIUS configuration used by Salfanet RADIUS.
+These files are the **authoritative source** for the FreeRADIUS configuration used by EugineBill RADIUS.
 They are kept **in sync with the running production VPS** — all files verified April 15, 2026.
 
 ---
@@ -130,9 +130,9 @@ systemctl status freeradius
 `mods-available/sql` credentials (update for new VPS if DB credentials differ):
 
 ```
-login     = "salfanet_user"
-password  = "salfanetradius123"
-radius_db = "salfanet_radius"
+login     = "EugineBill_user"
+password  = "EugineBillradius123"
+radius_db = "EugineBill_radius"
 server    = "localhost"
 port      = 3306
 ```

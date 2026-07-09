@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # backup-freeradius-local.sh
-# Membuat arsip tar.gz dari /etc/freeradius/3.0/ dan menyimpannya di SALFANET_BACKUP_DIR
+# Membuat arsip tar.gz dari /etc/freeradius/3.0/ dan menyimpannya di EugineBill_BACKUP_DIR
 # Dijalankan oleh API /api/admin/system/freeradius-backup
-# Output ditangkap ke /tmp/salfanet-fr-backup.log
+# Output ditangkap ke /tmp/EugineBill-fr-backup.log
 
 set -euo pipefail
 
 FR_DIR="/etc/freeradius/3.0"
-APP_DIR="${SALFANET_APP_DIR:-/var/www/salfanet-radius}"
-BACKUP_DIR="${SALFANET_BACKUP_DIR:-${APP_DIR}/backups/freeradius}"
+APP_DIR="${EugineBill_APP_DIR:-/var/www/EugineBill-radius}"
+BACKUP_DIR="${EugineBill_BACKUP_DIR:-${APP_DIR}/backups/freeradius}"
 
 echo "=== FreeRADIUS Backup ==="
 echo "Waktu: $(date '+%Y-%m-%d %H:%M:%S')"

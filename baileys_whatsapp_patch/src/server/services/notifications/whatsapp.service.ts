@@ -697,7 +697,7 @@ export class WhatsAppService {
       const result = await this.sendViaProvider(
         provider as any,
         testPhone.replace(/[^0-9]/g, ''),
-        'Test message from SALFANET RADIUS 📱\n\nJika Anda menerima pesan ini, WhatsApp provider berhasil terhubung!'
+        'Test message from EugineBill RADIUS 📱\n\nJika Anda menerima pesan ini, WhatsApp provider berhasil terhubung!'
       );
 
       return {

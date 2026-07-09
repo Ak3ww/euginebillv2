@@ -1,10 +1,10 @@
-﻿# SALFANET RADIUS - Comprehensive Feature Guide
+# EugineBill RADIUS - Comprehensive Feature Guide
 
 **Version**: 2.11.6  
 **Last Updated**: March 27, 2026  
 **Project**: ISP/RTRW.NET Billing & RADIUS Management System
 
-> **Ringkasan Lengkap**: Dokumentasi ini merangkum semua fitur dan kemampuan dari SALFANET RADIUS. Konten dasar guide ini mencakup fitur hingga v2.7.5; untuk fitur baru v2.10.x–v2.11.x (Dark Mode, Admin Dashboard v2, PPPoE Session Sync, PPN Fix, Area badge, billingDay recalc, dll) lihat [`CHANGELOG.md`](getting-started/CHANGELOG.md) dan [`ROADMAP.md`](ROADMAP.md).
+> **Ringkasan Lengkap**: Dokumentasi ini merangkum semua fitur dan kemampuan dari EugineBill RADIUS. Konten dasar guide ini mencakup fitur hingga v2.7.5; untuk fitur baru v2.10.x–v2.11.x (Dark Mode, Admin Dashboard v2, PPPoE Session Sync, PPN Fix, Area badge, billingDay recalc, dll) lihat [`CHANGELOG.md`](getting-started/CHANGELOG.md) dan [`ROADMAP.md`](ROADMAP.md).
 
 ---
 
@@ -212,7 +212,7 @@ Public IP: 103.67.244.131
 5. Update existing users
 6. Generate import report
 
-**Use Case**: Migrasi dari MikroTik manual ke SALFANET RADIUS
+**Use Case**: Migrasi dari MikroTik manual ke EugineBill RADIUS
 
 ---
 
@@ -940,7 +940,7 @@ genieacs_parameter_display:
 #### A. Quick Deploy (vps-install.sh)
 ```bash
 # Upload project
-scp -r salfanet-radius root@VPS_IP:/root/
+scp -r EugineBill-radius root@VPS_IP:/root/
 
 # Run installer
 chmod +x vps-install.sh
@@ -988,7 +988,7 @@ chmod +x vps-update.sh
 **PM2 Configuration**:
 ```javascript
 {
-  name: 'salfanet-radius',
+  name: 'EugineBill-radius',
   script: 'npm',
   args: 'start',
   instances: 1,
@@ -1263,7 +1263,7 @@ formatWIB(date)     // Format for display
 ## 📝 License
 
 Proprietary - All Rights Reserved  
-Copyright © 2025 SALFANET RADIUS
+Copyright © 2025 EugineBill RADIUS
 
 ---
 

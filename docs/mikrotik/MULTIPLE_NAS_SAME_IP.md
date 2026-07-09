@@ -223,7 +223,7 @@ git pull origin main
 
 ### Step 2: Run Migration
 ```bash
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 npx prisma migrate deploy
 ```
 
@@ -246,7 +246,7 @@ Check `schema.prisma`:
 ### Step 4: Restart Application
 ```bash
 npm run build
-pm2 restart salfanet-radius
+pm2 restart EugineBill-radius
 ```
 
 ### Step 5: Test
@@ -327,7 +327,7 @@ POST /api/network/routers
 ```bash
 npx prisma migrate deploy
 npx prisma generate
-pm2 restart salfanet-radius
+pm2 restart EugineBill-radius
 ```
 
 ### Error: "P2002: Unique constraint failed"

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { WhatsAppService } from '@/server/services/notifications/whatsapp.service';
 import { nowWIB } from '@/lib/timezone';
@@ -90,10 +90,10 @@ export async function POST(request: NextRequest) {
 
     // Get company name
     const company = await prisma.company.findFirst();
-    const companyName = company?.name || 'SALFANET RADIUS';
+    const companyName = company?.name || 'EugineBill RADIUS';
 
     // Send OTP via WhatsApp
-    const message = `Kode OTP Anda: ${otpCode}\n\nBerlaku ${settings?.otpExpiry || 5} menit.\nJangan bagikan kode ini kepada siapapun.\n\n- ${companyName}\n\n By SALFANET RADIUS`;
+    const message = `Kode OTP Anda: ${otpCode}\n\nBerlaku ${settings?.otpExpiry || 5} menit.\nJangan bagikan kode ini kepada siapapun.\n\n- ${companyName}\n\n By EugineBill RADIUS`;
 
     try {
       await WhatsAppService.sendMessage({

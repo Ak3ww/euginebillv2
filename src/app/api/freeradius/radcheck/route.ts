@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client'; // Assuming prisma is set up
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
         const skip = (page - 1) * limit;
 
         // This requires prisma.radcheck definition. If not exists, will fail.
-        // Assuming user has a 'radcheck' model or similar. SALFANET-RADIUS likely uses 'radcheck' table.
+        // Assuming user has a 'radcheck' model or similar. EugineBill-RADIUS likely uses 'radcheck' table.
         // If not, we'll try raw query or fallback.
 
         try {

@@ -495,7 +495,7 @@ export default function DownloadApkPage() {
           </div>
           <div className="flex items-start gap-2">
             <HardDrive className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-slate-500" />
-            <span>APK disimpan di <code className="text-slate-300 font-mono">/var/data/salfanet/apk/</code> dan tersedia sampai di-rebuild.</span>
+            <span>APK disimpan di <code className="text-slate-300 font-mono">/var/data/EugineBill/apk/</code> dan tersedia sampai di-rebuild.</span>
           </div>
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-500" />

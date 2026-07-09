@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/auth/config'
 import { readFile } from 'fs/promises'
 
-const L2TP_INFO_FILE = '/etc/salfanet/l2tp/l2tp-server-info.json'
+const L2TP_INFO_FILE = '/etc/EugineBill/l2tp/l2tp-server-info.json'
 
 export async function GET() {
   const session = await getServerSession(authOptions)

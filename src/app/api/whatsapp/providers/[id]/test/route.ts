@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import axios from 'axios';
 import { nanoid } from 'nanoid';
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const testMessage = `🧪 *Test Message from SALFANET RADIUS*
+    const testMessage = `🧪 *Test Message from EugineBill RADIUS*
 
 This is a test message from WhatsApp Provider: *${provider.name}*
 

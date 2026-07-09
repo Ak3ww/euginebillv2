@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS VPS Installer - Nginx Module
+# EugineBill RADIUS VPS Installer - Nginx Module
 # ============================================================================
 # Step 6: Install & configure Nginx reverse proxy
 # ============================================================================
@@ -29,7 +29,7 @@ generate_selfsigned_cert() {
     openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
         -keyout "$KEY" \
         -out "$CERT" \
-        -subj "/CN=${CN}/O=SalfaNet/C=ID" 2>/dev/null
+        -subj "/CN=${CN}/O=EugineBill/C=ID" 2>/dev/null
 
     chmod 600 "$KEY"
     print_success "Self-signed cert created: $CERT"
@@ -58,18 +58,18 @@ _proxy_locations() {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
 
-    access_log /var/log/nginx/salfanet-radius-access.log;
-    error_log  /var/log/nginx/salfanet-radius-error.log;
+    access_log /var/log/nginx/EugineBill-radius-access.log;
+    error_log  /var/log/nginx/EugineBill-radius-error.log;
 
     location /downloads/ {
-        alias /var/www/salfanet-radius/public/downloads/;
+        alias /var/www/EugineBill-radius/public/downloads/;
         autoindex off;
         add_header Content-Disposition 'attachment';
     }
 
     # PWA manifest files — serve directly from public/ (no Node.js needed)
     location ~ ^/manifest(-[a-z]+)?\.json$ {
-        root /var/www/salfanet-radius/public;
+        root /var/www/EugineBill-radius/public;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
         add_header Content-Type "application/manifest+json";
@@ -77,7 +77,7 @@ _proxy_locations() {
 
     # Service worker — no cache
     location = /sw.js {
-        root /var/www/salfanet-radius/public;
+        root /var/www/EugineBill-radius/public;
         expires off;
         add_header Cache-Control "no-cache, no-store, must-revalidate";
         add_header Service-Worker-Allowed "/";
@@ -85,14 +85,14 @@ _proxy_locations() {
 
     # PWA icons and assets
     location /pwa/ {
-        root /var/www/salfanet-radius/public;
+        root /var/www/EugineBill-radius/public;
         expires 30d;
         add_header Cache-Control "public, max-age=2592000, immutable";
         access_log off;
     }
 
     location /_next/static/ {
-        alias /var/www/salfanet-radius/.next/static/;
+        alias /var/www/EugineBill-radius/.next/static/;
         expires 365d;
         access_log off;
         add_header Cache-Control "public, immutable";
@@ -165,18 +165,18 @@ _proxy_locations_https_domain() {
     # CSP - allow Cloudflare Insights beacon
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://static.cloudflareinsights.com; script-src-elem 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://api.fonnte.com https://api.wablas.com https://api.kirimi.id https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
 
-    access_log /var/log/nginx/salfanet-radius-access.log;
-    error_log  /var/log/nginx/salfanet-radius-error.log;
+    access_log /var/log/nginx/EugineBill-radius-access.log;
+    error_log  /var/log/nginx/EugineBill-radius-error.log;
 
     location /downloads/ {
-        alias /var/www/salfanet-radius/public/downloads/;
+        alias /var/www/EugineBill-radius/public/downloads/;
         autoindex off;
         add_header Content-Disposition 'attachment';
     }
 
     # Static assets - long cache (hashed filenames change on rebuild)
     location /_next/static/ {
-        alias /var/www/salfanet-radius/.next/static/;
+        alias /var/www/EugineBill-radius/.next/static/;
         expires 365d;
         access_log off;
         add_header Cache-Control "public, immutable";
@@ -184,7 +184,7 @@ _proxy_locations_https_domain() {
 
     # PWA manifest files — serve directly from public/ (no Node.js needed)
     location ~ ^/manifest(-[a-z]+)?\.json$ {
-        root /var/www/salfanet-radius/public;
+        root /var/www/EugineBill-radius/public;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
         add_header Content-Type "application/manifest+json";
@@ -192,7 +192,7 @@ _proxy_locations_https_domain() {
 
     # Service worker — no cache
     location = /sw.js {
-        root /var/www/salfanet-radius/public;
+        root /var/www/EugineBill-radius/public;
         expires off;
         add_header Cache-Control "no-cache, no-store, must-revalidate";
         add_header Service-Worker-Allowed "/";
@@ -200,7 +200,7 @@ _proxy_locations_https_domain() {
 
     # PWA icons and assets
     location /pwa/ {
-        root /var/www/salfanet-radius/public;
+        root /var/www/EugineBill-radius/public;
         expires 30d;
         add_header Cache-Control "public, max-age=2592000, immutable";
         access_log off;
@@ -355,7 +355,7 @@ create_nginx_config() {
     if [ -n "${VPS_DOMAIN:-}" ]; then
         print_info "Domain: ${VPS_DOMAIN} — generating 4-block HTTPS config..."
 
-        cat > /etc/nginx/sites-available/salfanet-radius <<EOF
+        cat > /etc/nginx/sites-available/EugineBill-radius <<EOF
 # Block 1: HTTP domain → HTTPS redirect
 server {
     listen 80;
@@ -412,7 +412,7 @@ EOF
         # No domain: 2-block config (HTTP + HTTPS) with IP only
         print_info "No domain set — generating IP-only HTTP+HTTPS config..."
 
-        cat > /etc/nginx/sites-available/salfanet-radius <<EOF
+        cat > /etc/nginx/sites-available/EugineBill-radius <<EOF
 # Block 1: HTTP (IP direct access)
 server {
     listen 80 default_server;
@@ -508,7 +508,7 @@ setup_ssl_domain() {
         local CERT="/etc/ssl/certs/nginx-selfsigned.crt"
         local KEY_SS="/etc/ssl/private/nginx-selfsigned.key"
 
-        cat > /etc/nginx/sites-available/salfanet-radius <<EOF
+        cat > /etc/nginx/sites-available/EugineBill-radius <<EOF
 # Block 1: HTTP domain → HTTPS redirect
 server {
     listen 80;
@@ -572,7 +572,7 @@ enable_nginx_site() {
     rm -f /etc/nginx/sites-enabled/default
     
     # Enable our site
-    ln -sf /etc/nginx/sites-available/salfanet-radius /etc/nginx/sites-enabled/
+    ln -sf /etc/nginx/sites-available/EugineBill-radius /etc/nginx/sites-enabled/
     
     print_success "Nginx site enabled"
 }
@@ -622,7 +622,7 @@ verify_external_web_access() {
         print_success "Internal app check OK: http://127.0.0.1:3000"
     else
         print_warning "Internal app check failed: http://127.0.0.1:3000"
-        print_info "  Cek PM2: pm2 status && pm2 logs salfanet-radius --lines 60"
+        print_info "  Cek PM2: pm2 status && pm2 logs EugineBill-radius --lines 60"
     fi
 
     # 2) Internal Nginx check (HTTP)

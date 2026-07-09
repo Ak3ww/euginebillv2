@@ -10,13 +10,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/s4lfanet/salfanet-radius-go/internal/api"
-	"github.com/s4lfanet/salfanet-radius-go/internal/config"
-	"github.com/s4lfanet/salfanet-radius-go/internal/cron"
-	"github.com/s4lfanet/salfanet-radius-go/internal/db"
-	"github.com/s4lfanet/salfanet-radius-go/internal/olt/poller"
-	"github.com/s4lfanet/salfanet-radius-go/internal/radius"
-	"github.com/s4lfanet/salfanet-radius-go/internal/ws"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/api"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/config"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/cron"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/db"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/olt/poller"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/radius"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/ws"
 )
 
 func main() {

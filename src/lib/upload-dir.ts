@@ -6,13 +6,13 @@ import { existsSync, mkdirSync } from 'fs';
  * Persistent upload directory — lives OUTSIDE the build/git directory so that
  * `git reset --hard`, `rm -rf .next`, and `npm run build` never touch it.
  *
- * Production: /var/data/salfanet/uploads  (set via UPLOAD_DIR env var)
+ * Production: /var/data/EugineBill/uploads  (set via UPLOAD_DIR env var)
  * Development: <project>/data/uploads
  */
 export const UPLOAD_DIR =
   process.env.UPLOAD_DIR ||
   (process.env.NODE_ENV === 'production'
-    ? '/var/data/salfanet/uploads'
+    ? '/var/data/EugineBill/uploads'
     : join(process.cwd(), 'data', 'uploads'));
 
 /**
@@ -20,8 +20,8 @@ export const UPLOAD_DIR =
  * Automatically creates the directory if it doesn't exist.
  *
  * Usage:
- *   getUploadDir('payment-proofs')       → /var/data/salfanet/uploads/payment-proofs
- *   getUploadDir('pppoe-customers', 'id-cards') → /var/data/salfanet/uploads/pppoe-customers/id-cards
+ *   getUploadDir('payment-proofs')       → /var/data/EugineBill/uploads/payment-proofs
+ *   getUploadDir('pppoe-customers', 'id-cards') → /var/data/EugineBill/uploads/pppoe-customers/id-cards
  */
 export function getUploadDir(...segments: string[]): string {
   const dir = join(UPLOAD_DIR, ...segments);

@@ -1,7 +1,7 @@
 # 🧹 Migration and Cleanup Guide
 
 **Last Updated:** February 17, 2026, 3:00 AM WIB  
-**Project:** SALFANET RADIUS v2.9.0
+**Project:** EugineBill RADIUS v2.9.0
 
 ---
 
@@ -87,8 +87,8 @@ model pppoeUser {
 
 ```bash
 # 1. Clone repository
-git clone <repository-url> salfanet-radius
-cd salfanet-radius
+git clone <repository-url> EugineBill-radius
+cd EugineBill-radius
 
 # 2. Install dependencies
 npm install
@@ -122,7 +122,7 @@ npm start
 
 ```bash
 # 1. Backup existing database
-mysqldump -u root -p salfanet_radius > backup_$(date +%Y%m%d).sql
+mysqldump -u root -p EugineBill_radius > backup_$(date +%Y%m%d).sql
 
 # 2. Pull latest code
 git pull origin main
@@ -223,7 +223,7 @@ status String @default("ACTIVE")
 pm2 stop all
 
 # 2. Backup database
-mysqldump -u root -p salfanet_radius > backup_production.sql
+mysqldump -u root -p EugineBill_radius > backup_production.sql
 
 # 3. Pull latest code
 git pull origin main
@@ -299,10 +299,10 @@ prisma/migrations/
 ### **Test on Fresh Database:**
 ```bash
 # 1. Create test database
-mysql -u root -p -e "CREATE DATABASE salfanet_radius_test;"
+mysql -u root -p -e "CREATE DATABASE EugineBill_radius_test;"
 
 # 2. Update .env with test database
-DATABASE_URL="mysql://root@localhost:3306/salfanet_radius_test"
+DATABASE_URL="mysql://root@localhost:3306/EugineBill_radius_test"
 
 # 3. Apply all migrations
 npx prisma migrate deploy
@@ -311,7 +311,7 @@ npx prisma migrate deploy
 npx prisma db pull
 
 # 5. Check all tables created
-mysql -u root -p salfanet_radius_test -e "SHOW TABLES;"
+mysql -u root -p EugineBill_radius_test -e "SHOW TABLES;"
 ```
 
 ### **Test Migration Rollback (Development Only):**

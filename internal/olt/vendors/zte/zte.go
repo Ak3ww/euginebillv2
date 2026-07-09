@@ -22,9 +22,9 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog/log"
-	"github.com/s4lfanet/salfanet-radius-go/internal/db/models"
-	snmputil "github.com/s4lfanet/salfanet-radius-go/internal/olt/snmp"
-	"github.com/s4lfanet/salfanet-radius-go/internal/olt/telnet"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/db/models"
+	snmputil "github.com/s4lfanet/EugineBill-radius-go/internal/olt/snmp"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/olt/telnet"
 )
 
 // ─── OID constants ────────────────────────────────────────────────────────────

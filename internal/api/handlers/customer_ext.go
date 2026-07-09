@@ -8,7 +8,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"gorm.io/gorm"
 
-	"github.com/s4lfanet/salfanet-radius-go/internal/db/models"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/db/models"
 )
 
 // CustomerExtHandler handles extended customer portal endpoints.

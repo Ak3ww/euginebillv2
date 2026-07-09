@@ -1,4 +1,4 @@
-# Maintenance Refactor Roadmap — SALFANET RADIUS
+# Maintenance Refactor Roadmap — EugineBill RADIUS
 
 > Tujuan: Meningkatkan maintainability dan fleksibilitas project tanpa migrasi arsitektur besar.
 > Strategi: Refactor dalam struktur monolith Next.js yang sudah ada, perkuat layering yang sudah terbentuk.
@@ -30,7 +30,7 @@
 - [x] **SEC-02** — Hapus `src/server/services/notifications/firebase-service-account.json` (duplikat)
 - [x] **SEC-03** — Perkuat `.gitignore` — tambah `*-adminsdk-*.json`, `GoogleService-Info.plist`
 - [x] **SEC-04** — Hapus hardcoded credential fallbacks:
-  - `'salfanetradius123'` di `timezone/route.ts` → parse otomatis dari `DATABASE_URL`
+  - `'EugineBillradius123'` di `timezone/route.ts` → parse otomatis dari `DATABASE_URL`
   - `'testing123'` (CoA secret) di `coa.service.ts` → wajib dari env var `RADIUS_COA_SECRET`
 - [x] **SEC-05** — Tambah env vars yang hilang ke `.env`: `VAPID_PUBLIC_KEY`, `CRON_SECRET`, `RADIUS_COA_SECRET`
 
@@ -92,7 +92,7 @@
 - [x] **CRON-03** — Update `cron-service.js` → tambah header DEPRECATED + instruksi migrasi
 - [x] **CRON-04** — Update `production/ecosystem.config.js` → ganti `./cron-service.js` dengan `npx tsx src/cron/runner.ts`
   - Hapus `API_URL` env var yang tidak lagi dibutuhkan
-- [x] **CRON-05** — Harden `POST /api/cron` auth — hapus fallback `User-Agent: SALFANET-CRON-SERVICE` (insecure), wajibkan `x-cron-secret` header atau SUPER_ADMIN session
+- [x] **CRON-05** — Harden `POST /api/cron` auth — hapus fallback `User-Agent: EugineBill-CRON-SERVICE` (insecure), wajibkan `x-cron-secret` header atau SUPER_ADMIN session
 - [x] **CRON-06** — TypeScript 0 errors, 43/43 tests pass
 
 **Cara deploy ke VPS:**
@@ -101,11 +101,11 @@
 git fetch origin && git reset --hard origin/master
 
 # 2. Reload Next.js (zero-downtime)
-pm2 reload salfanet-radius --update-env
+pm2 reload EugineBill-radius --update-env
 
 # 3. Restart cron dengan config baru
-pm2 delete salfanet-cron
-pm2 start production/ecosystem.config.js --only salfanet-cron
+pm2 delete EugineBill-cron
+pm2 start production/ecosystem.config.js --only EugineBill-cron
 pm2 save
 ```
 
@@ -203,8 +203,8 @@ const appUrl = env.public.APP_URL
   - Transfer 77 file via tar.gz
   - `npm install` (server-only, dotenv ditambahkan)
   - `npm run build` → SUKSES 259 routes dalam 60s
-  - `pm2 reload salfanet-radius --update-env` → v2.22.0 online
-  - `pm2 restart salfanet-cron` dengan `ecosystem.config.js` baru (tsx runner, NODE_OPTIONS=--conditions=react-server)
+  - `pm2 reload EugineBill-radius --update-env` → v2.22.0 online
+  - `pm2 restart EugineBill-cron` dengan `ecosystem.config.js` baru (tsx runner, NODE_OPTIONS=--conditions=react-server)
   - runner.ts berhasil: 16 jobs terdaftar, FreeRADIUS Health Check startup ✓
 
 ---
@@ -223,8 +223,8 @@ const appUrl = env.public.APP_URL
 
 **VPS Cleanup:**
 - Hapus `/tmp/coordinator-cleanup.tar.gz`, `/tmp/deploy-refactor.tar.gz`, `/tmp/refactor-phase06.bundle`, `/tmp/build-log.txt`
-- Rebuild Next.js + reload PM2 `salfanet-radius`
-- PM2 status: `salfanet-cron` online (16 jobs), `salfanet-radius` online (cluster)
+- Rebuild Next.js + reload PM2 `EugineBill-radius`
+- PM2 status: `EugineBill-cron` online (16 jobs), `EugineBill-radius` online (cluster)
 
 ---
 
@@ -263,5 +263,5 @@ src/
 - **`mobile-app/`** — sudah di `.gitignore`, tidak perlu dihapus. Folder ini berisi Expo React Native yang sudah digantikan oleh PWA.
 - **`billing-radius/`** — sudah di `.gitignore`, tidak masuk ke production deploy.
 - **`cron-service.js`** — PM2 entrypoint, JANGAN diubah nama tanpa update `ecosystem.config.js`.
-- **VPS Deploy** — selalu jalankan `npm run build` dan `pm2 reload salfanet-radius --update-env` setelah perubahan.
+- **VPS Deploy** — selalu jalankan `npm run build` dan `pm2 reload EugineBill-radius --update-env` setelah perubahan.
 - **DB Migration** — gunakan `prisma db push` untuk VPS, bukan `migrate deploy` (schema-first approach).

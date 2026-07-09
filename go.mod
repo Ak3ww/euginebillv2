@@ -1,4 +1,4 @@
-module github.com/s4lfanet/salfanet-radius-go
+module github.com/s4lfanet/EugineBill-radius-go
 
 go 1.23.0
 

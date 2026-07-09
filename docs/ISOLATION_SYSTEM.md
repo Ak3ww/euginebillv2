@@ -134,7 +134,7 @@ curl -X POST http://localhost:3000/api/cron \
 
 ```bash
 # Cek log PM2
-pm2 logs salfanet-cron --lines 50
+pm2 logs EugineBill-cron --lines 50
 
 # Contoh log sukses:
 # [CRON] Running PPPoE Auto Isolir (attempt 1/3)...
@@ -444,7 +444,7 @@ Admin Panel → Settings → Isolation (Settings & MikroTik Setup)
 
 ```bash
 # 1. Cek apakah cron berjalan
-pm2 logs salfanet-cron --lines 100 | grep "Auto Isolir"
+pm2 logs EugineBill-cron --lines 100 | grep "Auto Isolir"
 
 # 2. Trigger manual via API
 curl -X POST http://localhost:3000/api/cron \
@@ -486,7 +486,7 @@ Kemungkinan penyebab:
 Cek:
 - /ip firewall nat print (pastikan rule redirect ada)
 - /ip pool used print where pool=pool-isolir
-- pm2 logs salfanet-radius --lines 20 | grep PROXY
+- pm2 logs EugineBill-radius --lines 20 | grep PROXY
 ```
 
 ### Info User Tidak Muncul di Halaman /isolated

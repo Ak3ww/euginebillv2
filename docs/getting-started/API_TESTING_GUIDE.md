@@ -1,6 +1,6 @@
 # 🧪 API TESTING GUIDE
 
-> **Comprehensive guide for testing all API endpoints in SALFANET RADIUS**
+> **Comprehensive guide for testing all API endpoints in EugineBill RADIUS**
 
 ---
 
@@ -285,7 +285,7 @@ Expected response times:
 ### **Check Server Logs:**
 ```bash
 # PM2 logs
-pm2 logs salfanet-radius
+pm2 logs EugineBill-radius
 
 # Or file logs
 tail -f logs/out.log
@@ -349,7 +349,7 @@ curl -v http://localhost:3000/api/health
 ### **API Returns 500:**
 ```bash
 # Check logs
-pm2 logs salfanet-radius --err
+pm2 logs EugineBill-radius --err
 
 # Check database
 mysql -u root -p -e "SHOW PROCESSLIST;"
@@ -390,4 +390,4 @@ mysql -e "SHOW STATUS LIKE 'Threads_connected';"
 ---
 
 **Last Updated:** March 27, 2026  
-**Version:** SALFANET RADIUS v2.11.6
+**Version:** EugineBill RADIUS v2.11.6

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS VPS Installer - Common Functions
+# EugineBill RADIUS VPS Installer - Common Functions
 # ============================================================================
 # Shared utilities, colors, logging, and configuration
 # Supports: Public VPS | Proxmox LXC | Proxmox VM | Bare Metal
@@ -18,17 +18,17 @@ export NC='\033[0m' # No Color
 
 # Global configuration variables
 export NODE_VERSION="${NODE_VERSION:-20}"
-export APP_DIR="${APP_DIR:-/var/www/salfanet-radius}"
+export APP_DIR="${APP_DIR:-/var/www/EugineBill-radius}"
 # APP_USER and APP_GROUP will be set in initialize_user_selection()
 export APP_USER="${APP_USER:-}"
 export APP_GROUP="${APP_GROUP:-}"
-export DB_NAME="${DB_NAME:-salfanet_radius}"
-export DB_USER="${DB_USER:-salfanet_user}"
-export DB_PASSWORD="${DB_PASSWORD:-salfanetradius123}"
+export DB_NAME="${DB_NAME:-EugineBill_radius}"
+export DB_USER="${DB_USER:-EugineBill_user}"
+export DB_PASSWORD="${DB_PASSWORD:-EugineBillradius123}"
 export DB_ROOT_PASSWORD="${DB_ROOT_PASSWORD:-root123}"
 export SYSTEM_TIMEZONE="${SYSTEM_TIMEZONE:-Asia/Jakarta}"
 export MYSQL_TZ_OFFSET="${MYSQL_TZ_OFFSET:-+07:00}"
-export INSTALL_LOG="${INSTALL_LOG:-/var/log/salfanet-vps-install.log}"
+export INSTALL_LOG="${INSTALL_LOG:-/var/log/EugineBill-vps-install.log}"
 export INSTALL_INFO_FILE="${APP_DIR}/INSTALLATION_INFO.txt"
 
 # Environment type — akan di-set oleh detect_environment() atau pilihan user
@@ -279,11 +279,11 @@ export -f check_root
 
 check_directory() {
     local CURRENT_DIR=$(pwd)
-    if [[ "$CURRENT_DIR" != *"salfanet-radius"* ]] && [[ "$CURRENT_DIR" != *"SALFANET-RADIUS-main"* ]]; then
+    if [[ "$CURRENT_DIR" != *"EugineBill-radius"* ]] && [[ "$CURRENT_DIR" != *"EugineBill-RADIUS-main"* ]]; then
         print_error "Please run this script from the source directory"
         echo "   Current directory: $CURRENT_DIR"
         echo ""
-        echo "   Expected: /root/salfanet-radius or /root/SALFANET-RADIUS-main"
+        echo "   Expected: /root/EugineBill-radius or /root/EugineBill-RADIUS-main"
         exit 1
     fi
 }
@@ -476,7 +476,7 @@ print_banner() {
     clear
     echo ""
     echo -e "${CYAN}=============================================${NC}"
-    echo -e "${CYAN}  SALFANET RADIUS - Installer v2.10.9${NC}"
+    echo -e "${CYAN}  EugineBill RADIUS - Installer v2.10.9${NC}"
     echo -e "${CYAN}  Supports: Public VPS | Proxmox LXC/VM${NC}"
     echo -e "${CYAN}=============================================${NC}"
     if [ -n "$DEPLOY_ENV_LABEL" ]; then
@@ -543,17 +543,17 @@ initialize_user_selection() {
     
     echo -e "${CYAN}Application User Options:${NC}"
     echo "  1) Use existing user: ${GREEN}$CURRENT_USER${NC} (recommended for single-user VPS)"
-    echo "  2) Create dedicated user: ${YELLOW}salfanet${NC} (recommended for security/multi-user)"
+    echo "  2) Create dedicated user: ${YELLOW}EugineBill${NC} (recommended for security/multi-user)"
     echo ""
     
     read -t 15 -p "Select option [1/2] (default: 1): " USER_CHOICE || USER_CHOICE="1"
     echo ""
     
     if [[ "$USER_CHOICE" == "2" ]]; then
-        export APP_USER="salfanet"
-        export APP_GROUP="salfanet"
+        export APP_USER="EugineBill"
+        export APP_GROUP="EugineBill"
         export CREATE_NEW_USER=true
-        print_success "Will create dedicated user: salfanet"
+        print_success "Will create dedicated user: EugineBill"
     else
         export APP_USER="$CURRENT_USER"
         export APP_GROUP="$CURRENT_USER"

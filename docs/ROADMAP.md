@@ -1,4 +1,4 @@
-# SALFANET RADIUS — Roadmap 2026
+# EugineBill RADIUS — Roadmap 2026
 
 > Last updated: **April 10, 2026** | Version: **2.17.0**  
 > Legend: ✅ Done · 🔄 In Progress · 📅 Planned · 🐛 Bug/Debt · 🔒 Security
@@ -202,7 +202,7 @@ Middleware (`src/proxy.ts`) hanya melindungi page routes `/admin/*`, tidak melin
 | 4 | **Customer self-service suspend** | 1–2 hari | ✅ DONE — `/customer/suspend`, `/admin/suspend-requests`, mobile `suspend.tsx`, API + cron, PM2 #67 |
 | 5 | **2FA untuk admin login** | 2–3 hari | ✅ DONE (Feb 27, 2026) — TOTP inline 2-step, PM2 #47 |
 | 6 | **Admin dashboard improvements** | 1 hari | ✅ DONE (Feb 28, 2026) — Agent voucher sales section, RADIUS auth log (radpostauth), fix i18n hardcoded strings (28 keys), PM2 #77 |
-| 7 | **Full SALFANET rebrand** | 1 hari | ✅ DONE (Feb 28, 2026) — Semua `AIBILL`/`aibill` → `SALFANET`/`salfanet` di seluruh project (src/, vps-install/, docs/, production/), `salfanetradius` MikroTik profiles |
+| 7 | **Full EugineBill rebrand** | 1 hari | ✅ DONE (Feb 28, 2026) — Semua `AIBILL`/`aibill` → `EugineBill`/`EugineBill` di seluruh project (src/, vps-install/, docs/, production/), `EugineBillradius` MikroTik profiles |
 
 ### 🟡 Priority: Medium
 
@@ -246,7 +246,7 @@ Middleware (`src/proxy.ts`) hanya melindungi page routes `/admin/*`, tidak melin
 | 6 | `mobile-app/` ada di monorepo root | 🟢 Rendah | Known | Idealnya dipisah ke repo sendiri |
 | 7 | `MYSQL_OPT_RECONNECT deprecated` di FreeRADIUS | 🟢 Rendah | Known | Dari libmysql MySQL 8.0+, tidak bisa fix tanpa recompile FreeRADIUS |
 | 8 | Turbopack incremental cache — perlu `rm -rf .next` sebelum build VPS | 🟡 Sedang | Known | Jika lupa, route lama masih terkompilasi meski source sudah diupload |
-| 9 | MikroTik script `/ppp profile add` error `expected end of command` (col 121) | 🔴 High | ✅ Fixed (Feb 28) | `use-vj-compression` dihapus dari script — parameter ini tidak ada di RouterOS 7.x. Juga tambah `comment=` ke profil `salfanetradius`. File: `src/app/api/network/routers/[id]/setup-radius/route.ts` |
+| 9 | MikroTik script `/ppp profile add` error `expected end of command` (col 121) | 🔴 High | ✅ Fixed (Feb 28) | `use-vj-compression` dihapus dari script — parameter ini tidak ada di RouterOS 7.x. Juga tambah `comment=` ke profil `EugineBillradius`. File: `src/app/api/network/routers/[id]/setup-radius/route.ts` |
 | 10 | Light theme text invisible — white text on light bg across admin pages | 🔴 High | ✅ Fixed (Mar 2) | 240+ fixes across 60+ files: text-white→text-foreground, text-[#e0d0ff]→text-muted-foreground, form inputs restyled, unicode/emoji repaired |
 | 11 | Unused one-time fix scripts cluttering `scripts/` directory | 🟢 Rendah | ✅ Fixed (Mar 2) | Removed 16 files (fix_*.py, patch-*.ps1, check_mt.js, src-update.zip). Kept 4 utility scripts |
 | 12 | FreeRADIUS `mods-enabled/rest` missing `post-auth` section locally | 🟡 Sedang | ✅ Fixed (Mar 2) | Synced with `mods-available/rest` (the VPS source of truth) |
@@ -300,8 +300,8 @@ Middleware (`src/proxy.ts`) hanya melindungi page routes `/admin/*`, tidak melin
 | 2.10.15 | 1 Mar 2026 | **Swal Migration + Referral System** — Customer portal 4 file fully migrated from SweetAlert2 → CyberToast (19 calls). Customer referral system (DB+API+UI). Theme instant switch (no transition). |
 | 2.10.14 | 1 Mar 2026 | **VPS Hotfix** — FreeRADIUS MySQL Error 4031 fix (pool: retry_delay=1, lifetime=300, idle_timeout=20), nginx gzip level 6, swap reclaimed, Redis restart, theme instant switch, cyberpunk-bg hidden in light mode. PM2 #95. |
 | 2.10.13 | 28 Feb 2026 | **Dark/Light Mode Toggle** — `useTheme` hook, Sun/Moon button di admin header, light mode CSS vars (slate-50 bg, dark sidebar), `localStorage` persistent. |
-| 2.10.12 | 28 Feb 2026 | **Bugfix MikroTik Script** — `use-vj-compression` dihapus dari `/ppp profile add salfanetradius` (tidak valid di ROS 7.x, menyebabkan `expected end of command` col 121). |
-| 2.10.11 | 28 Feb 2026 | **Admin Dashboard v2** — Agent voucher sales + RADIUS auth log + i18n fix (28 keys), PM2 #77. **Full SALFANET Rebrand** — semua AIBILL diganti di seluruh project, MikroTik profile `salfanetradius`. |
+| 2.10.12 | 28 Feb 2026 | **Bugfix MikroTik Script** — `use-vj-compression` dihapus dari `/ppp profile add EugineBillradius` (tidak valid di ROS 7.x, menyebabkan `expected end of command` col 121). |
+| 2.10.11 | 28 Feb 2026 | **Admin Dashboard v2** — Agent voucher sales + RADIUS auth log + i18n fix (28 keys), PM2 #77. **Full EugineBill Rebrand** — semua AIBILL diganti di seluruh project, MikroTik profile `EugineBillradius`. |
 | 2.10.10 | 28 Feb 2026 | **Bulk Import Invoice CSV** — `/admin/invoices/import`, papaparse, PM2 #58. **Customer Self-service Suspend** — web+mobile, cron, `suspend_requests` table, PM2 #67. |
 | 2.10.9+ | 27 Feb 2026 | **Export Laporan PDF/Excel** — `/admin/laporan`, pm2 #48. **2FA admin login** — TOTP inline, PM2 #47. Security audit 42 routes. PPPoE documents. |
 | 2.10.9 | 21 Feb 2026 | Bug fixes customer portal, mobile layout, cleanup |
@@ -323,7 +323,7 @@ Middleware (`src/proxy.ts`) hanya melindungi page routes `/admin/*`, tidak melin
 4. ✅ **Bulk Import Invoice CSV** — `/admin/invoices/import`, PM2 #58
 5. ✅ **Customer self-service suspend** — web+mobile, cron hourly, PM2 #67
 6. ✅ **Admin dashboard improvements** — agent voucher sales + RADIUS auth log + i18n, PM2 #77
-7. ✅ **Full SALFANET rebrand** — seluruh AIBILL diganti, `salfanetradius` MikroTik profiles
+7. ✅ **Full EugineBill rebrand** — seluruh AIBILL diganti, `EugineBillradius` MikroTik profiles
 8. ✅ **Dark/light mode toggle** — `useTheme` hook, Sun/Moon button, light CSS vars, `localStorage` persistent
 9. ✅ **VPS hotfix** — FreeRADIUS MySQL 4031, gzip level 6, swap+Redis, theme smooth transition (Mar 1)
 10. ✅ **Laporan analitik advanced** — churn rate, retention, ARPU, grafik trend — ✅ DONE (Feb 28, 2026) `/admin/laporan/analitik`, PM2 #78

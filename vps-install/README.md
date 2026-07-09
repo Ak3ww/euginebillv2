@@ -1,4 +1,4 @@
-﻿# VPS Installer — SALFANET RADIUS
+# VPS Installer — EugineBill RADIUS
 
 Satu installer untuk semua environment: **Public VPS**, **Proxmox LXC**, **Proxmox VM**, **Bare Metal**.
 
@@ -13,10 +13,10 @@ Satu installer untuk semua environment: **Public VPS**, **Proxmox LXC**, **Proxm
 ssh root@IP_SERVER
 
 # Clone repo
-git clone https://github.com/s4lfanet/salfanet-radius.git /root/salfanet-radius
+git clone https://github.com/s4lfanet/EugineBill-radius.git /root/EugineBill-radius
 
 # Jalankan installer
-cd /root/salfanet-radius
+cd /root/EugineBill-radius
 bash vps-install/vps-installer.sh
 ```
 
@@ -28,11 +28,11 @@ Gunakan ini jika server tidak bisa akses internet / GitHub.
 
 ```bash
 # Jalankan di PowerShell / terminal LOKAL (bukan di server)
-scp -r ./salfanet-radius root@IP_SERVER:/root/salfanet-radius
+scp -r ./EugineBill-radius root@IP_SERVER:/root/EugineBill-radius
 
 # Lalu SSH ke server dan jalankan installer
 ssh root@IP_SERVER
-cd /root/salfanet-radius
+cd /root/EugineBill-radius
 bash vps-install/vps-installer.sh
 ```
 
@@ -66,7 +66,7 @@ bash vps-install/vps-installer.sh --env lxc --ip 192.168.1.50
 Cara paling aman dan cepat. **Semua data upload (logo, foto KTP, bukti bayar) otomatis dipreservasi.**
 
 ```bash
-bash /var/www/salfanet-radius/vps-install/updater.sh
+bash /var/www/EugineBill-radius/vps-install/updater.sh
 ```
 
 ---
@@ -74,7 +74,7 @@ bash /var/www/salfanet-radius/vps-install/updater.sh
 ### Metode 2 — Update via Git (Manual)
 
 ```bash
-bash /var/www/salfanet-radius/vps-install/updater.sh --branch master
+bash /var/www/EugineBill-radius/vps-install/updater.sh --branch master
 ```
 
 Script akan: pull kode terbaru → preserve uploads → npm install → prisma db push → rebuild → restart PM2.
@@ -202,14 +202,14 @@ http://IP_LXC_CONTAINER
 
 | Path | Keterangan |
 |------|------------|
-| `/var/www/salfanet-radius/` | Root direktori aplikasi |
-| `/var/www/salfanet-radius/.env` | Environment variables (database, secrets) |
-| `/var/www/salfanet-radius/public/uploads/` | **File upload pengguna — jangan hapus!** |
-| `/var/www/salfanet-radius/public/uploads/logos/` | Logo perusahaan |
-| `/var/www/salfanet-radius/public/uploads/pppoe-customers/` | KTP & dokumen pelanggan |
-| `/var/www/salfanet-radius/INSTALLATION_INFO.txt` | Ringkasan hasil instalasi |
-| `/root/salfanet-backups/` | Backup otomatis sebelum update |
-| `/var/log/salfanet-vps-install.log` | Log proses instalasi |
+| `/var/www/EugineBill-radius/` | Root direktori aplikasi |
+| `/var/www/EugineBill-radius/.env` | Environment variables (database, secrets) |
+| `/var/www/EugineBill-radius/public/uploads/` | **File upload pengguna — jangan hapus!** |
+| `/var/www/EugineBill-radius/public/uploads/logos/` | Logo perusahaan |
+| `/var/www/EugineBill-radius/public/uploads/pppoe-customers/` | KTP & dokumen pelanggan |
+| `/var/www/EugineBill-radius/INSTALLATION_INFO.txt` | Ringkasan hasil instalasi |
+| `/root/EugineBill-backups/` | Backup otomatis sebelum update |
+| `/var/log/EugineBill-vps-install.log` | Log proses instalasi |
 
 ---
 
@@ -220,22 +220,22 @@ http://IP_LXC_CONTAINER
 pm2 status
 
 # Lihat log real-time
-pm2 logs salfanet-radius
+pm2 logs EugineBill-radius
 
 # Restart aplikasi
-pm2 restart salfanet-radius
+pm2 restart EugineBill-radius
 
 # Restart cron service
-pm2 restart salfanet-cron
+pm2 restart EugineBill-cron
 
 # Cek database
-mysql -u salfanet -p salfanet_radius -e "SHOW TABLES;"
+mysql -u EugineBill -p EugineBill_radius -e "SHOW TABLES;"
 
 # Fix permission jika ada error akses file
-bash /var/www/salfanet-radius/vps-install/fix-permissions.sh
+bash /var/www/EugineBill-radius/vps-install/fix-permissions.sh
 
 # Cek port yang sedang digunakan
-bash /var/www/salfanet-radius/vps-install/check-port.sh
+bash /var/www/EugineBill-radius/vps-install/check-port.sh
 ```
 
 ---
@@ -248,19 +248,19 @@ Script untuk membangun APK Android untuk customer self-service app.
 
 ```bash
 # Install lengkap + build APK (pertama kali)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh
 
 # Rebuild APK saja (SDK sudah ada, lebih cepat)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --rebuild
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --rebuild
 
 # Cek status APK
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --status
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --status
 
 # Install Java + SDK saja (tanpa build)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --sdk-only
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --sdk-only
 
 # Build APK saja (skip install SDK)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --build-only
 ```
 
 ### Requirement
@@ -270,8 +270,8 @@ bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
 
 ### Output
 ```
-/var/www/salfanet-radius/public/downloads/salfanet-radius.apk
-http://VPS_IP/downloads/salfanet-radius.apk
+/var/www/EugineBill-radius/public/downloads/EugineBill-radius.apk
+http://VPS_IP/downloads/EugineBill-radius.apk
 ```
 
 ### Estimasi Waktu
@@ -299,35 +299,35 @@ pct stop 100 ; pct start 100
 ### Gradle build gagal: "JAVA_HOME is not set"
 ```bash
 source /etc/profile.d/android-sdk.sh
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --build-only
 ```
 
 ### Gradle build gagal: "SDK location not found"
 ```bash
-echo "sdk.dir=/opt/android-sdk" > /var/www/salfanet-radius/mobile-app/android/local.properties
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
+echo "sdk.dir=/opt/android-sdk" > /var/www/EugineBill-radius/mobile-app/android/local.properties
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --build-only
 ```
 
 ### Out of memory saat build
 ```bash
 fallocate -l 2G /swapfile && chmod 600 /swapfile
 mkswap /swapfile && swapon /swapfile
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --build-only
 ```
 
 ### Prisma error setelah update
 ```bash
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 npx prisma generate
 npx prisma db push
-pm2 restart salfanet-radius
+pm2 restart EugineBill-radius
 ```
 
 ### Logo / upload tidak muncul setelah update
 Upload seharusnya aman. Jika tidak muncul, cek permission:
 ```bash
-chown -R www-data:www-data /var/www/salfanet-radius/public/uploads/
-chmod -R 755 /var/www/salfanet-radius/public/uploads/
+chown -R www-data:www-data /var/www/EugineBill-radius/public/uploads/
+chmod -R 755 /var/www/EugineBill-radius/public/uploads/
 ```
 
 ---
@@ -335,7 +335,7 @@ chmod -R 755 /var/www/salfanet-radius/public/uploads/
 ## 🗑️ Uninstall
 
 ```bash
-bash /var/www/salfanet-radius/vps-install/vps-uninstaller.sh
+bash /var/www/EugineBill-radius/vps-install/vps-uninstaller.sh
 ```
 
 ---
@@ -344,19 +344,19 @@ bash /var/www/salfanet-radius/vps-install/vps-uninstaller.sh
 
 **Metode 1: Git Clone (disarankan)**
 ```bash
-git clone https://github.com/s4lfanet/salfanet-radius.git /root/salfanet-radius
-cd /root/salfanet-radius
+git clone https://github.com/s4lfanet/EugineBill-radius.git /root/EugineBill-radius
+cd /root/EugineBill-radius
 bash vps-install/vps-installer.sh
 ```
 
 **Metode 2: Upload manual via SCP**
 ```bash
 # Upload dari PC (jalankan di PowerShell/terminal lokal)
-scp -r ./salfanet-radius root@IP_VPS:/root/salfanet-radius
+scp -r ./EugineBill-radius root@IP_VPS:/root/EugineBill-radius
 
 # Lalu SSH ke VPS dan jalankan installer
 ssh root@IP_VPS
-cd /root/salfanet-radius
+cd /root/EugineBill-radius
 bash vps-install/vps-installer.sh
 ```
 
@@ -461,19 +461,19 @@ Script untuk membangun APK Android customer self-service.
 
 ```bash
 # Install lengkap + build APK (pertama kali)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh
 
 # Rebuild APK saja (SDK sudah ada, lebih cepat)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --rebuild
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --rebuild
 
 # Cek status APK
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --status
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --status
 
 # Install Java + SDK saja (tanpa build)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --sdk-only
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --sdk-only
 
 # Build APK saja (skip install SDK)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --build-only
 ```
 
 ### Requirement
@@ -483,8 +483,8 @@ bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
 
 ### Output
 ```
-/var/www/salfanet-radius/public/downloads/salfanet-radius.apk
-http://VPS_IP/downloads/salfanet-radius.apk
+/var/www/EugineBill-radius/public/downloads/EugineBill-radius.apk
+http://VPS_IP/downloads/EugineBill-radius.apk
 ```
 
 ### Estimasi Waktu
@@ -504,14 +504,14 @@ http://VPS_IP/downloads/salfanet-radius.apk
 
 | Path | Keterangan |
 |------|------------|
-| `/var/www/salfanet-radius/` | Root aplikasi (APP_DIR) |
-| `/var/www/salfanet-radius/.env` | Environment variables |
-| `/var/www/salfanet-radius/mobile-app/` | Source Expo/React Native |
-| `/var/www/salfanet-radius/public/downloads/` | APK untuk download |
+| `/var/www/EugineBill-radius/` | Root aplikasi (APP_DIR) |
+| `/var/www/EugineBill-radius/.env` | Environment variables |
+| `/var/www/EugineBill-radius/mobile-app/` | Source Expo/React Native |
+| `/var/www/EugineBill-radius/public/downloads/` | APK untuk download |
 | `/opt/android-sdk/` | Android SDK |
 | `/etc/profile.d/android-sdk.sh` | Android env vars |
-| `/var/www/salfanet-radius/INSTALLATION_INFO.txt` | Info hasil instalasi |
-| `/var/log/salfanet-vps-install.log` | Log instalasi |
+| `/var/www/EugineBill-radius/INSTALLATION_INFO.txt` | Info hasil instalasi |
+| `/var/log/EugineBill-vps-install.log` | Log instalasi |
 
 ---
 
@@ -527,20 +527,20 @@ pct stop 100 ; pct start 100
 ### Gradle build gagal: "JAVA_HOME is not set"
 ```bash
 source /etc/profile.d/android-sdk.sh
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --build-only
 ```
 
 ### Gradle build gagal: "SDK location not found"
 ```bash
-echo "sdk.dir=/opt/android-sdk" > /var/www/salfanet-radius/mobile-app/android/local.properties
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
+echo "sdk.dir=/opt/android-sdk" > /var/www/EugineBill-radius/mobile-app/android/local.properties
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --build-only
 ```
 
 ### Out of memory saat Gradle build
 ```bash
 fallocate -l 2G /swapfile && chmod 600 /swapfile
 mkswap /swapfile && swapon /swapfile
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --build-only
 ```
 
 ---
@@ -548,20 +548,20 @@ bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
 ## Uninstall
 
 ```bash
-bash /root/salfanet-radius/vps-install/vps-uninstaller.sh
+bash /root/EugineBill-radius/vps-install/vps-uninstaller.sh
 ```
 
 ---
 
 *Last updated: February 2026*
 
-Kumpulan script untuk instalasi otomatis SALFANET RADIUS di Ubuntu/Debian VPS.
+Kumpulan script untuk instalasi otomatis EugineBill RADIUS di Ubuntu/Debian VPS.
 
 ## Cara Pakai
 
 ### Install Pertama Kali (Full)
 ```bash
-cd /root/salfanet-radius
+cd /root/EugineBill-radius
 bash vps-install/vps-installer.sh
 ```
 Installer akan berjalan interaktif, memandu semua konfigurasi dan menjalankan 7-8 step.
@@ -611,19 +611,19 @@ Script untuk membangun APK Android customer self-service.
 
 ```bash
 # Install lengkap + build APK (pertama kali)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh
 
 # Rebuild APK saja (SDK sudah ada, lebih cepat)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --rebuild
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --rebuild
 
 # Cek status APK (sudah ada atau belum)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --status
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --status
 
 # Install Java + SDK saja (tanpa build APK)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --sdk-only
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --sdk-only
 
 # Build APK saja (skip install Java/SDK)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --build-only
 ```
 
 ### Yang Dilakukan Script
@@ -635,19 +635,19 @@ bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
 5. Set `mobile-app/.env` dengan `API_URL=http://VPS_IP`
 6. `npm install` di `mobile-app/`
 7. Build APK via `./gradlew assembleRelease`
-8. Copy APK ke `public/downloads/salfanet-radius.apk`
+8. Copy APK ke `public/downloads/EugineBill-radius.apk`
 9. Config Nginx untuk serve endpoint `/downloads/`
 
 ### Output
 
 ```
-/var/www/salfanet-radius/public/downloads/salfanet-radius.apk
-/var/www/salfanet-radius/public/downloads/apk-info.json
+/var/www/EugineBill-radius/public/downloads/EugineBill-radius.apk
+/var/www/EugineBill-radius/public/downloads/apk-info.json
 ```
 
 APK dapat didownload customer di:
 ```
-http://VPS_IP/downloads/salfanet-radius.apk
+http://VPS_IP/downloads/EugineBill-radius.apk
 ```
 
 ### Estimasi Waktu
@@ -667,14 +667,14 @@ http://VPS_IP/downloads/salfanet-radius.apk
 
 | Path | Keterangan |
 |------|------------|
-| `/var/www/salfanet-radius/` | Root aplikasi (APP_DIR) |
-| `/var/www/salfanet-radius/.env` | Environment variables |
-| `/var/www/salfanet-radius/mobile-app/` | Source Expo/React Native |
-| `/var/www/salfanet-radius/public/downloads/` | APK output untuk download |
+| `/var/www/EugineBill-radius/` | Root aplikasi (APP_DIR) |
+| `/var/www/EugineBill-radius/.env` | Environment variables |
+| `/var/www/EugineBill-radius/mobile-app/` | Source Expo/React Native |
+| `/var/www/EugineBill-radius/public/downloads/` | APK output untuk download |
 | `/opt/android-sdk/` | Android SDK |
 | `/etc/profile.d/android-sdk.sh` | Android env vars |
-| `/etc/nginx/sites-enabled/salfanet-radius` | Nginx config |
-| `/var/www/salfanet-radius/INSTALLATION_INFO.txt` | Info hasil instalasi |
+| `/etc/nginx/sites-enabled/EugineBill-radius` | Nginx config |
+| `/var/www/EugineBill-radius/INSTALLATION_INFO.txt` | Info hasil instalasi |
 
 ---
 
@@ -683,14 +683,14 @@ http://VPS_IP/downloads/salfanet-radius.apk
 ### Gradle build gagal: "JAVA_HOME is not set"
 ```bash
 source /etc/profile.d/android-sdk.sh
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --build-only
 ```
 
 ### Gradle build gagal: "SDK location not found"
 ```bash
 # Buat local.properties
-echo "sdk.dir=/opt/android-sdk" > /var/www/salfanet-radius/mobile-app/android/local.properties
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
+echo "sdk.dir=/opt/android-sdk" > /var/www/EugineBill-radius/mobile-app/android/local.properties
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --build-only
 ```
 
 ### Out of memory saat Gradle build
@@ -699,7 +699,7 @@ bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
 fallocate -l 2G /swapfile && chmod 600 /swapfile
 mkswap /swapfile && swapon /swapfile
 # Lalu coba build lagi
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --build-only
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --build-only
 ```
 
 ### Download Android SDK gagal (timeout)
@@ -718,10 +718,10 @@ cp -r /tmp/ct-extract/cmdline-tools/. /opt/android-sdk/cmdline-tools/latest/
 # Cek lokasi config nginx
 ls /etc/nginx/sites-enabled/
 # Manual tambah location
-nano /etc/nginx/sites-enabled/salfanet-radius
+nano /etc/nginx/sites-enabled/EugineBill-radius
 # Tambahkan di dalam server {}:
 # location /downloads/ {
-#     alias /var/www/salfanet-radius/public/downloads/;
+#     alias /var/www/EugineBill-radius/public/downloads/;
 # }
 nginx -t && systemctl reload nginx
 ```
@@ -732,7 +732,7 @@ nginx -t && systemctl reload nginx
 
 ```bash
 # Hapus semua (hati-hati: menghapus data!)
-bash /root/salfanet-radius/vps-install/vps-uninstaller.sh
+bash /root/EugineBill-radius/vps-install/vps-uninstaller.sh
 ```
 
 ---

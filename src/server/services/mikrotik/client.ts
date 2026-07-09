@@ -194,7 +194,7 @@ export class MikroTikConnection {
         '=default-profile=vpn-profile',
         '=authentication=mschap2',
         '=use-ipsec=yes',
-        '=ipsec-secret=salfanet-vpn-secret',
+        '=ipsec-secret=EugineBill-vpn-secret',
       ])
 
       return true
@@ -257,7 +257,7 @@ export class MikroTikConnection {
           await this.conn!.write('/interface/wireguard/add', [
             '=name=wg0',
             `=listen-port=${wgPort}`,
-            '=comment=SALFANET-WG',
+            '=comment=EugineBill-WG',
           ])
           console.log('WireGuard interface wg0 created')
         } else {
@@ -280,7 +280,7 @@ export class MikroTikConnection {
           await this.conn!.write('/ip/address/add', [
             `=address=${wgAddress}`,
             '=interface=wg0',
-            '=comment=SALFANET-WG',
+            '=comment=EugineBill-WG',
           ])
           console.log(`WireGuard address ${wgAddress} assigned`)
         } else {
@@ -296,7 +296,7 @@ export class MikroTikConnection {
       // Step 3: Allow WireGuard port in firewall (input chain)
       try {
         const existingFw = await this.conn!.write('/ip/firewall/filter/print', [
-          '?comment=SALFANET-WG-INPUT',
+          '?comment=EugineBill-WG-INPUT',
         ])
         if (existingFw.length === 0) {
           await this.conn!.write('/ip/firewall/filter/add', [
@@ -304,7 +304,7 @@ export class MikroTikConnection {
             '=protocol=udp',
             `=dst-port=${wgPort}`,
             '=action=accept',
-            '=comment=SALFANET-WG-INPUT',
+            '=comment=EugineBill-WG-INPUT',
           ])
           console.log('WireGuard firewall rule added')
         }
@@ -341,7 +341,7 @@ export class MikroTikConnection {
       // Remove existing peer with same IP if present
       try {
         const existing = await this.conn!.write('/interface/wireguard/peers/print', [
-          `?comment=SALFANET-${peerName}`,
+          `?comment=EugineBill-${peerName}`,
         ])
         for (const peer of existing) {
           await this.conn!.write('/interface/wireguard/peers/remove', [`=.id=${peer['.id']}`])
@@ -353,7 +353,7 @@ export class MikroTikConnection {
         `=public-key=${peerPublicKey}`,
         `=allowed-address=${peerVpnIp}/32`,
         '=persistent-keepalive=25',
-        `=comment=SALFANET-${peerName}`,
+        `=comment=EugineBill-${peerName}`,
       ])
 
       console.log(`WireGuard peer added: ${peerName} (${peerVpnIp})`)
@@ -371,7 +371,7 @@ export class MikroTikConnection {
     try {
       if (!this.conn) await this.connect()
       const existing = await this.conn!.write('/interface/wireguard/peers/print', [
-        `?comment=SALFANET-${peerName}`,
+        `?comment=EugineBill-${peerName}`,
       ])
       for (const peer of existing) {
         await this.conn!.write('/interface/wireguard/peers/remove', [`=.id=${peer['.id']}`])
@@ -428,7 +428,7 @@ export class MikroTikConnection {
     try {
       if (!this.conn) await this.connect()
 
-      const comment = 'SALFANET-VPN-Forward'
+      const comment = 'EugineBill-VPN-Forward'
 
       // Check if forwarding rules already exist
       try {

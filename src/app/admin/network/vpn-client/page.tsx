@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
@@ -246,11 +246,11 @@ export default function VpnClientPage() {
 /ip/address/add address=${data.vpnIp}/32 interface=${toSafeIfaceName('wg', wgNewPeerName.trim())}
 
 # 4. Route seluruh subnet VPN melalui WireGuard
-/ip/route/remove [find where comment="SALFANET-VPN"]
-/ip/route/add dst-address=${data.vpnSubnet || '10.200.0.0/24'} gateway=${toSafeIfaceName('wg', wgNewPeerName.trim())} comment="SALFANET-VPN"
+/ip/route/remove [find where comment="EugineBill-VPN"]
+/ip/route/add dst-address=${data.vpnSubnet || '10.200.0.0/24'} gateway=${toSafeIfaceName('wg', wgNewPeerName.trim())} comment="EugineBill-VPN"
 
 # 5. RADIUS via WireGuard (server = VPS gateway IP di subnet VPN)
-/radius/remove [find where comment~"SALFANET"]
+/radius/remove [find where comment~"EugineBill"]
 /radius/add address=${data.gatewayIp || data.allowedIps?.split('/')[0]} \\
   secret=<RADIUS_SECRET> \\
   service=ppp,hotspot \\
@@ -258,7 +258,7 @@ export default function VpnClientPage() {
   authentication-port=1812 \\
   accounting-port=1813 \\
   timeout=3s \\
-  comment="SALFANET RADIUS via WireGuard"
+  comment="EugineBill RADIUS via WireGuard"
 /ppp/aaa/set use-radius=yes accounting=yes interim-update=5m
 /radius/incoming/set accept=yes port=3799`;
       setWgGeneratedScript(script);
@@ -756,7 +756,7 @@ export default function VpnClientPage() {
 ${vpnCmd}
 
 # 4. Assign IP Address (if needed)
-# /ip address add address=${credentials.vpnIp}/32 interface=${iface}-salfanet
+# /ip address add address=${credentials.vpnIp}/32 interface=${iface}-EugineBill
 
 # Remote Winbox Access: ${safeWinbox}
 # API Username: ${safeApiUsername}
@@ -772,15 +772,15 @@ ${vpnCmd}
     }
 
     const nasDisplayName = credentials.nasName || credentials.username
-    const l2tpIpsecSecret = credentials.ipsecPsk || 'salfanet-vpn-secret'
+    const l2tpIpsecSecret = credentials.ipsecPsk || 'EugineBill-vpn-secret'
     if (selectedVpnType === 'l2tp') {
       return scriptBase(
-        `add connect-to=${credentials.server} user=${credentials.username} password="${credentials.password}" disabled=no name=${toSafeIfaceName('l2tp', nasDisplayName)} use-ipsec=yes ipsec-secret="${l2tpIpsecSecret}" add-default-route=no allow=mschap2 comment="SALFANET VPN"`,
+        `add connect-to=${credentials.server} user=${credentials.username} password="${credentials.password}" disabled=no name=${toSafeIfaceName('l2tp', nasDisplayName)} use-ipsec=yes ipsec-secret="${l2tpIpsecSecret}" add-default-route=no allow=mschap2 comment="EugineBill VPN"`,
         'l2tp-client'
       )
     } else if (selectedVpnType === 'sstp') {
       return scriptBase(
-        `add connect-to=${credentials.server} port=992 user=${credentials.username} password=${credentials.password} disabled=no name=${toSafeIfaceName('sstp', nasDisplayName)} add-default-route=no authentication=mschap2 certificate=none comment="SALFANET VPN"`,
+        `add connect-to=${credentials.server} port=992 user=${credentials.username} password=${credentials.password} disabled=no name=${toSafeIfaceName('sstp', nasDisplayName)} add-default-route=no authentication=mschap2 certificate=none comment="EugineBill VPN"`,
         'sstp-client'
       )
     } else if (selectedVpnType === 'wireguard') {
@@ -818,8 +818,8 @@ ${vpnCmd}
 /ip/address/add address=${credentials.vpnIp}/32 interface=${toSafeIfaceName('wg', credentials.nasName || credentials.username)}
 
 # 4. Route seluruh subnet VPN melalui WireGuard
-/ip/route/remove [find where comment="SALFANET-VPN"]
-/ip/route/add dst-address=${wgSubnet} gateway=${toSafeIfaceName('wg', credentials.nasName || credentials.username)} comment="SALFANET-VPN"
+/ip/route/remove [find where comment="EugineBill-VPN"]
+/ip/route/add dst-address=${wgSubnet} gateway=${toSafeIfaceName('wg', credentials.nasName || credentials.username)} comment="EugineBill-VPN"
 
 # 5. Buat API User (untuk remote management MikroTik)
 /user/group/add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group"
@@ -836,7 +836,7 @@ ${vpnCmd}
 # ============================================================`.trim()
     } else {
       return scriptBase(
-        `add connect-to=${credentials.server} user=${credentials.username} password=${credentials.password} disabled=no name=pptp-client-salfanet add-default-route=no comment="SALFANET VPN"`,
+        `add connect-to=${credentials.server} user=${credentials.username} password=${credentials.password} disabled=no name=pptp-client-EugineBill add-default-route=no comment="EugineBill VPN"`,
         'pptp-client'
       )
     }

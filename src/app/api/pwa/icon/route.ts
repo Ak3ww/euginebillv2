@@ -14,7 +14,7 @@ function fallbackIcon(size: number): Buffer {
   const candidates = [
     path.join(process.cwd(), `public/pwa/icon-${size}.png`),
     path.join(process.cwd(), `../public/pwa/icon-${size}.png`),
-    path.join('/var/www/salfanet-radius', `public/pwa/icon-${size}.png`),
+    path.join('/var/www/EugineBill-radius', `public/pwa/icon-${size}.png`),
   ];
   for (const p of candidates) {
     if (existsSync(p)) return readFileSync(p);
@@ -49,12 +49,12 @@ async function fetchExternalImage(url: string): Promise<Buffer | null> {
 function getLogoPath(logoValue: string): string | null {
   // Logo stored as relative path like /uploads/logos/xxx.png → resolve to disk
   if (logoValue.startsWith('/uploads/') || logoValue.startsWith('uploads/')) {
-    const uploadDir = process.env.UPLOAD_DIR || '/var/data/salfanet/uploads';
+    const uploadDir = process.env.UPLOAD_DIR || '/var/data/EugineBill/uploads';
     const rel = logoValue.replace(/^\/uploads\//, '');
     const candidates = [
       path.join(uploadDir, rel),
       path.join(process.cwd(), 'public', logoValue),
-      path.join('/var/www/salfanet-radius/public', logoValue),
+      path.join('/var/www/EugineBill-radius/public', logoValue),
     ];
     for (const p of candidates) {
       if (existsSync(p)) return p;

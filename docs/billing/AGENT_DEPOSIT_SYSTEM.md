@@ -56,7 +56,7 @@ ADD INDEX idx_paymentStatus (paymentStatus);
 
 ## Push Schema to Database
 ```bash
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 npx prisma db push --accept-data-loss
 npx prisma generate
 ```
@@ -360,7 +360,7 @@ curl -X POST http://localhost:3000/api/agent/deposit/manual-request \
     "amount":100000,
     "targetBankName":"BCA",
     "targetBankAccountNumber":"1234567890",
-    "targetBankAccountName":"PT SALFANET",
+    "targetBankAccountName":"PT EugineBill",
     "senderAccountName":"Nama Agent",
     "senderAccountNumber":"0987654321",
     "receiptImage":"/uploads/payment-proofs/receipt-xxx.jpg",
@@ -405,7 +405,7 @@ curl -X POST http://localhost:3000/api/agent/deposit/manual-request \
 ## Support
 
 For issues or questions:
-- Check logs: `/var/www/salfanet-radius/logs/`
+- Check logs: `/var/www/EugineBill-radius/logs/`
 - Check deposit status in database
 - Verify webhook is receiving callbacks
 - Test payment gateway credentials

@@ -232,7 +232,7 @@ type Company struct {
 	AdminPhone              *string   `json:"adminPhone"`
 	BaseURL                 *string   `gorm:"default:http://localhost:3000" json:"baseUrl"`
 	Timezone                *string   `gorm:"default:Asia/Jakarta" json:"timezone"`
-	PoweredBy               *string   `gorm:"default:SALFANET RADIUS" json:"poweredBy"`
+	PoweredBy               *string   `gorm:"default:EugineBill RADIUS" json:"poweredBy"`
 	CustomerIDPrefix        *string   `gorm:"type:varchar(10)" json:"customerIdPrefix"`
 	InvoiceGenerateDays     *int      `gorm:"default:7" json:"invoiceGenerateDays"`
 	GracePeriodDays         *int      `gorm:"default:0" json:"gracePeriodDays"`

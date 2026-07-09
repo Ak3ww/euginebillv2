@@ -141,7 +141,7 @@ function buildNotificationPayload(payload: PushNotificationPayload) {
     icon: payload.icon || '/pwa/icon-192.svg',
     badge: payload.badge || '/pwa/badge.svg',
     image: payload.image,
-    tag: payload.tag || 'salfanet-notification',
+    tag: payload.tag || 'EugineBill-notification',
     requireInteraction: payload.requireInteraction || false,
     data: {
       url,

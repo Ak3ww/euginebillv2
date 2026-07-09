@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { generateExcelBuffer, formatCurrencyExport, formatDateExport, generatePDFBuffer } from '@/lib/utils/export';
 import { checkAuth } from '@/server/middleware/api-auth';
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json({
         pdfData: {
-          title: 'Daftar Pelanggan PPPoE - SALFANET RADIUS',
+          title: 'Daftar Pelanggan PPPoE - EugineBill RADIUS',
           headers,
           rows,
           summary,

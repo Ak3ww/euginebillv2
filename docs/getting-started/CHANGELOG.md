@@ -1,6 +1,6 @@
-﻿# Changelog
+# Changelog
 
-All notable changes to SALFANET RADIUS will be documented in this file.
+All notable changes to EugineBill RADIUS will be documented in this file.
 
 ---
 
@@ -73,7 +73,7 @@ All notable changes to SALFANET RADIUS will be documented in this file.
 
 - Hapus `.github/workflows/release.yml` dan `vps-install/build-standalone.py`.
 - Installer tidak lagi didistribusikan sebagai binary release di GitHub Releases.
-- Cara install sekarang: `git clone https://github.com/s4lfanet/salfanet-radius.git /root/salfanet-radius && bash vps-install/vps-installer.sh`
+- Cara install sekarang: `git clone https://github.com/s4lfanet/EugineBill-radius.git /root/EugineBill-radius && bash vps-install/vps-installer.sh`
 - Hapus bootstrap download block dari `vps-installer.sh` (tidak diperlukan karena repo di-clone full).
 
 ### ✅ Fix: Customer Portal — Timezone Inkonsisten pada Tampilan Real-Time
@@ -136,14 +136,14 @@ All notable changes to SALFANET RADIUS will be documented in this file.
 - **Root cause 1**: nginx `alias` dengan regex location + `try_files` secara fundamental broken — nginx tidak bisa resolve `try_files` path dengan benar saat pakai `alias` di regex location.
 - **Root cause 2**: `cp -r public .next/standalone/public/` membuat nested `public/public/` jika target dir sudah ada (Next.js membuat `.next/standalone/public/` saat build).
 - **Ditemukan** dengan membandingkan konfigurasi VPS production (103.151.140.110) vs fresh install (192.168.54.200).
-- **Solusi**: Semua block nginx manifest/sw.js/pwa kini menggunakan `root /var/www/salfanet-radius/public;` (sesuai VPS production yang sudah berjalan). Tidak ada `alias`, `try_files`, atau `@nextjs` named location.
+- **Solusi**: Semua block nginx manifest/sw.js/pwa kini menggunakan `root /var/www/EugineBill-radius/public;` (sesuai VPS production yang sudah berjalan). Tidak ada `alias`, `try_files`, atau `@nextjs` named location.
 - **Solusi cp**: `cp -r public .next/standalone/public/` → `cp -r public/. .next/standalone/public/` (copy contents, bukan directory).
 
 ### Files Changed
-- `vps-install/install-nginx.sh` — kedua fungsi `_proxy_locations()` menggunakan `root /var/www/salfanet-radius/public`
+- `vps-install/install-nginx.sh` — kedua fungsi `_proxy_locations()` menggunakan `root /var/www/EugineBill-radius/public`
 - `vps-install/install-pm2.sh` — fix cp nesting di `build_application()` dan generated `deploy.sh`
-- `vps-install/fix-pwa-nginx.sh` — rewrite lengkap dengan pendekatan `root /var/www/salfanet-radius/public`
-- `production/nginx-salfanet-radius.conf` — semua 3 server block (HTTP IP, HTTPS domain, HTTPS IP) diperbaiki
+- `vps-install/fix-pwa-nginx.sh` — rewrite lengkap dengan pendekatan `root /var/www/EugineBill-radius/public`
+- `production/nginx-EugineBill-radius.conf` — semua 3 server block (HTTP IP, HTTPS domain, HTTPS IP) diperbaiki
 
 ### Tutorial: Perbaikan Manual untuk VPS yang Sudah Terinstall
 
@@ -151,20 +151,20 @@ Jika VPS sudah terinstall dengan installer lama dan mengalami manifest 404:
 
 ```bash
 # Opsi 1: Jalankan fix script otomatis
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 sudo bash vps-install/fix-pwa-nginx.sh
 
 # Opsi 2: Fix manual nginx saja
-# Edit /etc/nginx/sites-available/salfanet-radius
+# Edit /etc/nginx/sites-available/EugineBill-radius
 # Ganti semua block manifest yang pakai alias:
 #   location ~* ^/manifest(-admin|-agent|-customer|-technician)?\.json$ {
-#       alias /var/www/salfanet-radius/.next/standalone/public/;
+#       alias /var/www/EugineBill-radius/.next/standalone/public/;
 #       try_files $uri @nextjs;
 #       ...
 #   }
 # Dengan:
 #   location ~ ^/manifest(-[a-z]+)?\.json$ {
-#       root /var/www/salfanet-radius/public;
+#       root /var/www/EugineBill-radius/public;
 #       expires 1d;
 #       add_header Cache-Control "public, max-age=86400";
 #       add_header Content-Type "application/manifest+json";
@@ -444,7 +444,7 @@ curl -I http://$(hostname -I | awk '{print $1}')/manifest-admin.json
 - Fix standalone runtime path issue (`process.cwd()` mengarah ke `.next/standalone`) dengan resolver app root (`getAppDir()`) untuk endpoint system info/update.
 - Hardening environment saat trigger update dari API: gunakan minimal sanitized env agar `next build` tidak rusak oleh variabel turunan PM2/Next.
 - SSE log streaming diperkuat: heartbeat periodik + header anti-buffering + auto-reconnect di frontend agar log live tidak kosong/stuck.
-- Update script kini menggunakan zero-downtime reload: `pm2 reload salfanet-radius --update-env` (cron tetap restart normal).
+- Update script kini menggunakan zero-downtime reload: `pm2 reload EugineBill-radius --update-env` (cron tetap restart normal).
 
 ### ✅ Nginx / Manifest Fix
 
@@ -598,19 +598,19 @@ curl -I http://$(hostname -I | awk '{print $1}')/manifest-admin.json
 
 ### ✅ Fixes
 
-- Hapus `use-vj-compression` dari `/ppp profile add salfanetradius`
+- Hapus `use-vj-compression` dari `/ppp profile add EugineBillradius`
 - Parameter tidak valid di RouterOS 7.x (menyebabkan `expected end of command col 121`)
 
 ---
 
-## [2.10.11] - 2026-02-28 (Admin Dashboard v2 + Full SALFANET Rebrand)
+## [2.10.11] - 2026-02-28 (Admin Dashboard v2 + Full EugineBill Rebrand)
 
 ### ✅ New Features & Refactoring
 
 - Admin Dashboard v2: Agent voucher sales + RADIUS auth log
 - i18n fix (28 keys)
-- **Full Rebrand**: Semua referensi "AIBILL" diganti ke "SALFANET" di seluruh project
-- MikroTik profile rename: `salfanetradius`
+- **Full Rebrand**: Semua referensi "AIBILL" diganti ke "EugineBill" di seluruh project
+- MikroTik profile rename: `EugineBillradius`
 
 ---
 
@@ -741,7 +741,7 @@ curl -I http://$(hostname -I | awk '{print $1}')/manifest-admin.json
 ---
 
 #### **4. APK Rebuild**
-- Output: `salfanet-radius-customer-release.apk` (94.57 MB)
+- Output: `EugineBill-radius-customer-release.apk` (94.57 MB)
 - Fix applied: `$env:NODE_ENV = $null` before `npm install` to prevent devDependencies from being skipped in PowerShell sessions where `NODE_ENV=production` was leftover
 
 ---
@@ -861,7 +861,7 @@ freeradius -X
 module.exports = {
   apps: [
     {
-      name: 'salfanet-radius',
+      name: 'EugineBill-radius',
       script: 'npm',
       args: 'start',
       instances: 1,
@@ -870,7 +870,7 @@ module.exports = {
       // ... main app config
     },
     {
-      name: 'salfanet-cron',
+      name: 'EugineBill-cron',
       script: './cron-service.js',
       instances: 1,
       exec_mode: 'fork',
@@ -885,22 +885,22 @@ module.exports = {
 **PM2 Commands (Updated):**
 ```bash
 # View both apps
-sudo -u salfanet pm2 list
+sudo -u EugineBill pm2 list
 
 # Logs (main app)
-sudo -u salfanet pm2 logs salfanet-radius
+sudo -u EugineBill pm2 logs EugineBill-radius
 
 # Logs (cron service)
-sudo -u salfanet pm2 logs salfanet-cron
+sudo -u EugineBill pm2 logs EugineBill-cron
 
 # Restart main app
-sudo -u salfanet pm2 restart salfanet-radius
+sudo -u EugineBill pm2 restart EugineBill-radius
 
 # Restart cron service
-sudo -u salfanet pm2 restart salfanet-cron
+sudo -u EugineBill pm2 restart EugineBill-cron
 
 # Restart both
-sudo -u salfanet pm2 restart all
+sudo -u EugineBill pm2 restart all
 ```
 
 **Files Modified:**
@@ -928,12 +928,12 @@ sudo -u salfanet pm2 restart all
 **Testing:**
 ```bash
 # Fresh install test
-cd /root/SALFANET-RADIUS-main/vps-install
+cd /root/EugineBill-RADIUS-main/vps-install
 sudo ./vps-installer.sh
 
 # Verify both apps running
-sudo -u salfanet pm2 list
-# Should show: salfanet-radius (online), salfanet-cron (online)
+sudo -u EugineBill pm2 list
+# Should show: EugineBill-radius (online), EugineBill-cron (online)
 
 # Check FreeRADIUS
 systemctl status freeradius
@@ -948,12 +948,12 @@ systemctl status freeradius
 
 #### **NEW Feature: vps-uninstaller.sh**
 
-Comprehensive uninstaller untuk remove semua komponen SALFANET RADIUS dan enable fresh install.
+Comprehensive uninstaller untuk remove semua komponen EugineBill RADIUS dan enable fresh install.
 
 **Fitur:**
 - ✅ **Safety First**: Requires typing "REMOVE EVERYTHING" untuk konfirmasi
 - ✅ **Automatic Backup**: Optional backup database & configs sebelum removal
-- ✅ **Backup Location**: `/root/salfanet-backup-TIMESTAMP/`
+- ✅ **Backup Location**: `/root/EugineBill-backup-TIMESTAMP/`
   - database.sql (full dump)
   - env.backup (.env file)
   - freeradius-backup/ (RADIUS configs)
@@ -962,21 +962,21 @@ Comprehensive uninstaller untuk remove semua komponen SALFANET RADIUS dan enable
 - ✅ **Complete Cleanup**: Removes all traces untuk fresh start
 
 **Components Removed:**
-1. ✅ PM2 processes (salfanet-radius, salfanet-cron)
-2. ✅ Application files (/var/www/salfanet-radius)
-3. ✅ MySQL database (salfanet_radius) & user (salfanet_user)
+1. ✅ PM2 processes (EugineBill-radius, EugineBill-cron)
+2. ✅ Application files (/var/www/EugineBill-radius)
+3. ✅ MySQL database (EugineBill_radius) & user (EugineBill_user)
 4. ✅ FreeRADIUS configuration & logs
 5. ✅ Nginx site configuration
-6. ✅ User account (salfanet)
+6. ✅ User account (EugineBill)
 7. ✅ Firewall rules (RADIUS ports)
-8. ✅ All logs (/var/log/salfanet-vps-install.log, etc.)
+8. ✅ All logs (/var/log/EugineBill-vps-install.log, etc.)
 9. ⚠️  Optional: PM2 global (if no other apps)
 10. ⚠️  Optional: Node.js (if no other apps)
 11. ⚠️  Optional: MySQL (DANGER - removes all databases)
 
 **Usage:**
 ```bash
-cd /root/SALFANET-RADIUS-main/vps-install
+cd /root/EugineBill-RADIUS-main/vps-install
 chmod +x vps-uninstaller.sh
 sudo ./vps-uninstaller.sh
 ```
@@ -1041,52 +1041,52 @@ sudo ./fix-prisma-engines.sh
 #### **Problem:**
 - ❌ PM2 requires sudo for every command (permission denied)
 - ❌ Application files owned by root
-- ❌ Cannot run PM2 as salfanet user
+- ❌ Cannot run PM2 as EugineBill user
 - ❌ Security risk running application as root
 
 #### **Fitur Baru:**
 
 **1. Dedicated Application User**
-- ✅ Create `salfanet` user for running application
-- ✅ Set proper ownership: `salfanet:salfanet`
-- ✅ Setup PM2 directories: `/home/salfanet/.pm2/`
-- ✅ Application files owned by salfanet, not root
+- ✅ Create `EugineBill` user for running application
+- ✅ Set proper ownership: `EugineBill:EugineBill`
+- ✅ Setup PM2 directories: `/home/EugineBill/.pm2/`
+- ✅ Application files owned by EugineBill, not root
 
 **2. Auto Permission Fix in Installer**
 Location: `vps-install/install-app.sh`
-- ✅ `create_app_user()` - Create salfanet user during install
-- ✅ `fix_permissions()` - Set ownership to salfanet:salfanet
+- ✅ `create_app_user()` - Create EugineBill user during install
+- ✅ `fix_permissions()` - Set ownership to EugineBill:EugineBill
 - ✅ Auto-fix node_modules/.bin permissions
 - ✅ Setup logs directory with proper ownership
 
 **3. PM2 Run as App User**
 Location: `vps-install/install-pm2.sh`
-- ✅ `install_pm2()` - Setup PM2 for salfanet user
-- ✅ `start_pm2_app()` - Start PM2 as salfanet (not root)
-- ✅ `cleanup_pm2_processes()` - Cleanup both root and salfanet PM2
-- ✅ PM2 startup configured for salfanet user
+- ✅ `install_pm2()` - Setup PM2 for EugineBill user
+- ✅ `start_pm2_app()` - Start PM2 as EugineBill (not root)
+- ✅ `cleanup_pm2_processes()` - Cleanup both root and EugineBill PM2
+- ✅ PM2 startup configured for EugineBill user
 
 **4. fix-permissions.sh - Standalone Fix Script**
 Location: `vps-install/fix-permissions.sh`
 ```bash
 sudo ./fix-permissions.sh
 ```
-- ✅ Create salfanet user if not exists
-- ✅ Fix all file ownership to salfanet:salfanet
+- ✅ Create EugineBill user if not exists
+- ✅ Fix all file ownership to EugineBill:EugineBill
 - ✅ Fix file/directory permissions (644/755)
 - ✅ Setup PM2 directories
 - ✅ Show commands to run PM2 without sudo
 
 **5. Updated Common Configuration**
 Location: `vps-install/common.sh`
-- ✅ Added `APP_USER="salfanet"`
-- ✅ Added `APP_GROUP="salfanet"`
+- ✅ Added `APP_USER="EugineBill"`
+- ✅ Added `APP_GROUP="EugineBill"`
 - ✅ All modules use these variables
 
 #### **Files Modified:**
 - `vps-install/common.sh` - Added APP_USER and APP_GROUP variables
 - `vps-install/install-app.sh` - Added create_app_user(), updated fix_permissions()
-- `vps-install/install-pm2.sh` - Run PM2 as salfanet user
+- `vps-install/install-pm2.sh` - Run PM2 as EugineBill user
 - `vps-install/fix-permissions.sh` - NEW standalone permission fix script
 - `vps-install/README.md` - Added permission troubleshooting section
 - `CHANGELOG.md` - Documented changes
@@ -1094,7 +1094,7 @@ Location: `vps-install/common.sh`
 #### **Cara Pakai:**
 
 **Otomatis (New Installation):**
-Installer sekarang otomatis create salfanet user dan set proper permissions.
+Installer sekarang otomatis create EugineBill user dan set proper permissions.
 
 **Manual Fix (Existing Installation):**
 ```bash
@@ -1105,29 +1105,29 @@ sudo ./fix-permissions.sh
 
 **Run PM2 Without Sudo:**
 ```bash
-# Method 1: Switch to salfanet user
-sudo su - salfanet
+# Method 1: Switch to EugineBill user
+sudo su - EugineBill
 pm2 list
-pm2 logs salfanet-radius
-pm2 restart salfanet-radius
+pm2 logs EugineBill-radius
+pm2 restart EugineBill-radius
 
 # Method 2: Run directly
-sudo -u salfanet pm2 list
-sudo -u salfanet pm2 logs salfanet-radius
-sudo -u salfanet pm2 restart salfanet-radius
+sudo -u EugineBill pm2 list
+sudo -u EugineBill pm2 logs EugineBill-radius
+sudo -u EugineBill pm2 restart EugineBill-radius
 ```
 
 **Common Issues Fixed:**
 1. ✅ "EACCES: permission denied" - Fixed by proper ownership
-2. ✅ "Cannot write to log file" - Logs owned by salfanet
-3. ✅ "PM2 requires sudo" - Run as salfanet user
-4. ✅ "Security risk running as root" - Application runs as salfanet
+2. ✅ "Cannot write to log file" - Logs owned by EugineBill
+3. ✅ "PM2 requires sudo" - Run as EugineBill user
+4. ✅ "Security risk running as root" - Application runs as EugineBill
 
 #### **Security Benefits:**
 - ✅ Application tidak jalan sebagai root (lebih aman)
-- ✅ Isolasi user - salfanet user khusus untuk aplikasi
+- ✅ Isolasi user - EugineBill user khusus untuk aplikasi
 - ✅ File permissions yang tepat (644 untuk files, 755 untuk dirs)
-- ✅ PM2 daemon jalan sebagai salfanet (bukan root)
+- ✅ PM2 daemon jalan sebagai EugineBill (bukan root)
 
 ---
 
@@ -1230,7 +1230,7 @@ Memecah installer VPS monolitik (1839 baris) menjadi arsitektur modular untuk me
 - ✅ Utility functions: `generate_secret()`, `save_install_info()`, `wait_for_service()`, `verify_installation()`
 - ✅ Global configuration variables (NODE_VERSION, APP_DIR, DB credentials, etc.)
 - ✅ Banner & info display functions
-- ✅ Logging to `/var/log/salfanet-vps-install.log`
+- ✅ Logging to `/var/log/EugineBill-vps-install.log`
 - ✅ All functions exported untuk module reuse
 
 **2. install-system.sh** (System Setup Module - ~400 lines)
@@ -1263,8 +1263,8 @@ Memecah installer VPS monolitik (1839 baris) menjadi arsitektur modular untuk me
 - ✅ Remove old MySQL installation (clean slate)
 - ✅ Install MySQL 8.0 fresh
 - ✅ Secure installation (set root password)
-- ✅ Create database `salfanet_radius` dengan charset utf8mb4
-- ✅ Create user `salfanet_user` dengan privileges
+- ✅ Create database `EugineBill_radius` dengan charset utf8mb4
+- ✅ Create user `EugineBill_user` dengan privileges
 - ✅ **Backup existing database** (bila sudah ada)
 - ✅ **Interactive option:** Keep atau drop existing DB
 - ✅ **Timezone configuration:** Set MySQL timezone ke `+07:00` (Asia/Jakarta)
@@ -1275,7 +1275,7 @@ Memecah installer VPS monolitik (1839 baris) menjadi arsitektur modular untuk me
 - ✅ Standalone execution capability
 
 **5. install-app.sh** (Application Setup Module - ~400 lines)
-- ✅ Copy source dari install location ke `/var/www/salfanet-radius`
+- ✅ Copy source dari install location ke `/var/www/EugineBill-radius`
 - ✅ Create `.env` file dengan configuration:
   * DATABASE_URL dengan MySQL credentials
   * NEXTAUTH_SECRET (generated random)
@@ -1470,7 +1470,7 @@ Total time: ~20-25 minutes (sama dengan monolithic)
 **Scenario 1: MySQL Install Gagal**
 ```bash
 # Check error
-tail -f /var/log/salfanet-vps-install.log | grep "mysql"
+tail -f /var/log/EugineBill-vps-install.log | grep "mysql"
 
 # Fix & re-run hanya MySQL module
 ./install-mysql.sh
@@ -1530,7 +1530,7 @@ Benefits:
 
 **Full Installation:**
 ```bash
-cd /root/SALFANET-RADIUS-main/vps-install
+cd /root/EugineBill-RADIUS-main/vps-install
 chmod +x *.sh
 ./vps-installer.sh
 ```
@@ -1573,7 +1573,7 @@ chmod +x *.sh
 - `vps-install.sh` (1839 lines) - Original monolithic (backward compatibility)
 
 **LOGS:**
-- `/var/log/salfanet-vps-install.log` - Installation log dengan timestamps
+- `/var/log/EugineBill-vps-install.log` - Installation log dengan timestamps
 
 ---
 
@@ -1765,7 +1765,7 @@ ipsec status                       # IPSec status
 
 All VPN configs stored in structured directory:
 ```
-/etc/salfanet-vpn/
+/etc/EugineBill-vpn/
 ├── config                 # General settings
 ├── wireguard/            # WireGuard configs
 ├── openvpn/              # OpenVPN PKI & configs
@@ -1776,7 +1776,7 @@ All VPN configs stored in structured directory:
     └── l2tp/
 ```
 
-Logs: `/var/log/salfanet-vpn-install.log`
+Logs: `/var/log/EugineBill-vpn-install.log`
 
 #### **Files Modified/Created:**
 
@@ -1830,15 +1830,15 @@ Logs: `/var/log/salfanet-vpn-install.log`
   - IP forwarding auto-enable
   - Firewall rules auto-configure
   - Status checker: `--status`
-  - Config directory: `/etc/salfanet-vpn/`
-  - Logs: `/var/log/salfanet-vpn-install.log`
+  - Config directory: `/etc/EugineBill-vpn/`
+  - Logs: `/var/log/EugineBill-vpn-install.log`
 
 #### 2. **VPN Installer Documentation**
 **File:** `docs/VPN_INSTALLER_GUIDE.md` (NEW - 400+ lines)
 - ✅ Quick install guide
 - ✅ All installation options documented
 - ✅ Client configuration for MikroTik, Windows, Mac, Mobile
-- ✅ SALFANET RADIUS integration steps
+- ✅ EugineBill RADIUS integration steps
 - ✅ Firewall configuration (UFW/iptables)
 - ✅ Troubleshooting guide
 - ✅ Performance comparison table
@@ -2081,15 +2081,15 @@ Logs: `/var/log/salfanet-vpn-install.log`
 
 **Migration Status:**
 - Database already in sync with new schema
-- Migration documented: `20260107000000_merge_salfanet_features`
+- Migration documented: `20260107000000_merge_EugineBill_features`
 - No destructive changes - all existing data preserved
 
 #### Documentation Merge
-- ✅ Copied 51+ documentation files from salfanet-radius-test
+- ✅ Copied 51+ documentation files from EugineBill-radius-test
 - ✅ Added guides for GPS tracking, employee management, job system
 - ✅ Merged implementation guides and feature documentation
 
-### 🔄 Salfanet-Radius-Test Feature Merge
+### 🔄 EugineBill-Radius-Test Feature Merge
 
 #### Schema Enhancements (prisma/schema.prisma)
 
@@ -2138,7 +2138,7 @@ Logs: `/var/log/salfanet-vpn-install.log`
 - `cashPaymentRequest` - Cash payment request from field technicians
 
 #### Documentation Updates
-- Merged 51+ documentation files from salfanet-radius-test
+- Merged 51+ documentation files from EugineBill-radius-test
 - Added GPS tracking implementation guides
 - Added employee location tracking documentation
 - Added job management system roadmap
@@ -2268,16 +2268,16 @@ ss -tln | grep :22
 
 #### New Features Added
 
-**Salfanet Cron Service Auto-Start:**
+**EugineBill Cron Service Auto-Start:**
 - Lines 1738-1748 (vps-install.sh): Start cron service with PM2
 - Lines 824-834 (vps-install-local.sh): Start cron service with PM2
-- Command: `pm2 start cron-service.js --name salfanet-cron`
+- Command: `pm2 start cron-service.js --name EugineBill-cron`
 - Ensures background tasks (voucher sync, auto isolir, notifications) run automatically
 
 **PM2 Process Manager:**
 - Now starts TWO services:
-  1. `salfanet-radius` - Main Next.js application
-  2. `salfanet-cron` - Background cron jobs
+  1. `EugineBill-radius` - Main Next.js application
+  2. `EugineBill-cron` - Background cron jobs
 - Both saved to PM2 and auto-start on reboot
 
 #### Migration Guide for Existing Installations
@@ -2306,8 +2306,8 @@ systemctl restart ssh.service
 **Add cron service to existing installation:**
 
 ```bash
-cd /root/salfanet-radius-main  # or your app directory
-pm2 start cron-service.js --name salfanet-cron
+cd /root/EugineBill-radius-main  # or your app directory
+pm2 start cron-service.js --name EugineBill-cron
 pm2 save
 ```
 
@@ -2432,7 +2432,7 @@ If you already installed and SSH crashes after reboot:
 **Option 1: Use automated script (Recommended)**
 ```bash
 # Via Proxmox console
-cd /root/salfanet-radius-main
+cd /root/EugineBill-radius-main
 bash ssh-persist-fix.sh
 # Test reboot
 sudo reboot
@@ -2609,7 +2609,7 @@ After investigating all previous version issues (v2.9.8, v2.9.10, v2.9.11), dete
 **Completely removed:**
 - ❌ PRIMARY_INTERFACE/PRIMARY_GATEWAY detection
 - ❌ /etc/network/primary-route-info file creation
-- ❌ salfanet-network-route.service systemd service
+- ❌ EugineBill-network-route.service systemd service
 - ❌ Inline fix-ssh-routing script
 - ❌ All route modification/persistence logic
 
@@ -2632,19 +2632,19 @@ If you have **v2.9.8, v2.9.10, or v2.9.11** installed:
 **Option 1: Emergency Recovery (SSH crashed)**
 ```bash
 # From Proxmox console (SSH not accessible)
-systemctl disable salfanet-network-route.service
-systemctl stop salfanet-network-route.service
+systemctl disable EugineBill-network-route.service
+systemctl stop EugineBill-network-route.service
 systemctl restart sshd
-rm /etc/systemd/system/salfanet-network-route.service
+rm /etc/systemd/system/EugineBill-network-route.service
 systemctl daemon-reload
 ```
 
 **Option 2: Preventive Cleanup (SSH still works)**
 ```bash
 # Via SSH (before reboot)
-sudo systemctl disable salfanet-network-route.service
-sudo systemctl stop salfanet-network-route.service
-sudo rm /etc/systemd/system/salfanet-network-route.service
+sudo systemctl disable EugineBill-network-route.service
+sudo systemctl stop EugineBill-network-route.service
+sudo rm /etc/systemd/system/EugineBill-network-route.service
 sudo rm /etc/network/primary-route-info
 sudo systemctl daemon-reload
 ```
@@ -2833,7 +2833,7 @@ bash /tmp/fix-network-route.sh
 
 **Check service ordering:**
 ```bash
-systemctl cat salfanet-network-route.service | grep -A5 "\[Unit\]"
+systemctl cat EugineBill-network-route.service | grep -A5 "\[Unit\]"
 
 # Should show:
 # After=network-online.target ssh.service
@@ -2846,7 +2846,7 @@ sudo reboot
 
 # After reboot:
 systemctl status ssh        # Should be active
-systemctl status salfanet-network-route.service  # Should be active
+systemctl status EugineBill-network-route.service  # Should be active
 ssh root@localhost          # Should work
 ```
 
@@ -2909,7 +2909,7 @@ Script now:
 
 **3. Persistence Service Logic**
 
-`salfanet-network-route.service` only activates:
+`EugineBill-network-route.service` only activates:
 - ✅ After reboot
 - ✅ Only if route is incorrect/missing
 - ✅ Before SSH service starts
@@ -2999,7 +2999,7 @@ ip route show
 
 **Check persistence service created:**
 ```bash
-systemctl status salfanet-network-route.service
+systemctl status EugineBill-network-route.service
 cat /etc/network/primary-route-info
 ```
 
@@ -3044,7 +3044,7 @@ sudo systemctl disable radius-cron
 
 **2. Re-enabled Node.js Cron Service**
 ```bash
-pm2 restart salfanet-cron
+pm2 restart EugineBill-cron
 pm2 save
 ```
 
@@ -3060,8 +3060,8 @@ pm2 save
 
 #### Active Cron Service
 
-**PM2 Process:** `salfanet-cron`
-- Script: `/var/www/salfanet-radius/cron-service.js`
+**PM2 Process:** `EugineBill-cron`
+- Script: `/var/www/EugineBill-radius/cron-service.js`
 - Memory Limit: 150 MB (max_memory_restart)
 - Heap Size: 120 MB (max-old-space-size)
 - Mode: fork (single instance)
@@ -3079,7 +3079,7 @@ pm2 save
 ```bash
 # Check PM2 status
 pm2 list
-pm2 logs salfanet-cron --lines 50
+pm2 logs EugineBill-cron --lines 50
 
 # Check cron execution logs (admin panel)
 # Navigate to: Pengaturan → Cronjob → Riwayat Eksekusi
@@ -3133,11 +3133,11 @@ ip route add default via $PRIMARY_GATEWAY dev $PRIMARY_INTERFACE metric 100
 ```
 
 **3. Persistent Route Service**
-Created systemd service: `salfanet-network-route.service`
+Created systemd service: `EugineBill-network-route.service`
 - Ensures route persists after reboot
 - Auto-starts on boot with 5-second delay
 - Checks and restores route if missing
-- Location: `/etc/systemd/system/salfanet-network-route.service`
+- Location: `/etc/systemd/system/EugineBill-network-route.service`
 
 **4. Installation Summary**
 Script now displays final network status:
@@ -3161,7 +3161,7 @@ sudo ip route del default
 sudo ip route add default via <gateway> dev <interface> metric 100
 
 # Restart service
-sudo systemctl restart salfanet-network-route.service
+sudo systemctl restart EugineBill-network-route.service
 ```
 
 #### Verification
@@ -3170,7 +3170,7 @@ sudo systemctl restart salfanet-network-route.service
 cat /etc/network/primary-route-info
 
 # Check route service
-systemctl status salfanet-network-route.service
+systemctl status EugineBill-network-route.service
 
 # Test connectivity
 ping -c 4 8.8.8.8
@@ -3190,7 +3190,7 @@ curl -I http://localhost:3000
 - 🎯 **Memory Savings**: ~68 MB (88% reduction)
 
 #### New Golang Microservice Deployed
-**Location:** `/var/www/salfanet-radius/radius-cron/`
+**Location:** `/var/www/EugineBill-radius/radius-cron/`
 
 **Architecture:**
 ```
@@ -3286,7 +3286,7 @@ type CronHistory struct {
 
 **Installation Steps:**
 1. Built binary for Linux: `GOOS=linux GOARCH=amd64 go build`
-2. Uploaded to VPS: `/var/www/salfanet-radius/radius-cron/bin/`
+2. Uploaded to VPS: `/var/www/EugineBill-radius/radius-cron/bin/`
 3. Created systemd service: `/etc/systemd/system/radius-cron.service`
 4. Configured database: MySQL connection with proper timezone (Asia/Jakarta)
 5. Started service: `systemctl enable --now radius-cron`
@@ -3295,8 +3295,8 @@ type CronHistory struct {
 ```ini
 [Service]
 Type=simple
-WorkingDirectory=/var/www/salfanet-radius/radius-cron
-ExecStart=/var/www/salfanet-radius/radius-cron/bin/radius-cron
+WorkingDirectory=/var/www/EugineBill-radius/radius-cron
+ExecStart=/var/www/EugineBill-radius/radius-cron/bin/radius-cron
 StandardOutput=journal
 StandardError=journal
 Restart=on-failure
@@ -3672,7 +3672,7 @@ model pppoeProfile {
 - Files to exclude (node_modules, .next, .env, build cache)
 
 **Generated Clean Package:**
-- Location: `C:\Users\yanz\Downloads\SALFANET-RADIUS-FRESH-INSTALL`
+- Location: `C:\Users\yanz\Downloads\EugineBill-RADIUS-FRESH-INSTALL`
 - Includes all necessary files for fresh deployment
 - Excludes development artifacts and sensitive data
 
@@ -4837,7 +4837,7 @@ lxc.apparmor.profile: unconfined
 #### 🔐 FreeRADIUS 3.0.26 Integration
 - **Complete RADIUS Server Implementation:**
   - FreeRADIUS 3.0.26 installation and configuration
-  - MySQL database integration (salfanet_radius)
+  - MySQL database integration (EugineBill_radius)
   - Multi-protocol authentication: PAP, CHAP, MS-CHAP
   - Dynamic NAS client loading from database
   - Session accounting to radacct table
@@ -4874,7 +4874,7 @@ lxc.apparmor.profile: unconfined
 - **VPN Credentials:**
   - Username: vpn-server-radius-eza4
   - Password: 8hgvgolsQNje
-  - IPSec Secret: salfanet-vpn-secret
+  - IPSec Secret: EugineBill-vpn-secret
 
 #### ⏰ Automated Cronjob System
 - **Hotspot Sync (Every Minute):**
@@ -5348,7 +5348,7 @@ curl -X POST http://localhost:3000/api/cron -H "Content-Type: application/json" 
 
 ## [2.7.0] - 2025-12-19
 
-### 🎉 Major Features from salfanet-radius Integration
+### 🎉 Major Features from EugineBill-radius Integration
 
 #### Manual Payment System ⭐
 - **New Feature:** Customer dapat upload bukti transfer untuk pembayaran manual
@@ -5627,10 +5627,10 @@ mysql -u root -p your_database < prisma/migrations/add_manual_payment_features/m
 - Usage guide for admin and customers
 - Troubleshooting section
 
-**Reference Documentation (from salfanet-radius):**
-- `salfanet-radius/docs/MANUAL_PAYMENT_AND_NOTIFICATION_SYSTEM.md`
-- `salfanet-radius/docs/OUTAGE_NOTIFICATION_SYSTEM.md`
-- `salfanet-radius/docs/BROADCAST_NOTIFICATION_SYSTEM.md`
+**Reference Documentation (from EugineBill-radius):**
+- `EugineBill-radius/docs/MANUAL_PAYMENT_AND_NOTIFICATION_SYSTEM.md`
+- `EugineBill-radius/docs/OUTAGE_NOTIFICATION_SYSTEM.md`
+- `EugineBill-radius/docs/BROADCAST_NOTIFICATION_SYSTEM.md`
 
 ---
 
@@ -5793,7 +5793,7 @@ mysql -u root -p your_database < prisma/migrations/add_manual_payment_features/m
 - **Fix:** Error 400 saat membuat PPP Profile dengan groupName yang sama
 - **Solution:** Hapus `@unique` constraint dari groupName di Prisma schema
 - **Enhancement:** Skip pembuatan radgroupreply jika group sudah ada
-- **Default:** groupName default kembali ke 'salfanetradius' (seperti voucher profile)
+- **Default:** groupName default kembali ke 'EugineBillradius' (seperti voucher profile)
 
 #### PPPoE Sessions - Remove Mitra Column
 - **Change:** Hapus kolom "Mitra" dari halaman Sesi PPPoE
@@ -5805,7 +5805,7 @@ mysql -u root -p your_database < prisma/migrations/add_manual_payment_features/m
 - `src/app/api/pppoe/users/route.ts` - Use disconnect instead of CoA for profile change
 - `prisma/schema.prisma` - Remove unique constraint dari groupName
 - `src/app/api/pppoe/profiles/route.ts` - Skip radgroupreply if exists
-- `src/app/admin/pppoe/profiles/page.tsx` - Default groupName 'salfanetradius'
+- `src/app/admin/pppoe/profiles/page.tsx` - Default groupName 'EugineBillradius'
 - `src/app/admin/sessions/pppoe/page.tsx` - Remove Mitra column
 
 **Technical Details:**
@@ -5865,7 +5865,7 @@ for (const session of radacctSessions) {
 **Testing:**
 ```bash
 # Test RADIUS auth untuk PPPoE dengan realm:
-radtest deliarianti@cimerta salfanet localhost 0 testing123
+radtest deliarianti@cimerta EugineBill localhost 0 testing123
 # Expected: Access-Accept
 ```
 
@@ -6396,8 +6396,8 @@ INSERT INTO nas (nasname, shortname, type, secret, description) VALUES
 - `check-users.sql`, `update-nas.sql`, `update-radius-main.zip`
 
 **Deleted Folders:**
-- `salfanet-radius-main/` - Duplicate folder
-- `SALFANET-FIX-CLEAN/` - Old backup folder
+- `EugineBill-radius-main/` - Duplicate folder
+- `EugineBill-FIX-CLEAN/` - Old backup folder
 
 #### Code Cleanup
 **Files Cleaned:**
@@ -6829,7 +6829,7 @@ Module `rlm_rest.so` must be available at:
 #### Configuration Files
 1. `/etc/freeradius/3.0/mods-enabled/rest` - REST API endpoints
 2. `/etc/freeradius/3.0/sites-enabled/default` - Authorization flow
-3. `/var/www/salfanet-radius/src/app/api/radius/authorize/route.ts` - Validation logic
+3. `/var/www/EugineBill-radius/src/app/api/radius/authorize/route.ts` - Validation logic
 
 #### Database Tables Used
 - `hotspot_vouchers` - Voucher status, expiresAt
@@ -6878,7 +6878,7 @@ Module `rlm_rest.so` must be available at:
 **Restart Sequence:**
 ```bash
 # 1. Update Next.js code
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 npm run build
 
 # 2. Update FreeRADIUS config
@@ -7630,7 +7630,7 @@ date: { gte: startOfMonth, lt: startOfNextMonth }
 
 **Configuration Changes:**
 
-**Nginx Configuration** (`/etc/nginx/sites-enabled/salfanet-radius`):
+**Nginx Configuration** (`/etc/nginx/sites-enabled/EugineBill-radius`):
 ```nginx
 server {
     listen 80;
@@ -7680,7 +7680,7 @@ sudo chmod 644 /etc/ssl/server.salfa.my.id/fullchain.pem
 
 **Services Restarted:**
 - Nginx: `sudo systemctl restart nginx`
-- PM2: `sudo pm2 restart salfanet-radius --update-env`
+- PM2: `sudo pm2 restart EugineBill-radius --update-env`
 
 **DNS Configuration:**
 - Domain: `server.salfa.my.id`
@@ -7964,7 +7964,7 @@ radtest 'VOUCHERCODE' 'password' 127.0.0.1 0 testing123
 - Updated `vps-install.sh` with proper FreeRADIUS setup
 - Added `docs/FREERADIUS-SETUP.md` documentation
 - Updated `README.md` with comprehensive documentation
-- Fresh database backup: `backup/salfanet_radius_backup_20251203.sql`
+- Fresh database backup: `backup/EugineBill_radius_backup_20251203.sql`
 
 ---
 

@@ -1,8 +1,8 @@
 {
   "id": "/technician",
-  "name": "Salfanet Teknisi",
+  "name": "EugineBill Teknisi",
   "short_name": "Teknisi",
-  "description": "Portal Teknisi Salfanet - manajemen tiket lapangan dan pelanggan",
+  "description": "Portal Teknisi EugineBill - manajemen tiket lapangan dan pelanggan",
   "start_url": "/technician/login",
   "scope": "/technician",
   "display": "standalone",

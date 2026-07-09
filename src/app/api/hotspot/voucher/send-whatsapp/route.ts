@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/auth/config'
 import { prisma } from '@/server/db/client'
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
     // Get company info
     const company = await prisma.company.findFirst()
-    const companyName = company?.name || 'SALFANET'
+    const companyName = company?.name || 'EugineBill'
     const companyPhone = company?.phone || ''
 
     // Build voucher message

@@ -33,8 +33,8 @@ function parseDbUrl(url: string) {
 async function ensureBackupDir() {
   // Use a stable path outside the Next.js standalone dir (which changes on deploy)
   const candidates = [
-    '/var/backups/salfanet',
-    '/tmp/salfanet-backups',
+    '/var/backups/EugineBill',
+    '/tmp/EugineBill-backups',
   ];
   for (const dir of candidates) {
     try {

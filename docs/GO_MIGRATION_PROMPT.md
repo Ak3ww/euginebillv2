@@ -1,17 +1,17 @@
-# PROMPT MIGRASI LENGKAP — Salfanet RADIUS → Go Backend
+# PROMPT MIGRASI LENGKAP — EugineBill RADIUS → Go Backend
 
 > Salin seluruh isi file ini ke chat AI baru untuk memulai migrasi.
 
 ---
 
-# Project: Full Backend Rewrite Salfanet RADIUS ke Go
+# Project: Full Backend Rewrite EugineBill RADIUS ke Go
 
 ## Identitas Project
 
-- **Nama project lama**: `salfanet-radius`
-- **Repo lama**: `https://github.com/s4lfanet/salfanet-radius`
-- **Repo baru (Go)**: `https://github.com/s4lfanet/salfanet-radius-go`
-- **VPS**: Ubuntu, IP `103.151.140.110`, app di `/var/www/salfanet-radius`
+- **Nama project lama**: `EugineBill-radius`
+- **Repo lama**: `https://github.com/s4lfanet/EugineBill-radius`
+- **Repo baru (Go)**: `https://github.com/s4lfanet/EugineBill-radius-go`
+- **VPS**: Ubuntu, IP `103.151.140.110`, app di `/var/www/EugineBill-radius`
 - **Database**: MySQL (shared, schema tidak berubah)
 
 ## Stack Lama (yang akan diganti)
@@ -58,7 +58,7 @@
 ## Struktur Repo Lengkap
 
 ```
-salfanet-radius-go/
+EugineBill-radius-go/
 ├── cmd/
 │   └── server/
 │       └── main.go              ← Entry point tunggal (API + cron + WS)
@@ -682,7 +682,7 @@ commands := []string{
 
 ```env
 # Database
-DATABASE_URL=mysql://user:pass@localhost:3306/salfanet_radius
+DATABASE_URL=mysql://user:pass@localhost:3306/EugineBill_radius
 
 # Server
 PORT=8080

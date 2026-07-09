@@ -1,8 +1,8 @@
 {
   "id": "/admin",
-  "name": "Salfanet Admin",
+  "name": "EugineBill Admin",
   "short_name": "Admin",
-  "description": "Panel Admin Salfanet Radius - manajemen ISP/RTRW.NET",
+  "description": "Panel Admin EugineBill Radius - manajemen ISP/RTRW.NET",
   "start_url": "/admin",
   "scope": "/admin",
   "display": "standalone",

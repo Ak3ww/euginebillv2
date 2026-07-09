@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS VPS Installer - PM2 & Build Module
+# EugineBill RADIUS VPS Installer - PM2 & Build Module
 # ============================================================================
 # Step 7: Install PM2, build application, start with PM2
 # ============================================================================
@@ -239,11 +239,11 @@ create_pm2_config() {
         # Fallback: generate a complete config with all required services
         print_info "production/ecosystem.config.js not found, generating fallback..."
         cat > ${APP_DIR}/ecosystem.config.js <<'EOF'
-const APP_DIR = process.env.APP_DIR || '/var/www/salfanet-radius';
+const APP_DIR = process.env.APP_DIR || '/var/www/EugineBill-radius';
 module.exports = {
   apps: [
     {
-      name: 'salfanet-radius',
+      name: 'EugineBill-radius',
       script: '.next/standalone/server.js',
       cwd: APP_DIR,
       instances: 1,
@@ -262,7 +262,7 @@ module.exports = {
       cron_restart: '0 */6 * * *'
     },
     {
-      name: 'salfanet-cron',
+      name: 'EugineBill-cron',
       script: './cron-service.js',
       cwd: APP_DIR,
       instances: 1,
@@ -281,7 +281,7 @@ module.exports = {
       restart_delay: 5000
     },
     {
-      name: 'salfanet-wa',
+      name: 'EugineBill-wa',
       script: './wa-service.js',
       cwd: APP_DIR,
       instances: 1,
@@ -289,7 +289,7 @@ module.exports = {
       watch: false,
       max_memory_restart: '200M',
       node_args: ['--max-old-space-size=180','--max-semi-space-size=4'],
-      env: { NODE_ENV: 'production', NODE_OPTIONS: '--max-old-space-size=180', WA_SERVICE_PORT: 4000, WA_AUTH_DIR: '/var/data/salfanet/baileys_auth', TZ: 'Asia/Jakarta' },
+      env: { NODE_ENV: 'production', NODE_OPTIONS: '--max-old-space-size=180', WA_SERVICE_PORT: 4000, WA_AUTH_DIR: '/var/data/EugineBill/baileys_auth', TZ: 'Asia/Jakarta' },
       error_file: './logs/wa-error.log',
       out_file: './logs/wa-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
@@ -306,7 +306,7 @@ EOF
     fi
 
     mkdir -p ${APP_DIR}/logs
-    print_success "PM2 ecosystem configured (salfanet-radius + salfanet-cron + salfanet-wa)"
+    print_success "PM2 ecosystem configured (EugineBill-radius + EugineBill-cron + EugineBill-wa)"
 }
 
 check_port_conflict() {
@@ -379,8 +379,8 @@ cleanup_pm2_processes() {
     
     # Cleanup root PM2 processes
     pm2 delete all 2>/dev/null || true
-    pm2 delete salfanet-radius 2>/dev/null || true
-    pm2 delete salfanet-cron 2>/dev/null || true
+    pm2 delete EugineBill-radius 2>/dev/null || true
+    pm2 delete EugineBill-cron 2>/dev/null || true
     pm2 kill 2>/dev/null || true
 
     # Remove stale root PM2 dump so old processes don't resurrect on reboot
@@ -388,8 +388,8 @@ cleanup_pm2_processes() {
 
     # Cleanup app user PM2 processes using su - for proper environment
     sudo su - ${APP_USER} -c 'pm2 delete all 2>/dev/null || true'
-    sudo su - ${APP_USER} -c 'pm2 delete salfanet-radius 2>/dev/null || true'
-    sudo su - ${APP_USER} -c 'pm2 delete salfanet-cron 2>/dev/null || true'
+    sudo su - ${APP_USER} -c 'pm2 delete EugineBill-radius 2>/dev/null || true'
+    sudo su - ${APP_USER} -c 'pm2 delete EugineBill-cron 2>/dev/null || true'
     sudo su - ${APP_USER} -c 'pm2 kill 2>/dev/null || true'
 
     # Remove stale PM2 dumps for app user as well
@@ -403,10 +403,10 @@ cleanup_pm2_processes() {
     
     # Kill any Node processes that might be lingering
     pkill -9 -f "node.*next-server" 2>/dev/null || true
-    pkill -9 -f "PM2.*salfanet" 2>/dev/null || true
-    pkill -9 -f "/root/salfanet-radius" 2>/dev/null || true
-    pkill -9 -f "/home/.*/salfanet-radius" 2>/dev/null || true
-    pkill -9 -f "/var/www/salfanet-radius" 2>/dev/null || true
+    pkill -9 -f "PM2.*EugineBill" 2>/dev/null || true
+    pkill -9 -f "/root/EugineBill-radius" 2>/dev/null || true
+    pkill -9 -f "/home/.*/EugineBill-radius" 2>/dev/null || true
+    pkill -9 -f "/var/www/EugineBill-radius" 2>/dev/null || true
     
     # Final check on port 3000
     lsof -ti:3000 2>/dev/null | xargs -r kill -9 2>/dev/null || true
@@ -415,8 +415,8 @@ cleanup_pm2_processes() {
     sleep 2
 
     # Best-effort visibility for troubleshooting duplicate instances
-    print_info "Remaining salfanet-related processes after cleanup:"
-    ps -ef | grep -i salfanet | grep -v grep || true
+    print_info "Remaining EugineBill-related processes after cleanup:"
+    ps -ef | grep -i EugineBill | grep -v grep || true
     
     print_success "PM2 processes cleaned"
 }
@@ -468,24 +468,24 @@ start_pm2_app() {
     sleep 5
 
     # ── Start Baileys WhatsApp service ────────────────────────────────────
-    print_info "Starting salfanet-wa (Baileys WhatsApp service)..."
-    mkdir -p /var/data/salfanet/baileys_auth
+    print_info "Starting EugineBill-wa (Baileys WhatsApp service)..."
+    mkdir -p /var/data/EugineBill/baileys_auth
     if [ -f "${APP_DIR}/wa-service.js" ]; then
-        if sudo su - ${APP_USER} -c "cd ${APP_DIR} && pm2 describe salfanet-wa" &>/dev/null; then
-            sudo su - ${APP_USER} -c "pm2 restart salfanet-wa --update-env" 2>/dev/null || true
+        if sudo su - ${APP_USER} -c "cd ${APP_DIR} && pm2 describe EugineBill-wa" &>/dev/null; then
+            sudo su - ${APP_USER} -c "pm2 restart EugineBill-wa --update-env" 2>/dev/null || true
         else
-            sudo su - ${APP_USER} -c "cd ${APP_DIR} && pm2 start ecosystem.config.js --only salfanet-wa" 2>&1 | tail -3 || true
+            sudo su - ${APP_USER} -c "cd ${APP_DIR} && pm2 start ecosystem.config.js --only EugineBill-wa" 2>&1 | tail -3 || true
         fi
-        print_success "salfanet-wa started"
+        print_success "EugineBill-wa started"
     else
-        print_warning "wa-service.js not found — skipping salfanet-wa startup"
+        print_warning "wa-service.js not found — skipping EugineBill-wa startup"
     fi
 
-    # Save updated PM2 config (includes salfanet-wa)
+    # Save updated PM2 config (includes EugineBill-wa)
     sudo su - ${APP_USER} -c 'pm2 save'
 
     # Check if apps are running using su -
-    if sudo su - ${APP_USER} -c 'pm2 list' | grep -q "salfanet-radius.*online"; then
+    if sudo su - ${APP_USER} -c 'pm2 list' | grep -q "EugineBill-radius.*online"; then
         print_success "Applications started successfully!"
         echo ""
         print_info "Application status:"
@@ -496,12 +496,12 @@ start_pm2_app() {
         echo "  Cron Service: Running in background"
         echo ""
         print_info "Monitor logs:"
-        echo "  sudo su - ${APP_USER} -c 'pm2 logs salfanet-radius'"
-        echo "  sudo su - ${APP_USER} -c 'pm2 logs salfanet-cron'"
+        echo "  sudo su - ${APP_USER} -c 'pm2 logs EugineBill-radius'"
+        echo "  sudo su - ${APP_USER} -c 'pm2 logs EugineBill-cron'"
         echo ""
         print_info "Restart apps:"
-        echo "  sudo su - ${APP_USER} -c 'pm2 restart salfanet-radius'"
-        echo "  sudo su - ${APP_USER} -c 'pm2 restart salfanet-cron'"
+        echo "  sudo su - ${APP_USER} -c 'pm2 restart EugineBill-radius'"
+        echo "  sudo su - ${APP_USER} -c 'pm2 restart EugineBill-cron'"
         echo "  sudo su - ${APP_USER} -c 'pm2 restart all'"
     else
         print_error "Applications failed to start!"
@@ -576,10 +576,10 @@ create_deployment_script() {
 #!/bin/bash
 set -e
 
-echo "[*] Deploying SALFANET RADIUS..."
+echo "[*] Deploying EugineBill RADIUS..."
 
-APP_DIR="/var/www/salfanet-radius"
-APP_USER="$(stat -c '%U' "$APP_DIR" 2>/dev/null || echo salfanet)"
+APP_DIR="/var/www/EugineBill-radius"
+APP_USER="$(stat -c '%U' "$APP_DIR" 2>/dev/null || echo EugineBill)"
 SOURCE_DIR=""
 DEFAULT_BRANCH=""
 
@@ -590,7 +590,7 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-for candidate in "$APP_DIR" "/root/salfanet-radius" "/root/SALFANET-RADIUS-main"; do
+for candidate in "$APP_DIR" "/root/EugineBill-radius" "/root/EugineBill-RADIUS-main"; do
     if [ -f "$candidate/package.json" ]; then
         SOURCE_DIR="$candidate"
         break
@@ -679,13 +679,13 @@ if [ -f "${APP_DIR}/production/ecosystem.config.js" ]; then
     echo "[>] ecosystem.config.js refreshed from production/"
 fi
 
-# Restart PM2 as salfanet user
+# Restart PM2 as EugineBill user
 echo "[>] Restarting application..."
 sudo su - ${APP_USER} -c "cd ${APP_DIR} && pm2 reload ecosystem.config.js --update-env || pm2 start ${APP_DIR}/ecosystem.config.js"
 sudo su - ${APP_USER} -c 'pm2 save'
 
 echo "[OK] Deployment completed!"
-echo ">> Note: PM2 may show 2 salfanet-radius processes because cluster instances=2 is intentional."
+echo ">> Note: PM2 may show 2 EugineBill-radius processes because cluster instances=2 is intentional."
 echo ""
 echo ">> Application status:"
 sudo su - ${APP_USER} -c 'pm2 list'
@@ -714,11 +714,11 @@ install_pm2_and_build() {
     sudo su - ${APP_USER} -c 'pm2 list'
     echo ""
     print_info "View logs:"
-    echo "  sudo su - ${APP_USER} -c 'pm2 logs salfanet-radius'"
-    echo "  sudo su - ${APP_USER} -c 'pm2 logs salfanet-cron'"
+    echo "  sudo su - ${APP_USER} -c 'pm2 logs EugineBill-radius'"
+    echo "  sudo su - ${APP_USER} -c 'pm2 logs EugineBill-cron'"
     echo ""
     print_info "Restart application:"
-    echo "  sudo su - ${APP_USER} -c 'pm2 restart salfanet-radius'"
+    echo "  sudo su - ${APP_USER} -c 'pm2 restart EugineBill-radius'"
     echo "  sudo su - ${APP_USER} -c 'pm2 restart all'"
     
     return 0

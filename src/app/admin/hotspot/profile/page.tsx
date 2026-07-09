@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useState } from "react"
 import { Plus, Loader2, Trash2, Edit, Ticket, RefreshCw, ChevronDown, ChevronRight } from "lucide-react"
@@ -61,7 +61,7 @@ export default function HotspotProfilePage() {
     priority: "8",
     limitAtDownload: "",
     limitAtUpload: "",
-    groupProfile: "salfanetradius",
+    groupProfile: "EugineBillradius",
     sharedUsers: "1",
     validityValue: "",
     validityUnit: "HOURS",
@@ -126,7 +126,7 @@ export default function HotspotProfilePage() {
       priority: "8",
       limitAtDownload: "",
       limitAtUpload: "",
-      groupProfile: "salfanetradius",
+      groupProfile: "EugineBillradius",
       sharedUsers: "1",
       validityValue: "",
       validityUnit: "HOURS",

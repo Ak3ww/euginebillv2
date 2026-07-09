@@ -1,4 +1,4 @@
-﻿import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/auth/config'
 import { prisma } from '@/server/db/client'
 import { RouterOSAPI } from 'node-routeros'
@@ -173,7 +173,7 @@ export async function POST(request: Request) {
         '=enabled=yes', '=default-profile=vpn-profile',
         '=authentication=mschap2',
         '=use-ipsec=yes',
-        '=ipsec-secret=salfanet-vpn-secret',
+        '=ipsec-secret=EugineBill-vpn-secret',
       ], 'l2tp-set')
       l2tp = r.ok
       await step(r.ok ? '✅ L2TP Server enabled (IPsec + Preshared Key)' : `❌ L2TP: ${r.error}`)
@@ -205,9 +205,9 @@ export async function POST(request: Request) {
       // ── Firewall forward rules ────────────────────────────────────────
       try {
         const fwRules = [
-          { label: 'Forward rule', params: ['=chain=forward', `=src-address=${vpnNet}`, `=dst-address=${vpnNet}`, '=action=accept', '=comment=SALFANET-VPN-Forward'] },
-          { label: 'RADIUS rule',  params: ['=chain=input', '=protocol=udp', `=src-address=${vpnNet}`, '=dst-port=1812,1813,3799', '=action=accept', '=comment=SALFANET-VPN-Forward-RADIUS'] },
-          { label: 'API rule',     params: ['=chain=input', '=protocol=tcp', `=src-address=${vpnNet}`, '=dst-port=8291,8728,8729', '=action=accept', '=comment=SALFANET-VPN-Forward-API'] },
+          { label: 'Forward rule', params: ['=chain=forward', `=src-address=${vpnNet}`, `=dst-address=${vpnNet}`, '=action=accept', '=comment=EugineBill-VPN-Forward'] },
+          { label: 'RADIUS rule',  params: ['=chain=input', '=protocol=udp', `=src-address=${vpnNet}`, '=dst-port=1812,1813,3799', '=action=accept', '=comment=EugineBill-VPN-Forward-RADIUS'] },
+          { label: 'API rule',     params: ['=chain=input', '=protocol=tcp', `=src-address=${vpnNet}`, '=dst-port=8291,8728,8729', '=action=accept', '=comment=EugineBill-VPN-Forward-API'] },
         ]
         for (const rule of fwRules) {
           r = await cmd(api, '/ip/firewall/filter/add', rule.params, rule.label)

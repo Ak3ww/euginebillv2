@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
@@ -30,6 +30,7 @@ interface CompanySettings {
   footerTechnician: string;
   footerAgent: string;
   invoiceGenerateDays: number;
+  radiusEnabled: boolean;
   logo?: string;
 }
 
@@ -45,13 +46,14 @@ export default function CompanySettingsPage() {
     baseUrl: '',
     timezone: 'Asia/Jakarta',
     bankAccounts: [],
-    poweredBy: 'SALFANET RADIUS',
+    poweredBy: 'EugineBill RADIUS',
     customerIdPrefix: '',
     footerAdmin: '',
     footerCustomer: '',
     footerTechnician: '',
     footerAgent: '',
     invoiceGenerateDays: 7,
+    radiusEnabled: false,
     logo: '',
   });
   const [initialTimezone, setInitialTimezone] = useState('Asia/Jakarta');
@@ -79,13 +81,14 @@ export default function CompanySettingsPage() {
             baseUrl: data.baseUrl || '',
             timezone: data.timezone || 'Asia/Jakarta',
             bankAccounts: data.bankAccounts || [],
-            poweredBy: data.poweredBy || 'SALFANET RADIUS',
+            poweredBy: data.poweredBy || 'EugineBill RADIUS',
             customerIdPrefix: data.customerIdPrefix || '',
             footerAdmin: data.footerAdmin || '',
             footerCustomer: data.footerCustomer || '',
             footerTechnician: data.footerTechnician || '',
             footerAgent: data.footerAgent || '',
             invoiceGenerateDays: data.invoiceGenerateDays || 7,
+            radiusEnabled: data.radiusEnabled || false,
             logo: data.logo || '',
           });
           setInitialTimezone(data.timezone || 'Asia/Jakarta');
@@ -456,6 +459,31 @@ export default function CompanySettingsPage() {
                   maxLength={100}
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">Teks ini akan ditampilkan di footer invoice sebagai "Support by ..." . Kosongkan jika tidak ingin ditampilkan.</p>
+              </div>
+
+              {/* RADIUS Toggle */}
+              <div>
+                <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
+                  🔒 Integrasi RADIUS (FreeRADIUS)
+                </label>
+                <div className="flex items-center justify-between p-3 border border-border rounded-lg bg-card mt-1">
+                  <div>
+                    <h4 className="text-xs font-semibold">Aktifkan RADIUS</h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      Jika OFF, sistem akan mode fallback menggunakan sinkronisasi murni MikroTik /ppp secret. 
+                      Aktifkan hanya jika Anda sudah menginstal FreeRADIUS.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={settings.radiusEnabled}
+                      onChange={(e) => setSettings({ ...settings, radiusEnabled: e.target.checked })}
+                    />
+                    <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
               </div>
 
               {/* Timezone */}

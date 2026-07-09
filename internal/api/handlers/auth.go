@@ -13,10 +13,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
-	"github.com/s4lfanet/salfanet-radius-go/internal/api/middleware"
-	"github.com/s4lfanet/salfanet-radius-go/internal/config"
-	"github.com/s4lfanet/salfanet-radius-go/internal/db/models"
-	"github.com/s4lfanet/salfanet-radius-go/internal/notify"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/api/middleware"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/config"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/db/models"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/notify"
 )
 
 // AuthHandler handles authentication endpoints.

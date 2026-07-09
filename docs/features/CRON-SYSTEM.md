@@ -1,8 +1,8 @@
-# SALFANET RADIUS - Cron Job System Documentation
+# EugineBill RADIUS - Cron Job System Documentation
 
 ## Overview
 
-SALFANET RADIUS menggunakan **node-cron** untuk automated background tasks. Sistem ini menjalankan **13 scheduled jobs** untuk maintenance dan operasional otomatis.
+EugineBill RADIUS menggunakan **node-cron** untuk automated background tasks. Sistem ini menjalankan **13 scheduled jobs** untuk maintenance dan operasional otomatis.
 
 ## Architecture
 
@@ -450,12 +450,12 @@ const typeLabels: Record<string, string> = {
 
 **Check PM2 logs:**
 ```bash
-pm2 logs salfanet-radius | grep cron
+pm2 logs EugineBill-radius | grep cron
 ```
 
 **Check node-cron initialization:**
 ```bash
-pm2 logs salfanet-radius | grep "Starting cron"
+pm2 logs EugineBill-radius | grep "Starting cron"
 ```
 
 **Verify cron config:**
@@ -557,7 +557,7 @@ Edit `ecosystem.config.js`:
 ```javascript
 module.exports = {
   apps: [{
-    name: 'salfanet-radius',
+    name: 'EugineBill-radius',
     env: {
       NODE_ENV: 'production',
       PORT: 3000,
@@ -670,7 +670,7 @@ pm2 env 0 | grep TZ
 node -e "console.log(new Date().toString())"
 
 # 4. Test database timezone
-mysql -u salfanet_user -psalfanetradius123 salfanet_radius -e "SELECT NOW(), UTC_TIMESTAMP();"
+mysql -u EugineBill_user -pEugineBillradius123 EugineBill_radius -e "SELECT NOW(), UTC_TIMESTAMP();"
 
 # 5. Test FreeRADIUS logs
 tail -f /var/log/freeradius/radius.log
@@ -684,13 +684,13 @@ Jika Anda deploy di multiple region dengan timezone berbeda:
 **Option 1: Separate Instances (Recommended)**
 ```bash
 # VPS Jakarta (WIB)
-TZ=Asia/Jakarta pm2 start ecosystem.config.js --name SALFANET-wib
+TZ=Asia/Jakarta pm2 start ecosystem.config.js --name EugineBill-wib
 
 # VPS Makassar (WITA)
-TZ=Asia/Makassar pm2 start ecosystem.config.js --name SALFANET-wita
+TZ=Asia/Makassar pm2 start ecosystem.config.js --name EugineBill-wita
 
 # VPS Papua (WIT)
-TZ=Asia/Jayapura pm2 start ecosystem.config.js --name SALFANET-wit
+TZ=Asia/Jayapura pm2 start ecosystem.config.js --name EugineBill-wit
 ```
 
 **Option 2: Single Instance with Dynamic Timezone**

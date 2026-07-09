@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { formatCurrencyExport, formatDateExport } from '@/lib/utils/export';
 import { checkAuth } from '@/server/middleware/api-auth';
@@ -101,7 +101,7 @@ export async function GET(
     // Prepare invoice data for PDF
     const invoiceData = {
       company: {
-        name: company?.name || 'SALFANET RADIUS',
+        name: company?.name || 'EugineBill RADIUS',
         address: company?.address || '',
         phone: company?.phone || '',
         email: company?.email || '',

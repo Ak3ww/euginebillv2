@@ -8,7 +8,7 @@
 
 ## 📋 Overview
 
-SALFANET RADIUS includes a comprehensive multi-channel notification system that sends notifications via:
+EugineBill RADIUS includes a comprehensive multi-channel notification system that sends notifications via:
 
 - ✅ **WhatsApp** (Primary channel - 80% usage)
 - ✅ **Email** (Secondary channel - SMTP)

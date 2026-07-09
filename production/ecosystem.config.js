@@ -1,15 +1,15 @@
 /**
- * PM2 Ecosystem Configuration — Salfanet Radius ISP
+ * PM2 Ecosystem Configuration — EugineBill Radius ISP
  *
  * Three managed processes:
- *   1. salfanet-radius  — Next.js app (standalone server.js, port 3000)
- *   2. salfanet-cron    — Background billing/expiry cron jobs
- *   3. salfanet-wa      — Baileys WhatsApp native service (port 4000, internal only)
+ *   1. EugineBill-radius  — Next.js app (standalone server.js, port 3000)
+ *   2. EugineBill-cron    — Background billing/expiry cron jobs
+ *   3. EugineBill-wa      — Baileys WhatsApp native service (port 4000, internal only)
  *
  * This file is copied by install-pm2.sh and updater.sh to APP_DIR/ecosystem.config.js
  */
 
-const APP_DIR = process.env.APP_DIR || '/var/www/salfanet-radius';
+const APP_DIR = process.env.APP_DIR || '/var/www/EugineBill-radius';
 
 module.exports = {
   apps: [
@@ -17,7 +17,7 @@ module.exports = {
     // 1. Main Next.js Application
     // ─────────────────────────────────────────────────────────────────────
     {
-      name: 'salfanet-radius',
+      name: 'EugineBill-radius',
       script: '.next/standalone/server.js',
       cwd: APP_DIR,
       instances: 1,
@@ -50,7 +50,7 @@ module.exports = {
     // 2. Background Cron Service (billing, expiry, notifications)
     // ─────────────────────────────────────────────────────────────────────
     {
-      name: 'salfanet-cron',
+      name: 'EugineBill-cron',
       script: './cron-service.js',
       cwd: APP_DIR,
       instances: 1,
@@ -81,10 +81,10 @@ module.exports = {
     // ─────────────────────────────────────────────────────────────────────
     // 3. Baileys WhatsApp Native Service
     //    Listens on 127.0.0.1:4000 (internal only, proxied via /api/whatsapp)
-    //    Auth files: /var/data/salfanet/baileys_auth/
+    //    Auth files: /var/data/EugineBill/baileys_auth/
     // ─────────────────────────────────────────────────────────────────────
     {
-      name: 'salfanet-wa',
+      name: 'EugineBill-wa',
       script: './wa-service.js',
       cwd: APP_DIR,
       instances: 1,
@@ -99,7 +99,7 @@ module.exports = {
         NODE_ENV: 'production',
         NODE_OPTIONS: '--max-old-space-size=180',
         WA_SERVICE_PORT: 4000,
-        WA_AUTH_DIR: '/var/data/salfanet/baileys_auth',
+        WA_AUTH_DIR: '/var/data/EugineBill/baileys_auth',
         TZ: 'Asia/Jakarta',
       },
       error_file: './logs/wa-error.log',

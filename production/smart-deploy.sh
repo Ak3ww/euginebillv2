@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =========================================
-# SALFANET RADIUS - Smart Deploy Script
+# EugineBill RADIUS - Smart Deploy Script
 # =========================================
 # Intelligent deployment that only updates what changed
 #
@@ -16,9 +16,9 @@
 set -e
 
 # Configuration
-APP_DIR="${APP_DIR:-/var/www/salfanet-radius}"
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/salfanet-radius}"
-LOG_FILE="${LOG_FILE:-/var/log/salfanet-deploy.log}"
+APP_DIR="${APP_DIR:-/var/www/EugineBill-radius}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/EugineBill-radius}"
+LOG_FILE="${LOG_FILE:-/var/log/EugineBill-deploy.log}"
 MAX_BACKUPS=5
 
 # Colors
@@ -223,7 +223,7 @@ rollback() {
 show_status() {
     echo ""
     echo "=========================================="
-    echo "   SALFANET RADIUS - Deployment Status"
+    echo "   EugineBill RADIUS - Deployment Status"
     echo "=========================================="
     echo ""
     

@@ -5,9 +5,9 @@ sql {
     # Connection info
     server = "localhost"
     port = 3306
-    login = "salfanet_user"
-    password = "salfanetradius123"
-    radius_db = "salfanet_radius"
+    login = "EugineBill_user"
+    password = "EugineBillradius123"
+    radius_db = "EugineBill_radius"
 
     # Table names
     acct_table1 = "radacct"

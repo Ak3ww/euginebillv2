@@ -89,7 +89,7 @@ export async function syncVoucherToRadius(
     const uniqueGroupName = `hotspot-${profileName}-${voucher.code}`
     
     // MikroTik profile name from groupProfile or use default
-    const mikrotikProfile = customGroupProfile || voucher.profile.groupProfile || 'SALFANET'
+    const mikrotikProfile = customGroupProfile || voucher.profile.groupProfile || 'EugineBill'
 
     // Determine password: custom, voucher's separate password, or same as code
     const password = customPassword || voucher.password || voucher.code

@@ -46,7 +46,7 @@ print('=== PM2 STATUS (check startup) ===')
 import subprocess
 r = subprocess.run(['pm2', 'list', '--no-color'], capture_output=True, text=True)
 for line in r.stdout.split('\n'):
-    if 'salfanet' in line or 'wa-service' in line:
+    if 'EugineBill' in line or 'wa-service' in line:
         print(' ', line.strip())
 
 print()

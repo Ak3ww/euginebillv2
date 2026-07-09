@@ -15,10 +15,10 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"github.com/s4lfanet/salfanet-radius-go/internal/db/models"
-	snmputil "github.com/s4lfanet/salfanet-radius-go/internal/olt/snmp"
-	"github.com/s4lfanet/salfanet-radius-go/internal/olt/telnet"
-	"github.com/s4lfanet/salfanet-radius-go/internal/olt/vendors/zte"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/db/models"
+	snmputil "github.com/s4lfanet/EugineBill-radius-go/internal/olt/snmp"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/olt/telnet"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/olt/vendors/zte"
 )
 
 // BroadcastFn is a function that broadcasts ONU status updates to WebSocket clients.

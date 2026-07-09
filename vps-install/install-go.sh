@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # ============================================================================
-# Salfanet RADIUS Go — VPS Clean Install Script
+# EugineBill RADIUS Go — VPS Clean Install Script
 # Target: Ubuntu 22.04 LTS
 # Usage:  sudo bash install-go.sh
 # ============================================================================
 set -euo pipefail
 
 # ─── Config ──────────────────────────────────────────────────────────────────
-APP_USER="salfanet"
-APP_DIR="/var/www/salfanet-radius"
+APP_USER="EugineBill"
+APP_DIR="/var/www/EugineBill-radius"
 GO_VERSION="1.23.5"
 GO_ARCH="linux-amd64"
-SERVICE_NAME="salfanet-radius"
+SERVICE_NAME="EugineBill-radius"
 NODE_VERSION="20"
 APP_PORT="${APP_PORT:-8080}"
 WA_PORT="${WA_PORT:-3001}"
@@ -28,7 +28,7 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-log "=== Salfanet RADIUS Go — VPS Clean Install ==="
+log "=== EugineBill RADIUS Go — VPS Clean Install ==="
 log "App dir: $APP_DIR | Port: $APP_PORT | WA sidecar: $WA_PORT"
 
 # ─── 1. System packages ──────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ log "Setting up app directory at ${APP_DIR}..."
 mkdir -p "$APP_DIR/bin" "$APP_DIR/logs" "$APP_DIR/public"
 
 # ─── 7. Clone / update repo ──────────────────────────────────────────────────
-REPO_URL="${REPO_URL:-https://github.com/s4lfanet/salfanet-radius-go.git}"
+REPO_URL="${REPO_URL:-https://github.com/s4lfanet/EugineBill-radius-go.git}"
 
 if [ -d "$APP_DIR/.git" ]; then
   log "Updating existing repo..."
@@ -117,7 +117,7 @@ APP_TIMEZONE=Asia/Jakarta
 
 # ─── Database (MySQL/MariaDB) ─────────────────────────────────────────────────
 # Format: user:password@tcp(host:port)/dbname?parseTime=true&loc=Asia%2FJakarta
-DATABASE_URL=salfanet:CHANGE_ME@tcp(127.0.0.1:3306)/salfanet_radius?parseTime=true&loc=Asia%2FJakarta
+DATABASE_URL=EugineBill:CHANGE_ME@tcp(127.0.0.1:3306)/EugineBill_radius?parseTime=true&loc=Asia%2FJakarta
 
 # ─── JWT ─────────────────────────────────────────────────────────────────────
 JWT_SECRET=CHANGE_ME_TO_RANDOM_64_CHAR_STRING
@@ -137,7 +137,7 @@ fi
 log "Creating systemd service: ${SERVICE_NAME}..."
 cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<SYSTEMD
 [Unit]
-Description=Salfanet RADIUS Go API Server
+Description=EugineBill RADIUS Go API Server
 After=network.target mysql.service
 Wants=mysql.service
 
@@ -252,7 +252,7 @@ systemctl status "$SERVICE_NAME" --no-pager -l
 # ─── Done ────────────────────────────────────────────────────────────────────
 echo ""
 log "============================================================"
-log "  Salfanet RADIUS Go installed successfully!"
+log "  EugineBill RADIUS Go installed successfully!"
 log "============================================================"
 log "  Go API:       http://localhost:${APP_PORT}"
 log "  Health check: http://localhost:${APP_PORT}/api/system/health"

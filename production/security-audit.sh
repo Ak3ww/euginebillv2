@@ -1,11 +1,11 @@
 #!/bin/bash
 
 ###############################################
-# SALFANET RADIUS - Security Audit Script
+# EugineBill RADIUS - Security Audit Script
 ###############################################
 
 echo "========================================"
-echo "SALFANET RADIUS - Security Audit"
+echo "EugineBill RADIUS - Security Audit"
 echo "========================================"
 echo ""
 
@@ -173,7 +173,7 @@ fi
 echo ""
 echo "[11/12] Checking Firebase private key exposure..."
 fb_exposed=0
-for f in salfanet-radius-firebase-adminsdk*.json *-adminsdk-*.json; do
+for f in EugineBill-radius-firebase-adminsdk*.json *-adminsdk-*.json; do
     if [ -f "$f" ]; then
         echo -e "  ${RED}❌ CRITICAL: Firebase service account key exposed at root: $f${NC}"
         echo "    Run: mv $f src/lib/firebase-service-account.json && git rm --cached $f"

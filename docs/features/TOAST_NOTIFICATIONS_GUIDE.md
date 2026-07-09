@@ -1,6 +1,6 @@
 # 🍞 Toast Notifications Guide
 
-Guide untuk menggunakan toast notifications (popup notifications) di SALFANET RADIUS.
+Guide untuk menggunakan toast notifications (popup notifications) di EugineBill RADIUS.
 
 ## 📋 Overview
 
@@ -227,7 +227,7 @@ Toast digunakan untuk:
 - ✅ Success/error messages
 - ✅ Status updates
 
-## 🌐 Real-World Examples in SALFANET
+## 🌐 Real-World Examples in EugineBill
 
 ### 1. User Management
 
@@ -385,7 +385,7 @@ const showToast = () => {
 
 - [Shadcn UI Toast Documentation](https://ui.shadcn.com/docs/components/toast)
 - [React Hook Form Integration](https://react-hook-form.com/)
-- [SALFANET API Documentation](./API_DOCUMENTATION.md)
+- [EugineBill API Documentation](./API_DOCUMENTATION.md)
 
 ---
 

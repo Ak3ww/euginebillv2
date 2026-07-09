@@ -127,27 +127,27 @@ WHERE status = 'ACTIVE'
 
 2. **Upload to VPS:**
    ```powershell
-   pscp -pw "your-password" src/lib/cron/voucher-sync.ts root@103.151.140.110:/var/www/salfanet-radius/src/lib/cron/
+   pscp -pw "your-password" src/lib/cron/voucher-sync.ts root@103.151.140.110:/var/www/EugineBill-radius/src/lib/cron/
    ```
 
 3. **Rebuild aplikasi:**
    ```bash
-   cd /var/www/salfanet-radius
+   cd /var/www/EugineBill-radius
    npm run build
    ```
 
 4. **Restart PM2:**
    ```bash
-   pm2 restart salfanet-radius
+   pm2 restart EugineBill-radius
    ```
 
 5. **Verify:**
    ```bash
    # Check cron logs
-   pm2 logs salfanet-radius --lines 50
+   pm2 logs EugineBill-radius --lines 50
    
    # Or manually check database
-   mysql -usalfanet_user -psalfanetradius123 salfanet_radius \
+   mysql -uEugineBill_user -pEugineBillradius123 EugineBill_radius \
      -e "SELECT COUNT(*) FROM hotspot_vouchers WHERE status='ACTIVE' AND expiresAt < NOW()"
    ```
 
@@ -193,4 +193,4 @@ Untuk menghindari issue serupa di masa depan:
 Fixed by: GitHub Copilot  
 Date: December 28, 2025  
 VPS: 103.151.140.110  
-Application Path: `/var/www/salfanet-radius`
+Application Path: `/var/www/EugineBill-radius`

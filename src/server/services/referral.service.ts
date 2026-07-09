@@ -1,6 +1,6 @@
 import 'server-only'
 /**
- * Referral code utilities for Salfanet RADIUS
+ * Referral code utilities for EugineBill RADIUS
  *
  * Referral codes are 8-char uppercase alphanumeric strings (A-Z 0-9, no ambiguous chars).
  * They are stored in pppoeUser.referralCode (unique index in DB).

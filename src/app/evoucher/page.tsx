@@ -22,7 +22,7 @@ export default function EVoucherPage() {
   const [purchasing, setPurchasing] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', notificationMethod: 'both' });
-  const [poweredBy, setPoweredBy] = useState('SALFANET RADIUS');
+  const [poweredBy, setPoweredBy] = useState('EugineBill RADIUS');
 
   useEffect(() => { loadProfiles(); loadCompanySettings(); }, []);
 

@@ -62,7 +62,7 @@ const _server = {
   /** Encryption key untuk data sensitif di DB */
   ENCRYPTION_KEY: optionalEnv('ENCRYPTION_KEY'),
   /** Upload directory untuk file attachments */
-  UPLOAD_DIR: optionalEnv('UPLOAD_DIR', '/var/www/salfanet-radius/public/uploads'),
+  UPLOAD_DIR: optionalEnv('UPLOAD_DIR', '/var/www/EugineBill-radius/public/uploads'),
   /** WireGuard network interface (opsional, untuk VPN routing) */
   WG_IFACE: optionalEnv('WG_IFACE', 'wg0'),
   /** Node environment */

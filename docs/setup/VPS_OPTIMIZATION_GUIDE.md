@@ -1,6 +1,6 @@
 # VPS Optimization Guide - Low Resource (2GB RAM)
 
-Panduan lengkap untuk optimasi SALFANET RADIUS pada VPS dengan resource terbatas.
+Panduan lengkap untuk optimasi EugineBill RADIUS pada VPS dengan resource terbatas.
 
 ## 🎯 Target VPS Specs
 
@@ -78,13 +78,13 @@ If you need to build manually:
 
 ### Standard Build (1.5GB heap)
 ```bash
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 NODE_OPTIONS="--max-old-space-size=1536" npm run build
 ```
 
 ### Ultra-Low Memory Build (1GB heap)
 ```bash
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 npm run build:low-mem
 ```
 
@@ -145,7 +145,7 @@ free -h
 ```javascript
 module.exports = {
   apps: [{
-    name: 'salfanet-radius',
+    name: 'EugineBill-radius',
     script: 'node_modules/next/dist/bin/next',
     args: 'start -p 3000',
     instances: 1, // IMPORTANT: Single instance for 2GB RAM
@@ -347,7 +347,7 @@ sudo tail -100 /var/log/mysql/slow.log
 
 # Optimize tables
 mysql -u root -p
-USE salfanet_radius;
+USE EugineBill_radius;
 OPTIMIZE TABLE users;
 OPTIMIZE TABLE hotspotVoucher;
 ```

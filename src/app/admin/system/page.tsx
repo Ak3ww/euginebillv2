@@ -151,12 +151,12 @@ export default function SystemPage() {
 
           <div className="space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">VPS Lokal</p>
-            <CmdBlock>{`echo y | & "C:\\Program Files\\PuTTY\\plink.exe" -ssh root@192.168.54.200 -pw "Seven789@" "cd /var/www/salfanet-radius && bash vps-install/updater.sh --branch master --skip-backup" 2>&1`}</CmdBlock>
+            <CmdBlock>{`echo y | & "C:\\Program Files\\PuTTY\\plink.exe" -ssh root@192.168.54.200 -pw "Seven789@" "cd /var/www/EugineBill-radius && bash vps-install/updater.sh --branch master --skip-backup" 2>&1`}</CmdBlock>
           </div>
 
           <div className="space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">VPS Publik</p>
-            <CmdBlock>{`echo y | & "C:\\Program Files\\PuTTY\\plink.exe" -ssh root@103.151.140.110 -pw "Seven789@" "cd /var/www/salfanet-radius && bash vps-install/updater.sh --branch master --skip-backup" 2>&1`}</CmdBlock>
+            <CmdBlock>{`echo y | & "C:\\Program Files\\PuTTY\\plink.exe" -ssh root@103.151.140.110 -pw "Seven789@" "cd /var/www/EugineBill-radius && bash vps-install/updater.sh --branch master --skip-backup" 2>&1`}</CmdBlock>
           </div>
 
           <div className="space-y-1">

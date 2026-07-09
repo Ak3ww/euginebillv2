@@ -6,7 +6,7 @@
 
 **1. Export project dari Windows:**
 ```powershell
-# Dari ROOT project (salfanet-radius-main)
+# Dari ROOT project (EugineBill-radius-main)
 .\production\export-production.ps1          # Build + copy + zip
 .\production\export-production.ps1 -NoBuild # Skip build (pakai .next yang sudah ada)
 .\production\export-production.ps1 -NoZip   # Copy saja tanpa zip
@@ -15,18 +15,18 @@
 # cd production
 # .\export-production.ps1
 ```
-Output: `../salfanet-radius-production/` + `salfanet-radius-v{VERSION}-{TIMESTAMP}.zip`
+Output: `../EugineBill-radius-production/` + `EugineBill-radius-v{VERSION}-{TIMESTAMP}.zip`
 
 **2. Upload ZIP ke VPS:**
 ```bash
-scp salfanet-radius-*.zip root@VPS_IP:/root/
+scp EugineBill-radius-*.zip root@VPS_IP:/root/
 ```
 
 **3. Install di VPS (otomatis semua step):**
 ```bash
 cd /root
-unzip salfanet-radius-*.zip
-cd salfanet-radius
+unzip EugineBill-radius-*.zip
+cd EugineBill-radius
 bash vps-install/vps-installer.sh
 ```
 Installer akan menjalankan 7 step otomatis + tawaran Step 8 (APK builder).
@@ -54,18 +54,18 @@ APK customer self-service bisa dibangun saat install atau kapan saja setelahnya:
 
 ```bash
 # Build APK (pertama kali - install Java + Android SDK dulu)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh
 
 # Rebuild setelah update source (SDK sudah ada)
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --rebuild
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --rebuild
 
 # Cek status APK
-bash /var/www/salfanet-radius/vps-install/install-apk.sh --status
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh --status
 ```
 
 Setelah build selesai, APK tersedia di:
 ```
-http://VPS_IP/downloads/salfanet-radius.apk
+http://VPS_IP/downloads/EugineBill-radius.apk
 ```
 
 > **Requirement:** ~2GB disk space bebas, ~20-40 menit proses build
@@ -91,7 +91,7 @@ http://VPS_IP/downloads/salfanet-radius.apk
 ### ✅ Database Setup
 - [ ] Create production database
   ```sql
-  CREATE DATABASE salfanet_radius CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  CREATE DATABASE EugineBill_radius CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
   ```
 - [ ] Run migrations
   ```bash
@@ -167,7 +167,7 @@ http://VPS_IP/downloads/salfanet-radius.apk
 - [ ] Clone repository to server
   ```bash
   git clone <repo-url>
-  cd salfanet-radius
+  cd EugineBill-radius
   ```
 - [ ] Install dependencies
   ```bash
@@ -187,7 +187,7 @@ http://VPS_IP/downloads/salfanet-radius.apk
 - [ ] Test all endpoints
 - [ ] Monitor logs
   ```bash
-  pm2 logs salfanet-radius
+  pm2 logs EugineBill-radius
   ```
 
 ### ✅ Post-Deployment
@@ -201,7 +201,7 @@ http://VPS_IP/downloads/salfanet-radius.apk
 - [ ] Configure automated backups
   ```bash
   # Daily database backup
-  0 2 * * * mysqldump -u root salfanet_radius > /backup/db_$(date +\%Y\%m\%d).sql
+  0 2 * * * mysqldump -u root EugineBill_radius > /backup/db_$(date +\%Y\%m\%d).sql
   ```
 - [ ] Setup SSL renewal automation
 - [ ] Document any custom configurations
@@ -210,22 +210,22 @@ http://VPS_IP/downloads/salfanet-radius.apk
 
 ### Deploy via Automated Installer (Recommended)
 ```powershell
-# Di Windows — dari ROOT project (salfanet-radius-main)
+# Di Windows — dari ROOT project (EugineBill-radius-main)
 .\production\export-production.ps1
 
 # Upload ke VPS
-scp ..\salfanet-radius-*.zip root@VPS_IP:/root/
+scp ..\EugineBill-radius-*.zip root@VPS_IP:/root/
 
 # Di VPS — install otomatis
 cd /root
-unzip salfanet-radius-*.zip
-bash salfanet-radius/vps-install/vps-installer.sh
+unzip EugineBill-radius-*.zip
+bash EugineBill-radius/vps-install/vps-installer.sh
 ```
 
 ### Build APK Customer (opsional, setelah install)
 ```bash
-bash /var/www/salfanet-radius/vps-install/install-apk.sh
-# APK tersedia di: http://VPS_IP/downloads/salfanet-radius.apk
+bash /var/www/EugineBill-radius/vps-install/install-apk.sh
+# APK tersedia di: http://VPS_IP/downloads/EugineBill-radius.apk
 ```
 
 ### Update / Redeploy
@@ -234,8 +234,8 @@ bash /var/www/salfanet-radius/vps-install/install-apk.sh
 .\export-production.ps1 -NoBuild   # jika .next sudah ada
 
 # Upload + deploy
-scp ..\salfanet-radius-*.zip root@VPS_IP:/root/
-ssh root@VPS_IP "cd /root && unzip -o salfanet-radius-*.zip && bash /var/www/salfanet-radius/deploy.sh"
+scp ..\EugineBill-radius-*.zip root@VPS_IP:/root/
+ssh root@VPS_IP "cd /root && unzip -o EugineBill-radius-*.zip && bash /var/www/EugineBill-radius/deploy.sh"
 ```
 
 ### Manual Deploy (Advanced)
@@ -274,7 +274,7 @@ npx prisma generate
 npm run build
 
 # Restart
-pm2 restart salfanet-radius
+pm2 restart EugineBill-radius
 ```
 
 ## Rollback Procedure
@@ -289,10 +289,10 @@ git checkout <previous-commit>
 npm run build
 
 # 3. Restart
-pm2 restart salfanet-radius
+pm2 restart EugineBill-radius
 
 # 4. Restore database (if needed)
-mysql -u root salfanet_radius < /backup/db_latest.sql
+mysql -u root EugineBill_radius < /backup/db_latest.sql
 ```
 
 ## Monitoring & Maintenance
@@ -300,7 +300,7 @@ mysql -u root salfanet_radius < /backup/db_latest.sql
 ### Check Application Status
 ```bash
 pm2 status
-pm2 logs salfanet-radius
+pm2 logs EugineBill-radius
 ```
 
 ### View Metrics
@@ -310,7 +310,7 @@ pm2 monit
 
 ### Restart Application
 ```bash
-pm2 restart salfanet-radius
+pm2 restart EugineBill-radius
 ```
 
 ### Clear Logs
@@ -321,10 +321,10 @@ pm2 flush
 ### Database Backup
 ```bash
 # Manual backup
-mysqldump -u root -p salfanet_radius > backup_$(date +%Y%m%d).sql
+mysqldump -u root -p EugineBill_radius > backup_$(date +%Y%m%d).sql
 
 # Restore
-mysql -u root -p salfanet_radius < backup_20260118.sql
+mysql -u root -p EugineBill_radius < backup_20260118.sql
 ```
 
 ## Troubleshooting

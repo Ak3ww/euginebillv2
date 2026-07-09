@@ -3,7 +3,7 @@
  *
  * Menjalankan semua cron jobs langsung dari src/server/jobs/ tanpa HTTP.
  * Dijalankan via: tsx src/cron/runner.ts
- * PM2: pm2 start "tsx src/cron/runner.ts" --name salfanet-cron
+ * PM2: pm2 start "tsx src/cron/runner.ts" --name EugineBill-cron
  *
  * Keuntungan vs cron-service.js (HTTP polling):
  *  - Tidak bergantung pada Next.js server berjalan

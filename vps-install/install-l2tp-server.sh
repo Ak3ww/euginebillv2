@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS — L2TP/IPsec VPN SERVER Installer
+# EugineBill RADIUS — L2TP/IPsec VPN SERVER Installer
 # ============================================================================
 # Mengkonfigurasi VPS sebagai L2TP/IPsec VPN SERVER (strongSwan + xl2tpd)
 # Cocok untuk NAS RouterOS 6.x yang tidak support WireGuard.
@@ -24,7 +24,7 @@ set -euo pipefail
 # ── Nilai default ──────────────────────────────────────────────────────────
 L2TP_SUBNET="${L2TP_SUBNET:-10.201.0.0/24}"
 L2TP_PSK="${L2TP_PSK:-}"           # Dikosongkan = auto-generate
-L2TP_CONF_DIR="/etc/salfanet/l2tp"
+L2TP_CONF_DIR="/etc/EugineBill/l2tp"
 INFO_FILE="${L2TP_CONF_DIR}/l2tp-server-info.json"
 
 # Parse CLI args
@@ -37,7 +37,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── Helper functions ───────────────────────────────────────────────────────
-print_header() { echo ""; echo "╔══════════════════════════════════════════╗"; echo "║  L2TP/IPsec VPN Server — SALFANET RADIUS ║"; echo "╚══════════════════════════════════════════╝"; echo ""; }
+print_header() { echo ""; echo "╔══════════════════════════════════════════╗"; echo "║  L2TP/IPsec VPN Server — EugineBill RADIUS ║"; echo "╚══════════════════════════════════════════╝"; echo ""; }
 print_info()    { echo "[INFO]  $*"; }
 print_ok()      { echo "[OK]    $*"; }
 print_warn()    { echo "[WARN]  $*"; }
@@ -68,7 +68,7 @@ SUBNET_MASK="${L2TP_SUBNET#*/}"
 
 if [[ -z "${L2TP_PSK}" ]]; then
   # Auto-generate PSK jika tidak diisi, tapi simpan agar konsisten
-  PSK_FILE="/etc/salfanet/l2tp/ipsec.psk"
+  PSK_FILE="/etc/EugineBill/l2tp/ipsec.psk"
   if [[ -f "${PSK_FILE}" ]]; then
     L2TP_PSK="$(cat "${PSK_FILE}")"
   else
@@ -112,8 +112,8 @@ echo "${L2TP_PSK}" > "${L2TP_CONF_DIR}/ipsec.psk"
 chmod 600 "${L2TP_CONF_DIR}/ipsec.psk"
 
 cat > /etc/ipsec.conf << IPSECEOF
-# SALFANET RADIUS — strongSwan L2TP/IPsec Server
-# managed by salfanet-radius app
+# EugineBill RADIUS — strongSwan L2TP/IPsec Server
+# managed by EugineBill-radius app
 
 config setup
   uniqueIDs=no
@@ -139,7 +139,7 @@ IPSECEOF
 
 # IPsec secrets (PSK wildcard — berlaku untuk IP mana pun)
 cat > /etc/ipsec.secrets << SECREOF
-# SALFANET RADIUS — IPsec PSK
+# EugineBill RADIUS — IPsec PSK
 # Format: local remote : PSK "secret"
 %any  %any  : PSK "${L2TP_PSK}"
 SECREOF
@@ -168,7 +168,7 @@ length bit = yes
 XEOF
 
 cat > /etc/ppp/options.xl2tpd.server << PPPEOF
-# PPP options for xl2tpd server (SALFANET RADIUS)
+# PPP options for xl2tpd server (EugineBill RADIUS)
 ipcp-accept-local
 ipcp-accept-remote
 ms-dns 8.8.8.8
@@ -266,13 +266,13 @@ JSONEOF
 chmod 640 "${INFO_FILE}"
 
 # ── Helper script: tambah/hapus NAS credentials ────────────────────────────
-# Dipanggil oleh salfanet-radius app via shell exec untuk manage NAS peers
-cat > /usr/local/bin/salfanet-l2tp-peer << 'PEEREOF'
+# Dipanggil oleh EugineBill-radius app via shell exec untuk manage NAS peers
+cat > /usr/local/bin/EugineBill-l2tp-peer << 'PEEREOF'
 #!/bin/bash
 # Usage:
-#   salfanet-l2tp-peer add <username> <password> <vpn_ip>
-#   salfanet-l2tp-peer remove <username>
-#   salfanet-l2tp-peer list
+#   EugineBill-l2tp-peer add <username> <password> <vpn_ip>
+#   EugineBill-l2tp-peer remove <username>
+#   EugineBill-l2tp-peer list
 
 set -euo pipefail
 CMD="${1:-list}"
@@ -308,8 +308,8 @@ case "${CMD}" in
   *) echo "Usage: $0 add|remove|list"; exit 1 ;;
 esac
 PEEREOF
-chmod +x /usr/local/bin/salfanet-l2tp-peer
-print_ok "Helper /usr/local/bin/salfanet-l2tp-peer dibuat"
+chmod +x /usr/local/bin/EugineBill-l2tp-peer
+print_ok "Helper /usr/local/bin/EugineBill-l2tp-peer dibuat"
 
 # ── Summary ────────────────────────────────────────────────────────────────
 echo ""

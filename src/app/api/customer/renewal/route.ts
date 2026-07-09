@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { randomBytes, randomUUID } from 'crypto';
 
@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
 
     // Log ke file untuk debugging
     const fs = require('fs');
-    const logPath = '/var/www/salfanet-radius/logs/notification-debug.log';
+    const logPath = '/var/www/EugineBill-radius/logs/notification-debug.log';
     fs.appendFileSync(logPath, `\n[${new Date().toISOString()}] Invoice created: ${invoiceNumber}\n`);
 
     // Send WhatsApp notification
@@ -394,7 +394,7 @@ export async function POST(request: NextRequest) {
     // Write to file for debugging
     try {
       const fs = require('fs');
-      const logPath = '/var/www/salfanet-radius/logs/renewal-error.log';
+      const logPath = '/var/www/EugineBill-radius/logs/renewal-error.log';
       const timestamp = new Date().toISOString();
       fs.appendFileSync(logPath, `\n[${timestamp}] Renewal Error:\n${errorMessage}\n${errorStack}\n\n`);
     } catch (logError) {

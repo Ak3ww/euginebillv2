@@ -1,8 +1,8 @@
 {
   "id": "/customer",
-  "name": "Salfanet Customer",
+  "name": "EugineBill Customer",
   "short_name": "Customer",
-  "description": "Portal Pelanggan Salfanet - cek tagihan, paket, dan tiket",
+  "description": "Portal Pelanggan EugineBill - cek tagihan, paket, dan tiket",
   "start_url": "/customer",
   "scope": "/customer",
   "display": "standalone",

@@ -10,13 +10,13 @@ import (
 	"github.com/valyala/fasthttp"
 	"gorm.io/gorm"
 
-	"github.com/s4lfanet/salfanet-radius-go/internal/api/handlers"
-	"github.com/s4lfanet/salfanet-radius-go/internal/api/middleware"
-	"github.com/s4lfanet/salfanet-radius-go/internal/config"
-	"github.com/s4lfanet/salfanet-radius-go/internal/cron"
-	"github.com/s4lfanet/salfanet-radius-go/internal/olt/poller"
-	"github.com/s4lfanet/salfanet-radius-go/internal/radius"
-	"github.com/s4lfanet/salfanet-radius-go/internal/ws"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/api/handlers"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/api/middleware"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/config"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/cron"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/olt/poller"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/radius"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/ws"
 )
 
 var wsUpgrader = fws.FastHTTPUpgrader{
@@ -28,7 +28,7 @@ var wsUpgrader = fws.FastHTTPUpgrader{
 // New builds and returns the configured Fiber app.
 func New(db *gorm.DB, p *poller.Poller, hub *ws.Hub, rad *radius.Service, sched *cron.Scheduler) *fiber.App {
 	app := fiber.New(fiber.Config{
-		AppName: "Salfanet RADIUS API",
+		AppName: "EugineBill RADIUS API",
 	})
 
 	// Global middleware

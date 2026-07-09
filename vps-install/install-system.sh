@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS VPS Installer - System Setup Module
+# EugineBill RADIUS VPS Installer - System Setup Module
 # ============================================================================
 # Step 1: System update, dependencies, PPP/TUN setup, timezone configuration
 # ============================================================================

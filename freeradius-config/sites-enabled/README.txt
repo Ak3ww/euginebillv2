@@ -1,4 +1,4 @@
-# ⚠️ PENTING: Pada VPS salfanet-radius, sites-enabled/default adalah STANDALONE FILE,
+# ⚠️ PENTING: Pada VPS EugineBill-radius, sites-enabled/default adalah STANDALONE FILE,
 # BUKAN symlink ke sites-available/default!
 #
 # Untuk deploy ke VPS, upload file ini langsung ke:

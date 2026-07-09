@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS - VPS Updater
+# EugineBill RADIUS - VPS Updater
 # ============================================================================
 # Update existing installation to the latest GitHub release.
 #
@@ -26,11 +26,11 @@ print_info()    { echo -e "${YELLOW}  $1${NC}"; }
 print_error()   { echo -e "${RED}✗ $1${NC}" >&2; }
 
 # ─── Config ────────────────────────────────────────────────────────────────
-APP_DIR="${APP_DIR:-/var/www/salfanet-radius}"
-GITHUB_REPO="s4lfanet/salfanet-radius"
-PM2_APP_NAME="salfanet-radius"
-PM2_CRON_NAME="salfanet-cron"
-BACKUP_BASE="/root/salfanet-backups"
+APP_DIR="${APP_DIR:-/var/www/EugineBill-radius}"
+GITHUB_REPO="s4lfanet/EugineBill-radius"
+PM2_APP_NAME="EugineBill-radius"
+PM2_CRON_NAME="EugineBill-cron"
+BACKUP_BASE="/root/EugineBill-backups"
 TARGET_VERSION=""
 USE_BRANCH=""
 SKIP_BACKUP=false
@@ -88,12 +88,12 @@ restore_genieacs_data() {
 }
 
 # Apply flat SQL migration files from prisma/migrations/*.sql
-# Tracks applied files in /var/lib/salfanet-applied-migrations.txt
+# Tracks applied files in /var/lib/EugineBill-applied-migrations.txt
 # Safe to run multiple times — already-applied files are skipped.
 apply_sql_migrations() {
     command -v mysql &>/dev/null || return 0
     _parse_db_parts || return 0
-    local APPLIED_LOG="/var/lib/salfanet-applied-migrations.txt"
+    local APPLIED_LOG="/var/lib/EugineBill-applied-migrations.txt"
     local MIGRATIONS_DIR="$APP_DIR/prisma/migrations"
     [ -d "$MIGRATIONS_DIR" ] || return 0
 
@@ -115,14 +115,14 @@ apply_sql_migrations() {
         # Errors 1060 (duplicate column) and 1061 (duplicate index) are harmless —
         # they mean the column/index was already created by a previous db push.
         mysql --force -h"$_DB_HOST" -P"$_DB_PORT" -u"$_DB_USER" -p"$_DB_PASS" "$_DB_NAME" \
-            < "$sql_file" 2>/tmp/salfanet-migration-err.log || true
+            < "$sql_file" 2>/tmp/EugineBill-migration-err.log || true
         # Always mark as applied (prisma db push is the source of truth for schema)
         echo "$filename" >> "$APPLIED_LOG"
         applied=$((applied + 1))
         # Show only non-trivial errors (ignore duplicate column/index, which are expected)
         local real_errors
         real_errors=$(grep -v "ERROR 1060\|ERROR 1061\|Duplicate column\|Duplicate key" \
-            /tmp/salfanet-migration-err.log 2>/dev/null | grep "ERROR" | head -3)
+            /tmp/EugineBill-migration-err.log 2>/dev/null | grep "ERROR" | head -3)
         if [ -n "$real_errors" ]; then
             print_info "Migration note ($filename): $real_errors"
         else
@@ -179,7 +179,7 @@ fi
 
 echo ""
 echo -e "${WHITE}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${WHITE}║      SALFANET RADIUS — VPS Updater               ║${NC}"
+echo -e "${WHITE}║      EugineBill RADIUS — VPS Updater               ║${NC}"
 echo -e "${WHITE}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
 print_info "App dir      : $APP_DIR"
@@ -222,9 +222,9 @@ if [ -n "$USE_BRANCH" ]; then
     fi
 
     # ─── Migrate uploads to persistent directory ───────────────────────
-    # Uploads now live in /var/data/salfanet/uploads/ (outside git/build).
+    # Uploads now live in /var/data/EugineBill/uploads/ (outside git/build).
     # Migrate any remaining files from legacy public/uploads/ location.
-    UPLOAD_DIR="${UPLOAD_DIR:-/var/data/salfanet/uploads}"
+    UPLOAD_DIR="${UPLOAD_DIR:-/var/data/EugineBill/uploads}"
     mkdir -p "$UPLOAD_DIR"
 
     # Add UPLOAD_DIR to .env if not present
@@ -342,7 +342,7 @@ if [ -n "$USE_BRANCH" ]; then
     if [ "$APP_NEEDS_MIGRATION" = true ] && [ -f "$APP_DIR/ecosystem.config.js" ]; then
         pm2 delete "$PM2_APP_NAME" 2>/dev/null || true
         pm2 start "$APP_DIR/ecosystem.config.js" --only "$PM2_APP_NAME" 2>&1 | tail -3
-        print_success "salfanet-radius migrated to standalone PM2 config"
+        print_success "EugineBill-radius migrated to standalone PM2 config"
     else
         pm2 reload "$PM2_APP_NAME" --update-env 2>/dev/null || pm2 restart "$PM2_APP_NAME" 2>/dev/null || true
     fi
@@ -350,17 +350,17 @@ if [ -n "$USE_BRANCH" ]; then
     # Jika ecosystem.config.js berubah (migrasi cron-service.js → tsx runner),
     # harus delete + start ulang agar PM2 pakai script/args baru.
     if [ "${ECOSYSTEM_CHANGED:-false}" = true ]; then
-        print_info "Ecosystem config changed — migrating salfanet-cron ke tsx runner..."
+        print_info "Ecosystem config changed — migrating EugineBill-cron ke tsx runner..."
         pm2 delete "$PM2_CRON_NAME" 2>/dev/null || true
         pm2 start "$APP_DIR/ecosystem.config.js" --only "$PM2_CRON_NAME" 2>&1 | tail -3
-        print_success "salfanet-cron migrated to tsx runner"
+        print_success "EugineBill-cron migrated to tsx runner"
     else
         pm2 restart "$PM2_CRON_NAME" --update-env 2>/dev/null || true
     fi
 
     # ── Baileys WhatsApp Service ───────────────────────────────────────────
-    PM2_WA_NAME="salfanet-wa"
-    mkdir -p /var/data/salfanet/baileys_auth
+    PM2_WA_NAME="EugineBill-wa"
+    mkdir -p /var/data/EugineBill/baileys_auth
     CURRENT_WA_PROC=$(pm2 describe "$PM2_WA_NAME" 2>/dev/null | grep -i "status" | head -1 || true)
     if [ -z "$CURRENT_WA_PROC" ]; then
         print_info "Starting $PM2_WA_NAME (Baileys WhatsApp service)..."
@@ -369,14 +369,14 @@ if [ -n "$USE_BRANCH" ]; then
             pm2 start "$APP_DIR/ecosystem.config.js" --only "$PM2_WA_NAME" 2>&1 | tail -3 || true
         elif [ -f "$APP_DIR/wa-service.js" ]; then
             # Direct fallback if ecosystem config is missing
-            WA_AUTH_DIR=/var/data/salfanet/baileys_auth \
+            WA_AUTH_DIR=/var/data/EugineBill/baileys_auth \
             WA_SERVICE_PORT=4000 \
             pm2 start "$APP_DIR/wa-service.js" --name "$PM2_WA_NAME" --max-memory-restart 200M 2>&1 | tail -3 || true
         fi
     else
         pm2 restart "$PM2_WA_NAME" --update-env 2>/dev/null || true
     fi
-    print_success "salfanet-wa (Baileys) started/restarted"
+    print_success "EugineBill-wa (Baileys) started/restarted"
 
     pm2 save
 
@@ -408,9 +408,9 @@ if [ -n "$USE_BRANCH" ]; then
             && print_success "WireGuard server diperbarui" || true
     fi
     # L2TP/IPsec Server
-    if [ -f "/etc/salfanet/l2tp/l2tp-server-info.json" ] && [ -f "$APP_DIR/vps-install/install-l2tp-server.sh" ]; then
-        L2TP_PSK=$(grep -o '"ipsecPsk": *"[^"]*"' /etc/salfanet/l2tp/l2tp-server-info.json 2>/dev/null | sed 's/.*: *"//;s/"//' || echo "")
-        L2TP_SUBNET=$(grep -o '"subnet": *"[^"]*"' /etc/salfanet/l2tp/l2tp-server-info.json 2>/dev/null | sed 's/.*: *"//;s/"//' || echo "10.201.0.0/24")
+    if [ -f "/etc/EugineBill/l2tp/l2tp-server-info.json" ] && [ -f "$APP_DIR/vps-install/install-l2tp-server.sh" ]; then
+        L2TP_PSK=$(grep -o '"ipsecPsk": *"[^"]*"' /etc/EugineBill/l2tp/l2tp-server-info.json 2>/dev/null | sed 's/.*: *"//;s/"//' || echo "")
+        L2TP_SUBNET=$(grep -o '"subnet": *"[^"]*"' /etc/EugineBill/l2tp/l2tp-server-info.json 2>/dev/null | sed 's/.*: *"//;s/"//' || echo "10.201.0.0/24")
         L2TP_PSK="$L2TP_PSK" L2TP_SUBNET="$L2TP_SUBNET" \
             bash "$APP_DIR/vps-install/install-l2tp-server.sh" 2>/dev/null \
             && print_success "L2TP/IPsec server diperbarui" || true
@@ -509,7 +509,7 @@ if [ -f "/etc/wireguard/wg-server-info.json" ]; then
     done
 fi
 # Jika L2TP server sudah terinstall, pastikan strongswan+xl2tpd tersedia
-if [ -f "/etc/salfanet/l2tp/l2tp-server-info.json" ]; then
+if [ -f "/etc/EugineBill/l2tp/l2tp-server-info.json" ]; then
     for pkg in strongswan xl2tpd; do
         if ! dpkg -s "$pkg" &>/dev/null; then
             MISSING_PKGS="$MISSING_PKGS $pkg"
@@ -540,7 +540,7 @@ if [ -f "$APP_DIR/.env" ]; then
 fi
 
 # Migrate uploads to persistent directory before replacing files
-UPLOAD_DIR="${UPLOAD_DIR:-/var/data/salfanet/uploads}"
+UPLOAD_DIR="${UPLOAD_DIR:-/var/data/EugineBill/uploads}"
 mkdir -p "$UPLOAD_DIR"
 if [ -d "$APP_DIR/public/uploads" ] && [ "$(ls -A "$APP_DIR/public/uploads" 2>/dev/null)" ]; then
     for subdir in "$APP_DIR/public/uploads"/*/; do
@@ -633,7 +633,7 @@ fi
 
 # ─── Update L2TP/IPsec Server jika sudah terinstall ──────────────────────
 # Fallback untuk RouterOS 6 yang tidak support WireGuard
-L2TP_INFO="/etc/salfanet/l2tp/l2tp-server-info.json"
+L2TP_INFO="/etc/EugineBill/l2tp/l2tp-server-info.json"
 if [ -f "$L2TP_INFO" ]; then
     print_step "Update L2TP/IPsec VPN Server"
     if [ -f "$APP_DIR/vps-install/install-l2tp-server.sh" ]; then
@@ -678,5 +678,5 @@ print_info "Backup ada di: $BACKUP_BASE"
 # Tampilkan status VPN
 [ -f "/usr/local/bin/vpn-connect" ]               && print_info "VPN Client (CHR) : vpn-connect status"
 [ -f "/etc/wireguard/wg-server-info.json" ]        && print_info "WireGuard Server : wg show wg0"
-[ -f "/etc/salfanet/l2tp/l2tp-server-info.json" ]  && print_info "L2TP/IPsec Server: systemctl status xl2tpd"
+[ -f "/etc/EugineBill/l2tp/l2tp-server-info.json" ]  && print_info "L2TP/IPsec Server: systemctl status xl2tpd"
 echo ""

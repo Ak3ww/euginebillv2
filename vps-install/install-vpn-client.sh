@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS - SSTP VPN Client Installer
+# EugineBill RADIUS - SSTP VPN Client Installer
 # ============================================================================
 # Installs SSTP VPN client tooling so VPS dapat terhubung ke MikroTik CHR
 # via SSTP menggunakan credentials dari admin panel.

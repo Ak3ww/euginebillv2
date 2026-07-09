@@ -101,7 +101,7 @@
 2. **Check middleware logs**:
    ```bash
    # On server
-   journalctl -u salfanet-radius -f
+   journalctl -u EugineBill-radius -f
    ```
    
    **Expected log**:
@@ -202,7 +202,7 @@
 
 7. **Check webhook log**:
    ```bash
-   tail -f /var/log/salfanet-radius/webhook.log
+   tail -f /var/log/EugineBill-radius/webhook.log
    ```
 
 8. **Check invoice status**:
@@ -361,7 +361,7 @@ add chain=forward src-address=192.168.200.0/24 \
 **Diagnosis**:
 ```bash
 # Check middleware logs
-journalctl -u salfanet-radius -f | grep MIDDLEWARE
+journalctl -u EugineBill-radius -f | grep MIDDLEWARE
 
 # Check X-Real-IP header
 curl -H "X-Real-IP: 192.168.200.50" http://localhost:3000/
@@ -461,10 +461,10 @@ If issues persist after following this guide:
 1. Check logs:
    ```bash
    # Next.js logs
-   pm2 logs salfanet-radius
+   pm2 logs EugineBill-radius
    
    # Cron logs
-   pm2 logs salfanet-cron
+   pm2 logs EugineBill-cron
    
    # FreeRADIUS logs
    tail -f /var/log/freeradius/radius.log

@@ -16,15 +16,15 @@ const execAsync = promisify(exec);
 export const dynamic = 'force-dynamic';
 
 const ROLES = {
-  admin:      { label: 'Salfanet Admin',     pkg: 'net.salfanet.admin',      color: '#1e40af', pathSuffix: '/admin' },
-  customer:   { label: 'Salfanet Customer',  pkg: 'net.salfanet.customer',   color: '#0891b2', pathSuffix: '/customer' },
-  technician: { label: 'Salfanet Teknisi',   pkg: 'net.salfanet.technician', color: '#059669', pathSuffix: '/technician' },
-  agent:      { label: 'Salfanet Agent',     pkg: 'net.salfanet.agent',      color: '#7c3aed', pathSuffix: '/agent' },
+  admin:      { label: 'EugineBill Admin',     pkg: 'net.EugineBill.admin',      color: '#1e40af', pathSuffix: '/admin' },
+  customer:   { label: 'EugineBill Customer',  pkg: 'net.EugineBill.customer',   color: '#0891b2', pathSuffix: '/customer' },
+  technician: { label: 'EugineBill Teknisi',   pkg: 'net.EugineBill.technician', color: '#059669', pathSuffix: '/technician' },
+  agent:      { label: 'EugineBill Agent',     pkg: 'net.EugineBill.agent',      color: '#7c3aed', pathSuffix: '/agent' },
 } as const;
 type RoleKey = keyof typeof ROLES;
 
-const APK_DIR       = '/var/data/salfanet/apk';
-const GRADLE_CACHE  = '/var/data/salfanet/gradle-cache';
+const APK_DIR       = '/var/data/EugineBill/apk';
+const GRADLE_CACHE  = '/var/data/EugineBill/gradle-cache';
 const ANDROID_HOME  = process.env.ANDROID_HOME || '/opt/android';
 const WRAPPER_JAR   = join(process.cwd(), 'public', 'android-template', 'gradle-wrapper.jar');
 
@@ -63,9 +63,9 @@ class MainActivity : AppCompatActivity() {
     private var fileCallback: ValueCallback<Array<Uri>>? = null
 
     companion object {
-        const val CHANNEL_ID = "salfanet_push_channel"
-        const val CHANNEL_NAME = "Notifikasi Salfanet"
-        const val PREFS_NAME = "salfanet_prefs"
+        const val CHANNEL_ID = "EugineBill_push_channel"
+        const val CHANNEL_NAME = "Notifikasi EugineBill"
+        const val PREFS_NAME = "EugineBill_prefs"
         const val PREF_BASE_URL = "base_url"
         const val PREF_LAST_NOTIF_ID = "last_notif_id"
         const val PREF_SESSION_COOKIE = "session_cookie"
@@ -151,7 +151,7 @@ class MainActivity : AppCompatActivity() {
             val channel = NotificationChannel(
                 CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Notifikasi push dari Salfanet"
+                description = "Notifikasi push dari EugineBill"
                 enableLights(true)
                 lightColor = Color.CYAN
                 enableVibration(true)
@@ -174,7 +174,7 @@ class MainActivity : AppCompatActivity() {
             .setBackoffCriteria(BackoffPolicy.LINEAR, 5, TimeUnit.MINUTES)
             .build()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "salfanet_notif_poll",
+            "EugineBill_notif_poll",
             ExistingPeriodicWorkPolicy.KEEP,
             workRequest
         )
@@ -212,7 +212,7 @@ class MainActivity : AppCompatActivity() {
             displayZoomControls  = false
             cacheMode            = WebSettings.LOAD_DEFAULT
             mixedContentMode     = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-            userAgentString      = userAgentString + " SalfanetApp/2.0"
+            userAgentString      = userAgentString + " EugineBillApp/2.0"
         }
         // Disable overscroll glow/bounce effect
         webView.overScrollMode = android.view.View.OVER_SCROLL_NEVER
@@ -240,7 +240,7 @@ class MainActivity : AppCompatActivity() {
                     "navigator.serviceWorker.addEventListener('message',function(e){" +
                     "var d=e.data;" +
                     "if(d&&(d.type==='PUSH_RECEIVED'||d.type==='PUSH_NOTIFICATION')&&typeof Android!=='undefined'){" +
-                    "try{Android.showNotificationWithTag(d.title||'Salfanet',d.body||'',d.tag||'');}catch(err){}" +
+                    "try{Android.showNotificationWithTag(d.title||'EugineBill',d.body||'',d.tag||'');}catch(err){}" +
                     "}});}})();",
                     null
                 )
@@ -788,7 +788,7 @@ export async function POST(req: NextRequest) {
       const filename = company.logo.split('/').pop();
       if (filename && /^[a-zA-Z0-9._-]+$/.test(filename)) {
         const uploadDir = process.env.UPLOAD_DIR ||
-          (process.env.NODE_ENV === 'production' ? '/var/data/salfanet/uploads' : join(process.cwd(), 'data', 'uploads'));
+          (process.env.NODE_ENV === 'production' ? '/var/data/EugineBill/uploads' : join(process.cwd(), 'data', 'uploads'));
         const candidate = join(uploadDir, 'logos', filename);
         if (existsSync(candidate)) {
           logoPath = candidate;
@@ -808,7 +808,7 @@ export async function POST(req: NextRequest) {
 
   const startUrl   = `${baseUrl}${ROLES[role].pathSuffix}`;
   const startedAt  = new Date().toISOString();
-  const projectDir = `/tmp/salfanet-build-${role}-${Date.now()}`;
+  const projectDir = `/tmp/EugineBill-build-${role}-${Date.now()}`;
 
   // Mark as building
   writeFileSync(statusFile, JSON.stringify({ status: 'building', startedAt, role, appName, url: startUrl }));
@@ -869,7 +869,7 @@ export async function POST(req: NextRequest) {
       } else {
         writeFileSync(statusFile, JSON.stringify({
           status: 'failed', startedAt, finishedAt: new Date().toISOString(),
-          error: `Gradle exit code ${code}. Cek: /var/data/salfanet/apk/${role}/build.log`,
+          error: `Gradle exit code ${code}. Cek: /var/data/EugineBill/apk/${role}/build.log`,
         }));
       }
     } catch { /* ignore */ }

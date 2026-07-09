@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Isolation System — SALFANET RADIUS Documentation',
+  title: 'Isolation System — EugineBill RADIUS Documentation',
   description: 'Dokumentasi lengkap sistem isolasi otomatis untuk PPPoE users yang masa berlangganannya habis.',
 };
 
@@ -157,7 +157,7 @@ export default function IsolationDocsPage() {
             <SectionTitle number={4} title="Cron Job — Auto Isolir" />
             <Prose>
               <p><strong>Schedule:</strong> <Code>0 * * * *</Code> — Setiap jam tepat (00 menit)</p>
-              <p>Cron job berjalan di <Code>salfanet-cron</Code> (PM2) dan memanggil API endpoint <Code>POST /api/cron</Code> dengan <Code>type: "pppoe_auto_isolir"</Code>.</p>
+              <p>Cron job berjalan di <Code>EugineBill-cron</Code> (PM2) dan memanggil API endpoint <Code>POST /api/cron</Code> dengan <Code>type: "pppoe_auto_isolir"</Code>.</p>
             </Prose>
             <h3 className="font-semibold text-lg mt-4 mb-2">Yang Dilakukan Per User Expired</h3>
             <CodeBlock>{`// 1. Update status → 'isolated'
@@ -176,7 +176,7 @@ curl -X POST http://localhost:3000/api/cron \\
   -H "Content-Type: application/json" \\
   -d '{"type": "pppoe_auto_isolir"}'`}</CodeBlock>
             <h3 className="font-semibold text-lg mt-4 mb-2">Cek Log Cron</h3>
-            <CodeBlock>{`pm2 logs salfanet-cron --lines 50
+            <CodeBlock>{`pm2 logs EugineBill-cron --lines 50
 
 # Contoh log sukses:
 # [CRON] Running PPPoE Auto Isolir (attempt 1/3)...
@@ -395,7 +395,7 @@ https://domain-anda.com/isolated?username=john123`}</CodeBlock>
 
             <TroubleshootBlock title="User Expired Tidak Diisolir">
               <CodeBlock>{`# 1. Cek apakah cron berjalan
-pm2 logs salfanet-cron --lines 100 | grep "Auto Isolir"
+pm2 logs EugineBill-cron --lines 100 | grep "Auto Isolir"
 
 # 2. Trigger manual
 curl -X POST http://localhost:3000/api/cron \\
@@ -427,7 +427,7 @@ SELECT * FROM radusergroup WHERE username = 'USERNAME';
 /ip pool used print where pool=pool-isolir
 
 # Cek middleware log
-pm2 logs salfanet-radius --lines 20 | grep PROXY`}</CodeBlock>
+pm2 logs EugineBill-radius --lines 20 | grep PROXY`}</CodeBlock>
             </TroubleshootBlock>
 
             <TroubleshootBlock title="Info User Tidak Muncul di Halaman /isolated">
@@ -480,7 +480,7 @@ expiredAt < hari ini
 
         {/* Footer */}
         <div className="mt-12 pt-6 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>SALFANET RADIUS — Isolation System Documentation</p>
+          <p>EugineBill RADIUS — Isolation System Documentation</p>
           <Link href="/admin/settings/isolation" className="text-blue-600 hover:underline mt-1 inline-block">
             ← Kembali ke Isolation Settings
           </Link>

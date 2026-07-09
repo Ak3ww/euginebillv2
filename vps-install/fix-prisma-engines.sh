@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS - Fix Prisma Engine Permissions
+# EugineBill RADIUS - Fix Prisma Engine Permissions
 # ============================================================================
 # Fix "spawn schema-engine EACCES" error
 # ============================================================================
@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-APP_DIR="/var/www/salfanet-radius"
+APP_DIR="/var/www/EugineBill-radius"
 
 echo -e "${CYAN}============================================${NC}"
 echo -e "${CYAN}Fix Prisma Engine Permissions${NC}"

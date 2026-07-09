@@ -1,4 +1,4 @@
-# AI PROJECT MEMORY — SALFANET RADIUS
+# AI PROJECT MEMORY — EugineBill RADIUS
 
 > **Untuk AI/LLM yang melanjutkan pengembangan project ini.**
 > Baca file ini terlebih dahulu sebelum mulai membantu agar tidak mengulang hal yang sudah selesai atau membuat kesalahan yang sudah diketahui.
@@ -7,13 +7,13 @@
 
 ## 📌 Project Overview
 
-**Salfanet Radius** adalah sistem billing ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS penuh. Mendukung PPPoE dan Hotspot, cocok untuk ISP kecil-menengah di Indonesia.
+**EugineBill Radius** adalah sistem billing ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS penuh. Mendukung PPPoE dan Hotspot, cocok untuk ISP kecil-menengah di Indonesia.
 
 - **Version**: 2.21.0
 - **Status**: Production-ready, deployed di VPS
 - **Last Updated**: April 22, 2026
 - **Latest Commit**: `62b0c88` — fix: PATCH WG updates wg0.conf Address and info.subnet when gatewayIp changes
-- **GitHub**: https://github.com/s4lfanet/salfanet-radius (public)
+- **GitHub**: https://github.com/s4lfanet/EugineBill-radius (public)
 - **Live URL**: https://radius.hotspotapp.net
 
 ### Recent Patch Log (April 22, 2026 — VPS Built-in VPN Pool IP Config)
@@ -64,7 +64,7 @@
 - **VPN Client page** (`/admin/network/vpn-client`): Untuk NAS/router yang connect ke VPS. Panel "Konfigurasi VPS Built-in VPN" ada di sini.
 - **`__vps_wg__`** dan **`__vps_l2tp__`**: Virtual server IDs untuk WireGuard dan L2TP peer yang dikelola langsung di VPS.
 - **`wg-server-info.json`** (`/etc/wireguard/wg-server-info.json`): Fields: `publicIp`, `publicKey`, `listenPort`, `subnet`, `poolStart`, `poolEnd`, `gatewayIp`.
-- **`l2tp-server-info.json`** (`/etc/salfanet/l2tp/l2tp-server-info.json`): Fields: `publicIp`, `ipsecPsk`, `subnet`, `localIp`, `poolStart`, `poolEnd`, `gateway`.
+- **`l2tp-server-info.json`** (`/etc/EugineBill/l2tp/l2tp-server-info.json`): Fields: `publicIp`, `ipsecPsk`, `subnet`, `localIp`, `poolStart`, `poolEnd`, `gateway`.
 - **Pool base rule**: saat `poolStart` adalah full IP (mis. `172.16.212.2`), base prefix = `172.16.212`. Selalu gunakan pool prefix, bukan `info.subnet`, saat alokasi IP baru.
 
 - **Fix: `getUserMedia` error langsung fallback ke native camera** (`382dbb3`, Apr 11, 2026)
@@ -355,14 +355,14 @@
   - Resolve standalone `process.cwd()` mismatch with `getAppDir()` for system info/update routes.
   - Sanitize spawn environment to avoid PM2/Next inherited vars breaking `next build`.
   - Stabilize SSE live log stream with heartbeat + anti-buffering headers + auto reconnect.
-  - Update script now uses zero-downtime `pm2 reload salfanet-radius` (cron tetap restart).
+  - Update script now uses zero-downtime `pm2 reload EugineBill-radius` (cron tetap restart).
 
 - **Fix: Nginx manifest 404 (final fix)** (`bca095f`, March 29, 2026)
   - **Root cause 1**: nginx `alias` directive with regex location + `try_files` is fundamentally broken — nginx cannot resolve try_files paths correctly with alias in regex locations.
   - **Root cause 2**: `cp -r public .next/standalone/public/` creates nested `public/public/` when target dir already exists (Next.js creates `.next/standalone/public/` during build).
-  - **Fix**: All nginx manifest/sw.js/pwa blocks now use `root /var/www/salfanet-radius/public;` (matching production VPS). No `alias`, no `try_files`, no `@nextjs` named locations.
+  - **Fix**: All nginx manifest/sw.js/pwa blocks now use `root /var/www/EugineBill-radius/public;` (matching production VPS). No `alias`, no `try_files`, no `@nextjs` named locations.
   - **Fix**: `cp -r public .next/standalone/public/` → `cp -r public/. .next/standalone/public/` (copy contents, not directory) in install-pm2.sh and fix-pwa-nginx.sh.
-  - Files changed: `vps-install/install-nginx.sh`, `vps-install/install-pm2.sh`, `vps-install/fix-pwa-nginx.sh`, `production/nginx-salfanet-radius.conf`
+  - Files changed: `vps-install/install-nginx.sh`, `vps-install/install-pm2.sh`, `vps-install/fix-pwa-nginx.sh`, `production/nginx-EugineBill-radius.conf`
   - Verified: `curl -I http://192.168.54.200/manifest-admin.json` → 200 OK
 
 - **Fix: Earlier nginx manifest attempt (superseded)** (`914d8c4`, `940f194`)
@@ -391,7 +391,7 @@
 |------|-------|
 | IP | `YOUR_VPS_IP` |
 | OS | Ubuntu 22.04.1 LTS |
-| App Path | `/var/www/salfanet-radius` |
+| App Path | `/var/www/EugineBill-radius` |
 | Domain | `https://radius.yourdomain.com` (Cloudflare proxy) |
 | Node.js | 20.20.1 |
 | MySQL | 8.0.45 |
@@ -399,12 +399,12 @@
 | FreeRADIUS | 3.0.26 |
 
 **PM2 Apps:**
-- `salfanet-radius` — Next.js app (cluster mode, port 3000)
-- `salfanet-cron` — Cron service (fork mode)
+- `EugineBill-radius` — Next.js app (cluster mode, port 3000)
+- `EugineBill-cron` — Cron service (fork mode)
 
 **Database:**
-- DB Name: `salfanet_radius`
-- User: `salfanet_user` / Password: `YOUR_DB_PASSWORD`
+- DB Name: `EugineBill_radius`
+- User: `EugineBill_user` / Password: `YOUR_DB_PASSWORD`
 - Root password: `YOUR_ROOT_PASSWORD`
 
 **Default Login:**
@@ -494,7 +494,7 @@ Old location. New canonical code is in `src/server/services/` and `src/server/jo
 Scripts in `vps-install/*.sh` have UTF-8 BOM when created on Windows. Run `sed -i 's/^\xef\xbb\xbf//' script.sh` to strip BOM before executing on VPS.
 
 ### 9. VPS install must run from app directory
-`install-freeradius.sh` and other VPS scripts call `check_directory()` which requires CWD to contain "salfanet-radius". Always run from `/var/www/salfanet-radius`.
+`install-freeradius.sh` and other VPS scripts call `check_directory()` which requires CWD to contain "EugineBill-radius". Always run from `/var/www/EugineBill-radius`.
 
 ### 10. UFW was previously configured but not auto-enabled
 Installer lama hanya menambahkan rule `ufw allow`, tetapi tidak menjalankan `ufw enable`. Current installer fix:
@@ -618,9 +618,9 @@ npm run db:seed          # Run all seeds (tsx prisma/seeds/seed-all.ts)
 
 # PM2 (on VPS)
 pm2 status               # Check all apps
-pm2 logs salfanet-radius # App logs
-pm2 restart salfanet-radius --update-env
-pm2 restart salfanet-cron
+pm2 logs EugineBill-radius # App logs
+pm2 restart EugineBill-radius --update-env
+pm2 restart EugineBill-cron
 
 # FreeRADIUS (on VPS)
 systemctl status freeradius
@@ -628,7 +628,7 @@ freeradius -X            # Debug mode (verbose)
 freeradius -CX           # Config test only
 radtest user pass localhost 0 testing123  # Test auth
 
-# VPS Install scripts (run from /var/www/salfanet-radius)
+# VPS Install scripts (run from /var/www/EugineBill-radius)
 bash /tmp/vps-install/install-freeradius.sh
 bash /tmp/vps-install/install-nodejs.sh
 ```
@@ -686,14 +686,14 @@ Language switcher sudah dihapus dari semua portal (Admin, Agent, Customer, Techn
 
 | File | Purpose |
 |------|---------|
-| `ecosystem.config.js` → `production/ecosystem.config.js` | PM2 config (deployed to `/var/www/salfanet-radius/`) |
+| `ecosystem.config.js` → `production/ecosystem.config.js` | PM2 config (deployed to `/var/www/EugineBill-radius/`) |
 | `cron-service.js` | Cron PM2 entrypoint (root) |
 | `prisma/schema.prisma` | Database schema |
 | `prisma/seeds/seed-all.ts` | Run all seeds |
 | `src/instrumentation.ts` | Next.js instrumentation hook |
 | `vps-install/` | VPS installer scripts |
 | `freeradius-config/` | FreeRADIUS config backup |
-| `production/nginx-salfanet-radius.conf` | Nginx config template |
+| `production/nginx-EugineBill-radius.conf` | Nginx config template |
 
 ---
 

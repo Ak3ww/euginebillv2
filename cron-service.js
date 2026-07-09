@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Standalone Cron Service for SALFANET RADIUS
+ * Standalone Cron Service for EugineBill RADIUS
  *
  * DEPRECATED: Penggunaan HTTP polling ke /api/cron.
  * Sebaiknya gunakan runner langsung: npx tsx src/cron/runner.ts
@@ -9,8 +9,8 @@
  *
  * File ini dipertahankan sebagai FALLBACK jika tsx tidak tersedia di VPS.
  * Untuk migrasi ke runner baru, jalankan:
- *   pm2 delete salfanet-cron
- *   pm2 start production/ecosystem.config.js --only salfanet-cron
+ *   pm2 delete EugineBill-cron
+ *   pm2 start production/ecosystem.config.js --only EugineBill-cron
  *   pm2 save
  */
 
@@ -54,7 +54,7 @@ async function runCronJob(jobType, description, options = {}) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'SALFANET-CRON-SERVICE',
+          'User-Agent': 'EugineBill-CRON-SERVICE',
         },
         body: JSON.stringify({ type: jobType }),
         signal: controller.signal,

@@ -9,7 +9,7 @@ import { prisma } from '@/server/db/client'
 // Fixed DB ID for VPS L2TP virtual server entry
 const VPS_L2TP_SERVER_ID = '__vps_l2tp_server__'
 const exec = promisify(execCb)
-const L2TP_INFO_FILE = '/etc/salfanet/l2tp/l2tp-server-info.json'
+const L2TP_INFO_FILE = '/etc/EugineBill/l2tp/l2tp-server-info.json'
 
 function generatePassword(len = 16): string {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
 
     // Add to chap-secrets via helper script
     try {
-      await exec(`salfanet-l2tp-peer add "${username}" "${password}" "${vpnIp}"`)
+      await exec(`EugineBill-l2tp-peer add "${username}" "${password}" "${vpnIp}"`)
     } catch {
       // Fallback: write directly
       const entry = `"${username}" * "${password}" ${vpnIp}\n`
@@ -156,10 +156,10 @@ export async function POST(req: NextRequest) {
 
       // Also persist in a simple route file so vpn-watchdog can restore without re-parsing
       // Format: one line per local net: "net via vpnIp"
-      const L2TP_ROUTES_FILE = '/etc/salfanet/l2tp/peer-routes.conf'
+      const L2TP_ROUTES_FILE = '/etc/EugineBill/l2tp/peer-routes.conf'
       try {
         const { mkdir, readFile: fsRead, writeFile: fsWrite } = await import('fs/promises')
-        await mkdir('/etc/salfanet/l2tp', { recursive: true })
+        await mkdir('/etc/EugineBill/l2tp', { recursive: true })
         let existing = ''
         try { existing = await fsRead(L2TP_ROUTES_FILE, 'utf8') } catch { /* first time */ }
         for (const net of parsedLocalNets) {
@@ -240,7 +240,7 @@ export async function POST(req: NextRequest) {
   if (action === 'remove') {
     if (!suppliedUsername) return NextResponse.json({ error: 'username wajib diisi' }, { status: 400 })
     try {
-      await exec(`salfanet-l2tp-peer remove "${suppliedUsername}"`)
+      await exec(`EugineBill-l2tp-peer remove "${suppliedUsername}"`)
     } catch {
       const tmp = await exec(`grep -v '^"${suppliedUsername}"' /etc/ppp/chap-secrets || true`)
       await exec(`echo '${tmp.stdout}' > /etc/ppp/chap-secrets && chmod 600 /etc/ppp/chap-secrets`)
@@ -344,7 +344,7 @@ function generateL2tpScript({ serverIp, username, password, ipsecPsk, vpnIp, lab
 }): string {
   const ifaceName = toL2tpIfaceName(label)
   return `# ═══════════════════════════════════════════════════════
-# SALFANET — Script L2TP/IPsec ke VPS
+# EugineBill — Script L2TP/IPsec ke VPS
 # Server VPS : ${serverIp}
 # NAS IP VPN : ${vpnIp}
 # Interface  : ${ifaceName}
@@ -361,7 +361,7 @@ function generateL2tpScript({ serverIp, username, password, ipsecPsk, vpnIp, lab
   profile=default-encryption \\
   add-default-route=no \\
   disabled=no \\
-  comment="SALFANET VPN"
+  comment="EugineBill VPN"
 
 # [2] Tunggu koneksi terbentuk (~15 detik), lalu cek:
 # /interface/l2tp-client/print
@@ -369,7 +369,7 @@ function generateL2tpScript({ serverIp, username, password, ipsecPsk, vpnIp, lab
 
 # [3] Setup API User untuk remote management MikroTik
 /user/group/add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group"
-/user/add name=api-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 16)} group=api-users comment="API User SALFANET"
+/user/add name=api-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 16)} group=api-users comment="API User EugineBill"
 # (set password sendiri via WinBox: menu Users)
 
 # ═══════════════════════════════════════════════════════

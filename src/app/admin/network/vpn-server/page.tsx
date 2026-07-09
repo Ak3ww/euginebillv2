@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -351,9 +351,9 @@ export default function VpnServerPage() {
 /ip/firewall/nat/add chain=srcnat action=masquerade comment="VPN NAT"
 
 # --- Step 6: Firewall Forward ---
-/ip/firewall/filter/add chain=forward src-address=${vpnNet} dst-address=${vpnNet} action=accept comment="SALFANET-VPN-Forward"
-/ip/firewall/filter/add chain=input protocol=udp src-address=${vpnNet} dst-port=1812,1813,3799 action=accept comment="SALFANET-VPN-Forward-RADIUS"
-/ip/firewall/filter/add chain=input protocol=tcp src-address=${vpnNet} dst-port=8291,8728,8729 action=accept comment="SALFANET-VPN-Forward-API"
+/ip/firewall/filter/add chain=forward src-address=${vpnNet} dst-address=${vpnNet} action=accept comment="EugineBill-VPN-Forward"
+/ip/firewall/filter/add chain=input protocol=udp src-address=${vpnNet} dst-port=1812,1813,3799 action=accept comment="EugineBill-VPN-Forward-RADIUS"
+/ip/firewall/filter/add chain=input protocol=tcp src-address=${vpnNet} dst-port=8291,8728,8729 action=accept comment="EugineBill-VPN-Forward-API"
 `;
 
     const ros6Script = `# -------------------------------------------------------
@@ -379,9 +379,9 @@ export default function VpnServerPage() {
 /ip firewall nat add chain=srcnat action=masquerade comment="VPN NAT"
 
 # --- Step 6: Firewall Forward ---
-/ip firewall filter add chain=forward src-address=${vpnNet} dst-address=${vpnNet} action=accept comment="SALFANET-VPN-Forward"
-/ip firewall filter add chain=input protocol=udp src-address=${vpnNet} dst-port=1812,1813,3799 action=accept comment="SALFANET-VPN-Forward-RADIUS"
-/ip firewall filter add chain=input protocol=tcp src-address=${vpnNet} dst-port=8291,8728,8729 action=accept comment="SALFANET-VPN-Forward-API"
+/ip firewall filter add chain=forward src-address=${vpnNet} dst-address=${vpnNet} action=accept comment="EugineBill-VPN-Forward"
+/ip firewall filter add chain=input protocol=udp src-address=${vpnNet} dst-port=1812,1813,3799 action=accept comment="EugineBill-VPN-Forward-RADIUS"
+/ip firewall filter add chain=input protocol=tcp src-address=${vpnNet} dst-port=8291,8728,8729 action=accept comment="EugineBill-VPN-Forward-API"
 
 # --- Verify ---
 /interface l2tp-server server print
@@ -444,10 +444,10 @@ export default function VpnServerPage() {
 # Generated: ${new Date().toISOString().split('T')[0]}
 # ────────────────────────────────────────────────
 
-/interface/wireguard/add name=wg-salfanet private-key="${data.clientPrivateKey || '<PASTE_NAS_PRIVATE_KEY>'}"
-/interface/wireguard/peers/add interface=wg-salfanet public-key="${data.serverPublicKey}" endpoint-address="${data.serverEndpoint?.split(':')[0]}" endpoint-port=${data.wgPort} allowed-address="${data.allowedIps}" persistent-keepalive=25
-/ip/address/add address=${data.vpnIp}/32 interface=wg-salfanet
-/ip/route/add dst-address=${data.allowedIps.includes('/') ? data.allowedIps : data.allowedIps + '/32'} gateway=wg-salfanet
+/interface/wireguard/add name=wg-EugineBill private-key="${data.clientPrivateKey || '<PASTE_NAS_PRIVATE_KEY>'}"
+/interface/wireguard/peers/add interface=wg-EugineBill public-key="${data.serverPublicKey}" endpoint-address="${data.serverEndpoint?.split(':')[0]}" endpoint-port=${data.wgPort} allowed-address="${data.allowedIps}" persistent-keepalive=25
+/ip/address/add address=${data.vpnIp}/32 interface=wg-EugineBill
+/ip/route/add dst-address=${data.allowedIps.includes('/') ? data.allowedIps : data.allowedIps + '/32'} gateway=wg-EugineBill
 
 # FreeRADIUS server source IP via WireGuard
 /radius/add address=${data.allowedIps?.split('/')[0] || data.serverEndpoint?.split(':')[0]} secret=<RADIUS_SECRET> service=ppp,login timeout=3000
@@ -888,7 +888,7 @@ export default function VpnServerPage() {
                 <div className="px-6 pb-6 border-t border-[#00f7ff]/10">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
                     {[
-                      { step: 1, icon: '☁️', color: 'border-[#bc13fe]/40 bg-[#bc13fe]/5', title: 'Install di VPS', desc: 'Jalankan installer SALFANET di VPS: bash vps-install.sh. FreeRADIUS, Node.js, dan PM2 akan terinstall otomatis.', link: null, linkLabel: null },
+                      { step: 1, icon: '☁️', color: 'border-[#bc13fe]/40 bg-[#bc13fe]/5', title: 'Install di VPS', desc: 'Jalankan installer EugineBill di VPS: bash vps-install.sh. FreeRADIUS, Node.js, dan PM2 akan terinstall otomatis.', link: null, linkLabel: null },
                       { step: 2, icon: '🖥️', color: 'border-[#00f7ff]/40 bg-[#00f7ff]/5', title: 'Tambah VPN Server', desc: 'Isi IP MikroTik CHR, username admin, dan subnet VPN (contoh: 10.20.30.0/24). Klik "Test Koneksi" lalu Simpan.', link: null, linkLabel: null },
                       { step: 3, icon: '⚙️', color: 'border-green-500/40 bg-green-500/5', title: 'Setup Protokol', desc: 'Klik tombol "Setup" pada kartu server untuk konfigurasi L2TP/SSTP/PPTP di MikroTik CHR secara otomatis. Untuk WireGuard (RouterOS 7+) klik tombol WireGuard.', link: null, linkLabel: null },
                       { step: 4, icon: '📡', color: 'border-amber-500/40 bg-amber-500/5', title: 'Tambah VPN Client', desc: 'Setelah server siap, pergi ke menu VPN Client untuk tambahkan setiap NAS sebagai client. Sistem generate script RouterOS otomatis.', link: '/admin/network/vpn-client', linkLabel: '→ Menu VPN Client' },
@@ -1384,7 +1384,7 @@ export default function VpnServerPage() {
                   <p className="text-sm text-amber-400 font-bold mb-1">⚠️ WireGuard server belum di-install</p>
                   <p className="text-xs text-muted-foreground mb-3">{wgServerInfo.message}</p>
                   <p className="text-xs text-muted-foreground">Jalankan di VPS:</p>
-                  <pre className="text-xs font-mono bg-slate-900 text-green-300 p-3 rounded-lg mt-1 overflow-x-auto">bash /var/www/salfanet-radius/vps-install/install-wg-server.sh</pre>
+                  <pre className="text-xs font-mono bg-slate-900 text-green-300 p-3 rounded-lg mt-1 overflow-x-auto">bash /var/www/EugineBill-radius/vps-install/install-wg-server.sh</pre>
                 </div>
               )}
 

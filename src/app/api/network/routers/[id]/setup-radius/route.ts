@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 
 export async function POST(
@@ -72,7 +72,7 @@ export async function POST(
     const radiusAcctPort = 1813;
     const radiusCOAPort = 3799;
 
-    const comment = 'SALFANET RADIUS - Auto Setup';
+    const comment = 'EugineBill RADIUS - Auto Setup';
 
     // src-address selalu di-set (VPN maupun non-VPN) agar FreeRADIUS bisa match nasname
     const srcAddressParam = nasSrcAddress ? ` src-address=${nasSrcAddress}` : '';
@@ -101,7 +101,7 @@ export async function POST(
 
     const gatewayFirewallRule = isVpnSetup ? `
 # Allow CoA dari gateway (VPN masquerade) — sumber alternatif CoA disconnect
-/ip firewall filter add chain=input protocol=udp src-address=${gatewayIp} dst-port=${radiusCOAPort} action=accept comment="SALFANET-RADIUS CoA via gateway ${gatewayIp}"
+/ip firewall filter add chain=input protocol=udp src-address=${gatewayIp} dst-port=${radiusCOAPort} action=accept comment="EugineBill-RADIUS CoA via gateway ${gatewayIp}"
 ` : '';
 
     // Generate MikroTik script — two versions: ROS 6 (no require-message-auth) and ROS 7
@@ -113,7 +113,7 @@ export async function POST(
 
       return `
 # ============================================
-# SALFANET RADIUS Setup Script (RouterOS ${rosVersion}.x)
+# EugineBill RADIUS Setup Script (RouterOS ${rosVersion}.x)
 # Router: ${router.name}
 # Router NAS IP: ${nasSrcAddress || router.nasname}
 # RADIUS Server: ${radiusServerIp}
@@ -123,7 +123,7 @@ export async function POST(
 # ============================================
 
 # 1. Hapus RADIUS lama (jika ada)
-/radius remove [find where comment~"SALFANET" || comment~"Auto Setup" || comment~"gateway masquerade"]
+/radius remove [find where comment~"EugineBill" || comment~"Auto Setup" || comment~"gateway masquerade"]
 
 # 2. Tambah RADIUS Server (utama — auth/acct + CoA)
 ${srcAddressNote}
@@ -137,12 +137,12 @@ ${gatewayRadiusEntry}
 
 # 5. Buat IP Pool untuk PPP (jika belum ada)
 :if ([:len [/ip pool find name="pool-radius-default"]] = 0) do={
-    /ip pool add name=pool-radius-default ranges=10.10.10.2-10.10.10.254 comment="SALFANET RADIUS"
+    /ip pool add name=pool-radius-default ranges=10.10.10.2-10.10.10.254 comment="EugineBill RADIUS"
 }
 
-# 6. Buat PPP Profile salfanetradius (jika belum ada)
-:if ([:len [/ppp profile find name="salfanetradius"]] = 0) do={
-    /ppp profile add name=salfanetradius local-address=10.10.10.1 remote-address=pool-radius-default use-compression=no use-encryption=no comment="SALFANET RADIUS Profile"
+# 6. Buat PPP Profile EugineBillradius (jika belum ada)
+:if ([:len [/ppp profile find name="EugineBillradius"]] = 0) do={
+    /ppp profile add name=EugineBillradius local-address=10.10.10.1 remote-address=pool-radius-default use-compression=no use-encryption=no comment="EugineBill RADIUS Profile"
 }
 
 # 7. Enable RADIUS untuk semua Hotspot Server Profile
@@ -152,30 +152,30 @@ ${gatewayRadiusEntry}
 # FIREWALL RULES — RADIUS & CoA
 # ============================================
 # Hapus rules lama
-/ip firewall filter remove [find where comment~"SALFANET-RADIUS"]
+/ip firewall filter remove [find where comment~"EugineBill-RADIUS"]
 
 # Allow RADIUS CoA/Disconnect dari server (UDP 3799)
-/ip firewall filter add chain=input protocol=udp src-address=${radiusServerIp} dst-port=${radiusCOAPort} action=accept comment="SALFANET-RADIUS CoA from ${radiusServerIp}"
+/ip firewall filter add chain=input protocol=udp src-address=${radiusServerIp} dst-port=${radiusCOAPort} action=accept comment="EugineBill-RADIUS CoA from ${radiusServerIp}"
 ${gatewayFirewallRule}
 # Allow RADIUS auth/acct response dari server (UDP 1812-1813)
-/ip firewall filter add chain=input protocol=udp src-address=${radiusServerIp} dst-port=${radiusAuthPort},${radiusAcctPort} action=accept comment="SALFANET-RADIUS Auth/Acct from ${radiusServerIp}"
+/ip firewall filter add chain=input protocol=udp src-address=${radiusServerIp} dst-port=${radiusAuthPort},${radiusAcctPort} action=accept comment="EugineBill-RADIUS Auth/Acct from ${radiusServerIp}"
 
 # ============================================
 # KEEPALIVE & NETWATCH — Deteksi putus lebih cepat
 # ============================================
-/tool netwatch remove [find where comment~"SALFANET"]
+/tool netwatch remove [find where comment~"EugineBill"]
 /tool netwatch add host=${radiusServerIp} interval=30s timeout=5s \\
-    down-script="/log warning message=\\"SALFANET: RADIUS server ${radiusServerIp} tidak reachable\\"" \\
-    up-script="/log info message=\\"SALFANET: RADIUS server ${radiusServerIp} kembali online\\"" \\
-    comment="SALFANET RADIUS Monitor"
+    down-script="/log warning message=\\"EugineBill: RADIUS server ${radiusServerIp} tidak reachable\\"" \\
+    up-script="/log info message=\\"EugineBill: RADIUS server ${radiusServerIp} kembali online\\"" \\
+    comment="EugineBill RADIUS Monitor"
 
 # ============================================
 # SELESAI! Verifikasi dengan:
 # /radius print
 # /ppp aaa print
 # /radius incoming print
-# /ppp profile print where name="salfanetradius"
-# /ip firewall filter print where comment~"SALFANET-RADIUS"
+# /ppp profile print where name="EugineBillradius"
+# /ip firewall filter print where comment~"EugineBill-RADIUS"
 # /tool netwatch print
 # ============================================
 # LANGKAH SELANJUTNYA: Setup Isolir

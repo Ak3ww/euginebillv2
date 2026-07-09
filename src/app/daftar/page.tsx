@@ -28,8 +28,8 @@ function DaftarPageInner() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [companyName, setCompanyName] = useState('SALFANET RADIUS');
-  const [poweredBy, setPoweredBy] = useState('SALFANET RADIUS');
+  const [companyName, setCompanyName] = useState('EugineBill RADIUS');
+  const [poweredBy, setPoweredBy] = useState('EugineBill RADIUS');
 
   const [formData, setFormData] = useState({
     name: '',

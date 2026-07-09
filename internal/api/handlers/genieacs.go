@@ -11,7 +11,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"github.com/s4lfanet/salfanet-radius-go/internal/db/models"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/db/models"
 	"gorm.io/gorm"
 )
 

@@ -1,10 +1,10 @@
-﻿import { getToken } from 'next-auth/jwt';
+import { getToken } from 'next-auth/jwt';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getIsolationSettings, isIpInIsolationPool } from '@/server/services/isolation.service';
 
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET ||
-  (process.env.NODE_ENV !== 'production' ? 'salfanet-radius-secret-change-in-production' : undefined);
+  (process.env.NODE_ENV !== 'production' ? 'EugineBill-radius-secret-change-in-production' : undefined);
 
 /**
  * Proxy to handle:

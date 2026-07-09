@@ -1,4 +1,4 @@
-﻿# VPN Client Setup Guide
+# VPN Client Setup Guide
 
 ## Masalah yang Terjadi
 
@@ -14,7 +14,7 @@ Saat test connection ke router via VPN Client IP (172.16.17.10), terjadi **timeo
 Di halaman **VPN Server**, klik tombol "Auto Setup VPN Server":
 - VPN Type: L2TP/IPSec (recommended)
 - Subnet: 41.216.178.0/24
-- Secret: salfanet-vpn-secret
+- Secret: EugineBill-vpn-secret
 
 Ini akan:
 - Create IP pool untuk VPN
@@ -41,7 +41,7 @@ Ini akan:
 Jalankan script setup di VPS:
 
 ```bash
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 chmod +x setup-vpn-client.sh
 sudo ./setup-vpn-client.sh
 ```
@@ -50,7 +50,7 @@ Input yang diperlukan:
 - VPN Server IP: **IP PUBLIC MikroTik** (misal: 103.xx.xx.xx)
 - VPN Username: **radius-vps** (username yang dibuat di web)
 - VPN Password: password yang di-set
-- IPSec Secret: **salfanet-vpn-secret** (default)
+- IPSec Secret: **EugineBill-vpn-secret** (default)
 
 Setelah setup, cek koneksi:
 ```bash
@@ -194,7 +194,7 @@ Jika router punya IP public dan accessible dari VPS:
 
 # 5. Cek IPSec Secret sama dengan di VPS
 /interface l2tp-server server print
-# ipsec-secret: salfanet-vpn-secret (harus sama!)
+# ipsec-secret: EugineBill-vpn-secret (harus sama!)
 ```
 
 **Test Firewall:**

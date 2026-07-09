@@ -173,7 +173,7 @@ lsmod | grep -E 'ppp|l2tp|tun'
 ```bash
 arch: amd64
 cores: 2
-hostname: salfanet-radius
+hostname: EugineBill-radius
 memory: 2048
 net0: name=eth0,bridge=vmbr0,firewall=1,gw=192.168.1.1,hwaddr=XX:XX:XX:XX:XX:XX,ip=192.168.1.100/24,type=veth
 ostype: ubuntu
@@ -449,4 +449,4 @@ Jika masih ada issue setelah mengikuti guide ini:
 
 **Last Updated:** December 28, 2025  
 **Version:** 1.0  
-**Author:** SALFANET RADIUS Team
+**Author:** EugineBill RADIUS Team

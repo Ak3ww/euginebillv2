@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { getCidrRange } from '@/server/services/isolation.service';
 
@@ -47,7 +47,7 @@ export async function POST(
 
     const script = `
 # ============================================
-# SALFANET Isolation Setup Script
+# EugineBill Isolation Setup Script
 # Router   : ${router.name}
 # NAS IP   : ${nasVpnIp}
 # Isolir IP: ${cidrNetwork}
@@ -61,7 +61,7 @@ export async function POST(
 # 1. IP Pool untuk user isolir
 # ============================================
 :if ([:len [/ip pool find name="pool-isolir"]] = 0) do={
-    /ip pool add name=pool-isolir ranges=${poolRange} comment="SALFANET RADIUS - Isolation Pool"
+    /ip pool add name=pool-isolir ranges=${poolRange} comment="EugineBill RADIUS - Isolation Pool"
 } else={
     /ip pool set [find name="pool-isolir"] ranges=${poolRange}
 }
@@ -72,7 +72,7 @@ export async function POST(
 # remote-address = IP pool untuk client isolir
 # ============================================
 :if ([:len [/ppp profile find name="isolir"]] = 0) do={
-    /ppp profile add name=isolir local-address=${gateway} remote-address=pool-isolir rate-limit=${rateLimit} only-one=yes comment="SALFANET RADIUS - Isolation Profile"
+    /ppp profile add name=isolir local-address=${gateway} remote-address=pool-isolir rate-limit=${rateLimit} only-one=yes comment="EugineBill RADIUS - Isolation Profile"
 } else={
     /ppp profile set [find name="isolir"] local-address=${gateway} remote-address=pool-isolir rate-limit=${rateLimit} only-one=yes
 }
@@ -81,21 +81,21 @@ export async function POST(
 # 3. Firewall — Isolation Redirect & Walled Garden
 # ============================================
 # Hapus rules lama
-/ip firewall filter remove [find where comment~"SALFANET-ISOLIR"]
-/ip firewall nat remove [find where comment~"SALFANET-ISOLIR"]
+/ip firewall filter remove [find where comment~"EugineBill-ISOLIR"]
+/ip firewall nat remove [find where comment~"EugineBill-ISOLIR"]
 
 # Allow DNS untuk user isolated (wajib agar redirect bisa resolve hostname)
-/ip firewall filter add chain=forward protocol=udp dst-port=53 src-address=${cidrNetwork} action=accept comment="SALFANET-ISOLIR Allow DNS UDP"
-/ip firewall filter add chain=forward protocol=tcp dst-port=53 src-address=${cidrNetwork} action=accept comment="SALFANET-ISOLIR Allow DNS TCP"
+/ip firewall filter add chain=forward protocol=udp dst-port=53 src-address=${cidrNetwork} action=accept comment="EugineBill-ISOLIR Allow DNS UDP"
+/ip firewall filter add chain=forward protocol=tcp dst-port=53 src-address=${cidrNetwork} action=accept comment="EugineBill-ISOLIR Allow DNS TCP"
 
 # Allow akses ke billing server (HTTP + HTTPS)
-/ip firewall filter add chain=forward dst-address=${billingServerIp} dst-port=80,443 protocol=tcp src-address=${cidrNetwork} action=accept comment="SALFANET-ISOLIR Allow billing"
+/ip firewall filter add chain=forward dst-address=${billingServerIp} dst-port=80,443 protocol=tcp src-address=${cidrNetwork} action=accept comment="EugineBill-ISOLIR Allow billing"
 
 # Blokir semua internet lain untuk user isolated
-/ip firewall filter add chain=forward src-address=${cidrNetwork} action=drop comment="SALFANET-ISOLIR Block internet"
+/ip firewall filter add chain=forward src-address=${cidrNetwork} action=drop comment="EugineBill-ISOLIR Block internet"
 
 # NAT: Redirect HTTP dari user isolated ke halaman /isolated di billing server
-/ip firewall nat add action=dst-nat chain=dstnat dst-port=80 protocol=tcp src-address=${cidrNetwork} to-addresses=${billingServerIp} to-ports=80 comment="SALFANET-ISOLIR Redirect HTTP to billing"
+/ip firewall nat add action=dst-nat chain=dstnat dst-port=80 protocol=tcp src-address=${cidrNetwork} to-addresses=${billingServerIp} to-ports=80 comment="EugineBill-ISOLIR Redirect HTTP to billing"
 
 # ============================================
 # 4. Route VPS (jalankan di VPS, bukan MikroTik)
@@ -109,8 +109,8 @@ export async function POST(
 # SELESAI! Verifikasi dengan:
 # /ip pool print where name="pool-isolir"
 # /ppp profile print where name="isolir"
-# /ip firewall filter print where comment~"SALFANET-ISOLIR"
-# /ip firewall nat print where comment~"SALFANET-ISOLIR"
+# /ip firewall filter print where comment~"EugineBill-ISOLIR"
+# /ip firewall nat print where comment~"EugineBill-ISOLIR"
 # ============================================
 `.trim();
 

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Salfanet RADIUS are documented in this file.  
+All notable changes to EugineBill RADIUS are documented in this file.  
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
@@ -25,7 +25,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [2.32.2] — 2026-05-13
 ### Fixed
-- **System Info API: silent git errors** — Semua `execSync` git di `/api/admin/system/info` kini pakai `stdio: 'pipe'` sehingga stderr tidak bocor ke PM2 log; `getAppDir()` kini mencari `/var/www/salfanet-frontend` lebih dulu (direktori dengan `.git`) sebelum fallback ke path lain
+- **System Info API: silent git errors** — Semua `execSync` git di `/api/admin/system/info` kini pakai `stdio: 'pipe'` sehingga stderr tidak bocor ke PM2 log; `getAppDir()` kini mencari `/var/www/EugineBill-frontend` lebih dulu (direktori dengan `.git`) sebelum fallback ke path lain
 ### Files
 - `src/app/api/admin/system/info/route.ts` — tambah `stdio: 'pipe'` pada `execSync`/`execFileSync`, perbarui urutan kandidat `getAppDir()`
 
@@ -41,7 +41,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [2.32.0] — 2026-05-11
 ### Added
-- **Centralized Cron Schedule Management** — jadwal semua cron job kini bisa diatur dari satu halaman Admin → Settings → Cron tab "Jadwal Cron"; perubahan disimpan ke DB `cron_schedule_config`, aktif setelah `pm2 restart salfanet-cron`
+- **Centralized Cron Schedule Management** — jadwal semua cron job kini bisa diatur dari satu halaman Admin → Settings → Cron tab "Jadwal Cron"; perubahan disimpan ke DB `cron_schedule_config`, aktif setelah `pm2 restart EugineBill-cron`
 - **Schedule Editor modal** — 17 preset waktu (Every minute, Every 5 min, dll.) + custom cron expression; menampilkan default schedule sebagai referensi
 - **3-tab layout cron page** — Tab: Status & Trigger, Jadwal Cron, Riwayat Eksekusi
 - **API `/api/cron/schedules`** — GET/PUT/DELETE untuk manajemen schedule override per job (SUPERADMIN only)
@@ -151,7 +151,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [2.31.4] — 2026-05-11
 ### Fixed
 - **nginx routing: `/api/*` ke Next.js** — Root cause 401 errors: nginx salah routing semua `/api/*` ke Go backend (port 8080), padahal admin panel Next.js menggunakan NextAuth session cookies (bukan JWT Bearer). Semua `/api/*` sekarang diarahkan ke Next.js (port 3000). Go backend tetap berjalan di port 8080 untuk akses langsung / WebSocket OLT.
-- **Cron jobs audit** — Tidak ada cron lama dari billing-radius Next.js. Semua cron (vpn-watchdog, wg-peer-watchdog, salfanet-cleanup) adalah script VPS yang valid.
+- **Cron jobs audit** — Tidak ada cron lama dari billing-radius Next.js. Semua cron (vpn-watchdog, wg-peer-watchdog, EugineBill-cleanup) adalah script VPS yang valid.
 ### Architecture Note
 - Go backend (port 8080): `GET /ws/olt/:id` WebSocket + direct API access
 - Next.js (port 3000): semua `/api/*` routing via NextAuth session
@@ -173,8 +173,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [2.31.2] — 2026-05-10
 ### Added
 - **Next.js frontend deployed on VPS** — Full stack running at `http://103.151.140.110`: Go API backend (port 8080) + Next.js frontend (port 3000) behind nginx reverse proxy
-- **Database schema migrated** — `prisma db push` applied all 100+ tables to MariaDB `salfanet_radius`; custom SQL migrations confirmed already included in schema
-- **PM2 process management** — `salfanet-frontend` and `wa-service` managed by PM2, auto-start on boot via `pm2-root.service` systemd unit
+- **Database schema migrated** — `prisma db push` applied all 100+ tables to MariaDB `EugineBill_radius`; custom SQL migrations confirmed already included in schema
+- **PM2 process management** — `EugineBill-frontend` and `wa-service` managed by PM2, auto-start on boot via `pm2-root.service` systemd unit
 - **nginx proxy updated** — `/api/*` → `:8080` (Go), `/ws/*` → `:8080` (Go), `/*` → `:3000` (Next.js)
 - **Company seed data** — Initial company record seeded via `npm run db:seed:company`
 ### Files
@@ -778,8 +778,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 - **VPN route persistence (WireGuard)** — `addPeerToConf()` now writes `PostUp`/`PostDown` lines to `wg.conf [Interface]` so local-network routes (e.g. OLT IPs) survive WG interface restarts and VPS reboots
 - **VPN route persistence (watchdog WG)** — `vpn-watchdog.sh` (CHECK D) now parses `wg0.conf` every 2 min and re-adds any missing kernel routes for WG peer local networks
-- **VPN route persistence (watchdog L2TP)** — `vpn-watchdog.sh` (CHECK E) reads `/etc/salfanet/l2tp/peer-routes.conf` and restores missing L2TP peer local-network routes when ppp0 is up
-- **L2TP localNetworks persistence** — `vps-l2tp-peer` API now accepts `localNetworks`, appends idempotent `ip route replace` lines to `/etc/ppp/ip-up.d/99-vpn-routes`, and saves routes to `/etc/salfanet/l2tp/peer-routes.conf`
+- **VPN route persistence (watchdog L2TP)** — `vpn-watchdog.sh` (CHECK E) reads `/etc/EugineBill/l2tp/peer-routes.conf` and restores missing L2TP peer local-network routes when ppp0 is up
+- **L2TP localNetworks persistence** — `vps-l2tp-peer` API now accepts `localNetworks`, appends idempotent `ip route replace` lines to `/etc/ppp/ip-up.d/99-vpn-routes`, and saves routes to `/etc/EugineBill/l2tp/peer-routes.conf`
 - **L2TP UI localNetworks** — VPN client page now sends `localNetworks` field when adding an L2TP VPS peer
 
 ### Files
@@ -1464,14 +1464,14 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [2.25.2] — 2026-04-26
 
 ### Added
-- **WhatsApp Baileys — Native WhatsApp gateway built-in di VPS** — Provider baru `baileys` menggunakan library `@whiskeysockets/baileys` yang berjalan sebagai proses PM2 terpisah (`salfanet-wa`) di `127.0.0.1:4000`. Tidak perlu layanan pihak ketiga (Fonnte, WAHA, MPWA, dll).
+- **WhatsApp Baileys — Native WhatsApp gateway built-in di VPS** — Provider baru `baileys` menggunakan library `@whiskeysockets/baileys` yang berjalan sebagai proses PM2 terpisah (`EugineBill-wa`) di `127.0.0.1:4000`. Tidak perlu layanan pihak ketiga (Fonnte, WAHA, MPWA, dll).
   - `GET /api/whatsapp/providers/:id/qr` — Ambil QR code untuk scan WhatsApp Web
   - `GET /api/whatsapp/providers/:id/status` — Cek status koneksi (connected/disconnected)
   - `POST /api/whatsapp/providers/:id/restart` — Logout session & generate QR baru
   - `wa-service.js` — Express server standalone yang mengelola koneksi Baileys + generate QR (base64 PNG)
-  - PM2 process `salfanet-wa` ditambahkan ke `production/ecosystem.config.js`
-  - Auth session tersimpan di `/var/data/salfanet/baileys_auth` (persist across restart)
-  - `vps-install/updater.sh` otomatis setup direktori auth + start `salfanet-wa`
+  - PM2 process `EugineBill-wa` ditambahkan ke `production/ecosystem.config.js`
+  - Auth session tersimpan di `/var/data/EugineBill/baileys_auth` (persist across restart)
+  - `vps-install/updater.sh` otomatis setup direktori auth + start `EugineBill-wa`
 - **QR Modal: success state + auto-refresh** — Setelah scan berhasil, modal WhatsApp QR menampilkan animasi centang hijau "WhatsApp Berhasil Terhubung!" beserta tombol tutup. Status provider card di-refresh otomatis tanpa reload halaman.
 
 ### Fixed
@@ -1493,9 +1493,9 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`vps-install/install-security.sh` — Modul keamanan server otomatis** — Script baru yang dipanggil di Step 8 installer dan setiap `updater.sh`. Memasang tiga lapisan perlindungan secara otomatis:
   - **fail2ban**: ban IP brute-force SSH setelah 5x gagal dalam 10 menit (ban 2 jam). Jail aktif: `sshd`, `nginx-http-auth`, `nginx-limit-req`. IP jaringan lokal (`192.168.x.x`, `10.x.x.x`) tidak pernah di-ban.
   - **UFW Firewall**: default deny semua incoming, allow hanya port yang dibutuhkan: 22/TCP (SSH), 80/TCP (HTTP), 443/TCP (HTTPS), 1812-1813/UDP (RADIUS), 3799/UDP (RADIUS CoA). Di-skip otomatis untuk LXC container (pakai Proxmox host firewall).
-  - **Disk cleanup cronjob**: script `/usr/local/bin/salfanet-cleanup.sh` berjalan otomatis setiap hari jam 02:00. Membersihkan: journal systemd (max 200MB/7 hari), syslog lama, btmp (truncate jika >50MB), APT cache, tmp files, PM2 logs besar, Gradle cache >30 hari, APK build temp.
+  - **Disk cleanup cronjob**: script `/usr/local/bin/EugineBill-cleanup.sh` berjalan otomatis setiap hari jam 02:00. Membersihkan: journal systemd (max 200MB/7 hari), syslog lama, btmp (truncate jika >50MB), APT cache, tmp files, PM2 logs besar, Gradle cache >30 hari, APK build temp.
   - Bisa dijalankan manual: `bash vps-install/install-security.sh`
-  - Log cleanup: `/var/log/salfanet-cleanup.log` (auto-trim jika >5MB)
+  - Log cleanup: `/var/log/EugineBill-cleanup.log` (auto-trim jika >5MB)
 
 ### Fixed
 - **Disk penuh 100% menyebabkan MySQL deadlock & API 500** — Disk VPS publik penuh akibat log systemd journal (~2.9GB) dan syslog (~2.2GB) menumpuk. MySQL tidak bisa commit karena disk penuh → semua query FreeRADIUS (`radpostauth`, `radacct`) stuck "waiting for handler commit" → Prisma connection pool exhausted (P2024) → semua API endpoint 500. Diatasi dengan cleanup log + install cronjob harian.
@@ -1538,7 +1538,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   echo 'export ANDROID_HOME=/opt/android' >> /etc/environment && \
   echo 'Selesai!'
   ```
-  Build pertama ±3–5 menit (download Gradle dependencies). Build berikutnya ±1 menit (Gradle cache di `/var/data/salfanet/gradle-cache`).
+  Build pertama ±3–5 menit (download Gradle dependencies). Build berikutnya ±1 menit (Gradle cache di `/var/data/EugineBill/gradle-cache`).
 
 ---
 
@@ -1567,13 +1567,13 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 - **`src/cron/runner.ts` — Cron runner baru berbasis tsx** ([`fdc730b`]) — Menggantikan `cron-service.js` (Node.js CJS) dengan TypeScript runner yang dijalankan via `npx tsx`. 16 cron jobs diload dari satu entry point, distributed locking tetap aktif. FreeRADIUS Health Check berjalan 5 detik setelah startup.
-- **`production/ecosystem.config.js` — Template konfigurasi PM2** ([`fdc730b`]) — File baru sebagai source of truth untuk konfigurasi PM2. `salfanet-cron` kini berjalan sebagai proses fork (`npx tsx src/cron/runner.ts`) dengan `NODE_OPTIONS: '--conditions=react-server'` (wajib agar `server-only` package tidak throw di luar Next.js).
+- **`production/ecosystem.config.js` — Template konfigurasi PM2** ([`fdc730b`]) — File baru sebagai source of truth untuk konfigurasi PM2. `EugineBill-cron` kini berjalan sebagai proses fork (`npx tsx src/cron/runner.ts`) dengan `NODE_OPTIONS: '--conditions=react-server'` (wajib agar `server-only` package tidak throw di luar Next.js).
 - **`vps-install/cleanup-refactor.sh` — Script cleanup instalasi lama** ([`f71256c`], [`c41f44f`]) — Script idempotent untuk membersihkan file-file stale dari instalasi sebelum refactor. Fitur:
   - Support `--dry-run` (preview tanpa hapus)
   - Phase 1: cleanup Firebase/FCM push service, firebase-service-account.json
   - Phase 3: sync `ecosystem.config.js` dari `production/` (migrasi cron-service.js → tsx runner)
   - Phase 8: hapus `src/app/coordinator/`, `src/app/admin/coordinators/`
-  - Auto-deteksi jika `salfanet-cron` masih pakai `cron-service.js` → migrate ke tsx runner otomatis
+  - Auto-deteksi jika `EugineBill-cron` masih pakai `cron-service.js` → migrate ke tsx runner otomatis
   - Usage: `bash vps-install/cleanup-refactor.sh [--dry-run] [--app-dir=/path]`
 
 ### Changed
@@ -1602,7 +1602,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 - **Restore FreeRADIUS: error "same file" saat restore `mods-enabled/`** ([`c268123`]) — File `mods-enabled/sql` dan `mods-enabled/rest` di FreeRADIUS adalah **symlink** ke `../mods-available/sql`. Saat tar mengekstrak backup, symlink tetap sebagai symlink. Perintah `cp symlink dest` gagal karena keduanya resolve ke file fisik yang sama (`cp: ... are the same file`). Fix: cek tipe file via `stat -c '%F'` sebelum restore — jika `symbolic link`, gunakan `ln -sf <target> <dest>` alih-alih `cp`.
 - **Build VPS: OOM (Out of Memory) saat fase TypeScript check** ([`0aee02f`]) — Build `npm run build` menjalankan TypeScript type-checker (`tsc`) setelah compile selesai. Pada VPS 4GB dengan PM2 berjalan, proses `tsc` membutuhkan heap hingga 1.6GB dan di-kill oleh OOM killer (`FATAL ERROR: Ineffective mark-compacts near heap limit`). Fix: set `typescript.ignoreBuildErrors: true` di `next.config.ts` untuk skip fase `tsc` saat build produksi (type error tetap terdeteksi di development/editor).
-- **Build VPS: OOM saat build karena PM2 mengonsumsi RAM** ([`08eba82`]) — PM2 process salfanet-radius mengonsumsi ~500MB RAM saat berjalan. Dengan heap build 1536MB (bawaan `npm run build`), total RAM yang dibutuhkan melebihi 4GB. Fix: `update.sh` kini stop PM2 sebelum build dan gunakan `npm run build:low-mem` (heap 1024MB). PM2 distart kembali setelah build selesai (atau gagal).
+- **Build VPS: OOM saat build karena PM2 mengonsumsi RAM** ([`08eba82`]) — PM2 process EugineBill-radius mengonsumsi ~500MB RAM saat berjalan. Dengan heap build 1536MB (bawaan `npm run build`), total RAM yang dibutuhkan melebihi 4GB. Fix: `update.sh` kini stop PM2 sebelum build dan gunakan `npm run build:low-mem` (heap 1024MB). PM2 distart kembali setelah build selesai (atau gagal).
 - **Build VPS: script baru tidak executable setelah `git reset --hard`** ([`8ce6421`]) — Script yang ditambahkan via commit baru tidak otomatis dapat izin execute di VPS setelah `git reset --hard`. Fix: tambah `chmod +x scripts/*.sh` di `update.sh` setelah git reset.
 - **VPN Client: list tidak refresh setelah tambah client** ([`b55d3e6`]) — Setelah berhasil tambah WireGuard atau L2TP client, list VPN tidak diperbarui otomatis. Fix: panggil `loadClients()` di success path WireGuard dan L2TP.
 - **VPN Client: modal tidak menutup / formData tidak ter-reset setelah submit** ([`b55d3e6`]) — Form WireGuard menggunakan `formData.name` setelah `formData` di-clear sehingga nama yang dikirim ke credentials dialog kosong. Fix: simpan nama ke variabel lokal `peerName` sebelum clear, gunakan `peerName` di credentials dialog.
@@ -1614,7 +1614,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 - **`update.sh`: safe zero-downtime update** ([`08eba82`], [`8ce6421`], sesi ini) — Perbaikan menyeluruh pada script update:
-  - `.env` di-backup ke `/tmp/salfanet-env-backup-<timestamp>` sebelum `git reset --hard` (extra safety meski `.env` ada di `.gitignore`)
+  - `.env` di-backup ke `/tmp/EugineBill-env-backup-<timestamp>` sebelum `git reset --hard` (extra safety meski `.env` ada di `.gitignore`)
   - Jika `.env` hilang setelah git reset, otomatis restore dari backup terakhir
   - Cleanup direktori orphan dari deployment lama (`srcappadmin`, `srclocales`, dll.) otomatis tiap update
   - PM2 `reload` (rolling zero-downtime) tetap digunakan saat restart — sesi PPPoE/Hotspot aktif tidak terputus oleh update kode
@@ -1700,8 +1700,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 - **Script RADIUS, Isolir, dan VPN Client dipisah tanggung jawabnya** *(commit d649bee)*:
-  - `setup-radius` — Hapus profile duplikat `radius-default`, konsolidasi ke satu profile `salfanetradius`. Semua rule isolasi (SALFANET-ISOLIR) dipindahkan ke Setup Isolir.
-  - `setup-isolir` — Diubah dari eksekusi API langsung (RouterOSAPI) ke **script generator** (paste-able ke terminal MikroTik). Script mencakup: `pool-isolir`, PPP profile `isolir`, firewall filter + NAT (SALFANET-ISOLIR), catatan route VPS.
+  - `setup-radius` — Hapus profile duplikat `radius-default`, konsolidasi ke satu profile `EugineBillradius`. Semua rule isolasi (EugineBill-ISOLIR) dipindahkan ke Setup Isolir.
+  - `setup-isolir` — Diubah dari eksekusi API langsung (RouterOSAPI) ke **script generator** (paste-able ke terminal MikroTik). Script mencakup: `pool-isolir`, PPP profile `isolir`, firewall filter + NAT (EugineBill-ISOLIR), catatan route VPS.
   - `routers/page.tsx` — Ditambah tombol **Setup Isolir** (ikon gembok oranye) di samping tombol RADIUS, dengan handler `handleSetupIsolir()` yang menampilkan script modal.
   - `vpn-client/page.tsx` — Hapus `radiusSection` dan `wgRadiusSection` dari semua script VPN (L2TP/SSTP/PPTP/WireGuard). Script hanya berisi setup tunnel + API user + catatan langkah berikutnya.
 
@@ -1758,7 +1758,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **CRITICAL: `backupTopicId` non-nullable** — field di schema `telegramBackupSettings` sebelumnya `String` (wajib), menyebabkan Prisma error saat simpan settings tanpa Topic ID → settings tidak tersimpan → backup Telegram selalu di-skip. Diubah ke `String?` (nullable)
 - **CRITICAL: `MYSQL_PWD` shell syntax** — sebelumnya menggunakan `MYSQL_PWD="${password}" mysqldump ...` yang gagal jika password DB mengandung karakter khusus (`"`, `$`, `` ` ``, `\`). Sekarang menggunakan `env` option dari `execAsync` yang lebih aman
 - **CRITICAL: `/api/cron/telegram` GET undefined `status`** — variabel `status` tidak pernah di-declare, `getTelegramCronStatus()` diimport tapi tidak dipanggil → runtime error saat cek status. Fixed
-- **CRITICAL: `/api/cron` POST tanpa auth** — endpoint bisa dipanggil siapa saja dari internet. Ditambahkan auth check: `CRON_SECRET` header, User-Agent `SALFANET-CRON-SERVICE`, atau session SUPER_ADMIN
+- **CRITICAL: `/api/cron` POST tanpa auth** — endpoint bisa dipanggil siapa saja dari internet. Ditambahkan auth check: `CRON_SECRET` header, User-Agent `EugineBill-CRON-SERVICE`, atau session SUPER_ADMIN
 - **Double cron execution** — `initCronJobs()` di `instrumentation.ts` DAN `cron-service.js` menjalankan job yang sama (voucher sync, agent sales, invoice, dll). Sekarang `initCronJobs()` hanya menginisialisasi Telegram cron (yang memang tidak ada di cron-service.js)
 - **Placeholder `/api/backup/telegram/settings`** — endpoint mengembalikan data hardcoded `{ enabled: false }` dan tidak baca/tulis DB. Sekarang baca/tulis ke database `telegramBackupSettings`
 
@@ -1856,7 +1856,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`production/99-vpn-routes`** — script PPP ip-up untuk otomatis menambahkan route `10.20.30.0/24` via ppp0 ke VPS saat VPN tunnel connect. Diperlukan agar CoA/disconnect packet bisa reach MikroTik.
 
 ### Changed
-- Nginx config (`production/nginx-salfanet-radius.conf`) disinkronkan dengan VPS aktual: tambah blok `/api/` dengan no-cache headers, CSP header Cloudflare, `Referrer-Policy`, hide upstream security headers.
+- Nginx config (`production/nginx-EugineBill-radius.conf`) disinkronkan dengan VPS aktual: tambah blok `/api/` dengan no-cache headers, CSP header Cloudflare, `Referrer-Policy`, hide upstream security headers.
 
 ---
 
@@ -1871,7 +1871,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Dashboard hotspot count selalu 0** — hapus pengecekan Service-Type yang keliru, ganti ke lookup `pppoeUser` vs `hotspotVoucher`.
 - **Next.js prerender crash pada `/_global-error`** — buat `src/app/global-error.tsx` sebagai `'use client'` component.
 - **MapPicker z-index di balik modal** — tambah `createPortal(jsx, document.body)` ke `MapPicker.tsx`.
-- **Nginx manifest 404** — ganti `alias + try_files` (broken dengan regex location) ke `root /var/www/salfanet-radius/public`.
+- **Nginx manifest 404** — ganti `alias + try_files` (broken dengan regex location) ke `root /var/www/EugineBill-radius/public`.
 
 ### Added
 - Area badge (kuning, ikon MapPin) di kolom Data Pelanggan PPPoE.

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -96,7 +96,7 @@ export default function CloudflareTunnelPage() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
-  const [tunnelName, setTunnelName] = useState('salfanet');
+  const [tunnelName, setTunnelName] = useState('EugineBill');
 
   const loadConfig = useCallback(async () => {
     try {
@@ -275,7 +275,7 @@ cloudflared --version`} />
                 type="text"
                 value={tunnelName}
                 onChange={e => setTunnelName(e.target.value.replace(/\s/g, '-').toLowerCase())}
-                placeholder="salfanet"
+                placeholder="EugineBill"
                 className="flex-1 px-3 py-1.5 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 font-mono"
               />
             </div>
@@ -345,16 +345,16 @@ systemctl status cloudflared`} />
             <div className="mt-3 p-3 bg-muted/50 border border-border rounded-lg space-y-2">
               <p className="text-xs font-semibold text-foreground">Setelah menyimpan, update juga .env di VPS:</p>
               <CodeBlock code={`# Edit .env di VPS
-nano /var/www/salfanet-radius/.env
+nano /var/www/EugineBill-radius/.env
 
 # Ubah/tambahkan baris berikut:
 NEXTAUTH_URL=https://${tunnelDomain || 'your-tunnel.trycloudflare.com'}
 NEXT_PUBLIC_APP_URL=https://${tunnelDomain || 'your-tunnel.trycloudflare.com'}
 NEXTAUTH_SECRET=your-secret-here`} />
               <p className="text-xs font-semibold text-foreground mt-2">Lalu rebuild dan reload:</p>
-              <CodeBlock code={`cd /var/www/salfanet-radius
+              <CodeBlock code={`cd /var/www/EugineBill-radius
 NODE_OPTIONS='--max-old-space-size=2048' npm run build
-pm2 reload salfanet-radius --update-env`} />
+pm2 reload EugineBill-radius --update-env`} />
             </div>
           </StepCard>
 

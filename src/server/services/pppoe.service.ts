@@ -10,6 +10,7 @@ import { changePPPoERateLimit } from '@/server/services/mikrotik/rate-limit';
 import { generateUniqueReferralCode } from '@/server/services/referral.service';
 import { generateInvoiceNumber } from '@/server/services/billing/invoice.service';
 import { randomBytes } from 'crypto';
+import { PPPSecretService } from '@/server/services/mikrotik/ppp-secret.service';
 import type { NextRequest } from 'next/server';
 import type { Session } from 'next-auth';
 
@@ -171,8 +172,9 @@ export async function createPppoeUser(
   if (!resolvedPhone) resolvedPhone = '-';
 
   // Generate unique customer ID (with company prefix if configured)
-  const company = await prisma.company.findFirst({ select: { customerIdPrefix: true } });
-  const prefix = (company as any)?.customerIdPrefix?.trim() || '';
+  const company = await prisma.company.findFirst();
+  const prefix = company?.customerIdPrefix?.trim() || '';
+  const isRadiusEnabled = company?.radiusEnabled ?? false;
   let customerId = '';
   let isUnique = false;
   while (!isUnique) {
@@ -262,31 +264,43 @@ export async function createPppoeUser(
     } as never,
   });
 
-  // RADIUS sync - skip for static/MAC-only customers
+  // Sync - skip for static/MAC-only customers
   let radiusSynced = false;
   if (!noPppoeAccount && password) {
-    try {
-      await prisma.radcheck.create({
-        data: { username, attribute: 'Cleartext-Password', op: ':=', value: password },
-      });
-
-      await prisma.radusergroup.create({
-        data: { username, groupname: profile.groupName, priority: 0 },
-      });
-
-      if (ipAddress) {
-        await prisma.radreply.create({
-          data: { username, attribute: 'Framed-IP-Address', op: ':=', value: ipAddress },
+    if (isRadiusEnabled) {
+      try {
+        await prisma.radcheck.create({
+          data: { username, attribute: 'Cleartext-Password', op: ':=', value: password },
         });
-      }
 
-      await prisma.pppoeUser.update({
-        where: { id: user.id },
-        data: { syncedToRadius: true, lastSyncAt: new Date() },
-      });
-      radiusSynced = true;
-    } catch (syncError) {
-      console.error('RADIUS sync error:', syncError);
+        await prisma.radusergroup.create({
+          data: { username, groupname: profile.groupName, priority: 0 },
+        });
+
+        if (ipAddress) {
+          await prisma.radreply.create({
+            data: { username, attribute: 'Framed-IP-Address', op: ':=', value: ipAddress },
+          });
+        }
+
+        await prisma.pppoeUser.update({
+          where: { id: user.id },
+          data: { syncedToRadius: true, lastSyncAt: new Date() },
+        });
+        radiusSynced = true;
+      } catch (syncError) {
+        console.error('RADIUS sync error:', syncError);
+      }
+    } else {
+      // Fallback to MikroTik API
+      const syncSuccess = await PPPSecretService.syncSecret(user.id);
+      if (syncSuccess) {
+        await prisma.pppoeUser.update({
+          where: { id: user.id },
+          data: { syncedToRadius: true, lastSyncAt: new Date() },
+        });
+        radiusSynced = true;
+      }
     }
   } else if (noPppoeAccount && ipAddress) {
     try {
@@ -429,6 +443,9 @@ export async function updatePppoeUser(
   });
   if (!currentUser) throw Object.assign(new Error('User not found'), { code: 'NOT_FOUND' });
 
+  const company = await prisma.company.findFirst();
+  const isRadiusEnabled = company?.radiusEnabled ?? false;
+
   // Duplicate username check
   if (data.username && data.username !== currentUser.username) {
     const existing = await prisma.pppoeUser.findUnique({ where: { username: data.username } });
@@ -479,75 +496,79 @@ export async function updatePppoeUser(
         if (/^\d{4}-\d{2}-\d{2}$/.test(expStr)) {
           const [y, m, d] = expStr.split('-').map(Number);
           return { expiredAt: new Date(Date.UTC(y, m - 1, d, 16, 59, 59, 999)) };
-        }
-        return { expiredAt: new Date(expStr) };
-      })()),
-      ...(data.autoRenewal !== undefined && { autoRenewal: data.autoRenewal }),
-      ...(data.autoIsolationEnabled !== undefined && { autoIsolationEnabled: data.autoIsolationEnabled }),
-      ...(data.idCardNumber !== undefined && { idCardNumber: data.idCardNumber }),
-      ...(data.idCardPhoto !== undefined && { idCardPhoto: data.idCardPhoto }),
-      ...(data.installationPhotos !== undefined && { installationPhotos: data.installationPhotos }),
-      ...(data.followRoad !== undefined && { followRoad: !!data.followRoad }),
-      ...(data.registeredAt && { createdAt: new Date(data.registeredAt) }),
-    } as never,
-  });
-
-  // RADIUS re-sync if critical fields changed (including status change)
+       // RADIUS or MikroTik re-sync if critical fields changed (including status change)
   if (data.username || data.password || data.profileId || data.ipAddress !== undefined || data.routerId !== undefined || (data.status && data.status !== currentUser.status)) {
-    try {
-      const oldUsername = currentUser.username;
-      const newUsername = data.username || currentUser.username;
+    const oldUsername = currentUser.username;
+    const newUsername = data.username || currentUser.username;
+    
+    if (isRadiusEnabled) {
+      try {
+        await prisma.radcheck.deleteMany({ where: { username: oldUsername } });
+        await prisma.radreply.deleteMany({ where: { username: oldUsername } });
+        await prisma.radusergroup.deleteMany({ where: { username: oldUsername } });
 
-      await prisma.radcheck.deleteMany({ where: { username: oldUsername } });
-      await prisma.radreply.deleteMany({ where: { username: oldUsername } });
-      await prisma.radusergroup.deleteMany({ where: { username: oldUsername } });
-
-      const finalRouterId = data.routerId !== undefined ? data.routerId : currentUser.routerId;
-      let router = null;
-      if (finalRouterId) {
-        router = await prisma.router.findUnique({ where: { id: finalRouterId }, select: { id: true, nasname: true } });
-      }
-
-      // Determine effective status after this update (new status if being changed, otherwise current)
-      const effectiveStatus = data.status || currentUser.status;
-
-      // RADIUS re-sync must respect the user's effective status:
-      // - active: full sync (password, profile group, static IP)
-      // - isolated: allow auth but use isolir group, no static IP
-      // - blocked/stop: keep RADIUS tables empty � user must remain unreachable
-      if (effectiveStatus === 'blocked' || effectiveStatus === 'stop') {
-        // Tables already cleared by deleteMany above � do NOT re-add any entries
-      } else if (effectiveStatus === 'isolated') {
-        // Keep login allowed but restrict to isolir group
-        await prisma.radcheck.create({
-          data: { username: newUsername, attribute: 'Cleartext-Password', op: ':=', value: data.password || currentUser.password },
-        });
-        // NOTE: NAS-IP-Address NOT stored in radcheck (breaks auth in VPN/NAT setups)
-        await prisma.radusergroup.create({
-          data: { username: newUsername, groupname: 'isolir', priority: 1 },
-        });
-        // No Framed-IP-Address � isolated users get IP from pool-isolir
-      } else {
-        // active (default): full sync
-        await prisma.radcheck.create({
-          data: { username: newUsername, attribute: 'Cleartext-Password', op: ':=', value: data.password || currentUser.password },
-        });
-        // NOTE: NAS-IP-Address NOT stored in radcheck (breaks auth in VPN/NAT setups)
-        await prisma.radusergroup.create({
-          data: { username: newUsername, groupname: newProfile.groupName, priority: 0 },
-        });
-        const finalIp = data.ipAddress !== undefined ? data.ipAddress : currentUser.ipAddress;
-        if (finalIp) {
-          await prisma.radreply.create({
-            data: { username: newUsername, attribute: 'Framed-IP-Address', op: ':=', value: finalIp },
-          });
+        const finalRouterId = data.routerId !== undefined ? data.routerId : currentUser.routerId;
+        let router = null;
+        if (finalRouterId) {
+          router = await prisma.router.findUnique({ where: { id: finalRouterId }, select: { id: true, nasname: true } });
         }
-      }
 
-      await prisma.pppoeUser.update({
-        where: { id },
-        data: { syncedToRadius: true, lastSyncAt: new Date() },
-      });
+        // Determine effective status after this update (new status if being changed, otherwise current)
+        const effectiveStatus = data.status || currentUser.status;
+
+        // RADIUS re-sync must respect the user's effective status:
+        // - active: full sync (password, profile group, static IP)
+        // - isolated: allow auth but use isolir group, no static IP
+        // - blocked/stop: keep RADIUS tables empty  user must remain unreachable
+        if (effectiveStatus === 'blocked' || effectiveStatus === 'stop') {
+          // Tables already cleared by deleteMany above  do NOT re-add any entries
+        } else if (effectiveStatus === 'isolated') {
+          // Keep login allowed but restrict to isolir group
+          await prisma.radcheck.create({
+            data: { username: newUsername, attribute: 'Cleartext-Password', op: ':=', value: data.password || currentUser.password },
+          });
+          // NOTE: NAS-IP-Address NOT stored in radcheck (breaks auth in VPN/NAT setups)
+          await prisma.radusergroup.create({
+            data: { username: newUsername, groupname: 'isolir', priority: 1 },
+          });
+          // No Framed-IP-Address  isolated users get IP from pool-isolir
+        } else {
+          // active (default): full sync
+          await prisma.radcheck.create({
+            data: { username: newUsername, attribute: 'Cleartext-Password', op: ':=', value: data.password || currentUser.password },
+          });
+          // NOTE: NAS-IP-Address NOT stored in radcheck (breaks auth in VPN/NAT setups)
+          await prisma.radusergroup.create({
+            data: { username: newUsername, groupname: newProfile.groupName, priority: 0 },
+          });
+          const finalIp = data.ipAddress !== undefined ? data.ipAddress : currentUser.ipAddress;
+          if (finalIp) {
+            await prisma.radreply.create({
+              data: { username: newUsername, attribute: 'Framed-IP-Address', op: ':=', value: finalIp },
+            });
+          }
+        }
+
+        await prisma.pppoeUser.update({
+          where: { id },
+          data: { syncedToRadius: true, lastSyncAt: new Date() },
+        });
+      } catch (syncError) {
+        console.error('RADIUS re-sync error:', syncError);
+      }
+    } else {
+      // Fallback to MikroTik API
+      if (oldUsername !== newUsername && currentUser.routerId) {
+        await PPPSecretService.removeSecret(currentUser.routerId, oldUsername);
+      }
+      const syncSuccess = await PPPSecretService.syncSecret(id);
+      if (syncSuccess) {
+        await prisma.pppoeUser.update({
+          where: { id },
+          data: { syncedToRadius: true, lastSyncAt: new Date() },
+        });
+      }
+    }
 
       // If profile changed, apply new rate limit via CoA
       const profileChanged = data.profileId && data.profileId !== currentUser.profileId;
@@ -646,13 +667,20 @@ export async function deletePppoeUser(
   const user = await prisma.pppoeUser.findUnique({ where: { id } });
   if (!user) throw Object.assign(new Error('User not found'), { code: 'NOT_FOUND' });
 
-  // RADIUS cleanup
-  try {
-    await prisma.radcheck.deleteMany({ where: { username: user.username } });
-    await prisma.radreply.deleteMany({ where: { username: user.username } });
-    await prisma.radusergroup.deleteMany({ where: { username: user.username } });
-  } catch (syncError) {
-    console.error('RADIUS cleanup error:', syncError);
+  const company = await prisma.company.findFirst();
+  const isRadiusEnabled = company?.radiusEnabled ?? false;
+
+  // RADIUS or MikroTik cleanup
+  if (isRadiusEnabled) {
+    try {
+      await prisma.radcheck.deleteMany({ where: { username: user.username } });
+      await prisma.radreply.deleteMany({ where: { username: user.username } });
+      await prisma.radusergroup.deleteMany({ where: { username: user.username } });
+    } catch (syncError) {
+      console.error('RADIUS cleanup error:', syncError);
+    }
+  } else if (user.routerId) {
+    await PPPSecretService.removeSecret(user.routerId, user.username);
   }
 
   await prisma.pppoeUser.delete({ where: { id } });

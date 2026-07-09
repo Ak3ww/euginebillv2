@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     try {
       // Get company name
       const company = await prisma.company.findFirst();
-      const companyName = company?.name || 'SALFANET RADIUS';
+      const companyName = company?.name || 'EugineBill RADIUS';
       
       const message = `?? *Kode OTP Teknisi*\n\nKode OTP Anda: *${otpCode}*\n\nKode ini berlaku selama *5 menit*.\nJangan bagikan kode ini kepada siapa pun.\n\n_Pesan otomatis dari sistem ${companyName}_`;
 

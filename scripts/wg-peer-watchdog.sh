@@ -1,6 +1,6 @@
 #!/bin/bash
 # WireGuard Peer Watchdog — restore peers from DB if wg0.conf loses them
-# Dipasang otomatis oleh salfanet-radius. Jangan hapus.
+# Dipasang otomatis oleh EugineBill-radius. Jangan hapus.
 # Cron: */5 * * * * /usr/local/bin/wg-peer-watchdog.sh >> /var/log/wg-peer-watchdog.log 2>&1
 
 LOCK=/tmp/wg-peer-watchdog.lock
@@ -11,9 +11,9 @@ WG_IFACE=wg0
 WG_CONF=/etc/wireguard/wg0.conf
 LOG=/var/log/wg-peer-watchdog.log
 TS=$(date '+%Y-%m-%d %H:%M:%S')
-DB_USER=salfanet_user
-DB_PASS=salfanetradius123
-DB_NAME=salfanet_radius
+DB_USER=EugineBill_user
+DB_PASS=EugineBillradius123
+DB_NAME=EugineBill_radius
 
 # Batas log agar tidak unbounded (~300KB)
 MAX_LOG=3000

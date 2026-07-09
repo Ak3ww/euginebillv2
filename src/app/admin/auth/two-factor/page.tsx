@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
@@ -13,7 +13,7 @@ function TwoFactorForm() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [companyName, setCompanyName] = useState('SALFANET RADIUS');
+  const [companyName, setCompanyName] = useState('EugineBill RADIUS');
   const tfaToken = searchParams.get('t') || '';
 
   useEffect(() => {

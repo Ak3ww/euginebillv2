@@ -1,12 +1,12 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS — Post-Install Fix Script (v2)
+# EugineBill RADIUS — Post-Install Fix Script (v2)
 # ============================================================================
 # Fixes PWA manifest 404 + API issues on VPS installed with older installer.
 #
 # Root causes fixed:
 #   1. nginx used `alias` with regex location (broken in nginx)
-#      → changed to `root /var/www/salfanet-radius/public` (serve from project public/)
+#      → changed to `root /var/www/EugineBill-radius/public` (serve from project public/)
 #   2. `cp -r public .next/standalone/public/` creates nested public/public/
 #      → fixed copy command + still needed for standalone server.js serving
 #   3. Missing /api/ no-cache block in IP-only nginx config
@@ -18,8 +18,8 @@
 
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/var/www/salfanet-radius}"
-NGINX_CONF="/etc/nginx/sites-available/salfanet-radius"
+APP_DIR="${APP_DIR:-/var/www/EugineBill-radius}"
+NGINX_CONF="/etc/nginx/sites-available/EugineBill-radius"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -118,7 +118,7 @@ else
     python3 - <<'PYEOF'
 import re, sys
 
-CONF_PATH = "/etc/nginx/sites-available/salfanet-radius"
+CONF_PATH = "/etc/nginx/sites-available/EugineBill-radius"
 
 with open(CONF_PATH, "r") as f:
     content = f.read()
@@ -175,7 +175,7 @@ content = re.sub(
 PWA_BLOCK = """
     # PWA manifest files — serve directly from public/ (no Node.js needed)
     location ~ ^/manifest(-[a-z]+)?\\.json$ {
-        root /var/www/salfanet-radius/public;
+        root /var/www/EugineBill-radius/public;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
         add_header Content-Type "application/manifest+json";
@@ -183,7 +183,7 @@ PWA_BLOCK = """
 
     # Service worker — no cache
     location = /sw.js {
-        root /var/www/salfanet-radius/public;
+        root /var/www/EugineBill-radius/public;
         expires off;
         add_header Cache-Control "no-cache, no-store, must-revalidate";
         add_header Service-Worker-Allowed "/";
@@ -191,7 +191,7 @@ PWA_BLOCK = """
 
     # PWA icons and assets
     location /pwa/ {
-        root /var/www/salfanet-radius/public;
+        root /var/www/EugineBill-radius/public;
         expires 30d;
         add_header Cache-Control "public, max-age=2592000, immutable";
         access_log off;
@@ -219,7 +219,7 @@ API_BLOCK = """
     }
 """
 
-has_manifest = 'root /var/www/salfanet-radius/public' in content and 'manifest' in content
+has_manifest = 'root /var/www/EugineBill-radius/public' in content and 'manifest' in content
 has_api = 'location /api/' in content
 
 # Find each "location / {" (the catch-all) and inject before it
@@ -291,13 +291,13 @@ print_step "Step 5: Restart application"
 APP_USER=$(stat -c '%U' "$APP_DIR" 2>/dev/null || echo root)
 
 if command -v pm2 >/dev/null 2>&1; then
-    if pm2 list 2>/dev/null | grep -q "salfanet-radius"; then
-        pm2 restart salfanet-radius --update-env 2>/dev/null && print_success "App restarted (root pm2)" || true
+    if pm2 list 2>/dev/null | grep -q "EugineBill-radius"; then
+        pm2 restart EugineBill-radius --update-env 2>/dev/null && print_success "App restarted (root pm2)" || true
     fi
 fi
 
 if [ "$APP_USER" != "root" ] && id "$APP_USER" &>/dev/null; then
-    sudo su - "$APP_USER" -c 'pm2 restart salfanet-radius --update-env 2>/dev/null || true' && \
+    sudo su - "$APP_USER" -c 'pm2 restart EugineBill-radius --update-env 2>/dev/null || true' && \
         print_success "App restarted as $APP_USER" || true
 fi
 

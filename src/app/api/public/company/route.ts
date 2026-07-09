@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 
 // Always fetch fresh company data from DB (not cached at build time)
@@ -22,10 +22,10 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       company: {
-        name: company?.name || 'SALFANET RADIUS',
+        name: company?.name || 'EugineBill RADIUS',
         logo: company?.logo || null,
         phone: company?.phone || null,
-        poweredBy: company?.poweredBy || 'SALFANET RADIUS',
+        poweredBy: company?.poweredBy || 'EugineBill RADIUS',
         footerAdmin: company?.footerAdmin || null,
         footerCustomer: company?.footerCustomer || null,
         footerTechnician: company?.footerTechnician || null,
@@ -37,10 +37,10 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       company: {
-        name: 'SALFANET RADIUS',
+        name: 'EugineBill RADIUS',
         logo: null,
         phone: null,
-        poweredBy: 'SALFANET RADIUS',
+        poweredBy: 'EugineBill RADIUS',
         footerAdmin: null,
         footerCustomer: null,
         footerTechnician: null,

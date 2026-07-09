@@ -11,7 +11,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/s4lfanet/salfanet-radius-go/internal/config"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/config"
 )
 
 var httpClient = &http.Client{Timeout: 15 * time.Second}

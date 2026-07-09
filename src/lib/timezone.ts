@@ -1,5 +1,5 @@
 /**
- * Timezone Utilities for SALFANET RADIUS
+ * Timezone Utilities for EugineBill RADIUS
  * 
  * ============================================
  * TIMEZONE CONSISTENCY ARCHITECTURE

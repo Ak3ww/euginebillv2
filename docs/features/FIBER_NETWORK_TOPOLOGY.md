@@ -8,7 +8,7 @@
 
 Modul **Fiber Network Topology** menyediakan manajemen infrastruktur jaringan fiber optik secara menyeluruh — mulai dari pendaftaran perangkat (OTB, ODC, ODP, Joint Closure), manajemen kabel dan core, pencatatan splice, visualisasi peta interaktif, diagram splitter, hingga pelacakan jalur fisik dan logis.
 
-Modul ini **belum tersedia di salfanet-radius** saat ini dan merupakan fitur roadmap yang sudah diimplementasikan penuh di `billing-radius`. Dokumen ini mendokumentasikan arsitektur, model data, dan fitur untuk referensi integrasi ke depan.
+Modul ini **belum tersedia di EugineBill-radius** saat ini dan merupakan fitur roadmap yang sudah diimplementasikan penuh di `billing-radius`. Dokumen ini mendokumentasikan arsitektur, model data, dan fitur untuk referensi integrasi ke depan.
 
 ---
 
@@ -545,9 +545,9 @@ Endpoint `GET /api/network/otbs/stats` mengembalikan:
 
 ---
 
-## Status Roadmap di salfanet-radius
+## Status Roadmap di EugineBill-radius
 
-Fitur ini **belum diimplementasikan** di salfanet-radius. Untuk mengintegrasikan:
+Fitur ini **belum diimplementasikan** di EugineBill-radius. Untuk mengintegrasikan:
 
 1. **Migrasi Prisma** — tambahkan semua model fiber (`fiber_cables`, `fiber_tubes`, `fiber_cores`, `splice_points`, `cable_segments`, `network_otbs`, `network_joint_closures`, `network_odcs`, `network_odps`, `odp_customer_assignments`, `network_fiber_paths`, `network_nodes`, `core_assignment_history`, `network_maintenance_history`) ke `prisma/schema.prisma`
 2. **API Routes** — salin `billing-radius/src/app/api/network/` ke `src/app/api/network/`

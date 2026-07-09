@@ -12,15 +12,15 @@ import { spawn, execSync } from 'child_process';
 export const dynamic = 'force-dynamic';
 
 const ROLES = {
-  admin:      { label: 'Salfanet Admin',     pkg: 'net.salfanet.admin',      color: '#1e40af', pathSuffix: '/admin' },
-  customer:   { label: 'Salfanet Customer',  pkg: 'net.salfanet.customer',   color: '#0891b2', pathSuffix: '/customer' },
-  technician: { label: 'Salfanet Teknisi',   pkg: 'net.salfanet.technician', color: '#059669', pathSuffix: '/technician' },
-  agent:      { label: 'Salfanet Agent',     pkg: 'net.salfanet.agent',      color: '#7c3aed', pathSuffix: '/agent' },
+  admin:      { label: 'EugineBill Admin',     pkg: 'net.EugineBill.admin',      color: '#1e40af', pathSuffix: '/admin' },
+  customer:   { label: 'EugineBill Customer',  pkg: 'net.EugineBill.customer',   color: '#0891b2', pathSuffix: '/customer' },
+  technician: { label: 'EugineBill Teknisi',   pkg: 'net.EugineBill.technician', color: '#059669', pathSuffix: '/technician' },
+  agent:      { label: 'EugineBill Agent',     pkg: 'net.EugineBill.agent',      color: '#7c3aed', pathSuffix: '/agent' },
 } as const;
 type RoleKey = keyof typeof ROLES;
 
-const APK_DIR       = '/var/data/salfanet/apk';
-const GRADLE_CACHE  = '/var/data/salfanet/gradle-cache';
+const APK_DIR       = '/var/data/EugineBill/apk';
+const GRADLE_CACHE  = '/var/data/EugineBill/gradle-cache';
 const ANDROID_HOME  = process.env.ANDROID_HOME || '/opt/android';
 const WRAPPER_JAR   = join(process.cwd(), 'public', 'android-template', 'gradle-wrapper.jar');
 
@@ -75,7 +75,7 @@ class MainActivity : AppCompatActivity() {
             displayZoomControls  = false
             cacheMode            = WebSettings.LOAD_DEFAULT
             mixedContentMode     = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-            userAgentString      = userAgentString + " SalfanetApp/2.0"
+            userAgentString      = userAgentString + " EugineBillApp/2.0"
         }
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -394,7 +394,7 @@ export async function POST(req: NextRequest) {
 
   const startUrl   = `${baseUrl}${ROLES[role].pathSuffix}`;
   const startedAt  = new Date().toISOString();
-  const projectDir = `/tmp/salfanet-build-${role}-${Date.now()}`;
+  const projectDir = `/tmp/EugineBill-build-${role}-${Date.now()}`;
 
   // Mark as building
   writeFileSync(statusFile, JSON.stringify({ status: 'building', startedAt, role, appName, url: startUrl }));
@@ -455,7 +455,7 @@ export async function POST(req: NextRequest) {
       } else {
         writeFileSync(statusFile, JSON.stringify({
           status: 'failed', startedAt, finishedAt: new Date().toISOString(),
-          error: `Gradle exit code ${code}. Cek: /var/data/salfanet/apk/${role}/build.log`,
+          error: `Gradle exit code ${code}. Cek: /var/data/EugineBill/apk/${role}/build.log`,
         }));
       }
     } catch { /* ignore */ }

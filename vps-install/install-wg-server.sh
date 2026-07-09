@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS — WireGuard VPN Server Installer
+# EugineBill RADIUS — WireGuard VPN Server Installer
 # ============================================================================
 # Mengkonfigurasi VPS sebagai WireGuard VPN SERVER sehingga NAS/router
 # (MikroTik) bisa terhubung langsung ke VPS tanpa perlu CHR forwarder.
@@ -15,7 +15,7 @@
 #   - Peer management: tambah/hapus NAS tanpa restart tunnel (wg syncconf)
 #
 # Dipanggil oleh: vps-installer.sh (Step opsional) atau manual
-# Juga dipanggil oleh salfanet-radius app saat klik "Setup WireGuard" di UI
+# Juga dipanggil oleh EugineBill-radius app saat klik "Setup WireGuard" di UI
 #
 # Usage:
 #   bash install-wg-server.sh [--subnet 10.200.0.0/24] [--port 51820]
@@ -48,7 +48,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── Helper functions ───────────────────────────────────────────────────────
-print_header() { echo ""; echo "╔══════════════════════════════════════════╗"; echo "║  WireGuard VPN Server — SALFANET RADIUS  ║"; echo "╚══════════════════════════════════════════╝"; echo ""; }
+print_header() { echo ""; echo "╔══════════════════════════════════════════╗"; echo "║  WireGuard VPN Server — EugineBill RADIUS  ║"; echo "╚══════════════════════════════════════════╝"; echo ""; }
 print_info()    { echo "[INFO]  $*"; }
 print_ok()      { echo "[OK]    $*"; }
 print_warn()    { echo "[WARN]  $*"; }
@@ -116,9 +116,9 @@ fi
 if [[ ! -f "${WG_CONF}" ]]; then
   # Buat config baru
   cat > "${WG_CONF}" << WGEOF
-# WireGuard VPN Server — SALFANET RADIUS
+# WireGuard VPN Server — EugineBill RADIUS
 # Auto-generated oleh install-wg-server.sh
-# Peers dikelola oleh salfanet-radius app via /api/network/vps-wg-peer
+# Peers dikelola oleh EugineBill-radius app via /api/network/vps-wg-peer
 # JANGAN edit [Interface] section secara manual
 
 [Interface]
@@ -131,7 +131,7 @@ PostUp = iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT;
 PostDown = iptables -D INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT; iptables -D INPUT -i ${WG_IFACE} -p icmp -j ACCEPT; iptables -D INPUT -p udp --dport ${WG_PORT} -j ACCEPT; iptables -D FORWARD -i ${WG_IFACE} -j ACCEPT; iptables -D FORWARD -o ${WG_IFACE} -j ACCEPT
 
 # ── NAS Peers ──────────────────────────────────────────────────────────────
-# Peers di bawah ini dikelola otomatis oleh salfanet-radius.
+# Peers di bawah ini dikelola otomatis oleh EugineBill-radius.
 # Setiap NAS/router yang terhubung via WireGuard akan punya blok [Peer] sendiri.
 # Tambah/hapus peer via admin panel → Network → VPN Clients (type: wireguard)
 # atau via API: POST /api/network/vps-wg-peer

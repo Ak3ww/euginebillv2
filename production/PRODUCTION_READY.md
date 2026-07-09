@@ -110,7 +110,7 @@ See [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) for comprehensive check
 ## 📁 Project Structure (Cleaned)
 
 ```
-salfanet-radius-main/
+EugineBill-radius-main/
 ├── .env                          # Environment config (SECURE)
 ├── .env.example                  # Template
 ├── .gitignore                    # Updated with all rules
@@ -208,5 +208,5 @@ salfanet-radius-main/
 ---
 
 **Generated:** January 18, 2026  
-**Project:** SALFANET RADIUS v2.9.0  
+**Project:** EugineBill RADIUS v2.9.0  
 **Status:** Production Ready ✅

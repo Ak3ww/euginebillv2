@@ -9,7 +9,7 @@ import { prisma } from '@/server/db/client';
 import { logActivity } from '@/server/services/activity-log.service';
 
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET ||
-  (process.env.NODE_ENV !== 'production' ? 'salfanet-radius-secret-change-in-production' : undefined);
+  (process.env.NODE_ENV !== 'production' ? 'EugineBill-radius-secret-change-in-production' : undefined);
 
 if (!NEXTAUTH_SECRET) {
   throw new Error('NEXTAUTH_SECRET is required in production.');

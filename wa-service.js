@@ -1,6 +1,6 @@
 /**
- * Salfanet Radius — Baileys Native WhatsApp Service
- * Runs as a standalone Express server (PM2 process: salfanet-wa)
+ * EugineBill Radius — Baileys Native WhatsApp Service
+ * Runs as a standalone Express server (PM2 process: EugineBill-wa)
  * Listens on 127.0.0.1:${WA_SERVICE_PORT} (default 4000)
  *
  * Endpoints:

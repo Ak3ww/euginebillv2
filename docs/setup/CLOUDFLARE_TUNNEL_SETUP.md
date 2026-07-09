@@ -54,14 +54,14 @@ cloudflared tunnel login
 ### Step 3: Buat Tunnel Baru
 
 ```bash
-# Buat tunnel dengan nama "salfanet-radius"
-cloudflared tunnel create salfanet-radius
+# Buat tunnel dengan nama "EugineBill-radius"
+cloudflared tunnel create EugineBill-radius
 ```
 
 **Output**:
 ```
 Tunnel credentials written to /root/.cloudflared/<TUNNEL-ID>.json
-Created tunnel salfanet-radius with id <TUNNEL-ID>
+Created tunnel EugineBill-radius with id <TUNNEL-ID>
 ```
 
 **Catat TUNNEL-ID** yang muncul (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
@@ -110,7 +110,7 @@ ingress:
 
 ```bash
 # Route subdomain ke tunnel
-cloudflared tunnel route dns salfanet-radius radius.salfa.my.id
+cloudflared tunnel route dns EugineBill-radius radius.salfa.my.id
 ```
 
 **Output**:
@@ -126,7 +126,7 @@ cloudflared tunnel route dns salfanet-radius radius.salfa.my.id
 
 ```bash
 # Test jalankan tunnel
-cloudflared tunnel run salfanet-radius
+cloudflared tunnel run EugineBill-radius
 ```
 
 **Output yang baik**:
@@ -207,7 +207,7 @@ Jika ingin menggunakan dashboard web:
 
 ### Step 3: Nama Tunnel
 
-- Nama: `salfanet-radius`
+- Nama: `EugineBill-radius`
 - Klik: **Save tunnel**
 
 ### Step 4: Install Connector
@@ -256,7 +256,7 @@ Di dashboard:
 cloudflared tunnel list
 
 # Info tunnel spesifik
-cloudflared tunnel info salfanet-radius
+cloudflared tunnel info EugineBill-radius
 
 # Check DNS
 dig radius.salfa.my.id
@@ -307,7 +307,7 @@ pm2 status
 ```bash
 # Hapus record lama di Cloudflare Dashboard
 # Atau route ulang
-cloudflared tunnel route dns salfanet-radius radius.salfa.my.id --overwrite-dns
+cloudflared tunnel route dns EugineBill-radius radius.salfa.my.id --overwrite-dns
 ```
 
 #### ❌ 502 Bad Gateway
@@ -317,10 +317,10 @@ cloudflared tunnel route dns salfanet-radius radius.salfa.my.id --overwrite-dns
 **Solusi**:
 ```bash
 # Check app logs
-pm2 logs salfanet-radius
+pm2 logs EugineBill-radius
 
 # Restart app
-pm2 restart salfanet-radius
+pm2 restart EugineBill-radius
 
 # Restart tunnel
 sudo systemctl restart cloudflared
@@ -370,9 +370,9 @@ ingress:
 
 **Route setiap subdomain**:
 ```bash
-cloudflared tunnel route dns salfanet-radius radius.salfa.my.id
-cloudflared tunnel route dns salfanet-radius admin.salfa.my.id
-cloudflared tunnel route dns salfanet-radius monitor.salfa.my.id
+cloudflared tunnel route dns EugineBill-radius radius.salfa.my.id
+cloudflared tunnel route dns EugineBill-radius admin.salfa.my.id
+cloudflared tunnel route dns EugineBill-radius monitor.salfa.my.id
 ```
 
 **Restart**:
@@ -568,7 +568,7 @@ sudo chmod 644 origin-cert.pem
 Edit nginx config:
 
 ```bash
-sudo nano /etc/nginx/sites-available/salfanet-radius
+sudo nano /etc/nginx/sites-available/EugineBill-radius
 ```
 
 **Ubah konfigurasi**:
@@ -818,7 +818,7 @@ sudo systemctl disable cloudflared
 sudo cloudflared service uninstall
 
 # Delete tunnel
-cloudflared tunnel delete salfanet-radius
+cloudflared tunnel delete EugineBill-radius
 
 # Hapus DNS record manual dari Cloudflare Dashboard
 

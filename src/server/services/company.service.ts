@@ -6,10 +6,10 @@ export async function getCompanyName(): Promise<string> {
     const company = await prisma.company.findFirst({
       select: { name: true }
     });
-    return company?.name || 'SALFANET RADIUS';
+    return company?.name || 'EugineBill RADIUS';
   } catch (error) {
     console.error('Error fetching company name:', error);
-    return 'SALFANET RADIUS';
+    return 'EugineBill RADIUS';
   }
 }
 
@@ -17,13 +17,13 @@ export async function getCompanyInfo() {
   try {
     const company = await prisma.company.findFirst();
     return company || {
-      name: 'SALFANET RADIUS',
+      name: 'EugineBill RADIUS',
       baseUrl: process.env.NEXT_PUBLIC_APP_URL || '',
     };
   } catch (error) {
     console.error('Error fetching company info:', error);
     return {
-      name: 'SALFANET RADIUS',
+      name: 'EugineBill RADIUS',
       baseUrl: process.env.NEXT_PUBLIC_APP_URL || '',
     };
   }

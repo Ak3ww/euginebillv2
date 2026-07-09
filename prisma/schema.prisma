@@ -128,6 +128,9 @@ model company {
   referralEnabled              Boolean? @default(false) // Enable/disable referral system
   referralRewardAmount         Int?     @default(10000) // Reward amount (IDR) for referrer
   referralRewardType           String?  @default("FIRST_PAYMENT") // REGISTRATION or FIRST_PAYMENT
+  
+  // RADIUS Settings
+  radiusEnabled                Boolean? @default(false) // Toggle RADIUS features
   referralRewardBoth           Boolean? @default(false) // Also reward the referred customer
   referralReferredAmount       Int?     @default(0) // Reward amount for referred customer
 
@@ -557,6 +560,7 @@ model pppoeUser {
   referralRewardsReceived referralReward[] @relation("ReferredRewards")
   pushSubscriptions pushSubscription[]
   oltOnuStatuses    oltOnuStatus[]
+  acsDevices        acsDevice[]
 
   @@index([profileId], map: "pppoe_users_profileId_fkey")
   @@index([routerId], map: "pppoe_users_routerId_fkey")

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS VPS Installer - Customer APK Builder Module
+# EugineBill RADIUS VPS Installer - Customer APK Builder Module
 # ============================================================================
 # Step 8 (Optional): Build Android APK untuk customer self-service app
 #
@@ -10,8 +10,8 @@
 #   - Minimum 2GB RAM (atau swap)
 #
 # Output:
-#   - /var/www/salfanet-radius/public/downloads/salfanet-radius.apk
-#   - Dapat diakses di: http://<VPS_IP>/downloads/salfanet-radius.apk
+#   - /var/www/EugineBill-radius/public/downloads/EugineBill-radius.apk
+#   - Dapat diakses di: http://<VPS_IP>/downloads/EugineBill-radius.apk
 # ============================================================================
 
 set -e
@@ -31,7 +31,7 @@ ANDROID_BUILD_TOOLS="35.0.0"
 ANDROID_PLATFORM="android-35"
 MOBILE_APP_DIR="${APP_DIR}/mobile-app"
 APK_OUTPUT_DIR="${APP_DIR}/public/downloads"
-APK_NAME="salfanet-radius.apk"
+APK_NAME="EugineBill-radius.apk"
 CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
 JAVA_HOME_PATH=""
 
@@ -141,7 +141,7 @@ configure_android_env() {
 
     # Tulis ke /etc/profile.d/ agar persist
     cat > /etc/profile.d/android-sdk.sh <<EOF
-# Android SDK Environment Variables (SALFANET RADIUS)
+# Android SDK Environment Variables (EugineBill RADIUS)
 export JAVA_HOME="${JAVA_HOME_PATH}"
 export ANDROID_HOME="${ANDROID_SDK_DIR}"
 export ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}"
@@ -206,13 +206,13 @@ configure_mobile_app_api() {
     print_info "Mengatur API_URL ke ${APK_BASE_URL}"
 
     cat > "$env_file" <<EOF
-# Mobile App Environment - Auto-generated oleh SALFANET Installer
+# Mobile App Environment - Auto-generated oleh EugineBill Installer
 # Generated: $(date)
 
 API_URL=${APK_BASE_URL}
 API_TIMEOUT=30000
 
-APP_NAME=SALFANET RADIUS
+APP_NAME=EugineBill RADIUS
 EOF
 
     print_success ".env mobile app dibuat: $env_file"
@@ -312,7 +312,7 @@ deploy_apk() {
     fi
 
     # Copy APK dengan timestamp untuk versioning
-    local APK_DATED="salfanet-radius-$(date +%Y%m%d).apk"
+    local APK_DATED="EugineBill-radius-$(date +%Y%m%d).apk"
     cp "$APK_SOURCE" "$APK_OUTPUT_DIR/$APK_DATED"
     cp "$APK_SOURCE" "$APK_OUTPUT_DIR/$APK_NAME"  # Selalu update symlink/latest
 
@@ -323,7 +323,7 @@ deploy_apk() {
     # Buat info file
     cat > "$APK_OUTPUT_DIR/apk-info.json" <<EOF
 {
-  "appName": "SALFANET RADIUS",
+  "appName": "EugineBill RADIUS",
   "version": "$(cat "$MOBILE_APP_DIR/package.json" | grep '"version"' | head -1 | sed 's/.*"version": "\(.*\)".*/\1/')",
   "buildDate": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "apiUrl": "${APK_BASE_URL}",
@@ -346,9 +346,9 @@ configure_nginx_download() {
 
     # Cari nginx config yang active
     local NGINX_CONF=""
-    for conf in /etc/nginx/sites-enabled/salfanet-radius \
+    for conf in /etc/nginx/sites-enabled/EugineBill-radius \
                 /etc/nginx/sites-enabled/default \
-                /etc/nginx/conf.d/salfanet-radius.conf; do
+                /etc/nginx/conf.d/EugineBill-radius.conf; do
         if [ -f "$conf" ]; then
             NGINX_CONF="$conf"
             break
@@ -373,7 +373,7 @@ configure_nginx_download() {
     print_info "Menambahkan location /downloads ke Nginx..."
 
     # Inject sebelum closing }
-    sed -i 's|^\s*}\s*$|    # APK Download endpoint (SALFANET Installer)\n    location /downloads/ {\n        alias '"${APK_OUTPUT_DIR}/"';\n        autoindex off;\n        add_header Content-Disposition '"'"'attachment'"'"';\n    }\n\n}|' "$NGINX_CONF"
+    sed -i 's|^\s*}\s*$|    # APK Download endpoint (EugineBill Installer)\n    location /downloads/ {\n        alias '"${APK_OUTPUT_DIR}/"';\n        autoindex off;\n        add_header Content-Disposition '"'"'attachment'"'"';\n    }\n\n}|' "$NGINX_CONF"
 
     # Test dan reload nginx
     if nginx -t 2>&1; then
@@ -533,11 +533,11 @@ main() {
 
     # Source common.sh untuk APP_DIR, APP_USER, dll
     if [ -z "$APP_DIR" ]; then
-        export APP_DIR="/var/www/salfanet-radius"
+        export APP_DIR="/var/www/EugineBill-radius"
     fi
     if [ -z "$APP_USER" ]; then
-        export APP_USER="salfanet"
-        export APP_GROUP="salfanet"
+        export APP_USER="EugineBill"
+        export APP_GROUP="EugineBill"
     fi
 
     # Deteksi VPS_IP

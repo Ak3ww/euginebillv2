@@ -32,7 +32,7 @@ migrate-down:
 
 # Docker
 docker-build:
-	docker build -t salfanet-radius-go:latest .
+	docker build -t EugineBill-radius-go:latest .
 
 docker-run:
 	docker-compose up -d

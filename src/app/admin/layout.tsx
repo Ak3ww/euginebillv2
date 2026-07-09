@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function generateMetadata(): Promise<Metadata> {
   const company = await prisma.company.findFirst({ select: { name: true } });
   return {
-    title: `Admin Panel - ${company?.name || 'SALFANET RADIUS'}`,
+    title: `Admin Panel - ${company?.name || 'EugineBill RADIUS'}`,
     manifest: '/manifest-admin.json',
   };
 }

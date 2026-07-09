@@ -1,4 +1,4 @@
-# SALFANET RADIUS - Billing System for ISP/RTRW.NET
+# EugineBill RADIUS - Billing System for ISP/RTRW.NET
 
 Modern, full-stack billing & RADIUS management system for ISP/RTRW.NET with FreeRADIUS integration supporting PPPoE and Hotspot authentication.
 
@@ -43,7 +43,7 @@ Modern, full-stack billing & RADIUS management system for ISP/RTRW.NET with Free
 
 ## 📱 WhatsApp Baileys (Native Gateway)
 
-Provider WhatsApp bawaan tanpa layanan pihak ketiga. Berjalan sebagai proses PM2 terpisah (`salfanet-wa`) di VPS.
+Provider WhatsApp bawaan tanpa layanan pihak ketiga. Berjalan sebagai proses PM2 terpisah (`EugineBill-wa`) di VPS.
 
 ### Setup
 
@@ -52,7 +52,7 @@ Provider Baileys otomatis di-setup saat menjalankan `updater.sh`. Tidak ada konf
 ```bash
 # Cek status wa-service
 pm2 status
-pm2 logs salfanet-wa --lines 20
+pm2 logs EugineBill-wa --lines 20
 ```
 
 ### Cara Pakai
@@ -67,13 +67,13 @@ pm2 logs salfanet-wa --lines 20
 
 | Process | Mode | Port | Purpose |
 |---------|------|------|---------|
-| `salfanet-radius` | cluster | 3000 | Next.js app |
-| `salfanet-wa` | fork | 4000 (internal) | Baileys WA service |
-| `salfanet-cron` | fork | — | Background jobs |
+| `EugineBill-radius` | cluster | 3000 | Next.js app |
+| `EugineBill-wa` | fork | 4000 (internal) | Baileys WA service |
+| `EugineBill-cron` | fork | — | Background jobs |
 
 ### Auth Session
 
-Session WhatsApp tersimpan di `/var/data/salfanet/baileys_auth/` dan persist meski PM2 restart. Untuk logout/scan ulang, klik **Restart Session** di admin panel.
+Session WhatsApp tersimpan di `/var/data/EugineBill/baileys_auth/` dan persist meski PM2 restart. Untuk logout/scan ulang, klik **Restart Session** di admin panel.
 
 ---
 
@@ -95,7 +95,7 @@ Session WhatsApp tersimpan di `/var/data/salfanet/baileys_auth/` dan persist mes
 ## 📁 Project Structure
 
 ```
-salfanet-radius/
+EugineBill-radius/
 ├── src/
 │   ├── app/
 │   │   ├── admin/          # Admin panel
@@ -128,8 +128,8 @@ salfanet-radius/
 ```bash
 ssh root@YOUR_VPS_IP
 
-git clone https://github.com/s4lfanet/salfanet-radius.git /root/salfanet-radius
-cd /root/salfanet-radius
+git clone https://github.com/s4lfanet/EugineBill-radius.git /root/EugineBill-radius
+cd /root/EugineBill-radius
 bash vps-install/vps-installer.sh
 ```
 
@@ -141,11 +141,11 @@ Installer akan berjalan **interaktif** — mendeteksi environment otomatis, mema
 
 ```bash
 # Jalankan di terminal LOKAL (bukan di server)
-scp -r ./salfanet-radius root@YOUR_VPS_IP:/root/salfanet-radius
+scp -r ./EugineBill-radius root@YOUR_VPS_IP:/root/EugineBill-radius
 
 # SSH ke server, lalu jalankan installer
 ssh root@YOUR_VPS_IP
-cd /root/salfanet-radius
+cd /root/EugineBill-radius
 bash vps-install/vps-installer.sh
 ```
 
@@ -172,13 +172,13 @@ bash vps-install/vps-installer.sh --env lxc --ip 192.168.1.50
 Cara paling aman. **Semua data upload (logo, foto KTP pelanggan, bukti bayar) otomatis dipreservasi.**
 
 ```bash
-bash /var/www/salfanet-radius/vps-install/updater.sh
+bash /var/www/EugineBill-radius/vps-install/updater.sh
 ```
 
 Atau update dari branch terbaru secara manual:
 
 ```bash
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 git pull origin master
 npm install --legacy-peer-deps
 npx prisma db push
@@ -322,19 +322,19 @@ curl -OJ http://YOUR_VPS/api/admin/apk/file?role=customer \
 
 | Path | Keterangan |
 |------|------------|
-| `/var/data/salfanet/apk/{role}/app.apk` | File APK hasil build |
-| `/var/data/salfanet/apk/{role}/status.json` | Status & metadata build |
-| `/var/data/salfanet/apk/{role}/build.log` | Log Gradle |
-| `/var/data/salfanet/gradle-cache` | Cache Gradle (mempercepat build berikutnya) |
+| `/var/data/EugineBill/apk/{role}/app.apk` | File APK hasil build |
+| `/var/data/EugineBill/apk/{role}/status.json` | Status & metadata build |
+| `/var/data/EugineBill/apk/{role}/build.log` | Log Gradle |
+| `/var/data/EugineBill/gradle-cache` | Cache Gradle (mempercepat build berikutnya) |
 
 ### Paket Aplikasi
 
 | Role | Package ID | Warna |
 |------|-----------|-------|
-| Admin | `net.salfanet.admin` | Biru |
-| Customer | `net.salfanet.customer` | Cyan |
-| Technician | `net.salfanet.technician` | Hijau |
-| Agent | `net.salfanet.agent` | Ungu |
+| Admin | `net.EugineBill.admin` | Biru |
+| Customer | `net.EugineBill.customer` | Cyan |
+| Technician | `net.EugineBill.technician` | Hijau |
+| Agent | `net.EugineBill.agent` | Ungu |
 
 ---
 
@@ -342,7 +342,7 @@ curl -OJ http://YOUR_VPS/api/admin/apk/file?role=customer \
 
 ```bash
 # PM2
-pm2 status ; pm2 logs salfanet-radius
+pm2 status ; pm2 logs EugineBill-radius
 pm2 restart ecosystem.config.js --update-env
 
 # FreeRADIUS
@@ -351,8 +351,8 @@ freeradius -XC    # Test config
 radtest 'user@realm' password 127.0.0.1 0 testing123
 
 # Database
-mysql -u salfanet_user -psalfanetradius123 salfanet_radius
-mysqldump -u salfanet_user -psalfanetradius123 salfanet_radius > backup.sql
+mysql -u EugineBill_user -pEugineBillradius123 EugineBill_radius
+mysqldump -u EugineBill_user -pEugineBillradius123 EugineBill_radius > backup.sql
 ```
 
 ---
@@ -384,8 +384,8 @@ Catatan: `IP:2020` adalah port SSH, bukan URL web aplikasi.
 
 ```bash
 pm2 status
-pm2 logs salfanet-radius --lines 100
-cd /var/www/salfanet-radius
+pm2 logs EugineBill-radius --lines 100
+cd /var/www/EugineBill-radius
 npm run build
 pm2 restart ecosystem.config.js --update-env
 ```
@@ -395,7 +395,7 @@ pm2 restart ecosystem.config.js --update-env
 Installer Nginx terbaru menambahkan self-check internal (`127.0.0.1:3000`, `127.0.0.1`) dan best-effort check publik (HTTP/HTTPS).
 
 ```bash
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 bash vps-install/install-nginx.sh
 ```
 
@@ -488,7 +488,7 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
 ### v2.32.2 — 2026-05-13
 
 ### Fixed
-- **System Info API: silent git errors** — Semua `execSync` git di `/api/admin/system/info` kini pakai `stdio: 'pipe'` sehingga stderr tidak bocor ke PM2 log; `getAppDir()` kini mencari `/var/www/salfanet-frontend` lebih dulu (direktori dengan `.git`) sebelum fallback ke path lain
+- **System Info API: silent git errors** — Semua `execSync` git di `/api/admin/system/info` kini pakai `stdio: 'pipe'` sehingga stderr tidak bocor ke PM2 log; `getAppDir()` kini mencari `/var/www/EugineBill-frontend` lebih dulu (direktori dengan `.git`) sebelum fallback ke path lain
 ### Files
 - `src/app/api/admin/system/info/route.ts` — tambah `stdio: 'pipe'` pada `execSync`/`execFileSync`, perbarui urutan kandidat `getAppDir()`
 
@@ -502,7 +502,7 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
 ### v2.32.0 — 2026-05-11
 
 ### Added
-- **Centralized Cron Schedule Management** — jadwal semua cron job kini bisa diatur dari satu halaman Admin → Settings → Cron tab "Jadwal Cron"; perubahan disimpan ke DB `cron_schedule_config`, aktif setelah `pm2 restart salfanet-cron`
+- **Centralized Cron Schedule Management** — jadwal semua cron job kini bisa diatur dari satu halaman Admin → Settings → Cron tab "Jadwal Cron"; perubahan disimpan ke DB `cron_schedule_config`, aktif setelah `pm2 restart EugineBill-cron`
 - **Schedule Editor modal** — 17 preset waktu (Every minute, Every 5 min, dll.) + custom cron expression; menampilkan default schedule sebagai referensi
 - **3-tab layout cron page** — Tab: Status & Trigger, Jadwal Cron, Riwayat Eksekusi
 - **API `/api/cron/schedules`** — GET/PUT/DELETE untuk manajemen schedule override per job (SUPERADMIN only)

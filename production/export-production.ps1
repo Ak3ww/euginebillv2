@@ -1,6 +1,6 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 # ============================================================================
-# SALFANET RADIUS - Production Export Script (Windows PowerShell)
+# EugineBill RADIUS - Production Export Script (Windows PowerShell)
 # ============================================================================
 # Copy project ke folder terpisah untuk production deployment ke VPS
 # ============================================================================
@@ -30,7 +30,7 @@ if ($OutputDir -match '^--') {
     $NoBuild   = $true   # anggap sebagai -NoBuild
 }
 
-$DestDir    = if ($OutputDir) { $OutputDir } else { "$SourceDir\..\salfanet-radius-production" }
+$DestDir    = if ($OutputDir) { $OutputDir } else { "$SourceDir\..\EugineBill-radius-production" }
 
 # Guard: pastikan DestDir tidak berada di dalam SourceDir (mencegah Turbopack path error)
 $DestDirAbs = [System.IO.Path]::GetFullPath($DestDir)
@@ -38,12 +38,12 @@ $SourceDirAbs = [System.IO.Path]::GetFullPath($SourceDir)
 if ($DestDirAbs.StartsWith($SourceDirAbs + "\") -or $DestDirAbs -eq $SourceDirAbs) {
     Write-Host "  [XX] ERROR: OutputDir '$DestDirAbs' berada di dalam project root!" -ForegroundColor Red
     Write-Host "       Ini akan menyebabkan error Turbopack saat build." -ForegroundColor Red
-    Write-Host "       Gunakan path di luar project, contoh: -OutputDir 'C:\output\salfanet'" -ForegroundColor Yellow
+    Write-Host "       Gunakan path di luar project, contoh: -OutputDir 'C:\output\EugineBill'" -ForegroundColor Yellow
     exit 1
 }
 
-$AppDir     = Join-Path $DestDir "salfanet-radius"   # subfolder di dalam ZIP
-$ZipPath    = "$SourceDir\..\salfanet-radius-v${Version}-${Timestamp}.zip"
+$AppDir     = Join-Path $DestDir "EugineBill-radius"   # subfolder di dalam ZIP
+$ZipPath    = "$SourceDir\..\EugineBill-radius-v${Version}-${Timestamp}.zip"
 
 function Write-Step { param([string]$msg) Write-Host ""; Write-Host "==> $msg" -ForegroundColor Cyan }
 function Write-OK   { param([string]$msg) Write-Host "  [OK] $msg" -ForegroundColor Green }
@@ -52,7 +52,7 @@ function Write-Warn { param([string]$msg) Write-Host "  [!]  $msg" -ForegroundCo
 function Write-Fail { param([string]$msg) Write-Host "  [XX] $msg" -ForegroundColor Red }
 
 Write-Host ""
-Write-Host "SALFANET RADIUS - Production Export v$Version" -ForegroundColor Magenta
+Write-Host "EugineBill RADIUS - Production Export v$Version" -ForegroundColor Magenta
 Write-Host "Source : $SourceDir"  -ForegroundColor Gray
 Write-Host "Output : $DestDir"    -ForegroundColor Gray
 Write-Host ""
@@ -232,7 +232,7 @@ Write-OK "Root files selesai"
 # ============================================================================
 Write-Step "Security: Verifikasi tidak ada private key"
 $sensitiveFiles = @(
-    "$AppDir\salfanet-radius-firebase-adminsdk*.json",
+    "$AppDir\EugineBill-radius-firebase-adminsdk*.json",
     "$AppDir\*firebase-service-account*.json",
     "$AppDir\google-services.json",
     "$AppDir\src\lib\firebase-service-account.json"
@@ -269,7 +269,7 @@ $npmVer  = (npm --version  2>$null)
 
 @"
 ============================================
-SALFANET RADIUS - Production Build Info
+EugineBill RADIUS - Production Build Info
 ============================================
 Version       : $Version
 Build Date    : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -280,26 +280,26 @@ npm Version   : $npmVer
 DEPLOYMENT INSTRUCTIONS
 -----------------------
 1. Upload ZIP ke VPS:
-   scp salfanet-radius-*.zip root@VPS_IP:/root/
+   scp EugineBill-radius-*.zip root@VPS_IP:/root/
 
 2. Upload Firebase service account SECARA TERPISAH (tidak masuk ZIP):
-   scp src/lib/firebase-service-account.json root@VPS_IP:/var/www/salfanet-radius/src/lib/
+   scp src/lib/firebase-service-account.json root@VPS_IP:/var/www/EugineBill-radius/src/lib/
 
 3. Di VPS, extract dan install:
    cd /root
-   unzip salfanet-radius-*.zip
-   bash /root/salfanet-radius/vps-install/vps-installer.sh
+   unzip EugineBill-radius-*.zip
+   bash /root/EugineBill-radius/vps-install/vps-installer.sh
 
 4. Build APK customer (opsional, setelah install selesai):
-   bash /var/www/salfanet-radius/vps-install/install-apk.sh
+   bash /var/www/EugineBill-radius/vps-install/install-apk.sh
 
 5. APK customer tersedia di:
-   http://VPS_IP/downloads/salfanet-radius.apk
+   http://VPS_IP/downloads/EugineBill-radius.apk
 
 CATATAN PENTING
 ---------------
 - firebase-service-account.json TIDAK ada di ZIP (security)
-  Upload manual: scp src/lib/firebase-service-account.json root@VPS:/var/www/salfanet-radius/src/lib/
+  Upload manual: scp src/lib/firebase-service-account.json root@VPS:/var/www/EugineBill-radius/src/lib/
 - Gunakan: npm run build:vps  (bukan npm run build) di VPS 2GB RAM
 
 ============================================
@@ -316,7 +316,7 @@ Write-Step "Step 5: Mobile app .env template"
 # Mobile App Environment - Update API_URL dengan IP VPS Anda
 API_URL=http://YOUR_VPS_IP:3000
 API_TIMEOUT=30000
-APP_NAME=SALFANET RADIUS
+APP_NAME=EugineBill RADIUS
 APP_VERSION=$Version
 "@ | Set-Content "$AppDir\mobile-app\.env.production.template" -Encoding UTF8
 
@@ -350,14 +350,14 @@ if (-not $NoZip) {
             $DestDir,
             $ZipPath,
             [System.IO.Compression.CompressionLevel]::Fastest,
-            $false  # includeBaseDirectory = false (isi $DestDir = folder salfanet-radius/)
+            $false  # includeBaseDirectory = false (isi $DestDir = folder EugineBill-radius/)
         )
         $zipMB = [math]::Round((Get-Item $ZipPath).Length / 1MB, 1)
         Write-OK "ZIP selesai: $ZipPath ($zipMB MB)"
     } catch {
         Write-Warn "ZipFile gagal, fallback ke Compress-Archive..."
         Compress-Archive -Path "$DestDir\*" -DestinationPath $ZipPath -Force -CompressionLevel Fastest
-        # Catatan: fallback ini juga akan menyertakan folder salfanet-radius/ di root ZIP
+        # Catatan: fallback ini juga akan menyertakan folder EugineBill-radius/ di root ZIP
         $zipMB = [math]::Round((Get-Item $ZipPath).Length / 1MB, 1)
         Write-OK "ZIP selesai: $ZipPath ($zipMB MB)"
     }
@@ -381,8 +381,8 @@ if (-not $NoZip) {
     Write-Host "       scp `"$ZipPath`" root@VPS_IP:/root/"
 }
 Write-Host "  2. Di VPS extract + install:"
-    Write-Host "       unzip salfanet-radius-*.zip"
-    Write-Host "       bash /root/salfanet-radius/vps-install/vps-installer.sh"
+    Write-Host "       unzip EugineBill-radius-*.zip"
+    Write-Host "       bash /root/EugineBill-radius/vps-install/vps-installer.sh"
 Write-Host "  3. Build APK customer (opsional, di VPS):"
-Write-Host "       bash /var/www/salfanet-radius/vps-install/install-apk.sh"
+Write-Host "       bash /var/www/EugineBill-radius/vps-install/install-apk.sh"
 Write-Host ""

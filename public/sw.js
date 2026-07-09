@@ -1,4 +1,4 @@
-const CACHE_NAME = 'salfanet-pwa-v6';
+const CACHE_NAME = 'EugineBill-pwa-v6';
 const OFFLINE_URL = '/offline';
 const STATIC_ASSETS = [
   OFFLINE_URL,
@@ -15,7 +15,7 @@ function offlineFallbackResponse(returnUrl) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Salfanet — Offline</title>
+    <title>EugineBill — Offline</title>
     <style>
       body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(circle at top, #0b2942, #020912 70%); color: #e6faff; font-family: Arial, sans-serif; }
       main { width: min(92vw, 440px); padding: 32px; border: 1px solid rgba(34, 211, 238, 0.28); border-radius: 24px; background: rgba(2, 13, 22, 0.92); box-shadow: 0 20px 60px rgba(6, 182, 212, 0.18); }
@@ -27,7 +27,7 @@ function offlineFallbackResponse(returnUrl) {
   <body>
     <main>
       <h1>⚡ Sedang Offline</h1>
-      <p>Tidak bisa terhubung ke server Salfanet. Periksa koneksi internet lalu coba lagi.</p>
+      <p>Tidak bisa terhubung ke server EugineBill. Periksa koneksi internet lalu coba lagi.</p>
       <a href="${retUrl}">Coba lagi</a>
     </main>
   </body>
@@ -114,16 +114,16 @@ self.addEventListener('push', (event) => {
   try {
     payload = event.data.json();
   } catch {
-    payload = { title: 'Salfanet', body: event.data.text() };
+    payload = { title: 'EugineBill', body: event.data.text() };
   }
 
-  const title = payload.title || 'Salfanet';
+  const title = payload.title || 'EugineBill';
   const options = {
     body: payload.body || '',
     icon: payload.icon || '/pwa/icon-192.svg',
     badge: payload.badge || '/pwa/badge.svg',
     image: payload.image,
-    tag: payload.tag || 'salfanet-notification',
+    tag: payload.tag || 'EugineBill-notification',
     requireInteraction: Boolean(payload.requireInteraction),
     silent: false,
     vibrate: [200, 100, 200],

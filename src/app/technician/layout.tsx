@@ -4,7 +4,7 @@ import { prisma } from '@/server/db/client';
 export async function generateMetadata(): Promise<Metadata> {
   const company = await prisma.company.findFirst({ select: { name: true } });
   return {
-    title: `Portal Teknisi - ${company?.name || 'SALFANET RADIUS'}`,
+    title: `Portal Teknisi - ${company?.name || 'EugineBill RADIUS'}`,
     description: 'Portal Teknisi untuk manajemen tiket dan pelanggan',
     manifest: '/manifest-technician.json',
   };

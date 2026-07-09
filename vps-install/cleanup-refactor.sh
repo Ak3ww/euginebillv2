@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================
-# SALFANET RADIUS — Post-Refactor Cleanup Script
+# EugineBill RADIUS — Post-Refactor Cleanup Script
 # =============================================================
 # Dijalankan sekali setelah update ke versi yang sudah di-refactor
 # (Phase 1–8: Firebase removal, server-only, cron refactor,
@@ -16,7 +16,7 @@
 
 set -e
 
-APP_DIR="${APP_DIR:-/var/www/salfanet-radius}"
+APP_DIR="${APP_DIR:-/var/www/EugineBill-radius}"
 DRY_RUN=false
 
 # Colors
@@ -49,7 +49,7 @@ fi
 
 echo ""
 echo -e "${WHITE}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${WHITE}║   SALFANET RADIUS — Post-Refactor Cleanup        ║${NC}"
+echo -e "${WHITE}║   EugineBill RADIUS — Post-Refactor Cleanup        ║${NC}"
 echo -e "${WHITE}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
 print_info "App dir : $APP_DIR"
@@ -161,29 +161,29 @@ done
 print_step "Verifying PM2 cron process config"
 
 if [ "$DRY_RUN" = false ]; then
-  # Cek apakah salfanet-cron masih pakai cron-service.js (old)
+  # Cek apakah EugineBill-cron masih pakai cron-service.js (old)
   CRON_SCRIPT=$(pm2 jlist 2>/dev/null | python3 -c "
 import sys, json
 try:
     procs = json.load(sys.stdin)
     for p in procs:
-        if p.get('name') == 'salfanet-cron':
+        if p.get('name') == 'EugineBill-cron':
             print(p.get('pm2_env', {}).get('pm_exec_path', '') + ' ' + str(p.get('pm2_env', {}).get('args', '')))
 except: pass
 " 2>/dev/null || echo "")
 
   if echo "$CRON_SCRIPT" | grep -q "cron-service.js"; then
-    print_info "salfanet-cron masih pakai cron-service.js — migrating ke tsx runner..."
+    print_info "EugineBill-cron masih pakai cron-service.js — migrating ke tsx runner..."
     if [ -f "$APP_DIR/ecosystem.config.js" ]; then
-      pm2 delete salfanet-cron 2>/dev/null || true
-      cd "$APP_DIR" && pm2 start ecosystem.config.js --only salfanet-cron 2>&1 | tail -3
+      pm2 delete EugineBill-cron 2>/dev/null || true
+      cd "$APP_DIR" && pm2 start ecosystem.config.js --only EugineBill-cron 2>&1 | tail -3
       pm2 save
-      print_success "salfanet-cron migrated to tsx runner"
+      print_success "EugineBill-cron migrated to tsx runner"
     fi
   elif echo "$CRON_SCRIPT" | grep -q "tsx\|runner"; then
-    print_success "salfanet-cron already using tsx runner"
+    print_success "EugineBill-cron already using tsx runner"
   else
-    print_info "salfanet-cron status unknown — skipping migration"
+    print_info "EugineBill-cron status unknown — skipping migration"
   fi
 fi
 
@@ -216,6 +216,6 @@ echo -e "${WHITE}╚════════════════════
 echo ""
 if [ "$DRY_RUN" = false ]; then
   echo -e "${YELLOW}  Jalankan 'pm2 list' untuk memverifikasi proses.${NC}"
-  echo -e "${YELLOW}  Jalankan 'npm run build && pm2 reload salfanet-radius' jika belum rebuild.${NC}"
+  echo -e "${YELLOW}  Jalankan 'npm run build && pm2 reload EugineBill-radius' jika belum rebuild.${NC}"
 fi
 echo ""

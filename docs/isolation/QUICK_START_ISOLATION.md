@@ -6,7 +6,7 @@
 
 ## 📋 Prerequisites
 
-- ✅ Salfanet Radius installed and running
+- ✅ EugineBill Radius installed and running
 - ✅ MikroTik router with PPPoE server
 - ✅ FreeRADIUS configured
 - ✅ Payment gateway configured (Midtrans/Xendit/Duitku)
@@ -152,7 +152,7 @@ DELETE FROM radcheck WHERE username = 'testuser' AND attribute = 'Auth-Type';
 ### User Not Redirected
 ```bash
 # Check middleware logs
-pm2 logs salfanet-radius | grep MIDDLEWARE
+pm2 logs EugineBill-radius | grep MIDDLEWARE
 ```
 
 ### User Can Access All Sites

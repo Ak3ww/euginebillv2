@@ -1,4 +1,4 @@
-﻿# Format Invoice Number Berdasarkan Tanggal
+# Format Invoice Number Berdasarkan Tanggal
 
 ## Perubahan
 Invoice number sekarang menggunakan format berdasarkan tanggal, bukan random code lagi.
@@ -140,7 +140,7 @@ git pull origin main
 npm run build
 
 # 3. Restart PM2
-pm2 restart salfanet-radius
+pm2 restart EugineBill-radius
 
 # 4. Test perpanjangan manual untuk verifikasi format baru
 ```
@@ -159,6 +159,6 @@ Jika ada gap dalam numbering (misal: 0001, 0003, 0005):
 
 ### Format Lama Masih Muncul
 - Clear cache: `npm run build`
-- Restart PM2: `pm2 restart salfanet-radius`
+- Restart PM2: `pm2 restart EugineBill-radius`
 - Cek import statement di file API route
 

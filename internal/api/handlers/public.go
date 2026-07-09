@@ -4,7 +4,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"gorm.io/gorm"
 
-	"github.com/s4lfanet/salfanet-radius-go/internal/db/models"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/db/models"
 )
 
 type PublicHandler struct{ db *gorm.DB }
@@ -16,10 +16,10 @@ func (h *PublicHandler) GetCompany(c fiber.Ctx) error {
 	var company models.Company
 	if err := h.db.First(&company).Error; err != nil {
 		return c.JSON(fiber.Map{"success": true, "company": fiber.Map{
-			"name":      "SALFANET RADIUS",
+			"name":      "EugineBill RADIUS",
 			"logo":      nil,
 			"phone":     nil,
-			"poweredBy": "SALFANET RADIUS",
+			"poweredBy": "EugineBill RADIUS",
 		}})
 	}
 	return c.JSON(fiber.Map{"success": true, "company": fiber.Map{

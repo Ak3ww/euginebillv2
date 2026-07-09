@@ -21,7 +21,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       company: company || {
-        name: 'SALFANET RADIUS',
+        name: 'EugineBill RADIUS',
         logo: null,
         address: null,
         phone: null,
@@ -34,7 +34,7 @@ export async function GET() {
       { 
         error: 'Failed to fetch company settings',
         company: {
-          name: 'SALFANET RADIUS',
+          name: 'EugineBill RADIUS',
           logo: null,
           address: null,
           phone: null,

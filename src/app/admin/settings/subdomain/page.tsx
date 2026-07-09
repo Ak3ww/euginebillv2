@@ -123,7 +123,7 @@ export default function SubdomainSettingsPage() {
     p.subdomains.map(sub => `${sub}.${domain}  →  A  ${vpsIp}`)
   );
 
-  const nginxConfig = `# /etc/nginx/sites-available/salfanet-subdomains
+  const nginxConfig = `# /etc/nginx/sites-available/EugineBill-subdomains
 
 # ─── Admin Portal ───────────────────────────────────────────
 server {
@@ -330,7 +330,7 @@ curl -H "Host: admin.${domain}" http://localhost:3000/`;
               const blob = new Blob([nginxConfig], { type: 'text/plain' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
-              a.href = url; a.download = 'salfanet-subdomains.conf';
+              a.href = url; a.download = 'EugineBill-subdomains.conf';
               a.click(); URL.revokeObjectURL(url);
             }}
             className="inline-flex items-center gap-1 px-2 py-1 text-[10px] border border-border rounded hover:bg-muted text-muted-foreground"
@@ -339,7 +339,7 @@ curl -H "Host: admin.${domain}" http://localhost:3000/`;
           </button>
         </div>
         <p className="text-[10px] text-muted-foreground">Setelah edit, aktifkan dengan:</p>
-        <CodeBlock>{`ln -s /etc/nginx/sites-available/salfanet-subdomains /etc/nginx/sites-enabled/
+        <CodeBlock>{`ln -s /etc/nginx/sites-available/EugineBill-subdomains /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx`}</CodeBlock>
       </div>
 

@@ -119,7 +119,7 @@ if ip link show "$IFACE" &>/dev/null && ip link show "$IFACE" | grep -q 'LOWER_U
     # VPN connected and peer reachable — restore any missing L2TP local-network routes
 
     # CHECK E: L2TP peer local-network routes (written by vps-l2tp-peer API)
-    L2TP_ROUTES_FILE="/etc/salfanet/l2tp/peer-routes.conf"
+    L2TP_ROUTES_FILE="/etc/EugineBill/l2tp/peer-routes.conf"
     if [ -f "$L2TP_ROUTES_FILE" ]; then
       # Resolve the PPP remote (Mikrotik-side) IP from the ppp0 route table
       REMOTE_PPP_IP=$(ip route show dev "$IFACE" | awk '/via/{print $3; exit}')

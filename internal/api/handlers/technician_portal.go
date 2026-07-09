@@ -11,8 +11,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 
-	"github.com/s4lfanet/salfanet-radius-go/internal/config"
-	"github.com/s4lfanet/salfanet-radius-go/internal/db/models"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/config"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/db/models"
 )
 
 type TechnicianPortalHandler struct{ db *gorm.DB }
@@ -336,7 +336,7 @@ func (h *TechnicianPortalHandler) Upload(c fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "file required"})
 	}
 	filename := fmt.Sprintf("tech-%d-%s", time.Now().UnixMilli(), file.Filename)
-	uploadPath := "/var/www/salfanet-radius/uploads/" + filename
+	uploadPath := "/var/www/EugineBill-radius/uploads/" + filename
 	if err3 := c.SaveFile(file, uploadPath); err3 != nil {
 		// fallback to temp
 		uploadPath = "/tmp/" + filename
@@ -358,7 +358,7 @@ func technicianJWT(tech models.Technician) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	secret := config.C.JWTSecret
 	if secret == "" {
-		secret = "salfanet-secret"
+		secret = "EugineBill-secret"
 	}
 	return token.SignedString([]byte(secret))
 }
@@ -371,7 +371,7 @@ func (h *TechnicianPortalHandler) techFromHeader(c fiber.Ctx) (*models.Technicia
 	tokenStr := authHeader[7:]
 	secret := config.C.JWTSecret
 	if secret == "" {
-		secret = "salfanet-secret"
+		secret = "EugineBill-secret"
 	}
 	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil

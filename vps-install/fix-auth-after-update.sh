@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==========================================================================
-# SALFANET RADIUS - Auth Self-Heal for Legacy Updates
+# EugineBill RADIUS - Auth Self-Heal for Legacy Updates
 # ==========================================================================
 # Tujuan:
 # 1) Migrasi akun admin dari tabel legacy `admin_user` -> `admin_users` jika perlu
@@ -12,7 +12,7 @@
 
 set -e
 
-APP_DIR="${APP_DIR:-/var/www/salfanet-radius}"
+APP_DIR="${APP_DIR:-/var/www/EugineBill-radius}"
 
 if [ ! -d "$APP_DIR" ]; then
   echo "[AUTH-SELF-HEAL] APP_DIR not found: $APP_DIR"
@@ -107,7 +107,7 @@ async function ensureSuperAdmin() {
     create: {
       id: 'admin-superadmin',
       username: 'superadmin',
-      email: 'admin@salfanet.local',
+      email: 'admin@EugineBill.local',
       password: hashed,
       name: 'Super Administrator',
       role: 'SUPER_ADMIN',

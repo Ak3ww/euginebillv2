@@ -1,5 +1,5 @@
 # Next.js Project Restructuring Guide
-## SALFANET RADIUS — Architecture Overhaul
+## EugineBill RADIUS — Architecture Overhaul
 
 > **Status:** 📅 Planning Phase  
 > **Created:** March 10, 2026  
@@ -10,7 +10,7 @@
 
 ## Konteks & Motivasi
 
-Project SALFANET RADIUS saat ini adalah full-stack monolith Next.js yang menggabungkan **backend logic, API handlers, dan frontend** dalam satu project. Ini adalah arsitektur yang tepat untuk Next.js — namun **struktur folder saat ini belum mencerminkan separation of concerns** yang memadai untuk skala project ini (~45 model DB, 35+ API route groups, 5 portal berbeda).
+Project EugineBill RADIUS saat ini adalah full-stack monolith Next.js yang menggabungkan **backend logic, API handlers, dan frontend** dalam satu project. Ini adalah arsitektur yang tepat untuk Next.js — namun **struktur folder saat ini belum mencerminkan separation of concerns** yang memadai untuk skala project ini (~45 model DB, 35+ API route groups, 5 portal berbeda).
 
 ### Masalah Yang Ada
 
@@ -326,7 +326,7 @@ Gunakan prompt berikut saat minta AI membantu restructuring:
 ROLE: You are a Senior Next.js Developer performing an incremental
 architectural restructuring of a large ISP management system.
 
-PROJECT: SALFANET RADIUS
+PROJECT: EugineBill RADIUS
 - Next.js 16 App Router + TypeScript + MySQL/Prisma + Redis
 - ~45 DB models, 35+ API route groups, 5 authenticated portals
 - FreeRADIUS + MikroTik + Midtrans/Xendit payment integrations

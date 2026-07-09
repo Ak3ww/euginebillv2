@@ -17,7 +17,7 @@ func NewUploadHandler(db *gorm.DB) *UploadHandler {
 	return &UploadHandler{db: db}
 }
 
-const uploadDir = "/var/www/salfanet-radius/uploads"
+const uploadDir = "/var/www/EugineBill-radius/uploads"
 
 // POST /api/upload/logo — upload company logo
 func (h *UploadHandler) UploadLogo(c fiber.Ctx) error {

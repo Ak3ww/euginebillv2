@@ -1,4 +1,4 @@
-# Salfanet Radius — Documentation Index
+# EugineBill Radius — Documentation Index
 
 > Last updated: 2026-04-10 | Version 2.17.0
 
@@ -191,7 +191,7 @@ sudo swapon --show
 ### Cron Service
 ```bash
 # Start cron service terpisah dari Next.js
-pm2 start cron-service.js --name salfanet-cron
+pm2 start cron-service.js --name EugineBill-cron
 ```
 
 ### Deploy Update

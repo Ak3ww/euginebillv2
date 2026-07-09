@@ -1,7 +1,7 @@
 # Database Management Scripts
 
 ## Overview
-Scripts untuk mengelola database SALFANET RADIUS saat ada perubahan `schema.prisma`.
+Scripts untuk mengelola database EugineBill RADIUS saat ada perubahan `schema.prisma`.
 
 ---
 
@@ -21,7 +21,7 @@ Digunakan ketika:
 ```
 
 **Yang dilakukan:**
-1. DROP database `salfanet_radius`
+1. DROP database `EugineBill_radius`
 2. CREATE database baru
 3. Push schema dari `prisma/schema.prisma`
 4. Generate Prisma Client
@@ -74,7 +74,7 @@ code prisma/schema.prisma
 ### Production Environment
 ```bash
 # 1. BACKUP DATABASE DULU!
-mysqldump -u root -p salfanet_radius > backup_$(date +%Y%m%d).sql
+mysqldump -u root -p EugineBill_radius > backup_$(date +%Y%m%d).sql
 
 # 2. Test di staging dulu
 npx prisma db push
@@ -83,7 +83,7 @@ npx prisma db push
 npx prisma generate
 
 # 4. Restart aplikasi
-pm2 restart salfanet-radius
+pm2 restart EugineBill-radius
 ```
 
 ---
@@ -93,19 +93,19 @@ pm2 restart salfanet-radius
 ### Backup Database
 ```bash
 # Windows (Laragon)
-"C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysqldump.exe" -u root salfanet_radius > backup.sql
+"C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysqldump.exe" -u root EugineBill_radius > backup.sql
 
 # Linux
-mysqldump -u root -p salfanet_radius > backup.sql
+mysqldump -u root -p EugineBill_radius > backup.sql
 ```
 
 ### Restore Database
 ```bash
 # Windows (Laragon)
-"C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root salfanet_radius < backup.sql
+"C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root EugineBill_radius < backup.sql
 
 # Linux
-mysql -u root -p salfanet_radius < backup.sql
+mysql -u root -p EugineBill_radius < backup.sql
 ```
 
 ### Check Schema Sync
@@ -119,8 +119,8 @@ npx prisma db pull --print
 npx prisma migrate reset --force
 
 # Atau manual:
-DROP DATABASE salfanet_radius;
-CREATE DATABASE salfanet_radius CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+DROP DATABASE EugineBill_radius;
+CREATE DATABASE EugineBill_radius CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 npx prisma db push
 npx prisma generate
 npx tsx prisma/seeds/seed-all.ts
@@ -203,7 +203,7 @@ npx prisma studio
 npm run dev
 
 # Production
-pm2 restart salfanet-radius
+pm2 restart EugineBill-radius
 ```
 
 ---

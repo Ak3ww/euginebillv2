@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS - Fix Permissions Script
+# EugineBill RADIUS - Fix Permissions Script
 # ============================================================================
 # Fix ownership and permissions untuk menjalankan PM2 tanpa sudo
 # ============================================================================
@@ -12,12 +12,12 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-APP_DIR="/var/www/salfanet-radius"
-APP_USER="salfanet"
-APP_GROUP="salfanet"
+APP_DIR="/var/www/EugineBill-radius"
+APP_USER="EugineBill"
+APP_GROUP="EugineBill"
 
 echo -e "${CYAN}============================================${NC}"
-echo -e "${CYAN}SALFANET RADIUS - Fix Permissions${NC}"
+echo -e "${CYAN}EugineBill RADIUS - Fix Permissions${NC}"
 echo -e "${CYAN}============================================${NC}"
 echo ""
 
@@ -116,7 +116,7 @@ chown -R $APP_USER:$APP_GROUP /home/$APP_USER/.pm2
 mkdir -p $APP_DIR/logs
 chown -R $APP_USER:$APP_GROUP $APP_DIR/logs
 
-# Test if salfanet can execute node
+# Test if EugineBill can execute node
 echo -e "${YELLOW}[INFO] Testing Node.js execution for $APP_USER...${NC}"
 if sudo -u $APP_USER node --version &>/dev/null; then
     echo -e "${GREEN}[OK] User $APP_USER can execute Node.js: $(sudo -u $APP_USER node --version)${NC}"
@@ -144,13 +144,13 @@ echo -e "${GREEN}============================================${NC}"
 echo ""
 echo -e "${CYAN}Now you can run PM2 without sudo:${NC}"
 echo ""
-echo "  # Switch to salfanet user"
+echo "  # Switch to EugineBill user"
 echo "  sudo su - $APP_USER"
 echo ""
 echo "  # Or run commands directly"
 echo "  sudo -u $APP_USER pm2 list"
-echo "  sudo -u $APP_USER pm2 logs salfanet-radius"
-echo "  sudo -u $APP_USER pm2 restart salfanet-radius"
+echo "  sudo -u $APP_USER pm2 logs EugineBill-radius"
+echo "  sudo -u $APP_USER pm2 restart EugineBill-radius"
 echo ""
 echo -e "${YELLOW}[!] Important: Test Node.js first, then start PM2:${NC}"
 echo ""
@@ -160,9 +160,9 @@ echo "  sudo -u $APP_USER npm --version"
 echo ""
 echo "  # Kill old PM2 processes"
 echo "  pm2 kill                              # Kill root PM2"
-echo "  sudo -u $APP_USER pm2 kill            # Kill salfanet PM2"
+echo "  sudo -u $APP_USER pm2 kill            # Kill EugineBill PM2"
 echo ""
-echo "  # Start PM2 as salfanet"
+echo "  # Start PM2 as EugineBill"
 echo "  sudo -u $APP_USER pm2 start $APP_DIR/ecosystem.config.js"
 echo "  sudo -u $APP_USER pm2 save"
 echo "  sudo -u $APP_USER pm2 startup systemd -u $APP_USER --hp /home/$APP_USER"

@@ -1,8 +1,8 @@
 {
   "id": "/agent",
-  "name": "Salfanet Agent",
+  "name": "EugineBill Agent",
   "short_name": "Agent",
-  "description": "Portal Agent Salfanet - generate dan kelola voucher",
+  "description": "Portal Agent EugineBill - generate dan kelola voucher",
   "start_url": "/agent",
   "scope": "/agent",
   "display": "standalone",

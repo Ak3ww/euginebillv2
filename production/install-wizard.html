@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Salfanet Radius — Install Wizard</title>
+<title>EugineBill Radius — Install Wizard</title>
 <style>
   :root {
     --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
@@ -159,7 +159,7 @@
 <!-- ==================== SIDEBAR ==================== -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <h2>⚡ Salfanet Radius</h2>
+    <h2>⚡ EugineBill Radius</h2>
     <small>Install Wizard v2.10.9</small>
   </div>
   <nav class="nav" id="nav">
@@ -191,8 +191,8 @@
 
 <!-- ===== OVERVIEW ===== -->
 <section id="overview" class="active">
-  <h1>🚀 Salfanet Radius — Install Wizard</h1>
-  <p>Panduan instalasi manual lengkap untuk deploy Salfanet Radius ISP Management di VPS Ubuntu.</p>
+  <h1>🚀 EugineBill Radius — Install Wizard</h1>
+  <p>Panduan instalasi manual lengkap untuk deploy EugineBill Radius ISP Management di VPS Ubuntu.</p>
 
   <div class="progress-bar"><div class="progress-fill" style="width:0%" id="progressFill"></div></div>
 
@@ -215,7 +215,7 @@
   <div class="card">
     <div class="card-header"><span class="icon">🔧</span><h3>Instalasi Otomatis (1 Command)</h3></div>
     <p>Jika tidak ingin manual, jalankan installer otomatis:</p>
-    <div class="code-wrap"><pre><code>cd /root/salfanet-radius/vps-install
+    <div class="code-wrap"><pre><code>cd /root/EugineBill-radius/vps-install
 bash vps-installer.sh</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
     <p>Installer otomatis akan menjalankan semua step di bawah secara berurutan dengan UI interaktif.</p>
   </div>
@@ -304,11 +304,11 @@ bash vps-installer.sh</code></pre><button class="copy-btn" onclick="copyCode(thi
     <div class="form-row">
       <div class="form-group">
         <label>App Directory</label>
-        <input type="text" id="cfg-appdir" value="/var/www/salfanet-radius" oninput="updateAllCommands()">
+        <input type="text" id="cfg-appdir" value="/var/www/EugineBill-radius" oninput="updateAllCommands()">
       </div>
       <div class="form-group">
         <label>App User</label>
-        <input type="text" id="cfg-user" value="salfanet" oninput="updateAllCommands()">
+        <input type="text" id="cfg-user" value="EugineBill" oninput="updateAllCommands()">
       </div>
     </div>
   </div>
@@ -318,17 +318,17 @@ bash vps-installer.sh</code></pre><button class="copy-btn" onclick="copyCode(thi
     <div class="form-row">
       <div class="form-group">
         <label>Database Name</label>
-        <input type="text" id="cfg-dbname" value="salfanet_radius" oninput="updateAllCommands()">
+        <input type="text" id="cfg-dbname" value="EugineBill_radius" oninput="updateAllCommands()">
       </div>
       <div class="form-group">
         <label>Database User</label>
-        <input type="text" id="cfg-dbuser" value="salfanet_user" oninput="updateAllCommands()">
+        <input type="text" id="cfg-dbuser" value="EugineBill_user" oninput="updateAllCommands()">
       </div>
     </div>
     <div class="form-row">
       <div class="form-group">
         <label>Database Password</label>
-        <input type="text" id="cfg-dbpass" value="salfanetradius123" oninput="updateAllCommands()">
+        <input type="text" id="cfg-dbpass" value="EugineBillradius123" oninput="updateAllCommands()">
       </div>
       <div class="form-group">
         <label>MySQL Root Password</label>
@@ -401,7 +401,7 @@ EOF</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><
   <div class="code-wrap"><pre><code class="cmd"># Tambahkan ke sysctl.conf
 cat >> /etc/sysctl.conf << 'EOF'
 
-# IP Forwarding - Salfanet Radius
+# IP Forwarding - EugineBill Radius
 net.ipv4.ip_forward=1
 net.ipv6.conf.all.forwarding=1
 net.ipv4.tcp_syncookies=1
@@ -490,9 +490,9 @@ CREATE USER IF NOT EXISTS '{{dbuser}}'@'localhost' IDENTIFIED BY '{{dbpass}}';
 GRANT ALL PRIVILEGES ON {{dbname}}.* TO '{{dbuser}}'@'localhost';
 FLUSH PRIVILEGES;
 SQLEOF">mysql -u root -p'root123' << 'SQLEOF'
-CREATE DATABASE IF NOT EXISTS salfanet_radius CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'salfanet_user'@'localhost' IDENTIFIED BY 'salfanetradius123';
-GRANT ALL PRIVILEGES ON salfanet_radius.* TO 'salfanet_user'@'localhost';
+CREATE DATABASE IF NOT EXISTS EugineBill_radius CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'EugineBill_user'@'localhost' IDENTIFIED BY 'EugineBillradius123';
+GRANT ALL PRIVILEGES ON EugineBill_radius.* TO 'EugineBill_user'@'localhost';
 FLUSH PRIVILEGES;
 SQLEOF</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
@@ -506,7 +506,7 @@ EOF
 systemctl restart mysql</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h3>Verifikasi</h3>
-  <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="mysql -u {{dbuser}} -p'{{dbpass}}' {{dbname}} -e 'SELECT NOW(), @@global.time_zone;'">mysql -u salfanet_user -p'salfanetradius123' salfanet_radius -e "SELECT NOW(), @@global.time_zone;"</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+  <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="mysql -u {{dbuser}} -p'{{dbpass}}' {{dbname}} -e 'SELECT NOW(), @@global.time_zone;'">mysql -u EugineBill_user -p'EugineBillradius123' EugineBill_radius -e "SELECT NOW(), @@global.time_zone;"</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <div class="alert alert-success"><span class="alert-icon">✅</span><div>MySQL siap. Lanjut ke <strong>Step 4</strong>.</div></div>
 </section>
@@ -518,34 +518,34 @@ systemctl restart mysql</code></pre><button class="copy-btn" onclick="copyCode(t
   <h2>4.1 Upload & Extract</h2>
   <p>Upload ZIP production dari PC lokal ke VPS:</p>
   <div class="code-wrap"><pre><code class="cmd"># Dari PC lokal (PowerShell/Terminal):
-scp salfanet-radius-v*.zip root@VPS_IP:/root/</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+scp EugineBill-radius-v*.zip root@VPS_IP:/root/</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="# Di VPS:
 cd /root
 apt-get install -y unzip
-unzip salfanet-radius-v*.zip
+unzip EugineBill-radius-v*.zip
 
 # Copy ke app directory
 mkdir -p {{appdir}}
-cp -r /root/salfanet-radius/* {{appdir}}/
-cp -r /root/salfanet-radius/.next {{appdir}}/ 2>/dev/null || true
-cp /root/salfanet-radius/.env* {{appdir}}/ 2>/dev/null || true"># Di VPS:
+cp -r /root/EugineBill-radius/* {{appdir}}/
+cp -r /root/EugineBill-radius/.next {{appdir}}/ 2>/dev/null || true
+cp /root/EugineBill-radius/.env* {{appdir}}/ 2>/dev/null || true"># Di VPS:
 cd /root
 apt-get install -y unzip
-unzip salfanet-radius-v*.zip
+unzip EugineBill-radius-v*.zip
 
 # Copy ke app directory
-mkdir -p /var/www/salfanet-radius
-cp -r /root/salfanet-radius/* /var/www/salfanet-radius/
-cp -r /root/salfanet-radius/.next /var/www/salfanet-radius/ 2>/dev/null || true
-cp /root/salfanet-radius/.env* /var/www/salfanet-radius/ 2>/dev/null || true</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+mkdir -p /var/www/EugineBill-radius
+cp -r /root/EugineBill-radius/* /var/www/EugineBill-radius/
+cp -r /root/EugineBill-radius/.next /var/www/EugineBill-radius/ 2>/dev/null || true
+cp /root/EugineBill-radius/.env* /var/www/EugineBill-radius/ 2>/dev/null || true</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>4.2 Buat App User</h2>
   <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="# Buat user dedicated (opsional, bisa pakai root)
 useradd -r -m -s /bin/bash -d /home/{{user}} {{user}}
 usermod -aG sudo {{user}}"># Buat user dedicated (opsional, bisa pakai root)
-useradd -r -m -s /bin/bash -d /home/salfanet salfanet
-usermod -aG sudo salfanet</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+useradd -r -m -s /bin/bash -d /home/EugineBill EugineBill
+usermod -aG sudo EugineBill</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>4.3 Buat File .env</h2>
   <div class="alert alert-danger"><span class="alert-icon">🔒</span><div>File <code>.env</code> berisi kredensial sensitif. Pastikan permission <code>chmod 600</code>.</div></div>
@@ -553,35 +553,35 @@ usermod -aG sudo salfanet</code></pre><button class="copy-btn" onclick="copyCode
 DATABASE_URL=\"mysql://{{dbuser}}:{{dbpass}}@localhost:3306/{{dbname}}?connection_limit=10&pool_timeout=20\"
 TZ=\"Asia/Jakarta\"
 NEXT_PUBLIC_TIMEZONE=\"Asia/Jakarta\"
-NEXT_PUBLIC_APP_NAME=\"SALFANET RADIUS ISP\"
+NEXT_PUBLIC_APP_NAME=\"EugineBill RADIUS ISP\"
 NEXT_PUBLIC_APP_URL=\"{{appurl}}\"
 NEXTAUTH_SECRET=\"{{secret}}\"
 NEXTAUTH_URL=\"{{appurl}}\"
 NODE_ENV=\"production\"
 EOF
 
-chmod 600 {{appdir}}/.env">cat > /var/www/salfanet-radius/.env << 'EOF'
-DATABASE_URL="mysql://salfanet_user:salfanetradius123@localhost:3306/salfanet_radius?connection_limit=10&pool_timeout=20"
+chmod 600 {{appdir}}/.env">cat > /var/www/EugineBill-radius/.env << 'EOF'
+DATABASE_URL="mysql://EugineBill_user:EugineBillradius123@localhost:3306/EugineBill_radius?connection_limit=10&pool_timeout=20"
 TZ="Asia/Jakarta"
 NEXT_PUBLIC_TIMEZONE="Asia/Jakarta"
-NEXT_PUBLIC_APP_NAME="SALFANET RADIUS ISP"
+NEXT_PUBLIC_APP_NAME="EugineBill RADIUS ISP"
 NEXT_PUBLIC_APP_URL="http://YOUR_VPS_IP"
 NEXTAUTH_SECRET="GENERATE_ME"
 NEXTAUTH_URL="http://YOUR_VPS_IP"
 NODE_ENV="production"
 EOF
 
-chmod 600 /var/www/salfanet-radius/.env</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+chmod 600 /var/www/EugineBill-radius/.env</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>4.4 Upload Firebase Service Account</h2>
   <div class="alert alert-warn"><span class="alert-icon">🔥</span><div>File ini <strong>TIDAK ada di ZIP</strong> (keamanan). Upload terpisah dari PC lokal:</div></div>
   <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="# Dari PC lokal:
 scp src/lib/firebase-service-account.json root@{{ip}}:{{appdir}}/src/lib/"># Dari PC lokal:
-scp src/lib/firebase-service-account.json root@YOUR_VPS_IP:/var/www/salfanet-radius/src/lib/</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+scp src/lib/firebase-service-account.json root@YOUR_VPS_IP:/var/www/EugineBill-radius/src/lib/</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>4.5 Install Dependencies</h2>
   <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="cd {{appdir}}
-npm install --production=false">cd /var/www/salfanet-radius
+npm install --production=false">cd /var/www/EugineBill-radius
 npm install --production=false</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
   <div class="alert alert-info"><span class="alert-icon">⏱</span><div>Proses ini bisa memakan waktu <strong>5-10 menit</strong> tergantung koneksi internet.</div></div>
 
@@ -595,7 +595,7 @@ npx prisma generate
 npx prisma db push --accept-data-loss --skip-generate
 
 # Verifikasi tabel dibuat
-mysql -u {{dbuser}} -p'{{dbpass}}' {{dbname}} -e 'SHOW TABLES;'">cd /var/www/salfanet-radius
+mysql -u {{dbuser}} -p'{{dbpass}}' {{dbname}} -e 'SHOW TABLES;'">cd /var/www/EugineBill-radius
 
 # Generate Prisma client
 npx prisma generate
@@ -604,13 +604,13 @@ npx prisma generate
 npx prisma db push --accept-data-loss --skip-generate
 
 # Verifikasi tabel dibuat
-mysql -u salfanet_user -p'salfanetradius123' salfanet_radius -e "SHOW TABLES;"</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+mysql -u EugineBill_user -p'EugineBillradius123' EugineBill_radius -e "SHOW TABLES;"</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>4.7 Seed Database (Data Awal)</h2>
   <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="cd {{appdir}}
 
 # Seed semua data awal (admin user, permissions, templates)
-npx tsx prisma/seeds/seed-all.ts">cd /var/www/salfanet-radius
+npx tsx prisma/seeds/seed-all.ts">cd /var/www/EugineBill-radius
 
 # Seed semua data awal (admin user, permissions, templates)
 npx tsx prisma/seeds/seed-all.ts</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
@@ -620,11 +620,11 @@ npx tsx prisma/seeds/seed-all.ts</code></pre><button class="copy-btn" onclick="c
 find {{appdir}} -type f -exec chmod 644 {} \;
 find {{appdir}} -type d -exec chmod 755 {} \;
 chmod +x {{appdir}}/node_modules/.bin/*
-chmod +x {{appdir}}/node_modules/@prisma/engines/* 2>/dev/null || true">chown -R salfanet:salfanet /var/www/salfanet-radius
-find /var/www/salfanet-radius -type f -exec chmod 644 {} \;
-find /var/www/salfanet-radius -type d -exec chmod 755 {} \;
-chmod +x /var/www/salfanet-radius/node_modules/.bin/*
-chmod +x /var/www/salfanet-radius/node_modules/@prisma/engines/* 2>/dev/null || true</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+chmod +x {{appdir}}/node_modules/@prisma/engines/* 2>/dev/null || true">chown -R EugineBill:EugineBill /var/www/EugineBill-radius
+find /var/www/EugineBill-radius -type f -exec chmod 644 {} \;
+find /var/www/EugineBill-radius -type d -exec chmod 755 {} \;
+chmod +x /var/www/EugineBill-radius/node_modules/.bin/*
+chmod +x /var/www/EugineBill-radius/node_modules/@prisma/engines/* 2>/dev/null || true</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <div class="alert alert-success"><span class="alert-icon">✅</span><div>Aplikasi deployed. Lanjut ke <strong>Step 5</strong>.</div></div>
 </section>
@@ -678,9 +678,9 @@ sql {
     dialect = "mysql"
     server = "localhost"
     port = 3306
-    login = "salfanet_user"
-    password = "salfanetradius123"
-    radius_db = "salfanet_radius"
+    login = "EugineBill_user"
+    password = "EugineBillradius123"
+    radius_db = "EugineBill_radius"
     read_clients = yes
     client_table = "nas"
     
@@ -739,9 +739,9 @@ EOF</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><
 cp {{appdir}}/freeradius-config/clients.conf $FR_DIR/clients.conf 2>/dev/null
 cp {{appdir}}/freeradius-config/sites-available/default $FR_DIR/sites-available/default 2>/dev/null
 cp {{appdir}}/freeradius-config/policy.d/filter $FR_DIR/policy.d/filter 2>/dev/null"># Copy konfigurasi dari project (sites, clients, policy)
-cp /var/www/salfanet-radius/freeradius-config/clients.conf $FR_DIR/clients.conf 2>/dev/null
-cp /var/www/salfanet-radius/freeradius-config/sites-available/default $FR_DIR/sites-available/default 2>/dev/null
-cp /var/www/salfanet-radius/freeradius-config/policy.d/filter $FR_DIR/policy.d/filter 2>/dev/null</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+cp /var/www/EugineBill-radius/freeradius-config/clients.conf $FR_DIR/clients.conf 2>/dev/null
+cp /var/www/EugineBill-radius/freeradius-config/sites-available/default $FR_DIR/sites-available/default 2>/dev/null
+cp /var/www/EugineBill-radius/freeradius-config/policy.d/filter $FR_DIR/policy.d/filter 2>/dev/null</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>5.6 Setup Sudoers</h2>
   <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="cat > /etc/sudoers.d/{{user}}-freeradius << 'EOF'
@@ -750,13 +750,13 @@ cp /var/www/salfanet-radius/freeradius-config/policy.d/filter $FR_DIR/policy.d/f
 {{user}} ALL=(ALL) NOPASSWD: /bin/systemctl stop freeradius
 {{user}} ALL=(ALL) NOPASSWD: /bin/systemctl status freeradius
 EOF
-chmod 440 /etc/sudoers.d/{{user}}-freeradius">cat > /etc/sudoers.d/salfanet-freeradius << 'EOF'
-salfanet ALL=(ALL) NOPASSWD: /bin/systemctl restart freeradius
-salfanet ALL=(ALL) NOPASSWD: /bin/systemctl start freeradius
-salfanet ALL=(ALL) NOPASSWD: /bin/systemctl stop freeradius
-salfanet ALL=(ALL) NOPASSWD: /bin/systemctl status freeradius
+chmod 440 /etc/sudoers.d/{{user}}-freeradius">cat > /etc/sudoers.d/EugineBill-freeradius << 'EOF'
+EugineBill ALL=(ALL) NOPASSWD: /bin/systemctl restart freeradius
+EugineBill ALL=(ALL) NOPASSWD: /bin/systemctl start freeradius
+EugineBill ALL=(ALL) NOPASSWD: /bin/systemctl stop freeradius
+EugineBill ALL=(ALL) NOPASSWD: /bin/systemctl status freeradius
 EOF
-chmod 440 /etc/sudoers.d/salfanet-freeradius</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+chmod 440 /etc/sudoers.d/EugineBill-freeradius</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>5.7 Test & Start FreeRADIUS</h2>
   <div class="code-wrap"><pre><code class="cmd"># Test konfigurasi
@@ -775,7 +775,7 @@ systemctl status freeradius</code></pre><button class="copy-btn" onclick="copyCo
   <h1>Step 6 — Nginx Reverse Proxy</h1>
 
   <h2>6.1 Buat Site Config</h2>
-  <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="cat > /etc/nginx/sites-available/salfanet-radius << 'NGINX'
+  <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="cat > /etc/nginx/sites-available/EugineBill-radius << 'NGINX'
 server {
     listen 80;
     listen [::]:80;
@@ -824,7 +824,7 @@ server {
         proxy_cache_bypass \\$http_upgrade;
     }
 }
-NGINX">cat > /etc/nginx/sites-available/salfanet-radius << 'NGINX'
+NGINX">cat > /etc/nginx/sites-available/EugineBill-radius << 'NGINX'
 server {
     listen 80;
     listen [::]:80;
@@ -849,13 +849,13 @@ server {
 
     # APK download
     location /downloads/ {
-        alias /var/www/salfanet-radius/public/downloads/;
+        alias /var/www/EugineBill-radius/public/downloads/;
         autoindex off;
     }
 
     # Next.js static assets (cache 1 tahun)
     location /_next/static/ {
-        alias /var/www/salfanet-radius/.next/static/;
+        alias /var/www/EugineBill-radius/.next/static/;
         expires 365d;
         add_header Cache-Control "public, immutable";
     }
@@ -876,9 +876,9 @@ server {
 NGINX</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>6.2 Enable Site & Restart</h2>
-  <div class="code-wrap"><pre><code class="cmd"># Hapus default, enable salfanet
+  <div class="code-wrap"><pre><code class="cmd"># Hapus default, enable EugineBill
 rm -f /etc/nginx/sites-enabled/default
-ln -sf /etc/nginx/sites-available/salfanet-radius /etc/nginx/sites-enabled/
+ln -sf /etc/nginx/sites-available/EugineBill-radius /etc/nginx/sites-enabled/
 
 # Test & restart
 nginx -t && systemctl restart nginx && systemctl enable nginx</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
@@ -922,7 +922,7 @@ pm2 stop all 2>/dev/null || true
 rm -rf .next .turbo node_modules/.cache
 
 # Build dengan VPS memory limit (1.5GB heap)
-NEXT_TELEMETRY_DISABLED=1 npm run build:vps">cd /var/www/salfanet-radius
+NEXT_TELEMETRY_DISABLED=1 npm run build:vps">cd /var/www/EugineBill-radius
 
 # Stop PM2 dulu untuk bebaskan RAM
 pm2 stop all 2>/dev/null || true
@@ -939,7 +939,7 @@ NEXT_TELEMETRY_DISABLED=1 npm run build:vps</code></pre><button class="copy-btn"
 module.exports = {
   apps: [
     {
-      name: 'salfanet-radius',
+      name: 'EugineBill-radius',
       script: 'node_modules/next/dist/bin/next',
       args: 'start',
       cwd: '{{appdir}}',
@@ -959,7 +959,7 @@ module.exports = {
       cron_restart: '0 */6 * * *'
     },
     {
-      name: 'salfanet-cron',
+      name: 'EugineBill-cron',
       script: './cron-service.js',
       cwd: '{{appdir}}',
       instances: 1,
@@ -980,14 +980,14 @@ module.exports = {
 };
 EOF
 
-mkdir -p {{appdir}}/logs">cat > /var/www/salfanet-radius/ecosystem.config.js << 'EOF'
+mkdir -p {{appdir}}/logs">cat > /var/www/EugineBill-radius/ecosystem.config.js << 'EOF'
 module.exports = {
   apps: [
     {
-      name: 'salfanet-radius',
+      name: 'EugineBill-radius',
       script: 'node_modules/next/dist/bin/next',
       args: 'start',
-      cwd: '/var/www/salfanet-radius',
+      cwd: '/var/www/EugineBill-radius',
       instances: 1,
       exec_mode: 'cluster',
       max_memory_restart: '400M',
@@ -1004,9 +1004,9 @@ module.exports = {
       cron_restart: '0 */6 * * *'
     },
     {
-      name: 'salfanet-cron',
+      name: 'EugineBill-cron',
       script: './cron-service.js',
-      cwd: '/var/www/salfanet-radius',
+      cwd: '/var/www/EugineBill-radius',
       instances: 1,
       exec_mode: 'fork',
       max_memory_restart: '150M',
@@ -1025,7 +1025,7 @@ module.exports = {
 };
 EOF
 
-mkdir -p /var/www/salfanet-radius/logs</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+mkdir -p /var/www/EugineBill-radius/logs</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>7.5 Start Aplikasi dengan PM2</h2>
   <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="cd {{appdir}}
@@ -1038,17 +1038,17 @@ sudo su - {{user}} -c 'pm2 save'
 sudo /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u {{user}} --hp /home/{{user}}
 
 # Verifikasi
-sudo su - {{user}} -c 'pm2 status'">cd /var/www/salfanet-radius
+sudo su - {{user}} -c 'pm2 status'">cd /var/www/EugineBill-radius
 
 # Start sebagai app user
-sudo su - salfanet -c "cd /var/www/salfanet-radius && pm2 start ecosystem.config.js"
-sudo su - salfanet -c "pm2 save"
+sudo su - EugineBill -c "cd /var/www/EugineBill-radius && pm2 start ecosystem.config.js"
+sudo su - EugineBill -c "pm2 save"
 
 # Setup auto-start saat boot
-sudo /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u salfanet --hp /home/salfanet
+sudo /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u EugineBill --hp /home/EugineBill
 
 # Verifikasi
-sudo su - salfanet -c "pm2 status"</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+sudo su - EugineBill -c "pm2 status"</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>7.6 Enable FreeRADIUS REST Module</h2>
   <p>Sekarang app sudah running, enable REST module agar FreeRADIUS bisa memanggil API:</p>
@@ -1109,16 +1109,16 @@ redis-cli ping
 
   <h2>8.4 Tambahkan REDIS_URL ke .env</h2>
   <p>Buka file <code>.env</code> dan tambahkan baris berikut:</p>
-  <div class="code-wrap"><pre><code class="cmd">echo '' >> /var/www/salfanet-radius/.env
-echo '# Redis - Cache & Performance' >> /var/www/salfanet-radius/.env
-echo 'REDIS_URL=redis://127.0.0.1:6379' >> /var/www/salfanet-radius/.env
+  <div class="code-wrap"><pre><code class="cmd">echo '' >> /var/www/EugineBill-radius/.env
+echo '# Redis - Cache & Performance' >> /var/www/EugineBill-radius/.env
+echo 'REDIS_URL=redis://127.0.0.1:6379' >> /var/www/EugineBill-radius/.env
 
 # Verifikasi
-grep REDIS_URL /var/www/salfanet-radius/.env</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+grep REDIS_URL /var/www/EugineBill-radius/.env</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>8.5 Restart Aplikasi</h2>
-  <div class="code-wrap"><pre><code class="cmd">pm2 restart salfanet-radius
-pm2 restart salfanet-cron
+  <div class="code-wrap"><pre><code class="cmd">pm2 restart EugineBill-radius
+pm2 restart EugineBill-cron
 pm2 status</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>8.6 Verifikasi Redis Berjalan</h2>
@@ -1180,7 +1180,7 @@ sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"</code></
 cat > .env << EOF
 API_URL={{appurl}}
 API_TIMEOUT=30000
-APP_NAME=SALFANET RADIUS
+APP_NAME=EugineBill RADIUS
 EOF
 
 # Install dependencies & build
@@ -1190,14 +1190,14 @@ cd android && chmod +x gradlew
 
 # Copy APK ke public downloads
 mkdir -p {{appdir}}/public/downloads
-cp app/build/outputs/apk/release/app-release.apk {{appdir}}/public/downloads/salfanet-radius.apk
-echo 'APK tersedia di: {{appurl}}/downloads/salfanet-radius.apk'">cd /var/www/salfanet-radius/mobile-app
+cp app/build/outputs/apk/release/app-release.apk {{appdir}}/public/downloads/EugineBill-radius.apk
+echo 'APK tersedia di: {{appurl}}/downloads/EugineBill-radius.apk'">cd /var/www/EugineBill-radius/mobile-app
 
 # Set API URL
 cat > .env << EOF
 API_URL=http://YOUR_VPS_IP:3000
 API_TIMEOUT=30000
-APP_NAME=SALFANET RADIUS
+APP_NAME=EugineBill RADIUS
 EOF
 
 # Install dependencies & build
@@ -1206,9 +1206,9 @@ cd android && chmod +x gradlew
 ./gradlew assembleRelease --max-workers=2 -Dorg.gradle.jvmargs="-Xmx1536m"
 
 # Copy APK ke public downloads
-mkdir -p /var/www/salfanet-radius/public/downloads
-cp app/build/outputs/apk/release/app-release.apk /var/www/salfanet-radius/public/downloads/salfanet-radius.apk
-echo "APK tersedia di: http://YOUR_VPS_IP/downloads/salfanet-radius.apk"</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+mkdir -p /var/www/EugineBill-radius/public/downloads
+cp app/build/outputs/apk/release/app-release.apk /var/www/EugineBill-radius/public/downloads/EugineBill-radius.apk
+echo "APK tersedia di: http://YOUR_VPS_IP/downloads/EugineBill-radius.apk"</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 </section>
 
 <!-- ===== FIREWALL & PORTS ===== -->
@@ -1303,12 +1303,12 @@ sed -i 's|NEXTAUTH_URL=.*|NEXTAUTH_URL=&quot;https://{{domain}}&quot;|' {{appdir
 sed -i 's|NEXT_PUBLIC_APP_URL=.*|NEXT_PUBLIC_APP_URL=&quot;https://{{domain}}&quot;|' {{appdir}}/.env
 
 # Restart app
-pm2 restart salfanet-radius salfanet-cron"># Update .env dengan HTTPS URL
-sed -i 's|NEXTAUTH_URL=.*|NEXTAUTH_URL=&quot;https://DOMAIN_OPSIONAL&quot;|' /var/www/salfanet-radius/.env
-sed -i 's|NEXT_PUBLIC_APP_URL=.*|NEXT_PUBLIC_APP_URL=&quot;https://DOMAIN_OPSIONAL&quot;|' /var/www/salfanet-radius/.env
+pm2 restart EugineBill-radius EugineBill-cron"># Update .env dengan HTTPS URL
+sed -i 's|NEXTAUTH_URL=.*|NEXTAUTH_URL=&quot;https://DOMAIN_OPSIONAL&quot;|' /var/www/EugineBill-radius/.env
+sed -i 's|NEXT_PUBLIC_APP_URL=.*|NEXT_PUBLIC_APP_URL=&quot;https://DOMAIN_OPSIONAL&quot;|' /var/www/EugineBill-radius/.env
 
 # Restart app
-pm2 restart salfanet-radius salfanet-cron</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+pm2 restart EugineBill-radius EugineBill-cron</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>Deploy Update Script</h2>
   <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="cat > {{appdir}}/deploy.sh << 'DEPLOY'
@@ -1331,9 +1331,9 @@ echo \"[DEPLOY] Restarting PM2...\"
 sudo su - {{user}} -c 'pm2 restart ecosystem.config.js'
 echo \"[DEPLOY] Done!\"
 DEPLOY
-chmod +x {{appdir}}/deploy.sh">cat > /var/www/salfanet-radius/deploy.sh << 'DEPLOY'
+chmod +x {{appdir}}/deploy.sh">cat > /var/www/EugineBill-radius/deploy.sh << 'DEPLOY'
 #!/bin/bash
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 echo "[DEPLOY] Pulling latest code..."
 git pull origin main 2>/dev/null || true
 echo "[DEPLOY] Installing dependencies..."
@@ -1346,12 +1346,12 @@ pm2 stop all
 rm -rf .next node_modules/.cache
 NEXT_TELEMETRY_DISABLED=1 npm run build:vps
 echo "[DEPLOY] Fixing permissions..."
-chown -R salfanet:salfanet /var/www/salfanet-radius
+chown -R EugineBill:EugineBill /var/www/EugineBill-radius
 echo "[DEPLOY] Restarting PM2..."
-sudo su - salfanet -c "pm2 restart ecosystem.config.js"
+sudo su - EugineBill -c "pm2 restart ecosystem.config.js"
 echo "[DEPLOY] Done!"
 DEPLOY
-chmod +x /var/www/salfanet-radius/deploy.sh</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+chmod +x /var/www/EugineBill-radius/deploy.sh</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>Useful Commands</h2>
   <table>
@@ -1390,7 +1390,7 @@ pm2 stop all
 sync && echo 3 > /proc/sys/vm/drop_caches
 swapon --show  # Pastikan swap aktif
 free -h        # Pastikan ada minimal 1GB free (RAM + swap)
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 rm -rf .next node_modules/.cache
 NEXT_TELEMETRY_DISABLED=1 npm run build:vps</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
   </div>
@@ -1417,13 +1417,13 @@ journalctl -u freeradius -n 50 --no-pager
     <p><strong>Penyebab:</strong> Next.js (PM2) belum running atau crash.</p>
     <div class="code-wrap"><pre><code class="cmd"># Cek PM2
 pm2 status
-pm2 logs salfanet-radius --lines 50
+pm2 logs EugineBill-radius --lines 50
 
 # Cek port 3000
 ss -tlnp | grep 3000
 
 # Restart jika perlu
-pm2 restart salfanet-radius
+pm2 restart EugineBill-radius
 
 # Cek Nginx config
 nginx -t
@@ -1455,18 +1455,18 @@ npm install</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</
 systemctl status mysql
 
 # Test koneksi
-mysql -u salfanet_user -p'salfanetradius123' salfanet_radius -e "SELECT 1;"
+mysql -u EugineBill_user -p'EugineBillradius123' EugineBill_radius -e "SELECT 1;"
 
 # Jika access denied, reset user:
 mysql -u root -p'root123' << 'EOF'
-DROP USER IF EXISTS 'salfanet_user'@'localhost';
-CREATE USER 'salfanet_user'@'localhost' IDENTIFIED BY 'salfanetradius123';
-GRANT ALL PRIVILEGES ON salfanet_radius.* TO 'salfanet_user'@'localhost';
+DROP USER IF EXISTS 'EugineBill_user'@'localhost';
+CREATE USER 'EugineBill_user'@'localhost' IDENTIFIED BY 'EugineBillradius123';
+GRANT ALL PRIVILEGES ON EugineBill_radius.* TO 'EugineBill_user'@'localhost';
 FLUSH PRIVILEGES;
 EOF
 
 # Cek DATABASE_URL di .env
-cat /var/www/salfanet-radius/.env | grep DATABASE_URL</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+cat /var/www/EugineBill-radius/.env | grep DATABASE_URL</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
   </div>
 
   <h2>Port 3000 Already in Use</h2>
@@ -1479,7 +1479,7 @@ lsof -i :3000 || ss -tlnp | grep 3000
 fuser -k 3000/tcp
 
 # Restart PM2
-pm2 restart salfanet-radius</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+pm2 restart EugineBill-radius</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
   </div>
 
   <h2>RADIUS Auth Gagal dari MikroTik</h2>
@@ -1495,7 +1495,7 @@ radtest testuser testpass localhost 0 testing123
 ufw status | grep -E "1812|1813"
 
 # 4. Cek NAS terdaftar di database
-mysql -u salfanet_user -p'salfanetradius123' salfanet_radius \
+mysql -u EugineBill_user -p'EugineBillradius123' EugineBill_radius \
   -e "SELECT * FROM nas;"
 
 # 5. Cek log realtime saat MikroTik auth
@@ -1546,16 +1546,16 @@ chown -R {{user}}:{{user}} /home/{{user}}/.pm2
 
 # Fix Node.js binaries
 chmod 755 /usr/bin/node /usr/bin/npm /usr/bin/pm2 2>/dev/null"># Fix semua permission
-chown -R salfanet:salfanet /var/www/salfanet-radius
-find /var/www/salfanet-radius -type f -exec chmod 644 {} \;
-find /var/www/salfanet-radius -type d -exec chmod 755 {} \;
-chmod +x /var/www/salfanet-radius/node_modules/.bin/*
-chmod +x /var/www/salfanet-radius/node_modules/@prisma/engines/* 2>/dev/null
-chmod 600 /var/www/salfanet-radius/.env
+chown -R EugineBill:EugineBill /var/www/EugineBill-radius
+find /var/www/EugineBill-radius -type f -exec chmod 644 {} \;
+find /var/www/EugineBill-radius -type d -exec chmod 755 {} \;
+chmod +x /var/www/EugineBill-radius/node_modules/.bin/*
+chmod +x /var/www/EugineBill-radius/node_modules/@prisma/engines/* 2>/dev/null
+chmod 600 /var/www/EugineBill-radius/.env
 
 # Fix PM2
-mkdir -p /home/salfanet/.pm2/logs /home/salfanet/.pm2/pids
-chown -R salfanet:salfanet /home/salfanet/.pm2
+mkdir -p /home/EugineBill/.pm2/logs /home/EugineBill/.pm2/pids
+chown -R EugineBill:EugineBill /home/EugineBill/.pm2
 
 # Fix Node.js binaries
 chmod 755 /usr/bin/node /usr/bin/npm /usr/bin/pm2 2>/dev/null</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
@@ -1565,12 +1565,12 @@ chmod 755 /usr/bin/node /usr/bin/npm /usr/bin/pm2 2>/dev/null</code></pre><butto
 <!-- ===== UNINSTALL ===== -->
 <section id="uninstall">
   <h1>🗑 Uninstall</h1>
-  <div class="alert alert-danger"><span class="alert-icon">⚠️</span><div><strong>PERINGATAN:</strong> Perintah di bawah akan menghapus SEMUA data dan konfigurasi Salfanet Radius. Backup dulu!</div></div>
+  <div class="alert alert-danger"><span class="alert-icon">⚠️</span><div><strong>PERINGATAN:</strong> Perintah di bawah akan menghapus SEMUA data dan konfigurasi EugineBill Radius. Backup dulu!</div></div>
 
   <h2>Backup Database</h2>
   <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="mysqldump -u root -p'{{rootpass}}' {{dbname}} > /root/{{dbname}}_backup_$(date +%Y%m%d).sql
-echo 'Backup tersedia di: /root/{{dbname}}_backup_*.sql'">mysqldump -u root -p'root123' salfanet_radius > /root/salfanet_radius_backup_$(date +%Y%m%d).sql
-echo "Backup tersedia di: /root/salfanet_radius_backup_*.sql"</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+echo 'Backup tersedia di: /root/{{dbname}}_backup_*.sql'">mysqldump -u root -p'root123' EugineBill_radius > /root/EugineBill_radius_backup_$(date +%Y%m%d).sql
+echo "Backup tersedia di: /root/EugineBill_radius_backup_*.sql"</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 
   <h2>Hapus Semua</h2>
   <div class="code-wrap"><pre><code class="cmd dynamic" data-tpl="# Stop PM2
@@ -1592,8 +1592,8 @@ apt-get purge -y mysql-server mysql-client
 rm -rf /etc/mysql /var/lib/mysql /var/log/mysql
 
 # Hapus Nginx config
-rm -f /etc/nginx/sites-enabled/salfanet-radius
-rm -f /etc/nginx/sites-available/salfanet-radius
+rm -f /etc/nginx/sites-enabled/EugineBill-radius
+rm -f /etc/nginx/sites-available/EugineBill-radius
 systemctl restart nginx
 
 # Hapus PM2
@@ -1604,12 +1604,12 @@ swapoff /swapfile && rm -f /swapfile
 sed -i '/swapfile/d' /etc/fstab
 
 echo 'Uninstall selesai.'"># Stop PM2
-sudo su - salfanet -c "pm2 delete all" 2>/dev/null
-sudo su - salfanet -c "pm2 kill" 2>/dev/null
+sudo su - EugineBill -c "pm2 delete all" 2>/dev/null
+sudo su - EugineBill -c "pm2 kill" 2>/dev/null
 
 # Hapus app
-rm -rf /var/www/salfanet-radius
-userdel -r salfanet 2>/dev/null
+rm -rf /var/www/EugineBill-radius
+userdel -r EugineBill 2>/dev/null
 
 # Hapus FreeRADIUS
 systemctl stop freeradius
@@ -1622,8 +1622,8 @@ apt-get purge -y mysql-server mysql-client
 rm -rf /etc/mysql /var/lib/mysql /var/log/mysql
 
 # Hapus Nginx config
-rm -f /etc/nginx/sites-enabled/salfanet-radius
-rm -f /etc/nginx/sites-available/salfanet-radius
+rm -f /etc/nginx/sites-enabled/EugineBill-radius
+rm -f /etc/nginx/sites-available/EugineBill-radius
 systemctl restart nginx
 
 # Hapus PM2
@@ -1652,11 +1652,11 @@ function getConfig() {
     sslemail: document.getElementById('cfg-sslemail')?.value || 'admin@yourdomain.com',
     appurl: appUrl,
     env: document.getElementById('cfg-env')?.value || 'vps',
-    appdir: document.getElementById('cfg-appdir')?.value || '/var/www/salfanet-radius',
-    user: document.getElementById('cfg-user')?.value || 'salfanet',
-    dbname: document.getElementById('cfg-dbname')?.value || 'salfanet_radius',
-    dbuser: document.getElementById('cfg-dbuser')?.value || 'salfanet_user',
-    dbpass: document.getElementById('cfg-dbpass')?.value || 'salfanetradius123',
+    appdir: document.getElementById('cfg-appdir')?.value || '/var/www/EugineBill-radius',
+    user: document.getElementById('cfg-user')?.value || 'EugineBill',
+    dbname: document.getElementById('cfg-dbname')?.value || 'EugineBill_radius',
+    dbuser: document.getElementById('cfg-dbuser')?.value || 'EugineBill_user',
+    dbpass: document.getElementById('cfg-dbpass')?.value || 'EugineBillradius123',
     rootpass: document.getElementById('cfg-rootpass')?.value || 'root123',
     secret: document.getElementById('cfg-secret')?.value || 'GENERATE_ME',
   };

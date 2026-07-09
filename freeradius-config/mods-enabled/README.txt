@@ -1,6 +1,6 @@
 # ⚠️ PENTING: mods-enabled/sql adalah STANDALONE FILE pada VPS ini, BUKAN symlink!
 #
-# Pada VPS salfanet-radius, mods-enabled/sql telah dimodifikasi (DB credentials) dan
+# Pada VPS EugineBill-radius, mods-enabled/sql telah dimodifikasi (DB credentials) dan
 # disimpan sebagai file tersendiri. Jika dibuat sebagai symlink, edit di mods-available/sql
 # akan langsung berpengaruh — tapi karena ini standalone, harus di-copy ulang jika berubah.
 #

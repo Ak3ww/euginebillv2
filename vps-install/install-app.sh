@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SALFANET RADIUS VPS Installer - Application Setup Module
+# EugineBill RADIUS VPS Installer - Application Setup Module
 # ============================================================================
 # Step 4: Setup application files, npm install, Prisma setup
 # ============================================================================
@@ -23,12 +23,12 @@ copy_application_files() {
 
     # Priority order of source locations:
     #   1. Installer was run from inside a cloned repo (detect by package.json ≥ 1 level up)
-    #   2. /root/salfanet-radius  (git clone default location)
-    #   3. /root/SALFANET-RADIUS-main  (GitHub ZIP extraction)
+    #   2. /root/EugineBill-radius  (git clone default location)
+    #   3. /root/EugineBill-RADIUS-main  (GitHub ZIP extraction)
     #   4. Current working directory
     local SOURCE_DIR=""
 
-    for candidate in "$SCRIPT_SOURCE_DIR" "/root/salfanet-radius" "/root/SALFANET-RADIUS-main" "$(pwd)"; do
+    for candidate in "$SCRIPT_SOURCE_DIR" "/root/EugineBill-radius" "/root/EugineBill-RADIUS-main" "$(pwd)"; do
         if [ -f "$candidate/package.json" ]; then
             SOURCE_DIR="$candidate"
             break
@@ -37,7 +37,7 @@ copy_application_files() {
 
     if [ -z "$SOURCE_DIR" ]; then
         print_error "Source directory not found. Please clone the repo first:"
-        print_error "  git clone https://github.com/YOUR_USERNAME/salfanet-radius.git /root/salfanet-radius"
+        print_error "  git clone https://github.com/YOUR_USERNAME/EugineBill-radius.git /root/EugineBill-radius"
         return 1
     fi
 
@@ -122,7 +122,7 @@ TZ="Asia/Jakarta"
 NEXT_PUBLIC_TIMEZONE="Asia/Jakarta"
 
 # App Configuration
-NEXT_PUBLIC_APP_NAME="SALFANET RADIUS ISP"
+NEXT_PUBLIC_APP_NAME="EugineBill RADIUS ISP"
 NEXT_PUBLIC_APP_URL="${APP_BASE_URL}"
 
 # NextAuth
@@ -504,7 +504,7 @@ generate_vapid_keys() {
     local CONTACT_EMAIL="admin@${VPS_DOMAIN:-${VPS_IP:-localhost}}"
     # IP address is not valid as mailto domain — use generic fallback
     if [[ "$CONTACT_EMAIL" =~ ^admin@[0-9]+\. ]]; then
-        CONTACT_EMAIL="admin@salfanet.local"
+        CONTACT_EMAIL="admin@EugineBill.local"
     fi
 
     cat >> "${APP_DIR}/.env" <<EOF

@@ -1,6 +1,6 @@
 # GenieACS TR-069 Integration
 
-Complete guide for GenieACS CPE management integration in SALFANET RADIUS.
+Complete guide for GenieACS CPE management integration in EugineBill RADIUS.
 
 ## 📡 Overview
 
@@ -128,7 +128,7 @@ sudo systemctl start genieacs-cwmp genieacs-nbi genieacs-fs genieacs-ui
 sudo systemctl status genieacs-*
 ```
 
-### 4. Configure in SALFANET RADIUS
+### 4. Configure in EugineBill RADIUS
 
 Go to **Admin → Settings → GenieACS** and configure:
 

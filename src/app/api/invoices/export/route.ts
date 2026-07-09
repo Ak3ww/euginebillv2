@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { generateExcelBuffer, formatCurrencyExport, formatDateExport, generatePDFBuffer, generateInvoicePDF } from '@/lib/utils/export';
 import { checkAuth } from '@/server/middleware/api-auth';
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json({
         pdfData: {
-          title: 'Daftar Invoice - SALFANET RADIUS',
+          title: 'Daftar Invoice - EugineBill RADIUS',
           headers,
           rows,
           summary,
@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
         dueDate: invoice.dueDate,
         status: invoice.status,
         companyInfo: {
-          name: company?.name || 'SALFANET RADIUS',
+          name: company?.name || 'EugineBill RADIUS',
           address: company?.address || undefined,
           phone: company?.phone || undefined,
           email: company?.email || undefined

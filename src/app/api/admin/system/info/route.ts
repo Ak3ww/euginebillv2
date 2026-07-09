@@ -9,9 +9,9 @@ export const dynamic = 'force-dynamic';
 
 function getAppDir(): string {
   const candidates = [
-    process.env.SALFANET_APP_DIR,
-    '/var/www/salfanet-frontend',
-    '/var/www/salfanet-radius',
+    process.env.EugineBill_APP_DIR,
+    '/var/www/EugineBill-frontend',
+    '/var/www/EugineBill-radius',
     path.resolve(process.cwd(), '../..'),
     process.cwd(),
   ].filter(Boolean) as string[];
@@ -22,7 +22,7 @@ function getAppDir(): string {
     }
   }
 
-  return '/var/www/salfanet-radius';
+  return '/var/www/EugineBill-radius';
 }
 
 function git(cmd: string, appDir: string): string {
@@ -66,12 +66,12 @@ export async function GET() {
     hasUpdate    = localCommit !== 'unknown' && remoteCommit !== 'unknown' && localCommit !== remoteCommit;
   } catch { /* network unavailable */ }
 
-  const logExists = existsSync('/tmp/salfanet-update.log');
-  const pidExists = existsSync('/tmp/salfanet-update.pid');
+  const logExists = existsSync('/tmp/EugineBill-update.log');
+  const pidExists = existsSync('/tmp/EugineBill-update.pid');
   let updateRunning = false;
   if (pidExists) {
     try {
-      const pid = parseInt(readFileSync('/tmp/salfanet-update.pid', 'utf-8').trim());
+      const pid = parseInt(readFileSync('/tmp/EugineBill-update.pid', 'utf-8').trim());
       if (Number.isInteger(pid) && pid > 0) {
         execFileSync('kill', ['-0', pid.toString()], { timeout: 2000, stdio: 'pipe' });
         updateRunning = true;

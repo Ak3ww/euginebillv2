@@ -11,14 +11,14 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"gorm.io/gorm"
 
-	"github.com/s4lfanet/salfanet-radius-go/internal/db/models"
+	"github.com/s4lfanet/EugineBill-radius-go/internal/db/models"
 )
 
 type BackupHandler struct{ db *gorm.DB }
 
 func NewBackupHandler(db *gorm.DB) *BackupHandler { return &BackupHandler{db: db} }
 
-const backupDir = "/var/www/salfanet-radius/backups"
+const backupDir = "/var/www/EugineBill-radius/backups"
 
 // GET /api/backup/history
 func (h *BackupHandler) History(c fiber.Ctx) error {
@@ -49,7 +49,7 @@ func (h *BackupHandler) Create(c fiber.Ctx) error {
 	dbHost := getEnvOrDefault("DB_HOST", "127.0.0.1")
 	dbUser := getEnvOrDefault("DB_USER", "root")
 	dbPass := getEnvOrDefault("DB_PASSWORD", "")
-	dbName := getEnvOrDefault("DB_NAME", "salfanet")
+	dbName := getEnvOrDefault("DB_NAME", "EugineBill")
 
 	now := time.Now()
 	filename := fmt.Sprintf("backup_%s.sql.gz", now.Format("20060102_150405"))
@@ -137,7 +137,7 @@ func (h *BackupHandler) Restore(c fiber.Ctx) error {
 	dbHost := getEnvOrDefault("DB_HOST", "127.0.0.1")
 	dbUser := getEnvOrDefault("DB_USER", "root")
 	dbPass := getEnvOrDefault("DB_PASSWORD", "")
-	dbName := getEnvOrDefault("DB_NAME", "salfanet")
+	dbName := getEnvOrDefault("DB_NAME", "EugineBill")
 
 	cmd := fmt.Sprintf("zcat %s | mysql -h%s -u%s -p%s %s", *hist.Filepath, dbHost, dbUser, dbPass, dbName)
 	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()

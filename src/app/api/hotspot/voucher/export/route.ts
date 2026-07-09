@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { generateExcelBuffer, formatCurrencyExport, formatDateExport, generatePDFBuffer, generateVoucherCardsPDF } from '@/lib/utils/export';
 import { checkAuth } from '@/server/middleware/api-auth';
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json({
         pdfData: {
-          title: 'Daftar Voucher Hotspot - SALFANET RADIUS',
+          title: 'Daftar Voucher Hotspot - EugineBill RADIUS',
           headers,
           rows,
           summary,
@@ -126,7 +126,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: 'No waiting vouchers to print' }, { status: 400 });
       }
 
-      const pdfBuffer = generateVoucherCardsPDF(vouchersForPrint, company?.name || 'SALFANET RADIUS');
+      const pdfBuffer = generateVoucherCardsPDF(vouchersForPrint, company?.name || 'EugineBill RADIUS');
 
       return new NextResponse(Buffer.from(pdfBuffer), {
         headers: {

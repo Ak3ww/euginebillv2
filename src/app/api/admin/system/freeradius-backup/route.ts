@@ -7,21 +7,21 @@ import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
-const LOG_FILE = '/tmp/salfanet-fr-backup.log';
+const LOG_FILE = '/tmp/EugineBill-fr-backup.log';
 export const BACKUP_SUBDIR = 'backups/freeradius';
 // Allow any safe .tar.gz filename (alphanumeric, dash, underscore, dot — no path traversal)
 export const SAFE_BACKUP_FILENAME = /^[a-zA-Z0-9][a-zA-Z0-9_\-\.]*\.tar\.gz$/;
 
 export function getAppDir(): string {
   const candidates = [
-    process.env.SALFANET_APP_DIR,
-    '/var/www/salfanet-radius',
+    process.env.EugineBill_APP_DIR,
+    '/var/www/EugineBill-radius',
     process.cwd(),
   ].filter(Boolean) as string[];
   for (const dir of candidates) {
     if (existsSync(path.join(dir, 'package.json'))) return dir;
   }
-  return '/var/www/salfanet-radius';
+  return '/var/www/EugineBill-radius';
 }
 
 export function getBackupDir(appDir: string): string {
@@ -77,8 +77,8 @@ export async function POST() {
         ...process.env,
         HOME: process.env.HOME || '/root',
         SHELL: '/bin/bash',
-        SALFANET_APP_DIR: appDir,
-        SALFANET_BACKUP_DIR: backupDir,
+        EugineBill_APP_DIR: appDir,
+        EugineBill_BACKUP_DIR: backupDir,
       },
     }) as ChildProcess;
     closeSync(logFd);

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { TOTP, Secret } from 'otpauth';
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // Generate a fresh TOTP secret
     const secret = new Secret({ size: 20 });
     const totp = new TOTP({
-      issuer: 'SALFANET RADIUS',
+      issuer: 'EugineBill RADIUS',
       label: user.username,
       algorithm: 'SHA1',
       digits: 6,

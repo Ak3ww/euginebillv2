@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { formatCurrencyExport, formatDateExport } from "@/lib/utils/export";
 import { getServerSession } from "next-auth";
@@ -275,7 +275,7 @@ function exportToPDF(transactions: any[], stats: any) {
     transactions,
     stats,
     pdfData: {
-      title: 'Laporan Keuangan - SALFANET RADIUS',
+      title: 'Laporan Keuangan - EugineBill RADIUS',
       headers,
       rows,
       summary,

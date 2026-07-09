@@ -6,7 +6,7 @@ import { join } from 'path';
 
 export const dynamic = 'force-dynamic';
 
-const APK_DIR = '/var/data/salfanet/apk';
+const APK_DIR = '/var/data/EugineBill/apk';
 const VALID_ROLES = ['admin', 'customer', 'technician', 'agent'] as const;
 type RoleKey = typeof VALID_ROLES[number];
 
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Determine filename from status.json
-  let filename = `salfanet-${role}.apk`;
+  let filename = `EugineBill-${role}.apk`;
   try {
     const statusPath = join(APK_DIR, role, 'status.json');
     if (existsSync(statusPath)) {

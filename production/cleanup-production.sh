@@ -1,11 +1,11 @@
 #!/bin/bash
 
 ##############################################
-# SALFANET RADIUS - Production Cleanup Script
+# EugineBill RADIUS - Production Cleanup Script
 ##############################################
 
 echo "========================================"
-echo "SALFANET RADIUS - Production Cleanup"
+echo "EugineBill RADIUS - Production Cleanup"
 echo "========================================"
 echo ""
 

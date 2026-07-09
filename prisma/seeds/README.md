@@ -1,4 +1,4 @@
-﻿# Database Seed Scripts
+# Database Seed Scripts
 
 Koleksi seed scripts untuk initialize database dengan data default.
 
@@ -21,7 +21,7 @@ npm run db:seed:company
 ```
 
 **Data Created**:
-- Company name: "SALFANET RADIUS - Local Dev"
+- Company name: "EugineBill RADIUS - Local Dev"
 - Isolation enabled: `true`
 - IP Pool: `192.168.200.0/24`
 - Rate Limit: `64k/64k`
@@ -101,7 +101,7 @@ npm run db:seed
 ### Production Deployment
 
 ```bash
-cd /var/www/salfanet-radius
+cd /var/www/EugineBill-radius
 
 # Run seeds after migration
 npx prisma migrate deploy
@@ -115,7 +115,7 @@ npm run db:seed:templates
 
 Seeds check for existing data before creating:
 ```
-✅ Company already exists: SALFANET RADIUS - Local Dev
+✅ Company already exists: EugineBill RADIUS - Local Dev
 Updating isolation settings...
 ```
 
@@ -130,7 +130,7 @@ Templates are skipped if already present:
 
 Ensure database user has INSERT privileges:
 ```sql
-GRANT INSERT, UPDATE ON salfanet_radius.* TO 'salfanet_user'@'localhost';
+GRANT INSERT, UPDATE ON EugineBill_radius.* TO 'EugineBill_user'@'localhost';
 FLUSH PRIVILEGES;
 ```
 

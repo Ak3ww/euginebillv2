@@ -1,10 +1,10 @@
-# FreeRADIUS Setup Guide for SALFANET RADIUS
+# FreeRADIUS Setup Guide for EugineBill RADIUS
 
 This guide explains how to configure FreeRADIUS for both PPPoE and Hotspot authentication.
 
 ## Overview
 
-SALFANET RADIUS uses FreeRADIUS 3.0 with MySQL backend to authenticate:
+EugineBill RADIUS uses FreeRADIUS 3.0 with MySQL backend to authenticate:
 1. **PPPoE Users** - Customer accounts with `username@realm` format
 2. **Hotspot Vouchers** - One-time codes without `@` symbol
 
@@ -60,10 +60,10 @@ sql {
     
     server = "localhost"
     port = 3306
-    login = "salfanet_user"
-    password = "salfanetradius123"
+    login = "EugineBill_user"
+    password = "EugineBillradius123"
     
-    radius_db = "salfanet_radius"
+    radius_db = "EugineBill_radius"
     
     acct_table1 = "radacct"
     acct_table2 = "radacct"
@@ -206,7 +206,7 @@ Bagian ini dikomentari untuk mengizinkan realm tanpa titik:
 **Cara Restore dari Backup:**
 ```bash
 # Copy file policy.d-filter dari backup
-sudo cp /var/www/salfanet-radius/freeradius-config/policy.d-filter /etc/freeradius/3.0/policy.d/filter
+sudo cp /var/www/EugineBill-radius/freeradius-config/policy.d-filter /etc/freeradius/3.0/policy.d/filter
 
 # Remove BOM
 sudo sed -i '1s/^\xEF\xBB\xBF//' /etc/freeradius/3.0/policy.d/filter
@@ -473,7 +473,7 @@ systemctl status freeradius
 tail -f /var/log/freeradius/radius.log
 
 # Test specific user in database
-mysql -u salfanet_user -p salfanet_radius -e "SELECT * FROM radcheck WHERE username='john@rw01'"
+mysql -u EugineBill_user -p EugineBill_radius -e "SELECT * FROM radcheck WHERE username='john@rw01'"
 ```
 
 ## Backup & Restore

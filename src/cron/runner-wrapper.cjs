@@ -1,5 +1,5 @@
 /**
- * runner-wrapper.cjs — CJS entry point for salfanet-cron PM2 process.
+ * runner-wrapper.cjs — CJS entry point for EugineBill-cron PM2 process.
  *
  * Execution order:
  *  1. preload.cjs  — patches require.cache so 'server-only' is a no-op
@@ -7,7 +7,7 @@
  *  3. runner.ts    — starts the cron scheduler (reads DB schedules, sets up jobs)
  *
  * PM2 command:
- *   pm2 start src/cron/runner-wrapper.cjs --name salfanet-cron --cwd /var/www/salfanet-frontend
+ *   pm2 start src/cron/runner-wrapper.cjs --name EugineBill-cron --cwd /var/www/EugineBill-frontend
  */
 'use strict';
 

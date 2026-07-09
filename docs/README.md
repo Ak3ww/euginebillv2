@@ -1,4 +1,4 @@
-﻿# SALFANET RADIUS - Documentation Index
+# EugineBill RADIUS - Documentation Index
 
 **Version**: 2.11.6  
 **Last Updated**: March 27, 2026
@@ -23,7 +23,7 @@ Complete project context in one file:
 
 ## 📖 Quick Start
 
-### 🎯 New to SALFANET RADIUS?
+### 🎯 New to EugineBill RADIUS?
 Start here → **[COMPREHENSIVE_FEATURE_GUIDE.md](COMPREHENSIVE_FEATURE_GUIDE.md)**
 - Complete overview of all features (100+)
 - 15 major sections covering entire system
@@ -227,5 +227,5 @@ docs/
 ---
 
 **Generated**: December 23, 2025  
-**Maintained by**: SALFANET RADIUS Team  
+**Maintained by**: EugineBill RADIUS Team  
 **License**: Proprietary
