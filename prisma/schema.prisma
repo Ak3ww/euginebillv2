@@ -2441,3 +2441,34 @@ model network_fiber_paths {
 
   @@index([status])
 }
+model acsDevice {
+  id                   String    @id @default(uuid())
+  serialNumber         String    @unique
+  manufacturer         String?
+  oui                  String?
+  productClass         String?
+  hardwareVersion      String?
+  softwareVersion      String?
+  connectionRequestUrl String?
+  lastInform           DateTime?
+  parameters           Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  companyId            String
+  company              company   @relation(fields: [companyId], references: [id])
+  tasks                acsTask[]
+}
+
+model acsTask {
+  id           String    @id @default(uuid())
+  deviceId     String
+  device       acsDevice @relation(fields: [deviceId], references: [id])
+  name         String
+  command      String
+  status       String    @default("pending") // pending, processing, success, failed
+  payload      Json?
+  result       Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
