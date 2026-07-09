@@ -81,6 +81,7 @@ model agent {
 }
 
 model company {
+  acsDevices        acsDevice[]
   id                   String   @id
   name                 String
   address              String?
@@ -2442,6 +2443,8 @@ model network_fiber_paths {
   @@index([status])
 }
 model acsDevice {
+  pppoeUserId          String?
+  pppoeUser            pppoeUser? @relation(fields: [pppoeUserId], references: [id])
   id                   String    @id @default(uuid())
   serialNumber         String    @unique
   manufacturer         String?
