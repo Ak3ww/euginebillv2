@@ -260,17 +260,17 @@ export async function POST(
     // Generate invoice number: INV-YYYYMM-XXXX
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
-    const prefix = `INV-${year}${month}-`;
+    const invPrefix = `INV-${year}${month}-`;
     
     const count = await prisma.invoice.count({
       where: {
         invoiceNumber: {
-          startsWith: prefix,
+          startsWith: invPrefix,
         },
       },
     });
     
-    const invoiceNumber = `${prefix}${String(count + 1).padStart(4, '0')}`;
+    const invoiceNumber = `${invPrefix}${String(count + 1).padStart(4, '0')}`;
 
     // Calculate invoice amounts based on subscription type
     let baseAmount: number;

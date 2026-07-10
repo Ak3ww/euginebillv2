@@ -10,7 +10,7 @@ export default function AcsDeviceActions({ serialNumber }: { serialNumber: strin
   const router = useRouter();
   const [loading, setLoading] = useState('');
 
-  const handleAction = async (action: string) => {
+  const handleAction = async (action: string, params?: Record<string, any>) => {
     if (!confirm(`Anda yakin ingin melakukan aksi ${action} pada perangkat ini?`)) return;
     
     setLoading(action);
@@ -18,7 +18,7 @@ export default function AcsDeviceActions({ serialNumber }: { serialNumber: strin
       const res = await fetch(`/api/acs/action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serialNumber, action }),
+        body: JSON.stringify({ serialNumber, action, ...params }),
       });
       
       const data = await res.json();
@@ -113,7 +113,6 @@ export default function AcsDeviceActions({ serialNumber }: { serialNumber: strin
         <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
           Catatan: ONT hanya akan mengeksekusi perintah ini ketika melakukan heartbeat (Inform) berikutnya atau jika fitur Connection Request berhasil diakses.
         </p>
-      </div>
     </div>
   );
 }
