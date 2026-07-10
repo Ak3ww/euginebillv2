@@ -172,7 +172,9 @@ add name=isolir \\
     } catch {
       return 'YOUR_SERVER_IP';
     }
-  };  const firewallFilterScript = `/ip firewall filter
+  };
+
+  const firewallFilterScript = `/ip firewall filter
 # PENTING: Tambahkan rule-rule berikut SEBELUM rule DROP yang sudah ada!
 # Gunakan: /ip firewall filter move [rule-baru] destination=[posisi-sebelum-drop]
 #
@@ -227,7 +229,7 @@ add chain=forward \\
 add chain=forward \\
     src-address-list=isolir \\
     action=drop \\
-    comment="EugineBill - Block internet for isolated users"`;ers"`;
+    comment="EugineBill - Block internet for isolated users"`;
 
   const paymentGatewayScript = `/ip firewall address-list
 # ============================================
