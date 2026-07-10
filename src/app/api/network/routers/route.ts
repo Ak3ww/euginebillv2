@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { reloadFreeRadius } from '@/server/services/radius/freeradius.service';
 import { logActivity } from '@/server/services/activity-log.service';
 import { getServerSession } from 'next-auth';
@@ -100,7 +100,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, ipAddress, nasIpAddress, username, password, port, apiPort, secret, latitude, longitude, vpnClientId, type } = body;
+    const { name, ipAddress, nasIpAddress, nasname: nasnameFromBody, username, password, port, apiPort, secret, latitude, longitude, vpnClientId, type } = body;
 
     // Basic validation
     if (!name || !ipAddress) {
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     // nasname = IP yang digunakan FreeRADIUS untuk autentikasi (IP publik/VPN source)
     // ipAddress = IP untuk koneksi API MikroTik
     // Jika nasIpAddress tidak diisi, gunakan ipAddress sebagai default
-    const nasname = nasIpAddress || ipAddress;
+    const nasname = nasIpAddress || nasnameFromBody || ipAddress;
 
     // Check if router with same nasname+port+secret already exists
     const existingRouter = await prisma.router.findFirst({
