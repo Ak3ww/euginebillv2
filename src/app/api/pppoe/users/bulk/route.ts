@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
           { key: 'address', header: 'Alamat', width: 32 },
           { key: 'area', header: 'Area/Wilayah', width: 20 },
           { key: 'ipAddress', header: 'IP Address', width: 16 },
-          { key: 'subscriptionType', header: 'Tipe Langganan (POSTPAID/PREPAID)', width: 32 },
+          { key: 'subscriptionType', header: 'Tipe Langganan (Wajib isi: POSTPAID atau PREPAID)', width: 32 },
           { key: 'expiredAt', header: 'Tanggal Expired (YYYY-MM-DD)', width: 26 },
           { key: 'billingDay', header: 'Hari Tagihan (1-31)', width: 20 },
           { key: 'latitude', header: 'Latitude', width: 14 },
@@ -97,9 +97,8 @@ export async function GET(request: NextRequest) {
       }
 
       // CSV fallback
-      const template = `ID Pelanggan (kosongkan = auto),PPPoE Pelanggan,Password PPPoE,Password Portal Pelanggan,Nama Lengkap *,No. Telepon *,Email,Alamat,Area/Wilayah,IP Address,Tipe Langganan (POSTPAID/PREPAID),Tanggal Expired (YYYY-MM-DD),Hari Tagihan (1-31),Latitude,Longitude,Auto Isolasi (true/false),Tagihan Pertama (none/prorate/full),Tanggal Register (YYYY-MM-DD)
-,user001,pass123,123,Budi Santoso,08123456789,budi@example.com,Jl. Merdeka No. 10,Cluster A,10.10.10.2,POSTPAID,,1,-6.200000,106.816666,true,prorate,
-,user002,pass456,123,Siti Rahayu,08987654321,siti@example.com,Jl. Sudirman No. 5,,, PREPAID,2026-12-31,,,,true,full,`;
+      const template = `ID Pelanggan (kosongkan = auto),PPPoE Pelanggan,Password PPPoE,Password Portal Pelanggan,Nama Lengkap *,No. Telepon *,Email,Alamat,Area/Wilayah,IP Address,Tipe Langganan (Wajib isi: POSTPAID atau PREPAID),Tanggal Expired (YYYY-MM-DD),Hari Tagihan (1-31),Latitude,Longitude,Auto Isolasi (true/false),Tagihan Pertama (none/prorate/full),Tanggal Register (YYYY-MM-DD)
+${sampleData.map(d => Object.values(d).join(',')).join('\n')}`;
 
       return new NextResponse(template, {
         headers: {
@@ -244,6 +243,7 @@ export async function POST(request: NextRequest) {
       'telepon': 'phone',
       'alamat': 'address',
       'tipe langganan (postpaid/prepaid)': 'subscriptiontype',
+      'tipe langganan (wajib isi: postpaid atau prepaid)': 'subscriptiontype',
       'tipe langganan': 'subscriptiontype',
       'tipe berlangganan (postpaid/prepaid)': 'subscriptiontype',
       'tipe berlangganan': 'subscriptiontype',
