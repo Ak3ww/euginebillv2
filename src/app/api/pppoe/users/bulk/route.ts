@@ -21,73 +21,54 @@ export async function GET(request: NextRequest) {
 
   try {
     if (type === 'template') {
-      const format = searchParams.get('format') || 'csv';
+      // Unified Headers Array
+      const unifiedHeaders = [
+        'ID Pelanggan (kosongkan = auto)',
+        'PPPoE Pelanggan',
+        'Password PPPoE',
+        'Password Portal Pelanggan',
+        'Nama Lengkap *',
+        'No. Telepon *',
+        'Email',
+        'Alamat',
+        'Area/Wilayah',
+        'IP Address',
+        'Tipe Langganan (Wajib isi: POSTPAID atau PREPAID)',
+        'Profile (opsional)',
+        'Router (opsional)',
+        'Tanggal Expired (YYYY-MM-DD)',
+        'Hari Tagihan (1-31)',
+        'Latitude',
+        'Longitude',
+        'Auto Isolasi (true/false)',
+        'Tagihan Pertama (none/prorate/full)',
+        'Tanggal Register (YYYY-MM-DD)',
+        'Status (abaikan saat import)'
+      ];
 
       // Sample template rows
       const sampleData = [
-        {
-          customerId: '',
-          customerId: '',
-          username: 'user001',
-          password: 'pass123',
-          portalPassword: '123',
-          name: 'Budi Santoso',
-          phone: '08123456789',
-          email: 'budi@example.com',
-          address: 'Jl. Merdeka No. 10',
-          area: 'Cluster A',
-          ipAddress: '10.10.10.2',
-          subscriptionType: 'POSTPAID',
-          expiredAt: '',
-          billingDay: '1',
-          latitude: '-6.200000',
-          longitude: '106.816666',
-          autoIsolationEnabled: 'true',
-          firstInvoice: 'prorate',
-        },
-        {
-          customerId: '',
-          username: 'user002',
-          password: 'pass456',
-          portalPassword: '123',
-          name: 'Siti Rahayu',
-          phone: '08987654321',
-          email: 'siti@example.com',
-          address: 'Jl. Sudirman No. 5',
-          area: '',
-          ipAddress: '',
-          subscriptionType: 'PREPAID',
-          expiredAt: '2026-12-31',
-          billingDay: '',
-          latitude: '',
-          longitude: '',
-          autoIsolationEnabled: 'true',
-          firstInvoice: 'full',
-        },
+        [
+          '', 'user001', 'pass123', '123', 'Budi Santoso', '08123456789', 'budi@example.com',
+          'Jl. Merdeka No. 10', 'Cluster A', '10.10.10.2', 'POSTPAID', '10 Mbps', 'MikroTik Pusat',
+          '', '1', '-6.200000', '106.816666', 'true', 'prorate', '2026-07-01', ''
+        ],
+        [
+          '', 'user002', 'pass456', '123', 'Siti Rahayu', '08987654321', 'siti@example.com',
+          'Jl. Sudirman No. 5', '', '', 'PREPAID', '20 Mbps', 'Global',
+          '2026-12-31', '', '', '', 'true', 'full', '2026-07-02', ''
+        ]
       ];
 
       if (format === 'xlsx') {
-        const columns = [
-          { key: 'customerId', header: 'ID Pelanggan (kosongkan = auto)', width: 28 },
-          { key: 'username', header: 'PPPoE Pelanggan', width: 25 },
-          { key: 'password', header: 'Password PPPoE', width: 25 },
-          { key: 'portalPassword', header: 'Password Portal Pelanggan', width: 28 },
-          { key: 'name', header: 'Nama Lengkap *', width: 24 },
-          { key: 'phone', header: 'No. Telepon *', width: 18 },
-          { key: 'email', header: 'Email', width: 26 },
-          { key: 'address', header: 'Alamat', width: 32 },
-          { key: 'area', header: 'Area/Wilayah', width: 20 },
-          { key: 'ipAddress', header: 'IP Address', width: 16 },
-          { key: 'subscriptionType', header: 'Tipe Langganan (Wajib isi: POSTPAID atau PREPAID)', width: 32 },
-          { key: 'expiredAt', header: 'Tanggal Expired (YYYY-MM-DD)', width: 26 },
-          { key: 'billingDay', header: 'Hari Tagihan (1-31)', width: 20 },
-          { key: 'latitude', header: 'Latitude', width: 14 },
-          { key: 'longitude', header: 'Longitude', width: 14 },
-          { key: 'autoIsolationEnabled', header: 'Auto Isolasi (true/false)', width: 22 },
-          { key: 'firstInvoice', header: 'Tagihan Pertama (none/prorate/full)', width: 30 },
-          { key: 'registeredAt', header: 'Tanggal Register (YYYY-MM-DD)', width: 26 },
-        ];
-        const buffer = await generateExcelBuffer(sampleData as any, columns, 'PPPoE Template');
+        const columns = unifiedHeaders.map(h => ({ key: h, header: h, width: 25 }));
+        // Map sampleData arrays to objects for exceljs
+        const excelData = sampleData.map(row => {
+          const obj: any = {};
+          unifiedHeaders.forEach((h, i) => { obj[h] = row[i]; });
+          return obj;
+        });
+        const buffer = await generateExcelBuffer(excelData, columns, 'PPPoE Template');
         return new NextResponse(Buffer.from(buffer), {
           headers: {
             'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -97,8 +78,7 @@ export async function GET(request: NextRequest) {
       }
 
       // CSV fallback
-      const template = `ID Pelanggan (kosongkan = auto),PPPoE Pelanggan,Password PPPoE,Password Portal Pelanggan,Nama Lengkap *,No. Telepon *,Email,Alamat,Area/Wilayah,IP Address,Tipe Langganan (Wajib isi: POSTPAID atau PREPAID),Tanggal Expired (YYYY-MM-DD),Hari Tagihan (1-31),Latitude,Longitude,Auto Isolasi (true/false),Tagihan Pertama (none/prorate/full),Tanggal Register (YYYY-MM-DD)
-${sampleData.map(d => Object.values(d).join(',')).join('\n')}`;
+      const template = unifiedHeaders.join(',') + '\n' + sampleData.map(row => row.map(v => `"${v}"`).join(',')).join('\n');
 
       return new NextResponse(template, {
         headers: {
@@ -129,14 +109,39 @@ ${sampleData.map(d => Object.values(d).join(',')).join('\n')}`;
         },
       });
 
-      // Build CSV content with password
-      let csv = 'username,password,customerId,name,phone,email,address,area,ipAddress,subscriptionType,billingDay,status,profile,router,expiredAt,latitude,longitude,autoIsolationEnabled,createdAt\n';
+      // Unified Headers Array for Export
+      const unifiedHeaders = [
+        'ID Pelanggan (kosongkan = auto)',
+        'PPPoE Pelanggan',
+        'Password PPPoE',
+        'Password Portal Pelanggan',
+        'Nama Lengkap *',
+        'No. Telepon *',
+        'Email',
+        'Alamat',
+        'Area/Wilayah',
+        'IP Address',
+        'Tipe Langganan (Wajib isi: POSTPAID atau PREPAID)',
+        'Profile (opsional)',
+        'Router (opsional)',
+        'Tanggal Expired (YYYY-MM-DD)',
+        'Hari Tagihan (1-31)',
+        'Latitude',
+        'Longitude',
+        'Auto Isolasi (true/false)',
+        'Tagihan Pertama (none/prorate/full)',
+        'Tanggal Register (YYYY-MM-DD)',
+        'Status (abaikan saat import)'
+      ];
+
+      let csv = unifiedHeaders.map(h => `"${h}"`).join(',') + '\n';
       
       users.forEach(user => {
         const row = [
+          (user as any).customerId || '',
           user.username,
           user.password, // Include plaintext password for backup/recovery
-          (user as any).customerId || '',
+          user.portalPassword || '123',
           user.name,
           user.phone,
           user.email || '',
@@ -144,15 +149,16 @@ ${sampleData.map(d => Object.values(d).join(',')).join('\n')}`;
           (user as any).area?.name || '',
           user.ipAddress || '',
           (user as any).subscriptionType || 'POSTPAID',
-          (user as any).billingDay || '',
-          user.status,
           user.profile?.name || '',
           user.router?.name || 'Global',
           user.expiredAt ? new Date(user.expiredAt).toISOString().split('T')[0] : '',
+          (user as any).billingDay || '',
           user.latitude || '',
           user.longitude || '',
           (user as any).autoIsolationEnabled !== false ? 'true' : 'false',
+          '', // firstInvoice (empty for export)
           new Date(user.createdAt).toISOString().split('T')[0],
+          user.status
         ];
         csv += row.map(field => `"${field}"`).join(',') + '\n';
       });
@@ -261,8 +267,11 @@ export async function POST(request: NextRequest) {
       'id pelanggan': 'customerid',
       'id pelanggan (kosongkan = auto)': 'customerid',
       'customer id': 'customerid',
+      'profile (opsional)': 'profilename',
       'profile': 'profilename',
+      'status (abaikan saat import)': '_status',
       'status': '_status',
+      'router (opsional)': 'routername',
       'router': 'routername',
       'created': '_created',
       'createdat': 'createdat',
