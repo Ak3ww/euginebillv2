@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { genCustomerId } from '@/lib/utils';
 import { sendRegistrationApproval } from '@/server/services/notifications/whatsapp-templates.service';
@@ -25,7 +25,7 @@ export async function POST(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const { id } = await params;
     const body = await request.json();
-    const { installationFee = 0, subscriptionType = 'POSTPAID', billingDay = 1, areaId, routerId } = body;
+    const { installationFee = 0, subscriptionType = 'POSTPAID', billingDay = 1, areaId, routerId, additionalFees = [] } = body;
 
     // Installation fee is optional, default to 0
     const fee = installationFee || 0;
@@ -78,9 +78,10 @@ export async function POST(
     }
 
     // Generate unique customerId (with company prefix if configured)
+    const companyInfo = await prisma.company.findFirst();
+    const prefix = companyInfo?.customerIdPrefix?.trim() || '';
+
     async function generateUniqueCustomerId() {
-      const co = await prisma.company.findFirst({ select: { customerIdPrefix: true } });
-      const prefix = (co as any)?.customerIdPrefix?.trim() || '';
       for (let i = 0; i < 10; i++) {
         const candidate = prefix + genCustomerId();
         const exists = await prisma.pppoeUser.findFirst({ where: { customerId: candidate } as any });
@@ -95,25 +96,42 @@ export async function POST(
 
     const customerId = await generateUniqueCustomerId();
 
-    // Calculate expiredAt based on subscription type
+    // Determine billing day (prioritize input, then company setting, then 1)
+    const activeBillingDay = billingDay ? validBillingDay : (companyInfo?.fixedBillingDate || 1);
+
+    // Calculate expiredAt and Prorate (if enabled)
     let expiredAt: Date;
+    let prorateSubscriptionFee = 0;
     const now = new Date();
     
-    if (subscriptionType === 'POSTPAID') {
-      // POSTPAID: expiredAt = billingDay bulan berikutnya
-      expiredAt = new Date(now);
-      expiredAt.setMonth(expiredAt.getMonth() + 1); // Next month
-      expiredAt.setDate(validBillingDay); // Set to billing day
-      expiredAt.setHours(23, 59, 59, 999);
-    } else {
-      // PREPAID: expiredAt = now + validity dari profile
-      expiredAt = new Date(now);
-      if (registration.profile.validityUnit === 'MONTHS') {
-        expiredAt.setMonth(expiredAt.getMonth() + registration.profile.validityValue);
-      } else {
-        expiredAt.setDate(expiredAt.getDate() + registration.profile.validityValue);
+    if (companyInfo?.enableProrate) {
+      // PRORATE LOGIC
+      expiredAt = new Date(now.getFullYear(), now.getMonth(), activeBillingDay, 23, 59, 59, 999);
+      if (now.getDate() >= activeBillingDay) {
+        expiredAt.setMonth(expiredAt.getMonth() + 1);
       }
-      expiredAt.setHours(23, 59, 59, 999);
+      
+      const msPerDay = 1000 * 60 * 60 * 24;
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const daysActive = Math.max(1, Math.ceil((expiredAt.getTime() - today.getTime()) / msPerDay));
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      
+      prorateSubscriptionFee = Math.ceil((daysActive / daysInMonth) * registration.profile.price);
+    } else {
+      if (subscriptionType === 'POSTPAID') {
+        expiredAt = new Date(now);
+        expiredAt.setMonth(expiredAt.getMonth() + 1); // Next month
+        expiredAt.setDate(activeBillingDay); // Set to billing day
+        expiredAt.setHours(23, 59, 59, 999);
+      } else {
+        expiredAt = new Date(now);
+        if (registration.profile.validityUnit === 'MONTHS') {
+          expiredAt.setMonth(expiredAt.getMonth() + registration.profile.validityValue);
+        } else {
+          expiredAt.setDate(expiredAt.getDate() + registration.profile.validityValue);
+        }
+        expiredAt.setHours(23, 59, 59, 999);
+      }
     }
 
     // Resolve referral code to referrer ID
@@ -145,7 +163,7 @@ export async function POST(
         status: 'active', // Create as active first
         syncedToRadius: false,
         subscriptionType: subscriptionType as 'POSTPAID' | 'PREPAID',
-        billingDay: validBillingDay,
+        billingDay: activeBillingDay,
         expiredAt: expiredAt,
         referredById: referredById,
         referralCode: await generateUniqueReferralCode(),
@@ -258,15 +276,46 @@ export async function POST(
     let baseAmount: number;
     let invoiceType: string;
     
-    if (subscriptionType === 'PREPAID') {
-      // PREPAID: installation + first month subscription
+    // Calculate total from additionalFees (can be negative for discounts)
+    let extraFeesTotal = 0;
+    if (Array.isArray(additionalFees)) {
+      extraFeesTotal = additionalFees.reduce((sum: number, fee: any) => sum + (Number(fee.amount) || 0), 0);
+    }
+    
+    // Add prorate discount to additionalFees if enabled
+    const finalAdditionalFees = [...(Array.isArray(additionalFees) ? additionalFees : [])];
+    
+    if (companyInfo?.enableProrate) {
       baseAmount = Math.round(Number(fee)) + registration.profile.price;
+      
+      // Calculate prorate discount (negative value)
+      const prorateDiscount = prorateSubscriptionFee - registration.profile.price;
+      if (prorateDiscount < 0) {
+        finalAdditionalFees.push({
+          name: `Diskon Prorata (${registration.profile.name})`,
+          amount: prorateDiscount
+        });
+        extraFeesTotal += prorateDiscount;
+      }
+      
       invoiceType = 'INSTALLATION';
     } else {
-      // POSTPAID: installation only
-      baseAmount = Math.round(Number(fee));
-      invoiceType = 'INSTALLATION';
+      if (subscriptionType === 'PREPAID') {
+        // PREPAID: installation + first month subscription
+        baseAmount = Math.round(Number(fee)) + registration.profile.price;
+        invoiceType = 'INSTALLATION';
+      } else {
+        // POSTPAID: installation only
+        baseAmount = Math.round(Number(fee));
+        invoiceType = 'INSTALLATION';
+      }
     }
+    
+    // Add extra fees to baseAmount
+    baseAmount += extraFeesTotal;
+    
+    // Ensure baseAmount doesn't go below 0
+    if (baseAmount < 0) baseAmount = 0;
 
     // Calculate PPN if enabled on profile
     let invoiceAmount = baseAmount;
@@ -277,8 +326,7 @@ export async function POST(
     }
 
     // Get company baseUrl from database
-    const company = await prisma.company.findFirst();
-    const baseUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl = companyInfo?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     // Generate payment token and link
     const paymentToken = crypto.randomBytes(32).toString('hex');
@@ -301,6 +349,7 @@ export async function POST(
         paymentToken,
         paymentLink,
         invoiceType: invoiceType as any,
+        additionalFees: finalAdditionalFees.length > 0 ? finalAdditionalFees : undefined,
       },
     });
 

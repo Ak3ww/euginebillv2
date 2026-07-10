@@ -31,6 +31,9 @@ interface CompanySettings {
   footerAgent: string;
   invoiceGenerateDays: number;
   radiusEnabled: boolean;
+  enableProrate: boolean;
+  fixedBillingDate: number;
+  isolateProfileName: string;
   logo?: string;
 }
 
@@ -54,6 +57,9 @@ export default function CompanySettingsPage() {
     footerAgent: '',
     invoiceGenerateDays: 7,
     radiusEnabled: false,
+    enableProrate: true,
+    fixedBillingDate: 6,
+    isolateProfileName: '',
     logo: '',
   });
   const [initialTimezone, setInitialTimezone] = useState('Asia/Jakarta');
@@ -89,6 +95,9 @@ export default function CompanySettingsPage() {
             footerAgent: data.footerAgent || '',
             invoiceGenerateDays: data.invoiceGenerateDays || 7,
             radiusEnabled: data.radiusEnabled || false,
+            enableProrate: data.enableProrate ?? true,
+            fixedBillingDate: data.fixedBillingDate || 6,
+            isolateProfileName: data.isolateProfileName || '',
             logo: data.logo || '',
           });
           setInitialTimezone(data.timezone || 'Asia/Jakarta');
@@ -427,6 +436,73 @@ export default function CompanySettingsPage() {
                   required
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">{t('settings.invoiceGenerateDaysHelp')}</p>
+              </div>
+
+              {/* Tagihan Prorata & Tanggal Jatuh Tempo */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col justify-center bg-card border border-border p-3 rounded-lg">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.enableProrate}
+                      onChange={(e) => setSettings({ ...settings, enableProrate: e.target.checked })}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"
+                    />
+                    <span className="text-[12px] font-medium text-foreground">Aktifkan Prorata</span>
+                  </label>
+                  <p className="mt-1 text-[10px] text-muted-foreground ml-6">
+                    Pelanggan baru akan ditagih sesuai jumlah hari di bulan pertama
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
+                    🗓️ Tanggal Jatuh Tempo Tetap
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="28"
+                    value={settings.fixedBillingDate}
+                    onChange={(e) => setSettings({ ...settings, fixedBillingDate: parseInt(e.target.value) || 6 })}
+                    className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-card focus:ring-1 focus:ring-ring focus:border-primary"
+                    placeholder="6"
+                    required
+                  />
+                  <p className="mt-1 text-[10px] text-muted-foreground">Default tanggal jatuh tempo untuk pelanggan baru (1-28)</p>
+                </div>
+              </div>
+
+              {/* RADIUS Settings */}
+              <div className="flex flex-col bg-card border border-border p-3 rounded-lg mt-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.radiusEnabled}
+                    onChange={(e) => setSettings({ ...settings, radiusEnabled: e.target.checked })}
+                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"
+                  />
+                  <span className="text-[12px] font-medium text-foreground">Aktifkan RADIUS</span>
+                </label>
+                <p className="mt-1 text-[10px] text-muted-foreground ml-6">
+                  Gunakan FreeRADIUS untuk autentikasi dan isolir. Jika dimatikan, MikroTik API yang akan mengelola isolir (ubah profile/disconnect).
+                </p>
+                
+                {!settings.radiusEnabled && (
+                  <div className="mt-3 ml-6">
+                    <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
+                      🛑 Profile Isolir (MikroTik)
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.isolateProfileName}
+                      onChange={(e) => setSettings({ ...settings, isolateProfileName: e.target.value })}
+                      className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-background focus:ring-1 focus:ring-ring focus:border-primary"
+                      placeholder="Contoh: ISOLIR"
+                    />
+                    <p className="mt-1 text-[10px] text-muted-foreground">Nama PPPoE Profile di MikroTik untuk pelanggan terisolir</p>
+                  </div>
+                )}
               </div>
 
               {/* Prefix ID Pelanggan */}

@@ -1,4 +1,4 @@
-﻿import { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { disconnectPPPoEUser } from '@/server/services/radius/coa-handler.service';
 import { getServerSession } from 'next-auth';
@@ -499,8 +499,21 @@ export async function PUT(request: NextRequest) {
 
           // Restore RADIUS to active profile
           try {
-            if (shouldActivate) {
-              // Remove forced reject (if any) from previous SUSPENDED state
+            const company = await prisma.company.findFirst();
+            const isRadius = company?.radiusEnabled !== false;
+
+            if (!isRadius) {
+              if (user.routerId) {
+                const mikrotikProfileName = targetProfile?.mikrotikProfileName || targetProfile?.name || profile.mikrotikProfileName || profile.name;
+                const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+                await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, mikrotikProfileName);
+                console.log(`  - MikroTik: Profile set to ${mikrotikProfileName}`);
+              } else {
+                console.log(`  - MikroTik: Cannot update profile (no routerId)`);
+              }
+            } else {
+              if (shouldActivate) {
+                // Remove forced reject (if any) from previous SUSPENDED state
               await prisma.radcheck.deleteMany({
                 where: { username: user.username, attribute: 'Auth-Type' }
               });
@@ -571,8 +584,10 @@ export async function PUT(request: NextRequest) {
             } else {
               console.log(`  - CoA: ${coaResult.error || 'No active session'}`);
             }
+            } // end isRadius else
+
           } catch (radiusError) {
-            console.error(`  - RADIUS sync error:`, radiusError);
+            console.error(`  - Restore sync error:`, radiusError);
           }
         }
       }

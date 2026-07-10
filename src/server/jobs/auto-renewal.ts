@@ -253,7 +253,19 @@ async function payInvoiceFromBalance(user: any, invoice: any) {
     // 5. Restore RADIUS if user was isolated
     if (user.status === 'isolated') {
       try {
-        await restoreUserInRADIUS(user.username, user.profile?.groupName, user.ipAddress)
+        const company = await prisma.company.findFirst()
+        const isRadius = company?.radiusEnabled !== false
+        if (!isRadius) {
+          if (user.routerId) {
+            const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service')
+            const mikrotikProfileName = user.profile?.mikrotikProfileName || user.profile?.name
+            if (mikrotikProfileName) {
+              await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, mikrotikProfileName)
+            }
+          }
+        } else {
+          await restoreUserInRADIUS(user.username, user.profile?.groupName, user.ipAddress)
+        }
       } catch (radiusError: any) {
         console.error('[Auto-Payment] RADIUS restore failed:', radiusError.message)
       }

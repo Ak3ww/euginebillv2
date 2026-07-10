@@ -29,6 +29,9 @@ export async function GET() {
         footerTechnician: 'Powered by EugineBill RADIUS',
         footerAgent: 'Powered by EugineBill RADIUS',
         radiusEnabled: false,
+        enableProrate: true,
+        fixedBillingDate: 6,
+        isolateProfileName: null,
       });
     }
 
@@ -83,6 +86,9 @@ export async function POST(request: Request) {
           bankAccounts: bankAccounts,
           invoiceGenerateDays: data.invoiceGenerateDays ? parseInt(data.invoiceGenerateDays) : undefined,
           radiusEnabled: data.radiusEnabled ?? false,
+          enableProrate: data.enableProrate ?? true,
+          fixedBillingDate: data.fixedBillingDate ? parseInt(data.fixedBillingDate) : 6,
+          isolateProfileName: data.isolateProfileName ?? null,
         },
       });
     } else {
@@ -107,6 +113,9 @@ export async function POST(request: Request) {
           bankAccounts: bankAccounts,
           invoiceGenerateDays: data.invoiceGenerateDays ? parseInt(data.invoiceGenerateDays) : 7,
           radiusEnabled: data.radiusEnabled ?? false,
+          enableProrate: data.enableProrate ?? true,
+          fixedBillingDate: data.fixedBillingDate ? parseInt(data.fixedBillingDate) : 6,
+          isolateProfileName: data.isolateProfileName ?? null,
         },
       });
     }

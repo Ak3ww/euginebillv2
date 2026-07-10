@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -87,6 +87,7 @@ export default function RegistrationsPage() {
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null);
   const [installationFee, setInstallationFee] = useState('');
+  const [additionalFees, setAdditionalFees] = useState<{name: string, amount: number}[]>([]);
   const [subscriptionType, setSubscriptionType] = useState<'POSTPAID' | 'PREPAID'>('POSTPAID');
   const [billingDay, setBillingDay] = useState('1');
   const [approveAreaId, setApproveAreaId] = useState('');
@@ -127,6 +128,7 @@ export default function RegistrationsPage() {
   const handleApproveClick = (registration: Registration) => {
     setSelectedRegistration(registration);
     setInstallationFee('');
+    setAdditionalFees([]);
     setSubscriptionType('POSTPAID');
     setBillingDay('1');
     setApproveAreaId(registration.areaId || '');
@@ -143,6 +145,7 @@ export default function RegistrationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           installationFee: installationFee ? parseFloat(installationFee) : 0,
+          additionalFees: additionalFees,
           subscriptionType: subscriptionType,
           billingDay: subscriptionType === 'POSTPAID' ? parseInt(billingDay) : 1,
           areaId: approveAreaId || null,
@@ -596,6 +599,65 @@ export default function RegistrationsPage() {
                   <ModalLabel>{t('pppoe.installationFee')} (opsional)</ModalLabel>
                   <ModalInput type="number" placeholder="e.g. 350000 (kosongkan atau isi 0 jika gratis)" value={installationFee} onChange={(e) => setInstallationFee(e.target.value)} min={0} />
                 </div>
+                
+                {/* Additional Fees UI */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <ModalLabel>Biaya Tambahan / Diskon Khusus</ModalLabel>
+                    <button 
+                      type="button" 
+                      onClick={() => setAdditionalFees([...additionalFees, {name: '', amount: 0}])}
+                      className="text-[10px] text-primary hover:underline font-medium"
+                    >
+                      + Tambah Baris
+                    </button>
+                  </div>
+                  {additionalFees.length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground">Tidak ada biaya/diskon tambahan.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {additionalFees.map((fee, idx) => (
+                        <div key={idx} className="flex gap-2 items-center">
+                          <input 
+                            type="text" 
+                            placeholder="Nama Biaya/Diskon (misal: Sewa Router, Promo Merdeka)" 
+                            className="flex-1 px-2 py-1.5 text-xs bg-background border border-border rounded"
+                            value={fee.name}
+                            onChange={(e) => {
+                              const newFees = [...additionalFees];
+                              newFees[idx].name = e.target.value;
+                              setAdditionalFees(newFees);
+                            }}
+                          />
+                          <input 
+                            type="number" 
+                            placeholder="Nominal (gunakan minus untuk diskon, misal -50000)" 
+                            className="w-32 px-2 py-1.5 text-xs bg-background border border-border rounded"
+                            value={fee.amount || ''}
+                            onChange={(e) => {
+                              const newFees = [...additionalFees];
+                              newFees[idx].amount = parseInt(e.target.value) || 0;
+                              setAdditionalFees(newFees);
+                            }}
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              const newFees = [...additionalFees];
+                              newFees.splice(idx, 1);
+                              setAdditionalFees(newFees);
+                            }}
+                            className="p-1.5 text-destructive hover:bg-destructive/10 rounded"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[9px] text-muted-foreground mt-1">Gunakan angka negatif untuk diskon potongan biaya (contoh: -20000).</p>
+                </div>
+
                 <div>
                   <ModalLabel>Area</ModalLabel>
                   <ModalSelect value={approveAreaId} onChange={(e) => setApproveAreaId(e.target.value)}>

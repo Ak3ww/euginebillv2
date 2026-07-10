@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Pencil, Trash2, CheckCircle2, XCircle, FileText, RefreshCw, Download, Upload, ChevronRight, ChevronDown, Eye, Radio, Wifi, WifiOff, RotateCcw } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAppStore } from '@/lib/store';
 import {
   SimpleModal,
   ModalHeader,
@@ -51,6 +52,7 @@ const defaultForm = {
 
 export default function PPPoEProfilesPage() {
   const { t } = useTranslation();
+  const { company } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<PPPoEProfile[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -480,12 +482,14 @@ export default function PPPoEProfilesPage() {
               <CheckCircle2 className="h-7 w-7 text-green-400 drop-shadow-[0_0_15px_rgba(34,197,94,0.6)]" />
             </div>
           </div>
-          <div className="bg-card rounded-lg border border-border p-3">
-            <div className="flex items-center justify-between">
-              <div><p className="text-[10px] text-muted-foreground uppercase">{t('pppoe.synced')}</p><p className="text-base font-bold text-primary">{profiles.filter(p => p.syncedToRadius).length}</p></div>
-              <CheckCircle2 className="h-5 w-5 text-primary" />
+          {company?.radiusEnabled && (
+            <div className="bg-card rounded-lg border border-border p-3">
+              <div className="flex items-center justify-between">
+                <div><p className="text-[10px] text-muted-foreground uppercase">{t('pppoe.synced')}</p><p className="text-base font-bold text-primary">{profiles.filter(p => p.syncedToRadius).length}</p></div>
+                <CheckCircle2 className="h-5 w-5 text-primary" />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Mobile Card View */}
@@ -500,10 +504,12 @@ export default function PPPoEProfilesPage() {
                     <p className="font-medium text-sm text-foreground">{profile.name}</p>
                     {profile.description && <p className="text-xs text-muted-foreground mt-0.5">{profile.description}</p>}
                   </div>
-                  {profile.syncedToRadius ? (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-success/10 text-success"><CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />{t('pppoe.synced')}</span>
-                  ) : (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-warning/10 text-warning"><XCircle className="h-2.5 w-2.5 mr-0.5" />{t('pppoe.pending')}</span>
+                  {company?.radiusEnabled && (
+                    profile.syncedToRadius ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-success/10 text-success"><CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />{t('pppoe.synced')}</span>
+                    ) : (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-warning/10 text-warning"><XCircle className="h-2.5 w-2.5 mr-0.5" />{t('pppoe.pending')}</span>
+                    )
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs mb-3">
@@ -532,12 +538,12 @@ export default function PPPoEProfilesPage() {
               <thead className="bg-muted/50">
                 <tr>
                   <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Nama Paket</th>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Group RADIUS</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Group Name</th>
                   <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Kecepatan</th>
                   <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Harga</th>
                   <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Pelanggan</th>
                   <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                  <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">RADIUS</th>
+                  {company?.radiusEnabled && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">RADIUS</th>}
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Aksi</th>
                 </tr>
               </thead>
@@ -615,21 +621,25 @@ export default function PPPoEProfilesPage() {
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-medium bg-muted text-muted-foreground border border-border"><XCircle className="h-2.5 w-2.5 mr-1" />Nonaktif</span>
                         )}
                       </td>
-                      <td className="px-3 py-2.5 text-center">
-                        {profile.syncedToRadius ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20"><CheckCircle2 className="h-2.5 w-2.5 mr-1" />Sync</span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-medium bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"><XCircle className="h-2.5 w-2.5 mr-1" />Pending</span>
-                        )}
-                      </td>
+                      {company?.radiusEnabled && (
+                        <td className="px-3 py-2.5 text-center">
+                          {profile.syncedToRadius ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20"><CheckCircle2 className="h-2.5 w-2.5 mr-1" />Sync</span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-medium bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"><XCircle className="h-2.5 w-2.5 mr-1" />Pending</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-3 py-2.5 text-right">
                         <div className="flex justify-end items-center gap-0.5">
-                          <button
-                            title="Sync ke RADIUS"
-                            onClick={() => handleSyncRadius(profile)}
-                            disabled={syncingRadiusId === profile.id}
-                            className="p-1.5 text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 rounded transition-colors disabled:opacity-40"
-                          >{syncingRadiusId === profile.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}</button>
+                          {company?.radiusEnabled && (
+                            <button
+                              title="Sync ke RADIUS"
+                              onClick={() => handleSyncRadius(profile)}
+                              disabled={syncingRadiusId === profile.id}
+                              className="p-1.5 text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 rounded transition-colors disabled:opacity-40"
+                            >{syncingRadiusId === profile.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}</button>
+                          )}
                           <button
                             title="Sync ke MikroTik"
                             onClick={() => handleSyncMikrotik(profile)}
@@ -693,9 +703,9 @@ export default function PPPoEProfilesPage() {
                 />
               </div>
 
-              {/* Group RADIUS */}
+              {/* Group Name */}
               <div>
-                <ModalLabel required>{t('pppoe.radiusGroup')}</ModalLabel>
+                <ModalLabel required>{company?.radiusEnabled ? t('pppoe.radiusGroup') : 'Nama Group'}</ModalLabel>
                 <ModalInput
                   type="text"
                   value={formData.groupName}
@@ -706,7 +716,7 @@ export default function PPPoEProfilesPage() {
                 <p className="text-[9px] text-muted-foreground mt-1">
                   {formData.groupName && formData.groupName === getAutoGroupName(formData.name)
                     ? <span>Auto-generate · <button type="button" className="text-primary hover:underline" onClick={() => setFormData(prev => ({...prev, groupName: ''}))}>Edit untuk kustomisasi</button></span>
-                    : 'Dipakai sebagai Group RADIUS dan otomatis jadi nama PPP Profile MikroTik'
+                    : company?.radiusEnabled ? 'Dipakai sebagai Group RADIUS dan otomatis jadi nama PPP Profile MikroTik' : 'Otomatis dipakai sebagai nama PPP Profile di MikroTik'
                   }
                 </p>
               </div>

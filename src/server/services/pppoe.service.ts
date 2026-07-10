@@ -204,10 +204,19 @@ export async function createPppoeUser(
   // Calculate expiredAt
   const now = new Date();
   let finalExpiredAt: Date;
-  if (subscriptionType === 'POSTPAID') {
+  
+  const defaultBillingDay = company?.fixedBillingDate || 1;
+  const validBillingDay = billingDay ? Math.min(Math.max(parseInt(String(billingDay)), 1), 31) : defaultBillingDay;
+  
+  if (company?.enableProrate) {
+    // PRORATE LOGIC
+    finalExpiredAt = new Date(now.getFullYear(), now.getMonth(), validBillingDay, 23, 59, 59, 999);
+    if (now.getDate() >= validBillingDay) {
+      finalExpiredAt.setMonth(finalExpiredAt.getMonth() + 1);
+    }
+  } else if (subscriptionType === 'POSTPAID') {
     finalExpiredAt = new Date(now);
     finalExpiredAt.setMonth(finalExpiredAt.getMonth() + 1);
-    const validBillingDay = billingDay ? Math.min(Math.max(parseInt(String(billingDay)), 1), 31) : 1;
     finalExpiredAt.setDate(validBillingDay);
     finalExpiredAt.setHours(23, 59, 59, 999);
   } else {
@@ -252,7 +261,7 @@ export async function createPppoeUser(
       expiredAt: finalExpiredAt,
       status: 'active',
       subscriptionType: subscriptionType || 'POSTPAID',
-      billingDay: billingDay ? Math.min(Math.max(parseInt(String(billingDay)), 1), 28) : 1,
+      billingDay: validBillingDay,
       idCardNumber: idCardNumber || null,
       idCardPhoto: idCardPhoto || null,
       installationPhotos: installationPhotos ?? null,
@@ -320,14 +329,14 @@ export async function createPppoeUser(
   if (firstInvoice && firstInvoice !== 'none') {
     try {
       let invoiceAmount = profile.price;
-      if (firstInvoice === 'prorate' && subscriptionType !== 'PREPAID') {
+      if (firstInvoice === 'prorate' || (company?.enableProrate && subscriptionType !== 'PREPAID')) {
         // Calculate prorate: days from today to next billing date
         const registrationDate = registeredAt ? new Date(registeredAt + 'T00:00:00') : new Date();
         registrationDate.setHours(0, 0, 0, 0);
         const year = registrationDate.getFullYear();
         const month = registrationDate.getMonth();
         const currentDay = registrationDate.getDate();
-        const bd = billingDay ? Math.min(Math.max(parseInt(String(billingDay)), 1), 28) : 1;
+        const bd = validBillingDay;
         let nextBilling: Date;
         if (currentDay < bd) { nextBilling = new Date(year, month, bd); }
         else { nextBilling = new Date(year, month + 1, bd); }

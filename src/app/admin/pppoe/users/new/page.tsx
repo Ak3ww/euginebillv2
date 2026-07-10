@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { showSuccess, showError } from '@/lib/sweetalert';
@@ -11,7 +11,7 @@ interface Router { id: string; name: string; nasname: string; ipAddress: string;
 interface Area { id: string; name: string; }
 
 const TABS = [
-  { id: 'radius', label: 'Akun RADIUS', icon: '📡' },
+  { id: 'pppoe', label: 'Akun PPPoE', icon: '📡' },
   { id: 'pelanggan', label: 'Data Pelanggan', icon: '👤' },
   { id: 'instalasi', label: 'Instalasi', icon: '🔧' },
   { id: 'pengaturan', label: 'Pengaturan', icon: '⚙️' },
@@ -205,7 +205,7 @@ export default function NewPppoeUserPage() {
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="space-y-3 pb-2">
 
-          {/* ── TAB 0: Akun RADIUS ─────────────────────────────────── */}
+          {/* ── TAB 0: Akun PPPoE ─────────────────────────────────── */}
           {activeTab === 0 && (
             <>
               <div className={`rounded-xl border p-3 flex items-start gap-3 cursor-pointer transition-all select-none ${hasPppoeAccount ? 'border-primary/50 bg-primary/5' : 'border-amber-400/50 bg-amber-50 dark:bg-amber-950/20'}`}
@@ -222,7 +222,7 @@ export default function NewPppoeUserPage() {
                   ) : (
                     <>
                       <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1"><WifiOff className="w-3 h-3" /> Tanpa Akun PPPoE (IP Statis / MAC)</p>
-                      <p className="text-[10px] text-amber-600 dark:text-amber-500">Username RADIUS di-generate otomatis. Cocok untuk pelanggan IP statis atau MAC-based.</p>
+                      <p className="text-[10px] text-amber-600 dark:text-amber-500">Username PPPoE/Hotspot di-generate otomatis. Cocok untuk pelanggan IP statis atau MAC-based.</p>
                     </>
                   )}
                 </div>

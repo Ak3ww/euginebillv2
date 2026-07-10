@@ -24,7 +24,10 @@ import { sendPushToUser } from '@/server/services/notifications/push-templates.s
  */
 export async function autoIsolateExpiredUsers() {
   try {
-    console.log('[AUTO-ISOLATE] Starting auto-isolation check...');
+    const company = await prisma.company.findFirst();
+    const isRadius = company?.radiusEnabled !== false;
+    const isolateProfileName = company?.isolateProfileName || 'isolir';
+    console.log(`[AUTO-ISOLATE] Starting auto-isolation check (RADIUS: ${isRadius})...`);
 
     // Find users that should be isolated (respect per-user autoIsolationEnabled setting)
     const expiredUsers = await prisma.pppoeUser.findMany({
@@ -45,6 +48,7 @@ export async function autoIsolateExpiredUsers() {
         phone: true,
         email: true,
         expiredAt: true,
+        routerId: true,
       },
     });
 
@@ -72,7 +76,18 @@ export async function autoIsolateExpiredUsers() {
           data: { status: 'isolated' },
         });
 
-        // 2. KEEP password in radcheck (ALLOW authentication!)
+        if (!isRadius) {
+          // DIRECT MIKROTIK ISOLATION
+          if (user.routerId) {
+            const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+            await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, isolateProfileName);
+            console.log(`[AUTO-ISOLATE] ✓ Swapped profile to '${isolateProfileName}' and kicked ${user.username} via MikroTik API`);
+          } else {
+            console.log(`[AUTO-ISOLATE] ⚠️ Cannot isolate via MikroTik API (no routerId) for ${user.username}`);
+          }
+        } else {
+          // RADIUS ISOLATION
+          // 2. KEEP password in radcheck (ALLOW authentication!)
         // This is critical - user MUST be able to login
         await prisma.$executeRaw`
           INSERT INTO radcheck (username, attribute, op, value)
@@ -147,14 +162,15 @@ export async function autoIsolateExpiredUsers() {
           console.log(`[AUTO-ISOLATE] ⚠️ Disconnect failed: ${coaError.message}`);
         }
 
-        // 6. Close session in radacct
-        await prisma.$executeRaw`
-          UPDATE radacct 
-          SET acctstoptime = NOW(), 
-              acctterminatecause = 'User-Isolated'
-          WHERE username = ${user.username} 
-            AND acctstoptime IS NULL
-        `;
+          // 6. Close session in radacct
+          await prisma.$executeRaw`
+            UPDATE radacct 
+            SET acctstoptime = NOW(), 
+                acctterminatecause = 'User-Isolated'
+            WHERE username = ${user.username} 
+              AND acctstoptime IS NULL
+          `;
+        } // end if isRadius
 
         // 7. Create activity log
         await prisma.activityLog.create({
@@ -373,13 +389,25 @@ export async function isolateUser(username: string, reason?: string) {
       };
     }
 
+    const company = await prisma.company.findFirst();
+    const isRadius = company?.radiusEnabled !== false;
+    const isolateProfileName = company?.isolateProfileName || 'isolir';
+
     // Same isolation logic as auto-isolate
     await prisma.pppoeUser.update({
       where: { id: user.id },
       data: { status: 'isolated' },
     });
 
-    // Keep password, remove Auth-Type Reject
+    if (!isRadius) {
+      // DIRECT MIKROTIK ISOLATION
+      if (user.routerId) {
+        const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+        await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, isolateProfileName);
+      }
+    } else {
+      // RADIUS ISOLATION
+      // Keep password, remove Auth-Type Reject
     await prisma.$executeRaw`
       INSERT INTO radcheck (username, attribute, op, value)
       VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
@@ -416,14 +444,15 @@ export async function isolateUser(username: string, reason?: string) {
       console.log('Disconnect failed, but isolation applied');
     }
 
-    // Close session
-    await prisma.$executeRaw`
-      UPDATE radacct 
-      SET acctstoptime = NOW(), 
-          acctterminatecause = 'Admin-Isolate'
-      WHERE username = ${user.username} 
-        AND acctstoptime IS NULL
-    `;
+      // Close session
+      await prisma.$executeRaw`
+        UPDATE radacct 
+        SET acctstoptime = NOW(), 
+            acctterminatecause = 'Admin-Isolate'
+        WHERE username = ${user.username} 
+          AND acctstoptime IS NULL
+      `;
+    } // end if isRadius
 
     return {
       success: true,
