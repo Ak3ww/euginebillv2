@@ -210,11 +210,11 @@ add chain=forward \\
     comment="EugineBill - Allow ping for isolated users"
 
 # [4] Allow akses ke billing server (halaman isolir + payment)
-# IMPORTANT: Ganti \${getServerIp()} dengan IP ADDRESS server Anda!
+# IMPORTANT: Ganti ${getServerIp()} dengan IP ADDRESS server Anda!
 # MikroTik firewall tidak support hostname, hanya IP!
 add chain=forward \\
     src-address-list=isolir \\
-    dst-address=\${getServerIp()} \\
+    dst-address=${getServerIp()} \\
     action=accept \\
     comment="EugineBill - Allow access to billing server"
 
