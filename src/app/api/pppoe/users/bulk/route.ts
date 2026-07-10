@@ -27,8 +27,10 @@ export async function GET(request: NextRequest) {
       const sampleData = [
         {
           customerId: '',
+          customerId: '',
           username: 'user001',
           password: 'pass123',
+          portalPassword: '123',
           name: 'Budi Santoso',
           phone: '08123456789',
           email: 'budi@example.com',
@@ -47,6 +49,7 @@ export async function GET(request: NextRequest) {
           customerId: '',
           username: 'user002',
           password: 'pass456',
+          portalPassword: '123',
           name: 'Siti Rahayu',
           phone: '08987654321',
           email: 'siti@example.com',
@@ -66,8 +69,9 @@ export async function GET(request: NextRequest) {
       if (format === 'xlsx') {
         const columns = [
           { key: 'customerId', header: 'ID Pelanggan (kosongkan = auto)', width: 28 },
-          { key: 'username', header: 'Username PPPoE (Router) *', width: 25 },
-          { key: 'password', header: 'Password PPPoE (Router) *', width: 25 },
+          { key: 'username', header: 'PPPoE Pelanggan', width: 25 },
+          { key: 'password', header: 'Password PPPoE', width: 25 },
+          { key: 'portalPassword', header: 'Password Portal Pelanggan', width: 28 },
           { key: 'name', header: 'Nama Lengkap *', width: 24 },
           { key: 'phone', header: 'No. Telepon *', width: 18 },
           { key: 'email', header: 'Email', width: 26 },
@@ -93,9 +97,9 @@ export async function GET(request: NextRequest) {
       }
 
       // CSV fallback
-      const template = `ID Pelanggan (kosongkan = auto),Username PPPoE (Router) *,Password PPPoE (Router) *,Nama Lengkap *,No. Telepon *,Email,Alamat,Area/Wilayah,IP Address,Tipe Langganan (POSTPAID/PREPAID),Tanggal Expired (YYYY-MM-DD),Hari Tagihan (1-31),Latitude,Longitude,Auto Isolasi (true/false),Tagihan Pertama (none/prorate/full),Tanggal Register (YYYY-MM-DD)
-,user001,pass123,Budi Santoso,08123456789,budi@example.com,Jl. Merdeka No. 10,Cluster A,10.10.10.2,POSTPAID,,1,-6.200000,106.816666,true,prorate,
-,user002,pass456,Siti Rahayu,08987654321,siti@example.com,Jl. Sudirman No. 5,,, PREPAID,2026-12-31,,,,true,full,`;
+      const template = `ID Pelanggan (kosongkan = auto),PPPoE Pelanggan,Password PPPoE,Password Portal Pelanggan,Nama Lengkap *,No. Telepon *,Email,Alamat,Area/Wilayah,IP Address,Tipe Langganan (POSTPAID/PREPAID),Tanggal Expired (YYYY-MM-DD),Hari Tagihan (1-31),Latitude,Longitude,Auto Isolasi (true/false),Tagihan Pertama (none/prorate/full),Tanggal Register (YYYY-MM-DD)
+,user001,pass123,123,Budi Santoso,08123456789,budi@example.com,Jl. Merdeka No. 10,Cluster A,10.10.10.2,POSTPAID,,1,-6.200000,106.816666,true,prorate,
+,user002,pass456,123,Siti Rahayu,08987654321,siti@example.com,Jl. Sudirman No. 5,,, PREPAID,2026-12-31,,,,true,full,`;
 
       return new NextResponse(template, {
         headers: {
@@ -198,17 +202,20 @@ export async function POST(request: NextRequest) {
 
     // Header normalization map — applied BEFORE row parsing so rowData uses normalized keys
     const headerNormalizeMap: Record<string, string> = {
-      // English (existing/fallback)
-      'username': 'username',
-      'password': 'password',
+      'id pelanggan (kosongkan = auto)': 'customerId',
+      'id pelanggan': 'customerId',
       'username pppoe (router) *': 'username',
+      'pppoe pelanggan': 'username',
+      'username *': 'username',
+      'username': 'username',
       'password pppoe (router) *': 'password',
-      'name': 'name',
-      'phone': 'phone',
-      'email': 'email',
-      'address': 'address',
-      'ipaddress': 'ipaddress',
-      'ip address': 'ipaddress',
+      'password pppoe': 'password',
+      'password *': 'password',
+      'password': 'password',
+      'password portal pelanggan': 'portalPassword',
+      'password portal': 'portalPassword',
+      'ip address': 'ipAddress',
+      'ip': 'ipAddress',
       'macaddress': 'macaddress',
       'mac address': 'macaddress',
       'subscriptiontype': 'subscriptiontype',
@@ -509,6 +516,7 @@ export async function POST(request: NextRequest) {
           id: randomUUID(),
           username: rowData.username,
           password: password,
+          portalPassword: rowData.portalpassword || '123',
           name: rowData.name,
           phone: rowData.phone,
           email: rowData.email || null,

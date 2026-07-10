@@ -31,9 +31,10 @@ export default function NewPppoeUserPage() {
   const [hasPppoeAccount, setHasPppoeAccount] = useState(true);
   const [firstInvoice, setFirstInvoice] = useState<'none' | 'prorate' | 'full'>('prorate');
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     username: '',
     password: '',
+    portalPassword: '123',
     profileId: '',
     routerId: '',
     areaId: '',
@@ -237,13 +238,19 @@ export default function NewPppoeUserPage() {
                       <ModalInput type="text" value={formData.username} onChange={(e) => field('username', e.target.value)} placeholder="pppoe-username" />
                     </div>
                     <div>
-                      <ModalLabel required>Password</ModalLabel>
+                      <ModalLabel required>Password Router</ModalLabel>
                       <div className="relative">
                         <ModalInput type={showPassword ? 'text' : 'password'} value={formData.password} onChange={(e) => field('password', e.target.value)} placeholder="password" className="pr-8" />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground">
                           {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                         </button>
                       </div>
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <ModalLabel required>Password Portal Pelanggan</ModalLabel>
+                    <div className="relative">
+                      <ModalInput type={showPassword ? 'text' : 'password'} value={formData.portalPassword} onChange={(e) => field('portalPassword', e.target.value)} placeholder="123" className="pr-8" />
                     </div>
                   </div>
                 </div>
@@ -261,11 +268,11 @@ export default function NewPppoeUserPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <label className={`flex items-center gap-2 p-2.5 border-2 rounded-lg cursor-pointer transition-all ${formData.subscriptionType === 'POSTPAID' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/40'}`}>
                     <input type="radio" name="subscriptionType" value="POSTPAID" checked={formData.subscriptionType === 'POSTPAID'} onChange={() => field('subscriptionType', 'POSTPAID')} className="w-3 h-3 accent-primary" />
-                    <div><p className="text-[10px] font-semibold">📅 Postpaid</p><p className="text-[9px] text-muted-foreground">Pakai dulu, bayar nanti</p></div>
+                    <div><p className="text-[10px] font-semibold">📅 Berlangganan</p><p className="text-[9px] text-muted-foreground">Siklus bulanan tetap</p></div>
                   </label>
                   <label className={`flex items-center gap-2 p-2.5 border-2 rounded-lg cursor-pointer transition-all ${formData.subscriptionType === 'PREPAID' ? 'border-purple-500 bg-purple-500/10' : 'border-border hover:border-purple-400/40'}`}>
                     <input type="radio" name="subscriptionType" value="PREPAID" checked={formData.subscriptionType === 'PREPAID'} onChange={() => field('subscriptionType', 'PREPAID')} className="w-3 h-3 accent-purple-500" />
-                    <div><p className="text-[10px] font-semibold">🎫 Prepaid</p><p className="text-[9px] text-muted-foreground">Bayar dulu, langsung aktif</p></div>
+                    <div><p className="text-[10px] font-semibold">🎫 Voucher</p><p className="text-[9px] text-muted-foreground">Siklus waktu mengambang</p></div>
                   </label>
                 </div>
                 {formData.subscriptionType === 'POSTPAID' && (

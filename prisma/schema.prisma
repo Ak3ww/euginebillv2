@@ -509,6 +509,7 @@ model pppoeUser {
   pppoeCustomerId  String?        @map("pppoe_customer_id")
   pppoeCustomer    pppoeCustomer? @relation(fields: [pppoeCustomerId], references: [id], onDelete: SetNull)
   password         String
+  portalPassword   String         @default("123")
   profileId        String
   areaId           String?
   status           String         @default("active")

@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
         username: true,
         customerId: true,
         password: true,
+        portalPassword: true,
         name: true,
         phone: true,
         email: true,
@@ -49,8 +50,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify password
-    if (user.password !== password) {
+    // Verify password against portalPassword
+    if (user.portalPassword !== password) {
       return NextResponse.json(
         { success: false, error: 'Password salah' },
         { status: 401 }

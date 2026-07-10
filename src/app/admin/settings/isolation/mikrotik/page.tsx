@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -132,25 +132,27 @@ export default function MikroTikSetupPage() {
 
   // Script 1: IP Pool
   const ipPoolScript = `/ip pool
-add name=pool-isolir ranges=${getIpRange(settings.isolationIpPool)} comment="IP Pool untuk user yang diisolir"`;
+add name=pool-isolir ranges=${getIpRange(settings.isolationIpPool)} comment="EugineBill - IP Pool untuk user yang diisolir"`;
 
   // Script 2: PPP Profile
-  // local-address = gateway IP (router side of PPP link), MUST be an IP not a pool name
+  // local-address = gateway IP (router side of PPP link)
   // remote-address = pool name for client IP assignment
+  // address-list = isolir (otomatis memasukkan IP user ke address-list saat connect)
   const pppProfileScript = `/ppp profile
 add name=isolir \\
     local-address=${getGatewayIp(settings.isolationIpPool)} \\
     remote-address=pool-isolir \\
+    address-list=isolir \\
     rate-limit=${settings.isolationRateLimit} \\
     use-mpls=no use-compression=no use-encryption=no \\
-    comment="Profile untuk user yang diisolir"`;
+    comment="EugineBill - Profile untuk user yang diisolir"`;
 
   // Script 2b: RADIUS Attributes — address-list agar IP langsung masuk ke isolir list
-  // Ini penting! Tanpa ini, user yang belum reconnect bisa masih akses internet penuh.
+  // Hapus penjelasan radius, ubah ke PPP Profile
   const addressListScript = `/ip firewall address-list
-# Catatan: address-list 'isolir' akan diisi otomatis oleh RADIUS via Mikrotik-Address-List
-# attribute saat user login ulang dengan profile isolir.
-# Untuk user yang SEDANG ONLINE saat diisolir, sistem menambahkan IP secara langsung via API.
+# Catatan: IP pelanggan akan diisi otomatis oleh MikroTik ke address-list 'isolir'
+# saat pelanggan login ulang karena PPP profile isolir memiliki setting address-list=isolir.
+# Untuk user yang SEDANG ONLINE saat diisolir, EugineBill menambah IP secara langsung via API.
 # Script ini hanya untuk verifikasi — tidak perlu dijalankan manual.
 
 # Cek isi address-list isolir saat ini:
@@ -170,64 +172,62 @@ add name=isolir \\
     } catch {
       return 'YOUR_SERVER_IP';
     }
-  };
-
-  const firewallFilterScript = `/ip firewall filter
+  };  const firewallFilterScript = `/ip firewall filter
 # PENTING: Tambahkan rule-rule berikut SEBELUM rule DROP yang sudah ada!
 # Gunakan: /ip firewall filter move [rule-baru] destination=[posisi-sebelum-drop]
 #
 # Strategi: Gunakan src-address-list=isolir (lebih akurat dari subnet)
-# RADIUS akan otomatis memasukkan IP user ke address-list 'isolir' via Mikrotik-Address-List attribute.
-# Sistem juga menambahkan IP via API saat isolasi aktif, tanpa menunggu reconnect.
+# PPP Profile akan otomatis memasukkan IP user ke address-list 'isolir'.
+# EugineBill juga menambahkan IP via API saat isolasi aktif, tanpa menunggu reconnect.
 
 # [1] Allow ESTABLISHED & RELATED — return traffic dari payment gateway
 add chain=forward \\
     src-address-list=isolir \\
     connection-state=established,related \\
     action=accept \\
-    comment="Allow established/related for isolated users"
+    comment="EugineBill - Allow established/related for isolated users"
 
 add chain=forward \\
     dst-address-list=isolir \\
     connection-state=established,related \\
     action=accept \\
-    comment="Allow return traffic to isolated users"
+    comment="EugineBill - Allow return traffic to isolated users"
 
 # [2] Allow DNS untuk user isolir
 add chain=forward \\
     src-address-list=isolir \\
     protocol=udp dst-port=53 \\
     action=accept \\
-    comment="Allow DNS for isolated users"
+    comment="EugineBill - Allow DNS for isolated users"
 
 # [3] Allow ICMP (ping)
 add chain=forward \\
     src-address-list=isolir \\
     protocol=icmp \\
     action=accept \\
-    comment="Allow ping for isolated users"
+    comment="EugineBill - Allow ping for isolated users"
 
 # [4] Allow akses ke billing server (halaman isolir + payment)
-# IMPORTANT: Ganti ${getServerIp()} dengan IP ADDRESS server Anda!
+# IMPORTANT: Ganti \${getServerIp()} dengan IP ADDRESS server Anda!
 # MikroTik firewall tidak support hostname, hanya IP!
 add chain=forward \\
     src-address-list=isolir \\
-    dst-address=${getServerIp()} \\
+    dst-address=\${getServerIp()} \\
     action=accept \\
-    comment="Allow access to billing server - GANTI DENGAN IP!"
+    comment="EugineBill - Allow access to billing server"
 
 # [5] Allow akses ke payment gateway
 add chain=forward \\
     src-address-list=isolir \\
     dst-address-list=payment-gateways \\
     action=accept \\
-    comment="Allow access to payment gateways"
+    comment="EugineBill - Allow access to payment gateways"
 
 # [6] Block semua akses internet lainnya
 add chain=forward \\
     src-address-list=isolir \\
     action=drop \\
-    comment="Block internet for isolated users"`;
+    comment="EugineBill - Block internet for isolated users"`;ers"`;
 
   const paymentGatewayScript = `/ip firewall address-list
 # ============================================
@@ -237,79 +237,79 @@ add chain=forward \\
 # ============================================
 
 # Midtrans / Snap
-add list=payment-gateways address=api.midtrans.com comment="Midtrans API"
-add list=payment-gateways address=app.midtrans.com comment="Midtrans Snap"
-add list=payment-gateways address=app.sandbox.midtrans.com comment="Midtrans Sandbox"
-add list=payment-gateways address=payment.midtrans.com comment="Midtrans Payment"
-add list=payment-gateways address=assets.midtrans.com comment="Midtrans Assets (JS/CSS)"
+add list=payment-gateways address=api.midtrans.com comment="EugineBill - Midtrans API"
+add list=payment-gateways address=app.midtrans.com comment="EugineBill - Midtrans Snap"
+add list=payment-gateways address=app.sandbox.midtrans.com comment="EugineBill - Midtrans Sandbox"
+add list=payment-gateways address=payment.midtrans.com comment="EugineBill - Midtrans Payment"
+add list=payment-gateways address=assets.midtrans.com comment="EugineBill - Midtrans Assets (JS/CSS)"
 
 # Xendit
-add list=payment-gateways address=api.xendit.co comment="Xendit API"
-add list=payment-gateways address=checkout.xendit.co comment="Xendit Checkout"
-add list=payment-gateways address=dashboard.xendit.co comment="Xendit Dashboard"
-add list=payment-gateways address=pay.xendit.co comment="Xendit Pay"
+add list=payment-gateways address=api.xendit.co comment="EugineBill - Xendit API"
+add list=payment-gateways address=checkout.xendit.co comment="EugineBill - Xendit Checkout"
+add list=payment-gateways address=dashboard.xendit.co comment="EugineBill - Xendit Dashboard"
+add list=payment-gateways address=pay.xendit.co comment="EugineBill - Xendit Pay"
 
 # Duitku
-add list=payment-gateways address=passport.duitku.com comment="Duitku API"
-add list=payment-gateways address=merchant.duitku.com comment="Duitku Merchant"
-add list=payment-gateways address=sandbox.duitku.com comment="Duitku Sandbox"
+add list=payment-gateways address=passport.duitku.com comment="EugineBill - Duitku API"
+add list=payment-gateways address=merchant.duitku.com comment="EugineBill - Duitku Merchant"
+add list=payment-gateways address=sandbox.duitku.com comment="EugineBill - Duitku Sandbox"
 
 # Nicepay
-add list=payment-gateways address=www.nicepay.co.id comment="Nicepay"
-add list=payment-gateways address=dev.nicepay.co.id comment="Nicepay Dev"
+add list=payment-gateways address=www.nicepay.co.id comment="EugineBill - Nicepay"
+add list=payment-gateways address=dev.nicepay.co.id comment="EugineBill - Nicepay Dev"
 
 # OY! Indonesia
-add list=payment-gateways address=api.oyindonesia.com comment="OY! API"
-add list=payment-gateways address=pay.oyindonesia.com comment="OY! Pay"
+add list=payment-gateways address=api.oyindonesia.com comment="EugineBill - OY! API"
+add list=payment-gateways address=pay.oyindonesia.com comment="EugineBill - OY! Pay"
 
 # Flip
-add list=payment-gateways address=api.flip.id comment="Flip API"
-add list=payment-gateways address=flip.id comment="Flip"
+add list=payment-gateways address=api.flip.id comment="EugineBill - Flip API"
+add list=payment-gateways address=flip.id comment="EugineBill - Flip"
 
 # Tripay
-add list=payment-gateways address=tripay.co.id comment="Tripay"
-add list=payment-gateways address=payment.tripay.co.id comment="Tripay Payment"
+add list=payment-gateways address=tripay.co.id comment="EugineBill - Tripay"
+add list=payment-gateways address=payment.tripay.co.id comment="EugineBill - Tripay Payment"
 
 # iPaymu
-add list=payment-gateways address=my.ipaymu.com comment="iPaymu"
-add list=payment-gateways address=payment.ipaymu.com comment="iPaymu Payment"
+add list=payment-gateways address=my.ipaymu.com comment="EugineBill - iPaymu"
+add list=payment-gateways address=payment.ipaymu.com comment="EugineBill - iPaymu Payment"
 
 # GoPay / Gojek (QRIS & VA)
-add list=payment-gateways address=api.gojek.com comment="Gojek API"
-add list=payment-gateways address=gopay.co.id comment="GoPay"
-add list=payment-gateways address=payment.gojek.com comment="Gojek Payment"
+add list=payment-gateways address=api.gojek.com comment="EugineBill - Gojek API"
+add list=payment-gateways address=gopay.co.id comment="EugineBill - GoPay"
+add list=payment-gateways address=payment.gojek.com comment="EugineBill - Gojek Payment"
 
 # DANA
-add list=payment-gateways address=api.dana.id comment="DANA API"
-add list=payment-gateways address=m.dana.id comment="DANA Mobile"
-add list=payment-gateways address=checkout.dana.id comment="DANA Checkout"
+add list=payment-gateways address=api.dana.id comment="EugineBill - DANA API"
+add list=payment-gateways address=m.dana.id comment="EugineBill - DANA Mobile"
+add list=payment-gateways address=checkout.dana.id comment="EugineBill - DANA Checkout"
 
 # OVO
-add list=payment-gateways address=api.ovo.id comment="OVO API"
-add list=payment-gateways address=checkout.ovo.id comment="OVO Checkout"
+add list=payment-gateways address=api.ovo.id comment="EugineBill - OVO API"
+add list=payment-gateways address=checkout.ovo.id comment="EugineBill - OVO Checkout"
 
 # ShopeePay / SeaMoney
-add list=payment-gateways address=open-api.airpay.co.id comment="ShopeePay API"
-add list=payment-gateways address=open-api.pay.shopee.co.id comment="ShopeePay"
+add list=payment-gateways address=open-api.airpay.co.id comment="EugineBill - ShopeePay API"
+add list=payment-gateways address=open-api.pay.shopee.co.id comment="EugineBill - ShopeePay"
 
 # Bank BCA Virtual Account
-add list=payment-gateways address=p2p.klikbca.com comment="BCA KlikBCA"
+add list=payment-gateways address=p2p.klikbca.com comment="EugineBill - BCA KlikBCA"
 
 # Bank BRI
-add list=payment-gateways address=partner.bri.co.id comment="BRI Partner API"
+add list=payment-gateways address=partner.bri.co.id comment="EugineBill - BRI Partner API"
 
 # QRIS Central (GPN)
-add list=payment-gateways address=qris.id comment="QRIS"
-add list=payment-gateways address=api.qris.id comment="QRIS API"
+add list=payment-gateways address=qris.id comment="EugineBill - QRIS"
+add list=payment-gateways address=api.qris.id comment="EugineBill - QRIS API"
 
-# NOTE: Jalankan script ini ulang setiap 7 hari agar IP tetap update
-# atau gunakan RouterOS Scheduler untuk auto-refresh`;
+# EugineBill - NOTE: Jalankan script ini ulang setiap 7 hari agar IP tetap update
+# EugineBill - atau gunakan RouterOS Scheduler untuk auto-refresh`;
 
   // Script 5: Firewall NAT (Redirect to Landing Page)
   const firewallNatScript = `/ip firewall nat
-# Redirect HTTP ke landing page isolir
-# IMPORTANT: Ganti ${getServerIp()} dengan IP ADDRESS server Anda!
-# Gunakan src-address-list=isolir (bukan subnet) agar lebih presisi
+# EugineBill - Redirect HTTP ke landing page isolir
+# EugineBill - IMPORTANT: Ganti ${getServerIp()} dengan IP ADDRESS server Anda!
+# EugineBill - Gunakan src-address-list=isolir (bukan subnet) agar lebih presisi
 add chain=dstnat \\
     src-address-list=isolir \\
     protocol=tcp dst-port=80 \\
@@ -318,9 +318,9 @@ add chain=dstnat \\
     action=dst-nat \\
     to-addresses=${getServerIp()} \\
     to-ports=80 \\
-    comment="Redirect HTTP to isolation page"
+    comment="EugineBill - Redirect HTTP to isolation page"
 
-# Redirect HTTPS ke landing page isolir
+# EugineBill - Redirect HTTPS ke landing page isolir
 add chain=dstnat \\
     src-address-list=isolir \\
     protocol=tcp dst-port=443 \\
@@ -329,26 +329,24 @@ add chain=dstnat \\
     action=dst-nat \\
     to-addresses=${getServerIp()} \\
     to-ports=443 \\
-    comment="Redirect HTTPS to isolation page"`;
-
-  // Script 6: Address List (Alternative approach) - REMOVED, use payment gateway list instead
+    comment="EugineBill - Redirect HTTPS to isolation page"`;
 
   // Complete Script
-  const completeScript = `# ============================================
-# MIKROTIK ISOLATION SYSTEM SETUP
-# Auto-generated script
-# Generated: ${formatWIB(new Date())}
-# ============================================
+  const completeScript = `# EugineBill - ============================================
+# EugineBill - MIKROTIK ISOLATION SYSTEM SETUP
+# EugineBill - Auto-generated script
+# EugineBill - Generated: ${formatWIB(new Date())}
+# EugineBill - ============================================
 # 
-# IMPORTANT NOTES:
-# 1. Ganti ${getServerIp()} dengan IP ADDRESS server Anda!
-#    Contoh: 103.xxx.xxx.xxx (IP Public router/server)
-# 2. MikroTik firewall TIDAK support hostname, hanya IP!
-# 3. Payment gateway akan auto-resolve domain ke IP
-# 4. Firewall menggunakan src-address-list=isolir (bukan subnet)
-#    RADIUS akan mengisi list ini otomatis via Mikrotik-Address-List attribute
+# EugineBill - IMPORTANT NOTES:
+# EugineBill - 1. Ganti ${getServerIp()} dengan IP ADDRESS server Anda!
+# EugineBill -    Contoh: 103.xxx.xxx.xxx (IP Public router/server)
+# EugineBill - 2. MikroTik firewall TIDAK support hostname, hanya IP!
+# EugineBill - 3. Payment gateway akan auto-resolve domain ke IP
+# EugineBill - 4. Firewall menggunakan src-address-list=isolir (bukan subnet)
+# EugineBill -    PPP Profile 'isolir' akan mengisi list ini otomatis via parameter address-list
 # 
-# ============================================
+# EugineBill - ============================================
 
 ${ipPoolScript}
 
@@ -365,18 +363,18 @@ ${firewallNatScript}
 # ============================================
 # 
 # Setelah menjalankan script ini:
-# 1. User yang diisolir akan masuk ke address-list 'isolir' otomatis via RADIUS
-# 2. Sistem juga menambahkan IP via API saat isolasi aktif (tanpa tunggu reconnect)
-# 3. Bandwidth dibatasi: ${settings.isolationRateLimit}
+# 1. User yang diisolir akan masuk ke address-list 'isolir' otomatis dari PPP Profile
+# 2. Sistem EugineBill juga menambahkan IP via API saat isolasi aktif (tanpa tunggu reconnect)
+# 3. Bandwidth dibatasi: \${settings.isolationRateLimit}
 # 4. User hanya bisa akses:
 #    - DNS (port 53)
 #    - ICMP (ping)
-#    - Billing server (${getServerIp()}) - GANTI DENGAN IP!
+#    - Billing server (\${getServerIp()}) - GANTI DENGAN IP!
 #    - Payment gateway (Midtrans, Xendit, Duitku)
 # 5. Semua HTTP/HTTPS request akan di-redirect ke billing server
 # 
 # CARA TEST:
-# 1. Login PPPoE dengan user yang diisolir
+# 1. Login PPPoE dengan user yang sedang diisolir
 # 2. Cek IP: /ppp active print (harus dapat IP dari pool-isolir)
 # 3. Cek address-list: /ip firewall address-list print where list=isolir
 # 4. Buka browser, akses sembarang website

@@ -90,7 +90,7 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
   const prevIsOpen = useRef(isOpen);
   useEffect(() => {
     if (prevIsOpen.current && !isOpen) {
-      setFormData({ username: '', password: '', profileId: '', routerId: '', areaId: '', name: '', phone: '', email: '', address: '', latitude: '', longitude: '', ipAddress: '', expiredAt: '', subscriptionType: 'POSTPAID', billingDay: '1', macAddress: '', comment: '', referralCode: '', idCardNumber: '', idCardPhoto: '', installationPhotos: [], followRoad: false, registeredAt: new Date().toISOString().slice(0, 10) });
+      setFormData({ username: '', password: '', portalPassword: '123', profileId: '', routerId: '', areaId: '', name: '', phone: '', email: '', address: '', latitude: '', longitude: '', ipAddress: '', expiredAt: '', subscriptionType: 'POSTPAID', billingDay: '1', macAddress: '', comment: '', referralCode: '', idCardNumber: '', idCardPhoto: '', installationPhotos: [], followRoad: false, registeredAt: new Date().toISOString().slice(0, 10) });
       setShowPassword(false);
     }
     prevIsOpen.current = isOpen;
@@ -160,11 +160,14 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
           <ModalBody className="space-y-4 max-h-[60vh] overflow-y-auto">
             <div className="grid grid-cols-2 gap-3">
               <div><ModalLabel required>{t('pppoe.username')}</ModalLabel><ModalInput type="text" value={formData.username} onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))} required /></div>
-              <div><ModalLabel required>{t('pppoe.password')}</ModalLabel>
+              <div><ModalLabel required>Password Router</ModalLabel>
                 <div className="relative"><ModalInput type={showPassword ? 'text' : 'password'} value={formData.password} onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))} required className="pr-8" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-[#00f7ff]">{showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}</button>
                 </div>
               </div>
+            </div>
+            <div><ModalLabel required>Password Portal Pelanggan</ModalLabel>
+              <ModalInput type="text" value={formData.portalPassword} onChange={(e) => setFormData(prev => ({ ...prev, portalPassword: e.target.value }))} required />
             </div>
             <div><ModalLabel required>{t('pppoe.profile')}</ModalLabel><ModalSelect value={formData.profileId} onChange={(e) => setFormData(prev => ({ ...prev, profileId: e.target.value }))} required><option value="" className="dark:bg-[#0a0520]">{t('common.select')}</option>{profiles.map((p) => <option key={p.id} value={p.id} className="dark:bg-[#0a0520]">{p.name} - Rp {p.price.toLocaleString('id-ID')}</option>)}</ModalSelect></div>
             <div><ModalLabel>NAS ({t('common.optional')})</ModalLabel><ModalSelect value={formData.routerId} onChange={(e) => setFormData(prev => ({ ...prev, routerId: e.target.value }))}><option value="" className="dark:bg-[#0a0520]">{t('pppoe.global')}</option>{routers.map((r) => <option key={r.id} value={r.id} className="dark:bg-[#0a0520]">{r.name} ({r.ipAddress})</option>)}</ModalSelect></div>
@@ -189,14 +192,13 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
             </div>
             <div>
               <ModalLabel required>{t('pppoe.subscriptionType')}</ModalLabel>
-              <div className="grid grid-cols-2 gap-2">
-                <label className={`flex items-center p-2 border-2 rounded-lg cursor-pointer transition-all ${formData.subscriptionType === 'POSTPAID' ? 'border-primary bg-primary/10 dark:border-[#00f7ff] dark:bg-[#00f7ff]/10 dark:shadow-[0_0_10px_rgba(0,247,255,0.3)]' : 'border-border hover:border-primary/50 dark:border-[#bc13fe]/30 dark:hover:border-[#00f7ff]/50'}`}>
+              <div className="grid grid-cols-2 gap-2">                <label className={`flex items-center p-2 border-2 rounded-lg cursor-pointer transition-all ${formData.subscriptionType === 'POSTPAID' ? 'border-primary bg-primary/10 dark:border-[#00f7ff] dark:bg-[#00f7ff]/10 dark:shadow-[0_0_10px_rgba(0,247,255,0.3)]' : 'border-border hover:border-primary/50 dark:border-[#bc13fe]/30 dark:hover:border-[#00f7ff]/50'}`}>
                   <input type="radio" name="subscriptionType" value="POSTPAID" checked={formData.subscriptionType === 'POSTPAID'} onChange={(e) => setFormData(prev => ({ ...prev, subscriptionType: e.target.value as 'POSTPAID' }))} className="w-3 h-3 accent-primary dark:text-[#00f7ff] border-border dark:border-[#bc13fe]/50 focus:ring-primary dark:focus:ring-[#00f7ff]" />
-                  <div className="ml-2 flex-1"><div className="text-[10px] font-medium text-foreground"><Calendar className="w-3 h-3 inline mr-0.5" />{t('pppoe.postpaid')}</div><div className="text-[9px] text-muted-foreground">{t('pppoe.fixedDueDate')}</div></div>
+                  <div className="ml-2 flex-1"><div className="text-[10px] font-medium text-foreground"><Calendar className="w-3 h-3 inline mr-0.5" />Berlangganan (Siklus Tetap)</div><div className="text-[9px] text-muted-foreground">{t('pppoe.fixedDueDate')}</div></div>
                 </label>
                 <label className={`flex items-center p-2 border-2 rounded-lg cursor-pointer transition-all ${formData.subscriptionType === 'PREPAID' ? 'border-primary bg-primary/10 dark:border-[#bc13fe] dark:bg-[#bc13fe]/10 dark:shadow-[0_0_10px_rgba(188,19,254,0.3)]' : 'border-border hover:border-primary/50 dark:border-[#bc13fe]/30 dark:hover:border-[#bc13fe]/50'}`}>
                   <input type="radio" name="subscriptionType" value="PREPAID" checked={formData.subscriptionType === 'PREPAID'} onChange={(e) => setFormData(prev => ({ ...prev, subscriptionType: e.target.value as 'PREPAID' }))} className="w-3 h-3 accent-primary dark:text-[#bc13fe] border-border dark:border-[#bc13fe]/50 focus:ring-primary dark:focus:ring-[#bc13fe]" />
-                  <div className="ml-2 flex-1"><div className="text-[10px] font-medium text-foreground">⏰ {t('pppoe.prepaid')}</div><div className="text-[9px] text-muted-foreground">{t('pppoe.followsPayment')}</div></div>
+                  <div className="ml-2 flex-1"><div className="text-[10px] font-medium text-foreground">🎟 Voucher (Siklus Mengambang)</div><div className="text-[9px] text-muted-foreground">{t('pppoe.followsPayment')}</div></div>
                 </label>
               </div>
             </div>

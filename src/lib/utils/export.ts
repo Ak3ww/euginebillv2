@@ -53,8 +53,9 @@ export async function generateExcelBuffer(
     const guideData = [
       ['Kolom', 'Keterangan'],
       ['ID Pelanggan', 'Biarkan kosong untuk generate otomatis (Disarankan).'],
-      ['Username *', 'WAJIB: Username akun PPPoE untuk login di Router/MikroTik.'],
-      ['Password *', 'WAJIB: Password akun PPPoE untuk login di Router/MikroTik.'],
+      ['PPPoE Pelanggan', 'WAJIB: Username akun PPPoE untuk login di Router/MikroTik.'],
+      ['Password PPPoE', 'WAJIB: Password akun PPPoE untuk login di Router/MikroTik.'],
+      ['Password Portal Pelanggan', 'Opsional: Password untuk login aplikasi/portal pelanggan. Default: 123.'],
       ['Nama Lengkap *', 'WAJIB: Nama lengkap pelanggan.'],
       ['No. Telepon *', 'WAJIB: Nomor WhatsApp yang aktif.'],
       ['Email', 'Opsional: Email pelanggan.'],

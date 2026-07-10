@@ -331,6 +331,13 @@ export async function PUT(request: NextRequest) {
             break;
         }
 
+        // Lock to fixed billing day if the user has a fixed cycle (POSTPAID / Fixed Date)
+        if (user.billingDay && user.billingDay >= 1 && user.billingDay <= 31) {
+          // This ensures that even if they pay late (e.g. on the 10th), 
+          // their next expiration will still snap back to their cycle (e.g. the 6th).
+          newExpiry.setDate(user.billingDay);
+        }
+
         // Check if this is a package change invoice, update profileId accordingly
         let targetProfileId = user.profileId;
         let targetProfile = profile;

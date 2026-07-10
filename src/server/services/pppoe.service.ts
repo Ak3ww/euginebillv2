@@ -19,6 +19,7 @@ import type { Session } from 'next-auth';
 export interface CreatePppoeUserInput {
   username: string;
   password: string;
+  portalPassword?: string;
   profileId: string;
   pppoeCustomerId?: string;
   routerId?: string;
@@ -48,6 +49,7 @@ export interface UpdatePppoeUserInput {
   id: string;
   username?: string;
   password?: string;
+  portalPassword?: string;
   profileId?: string;
   pppoeCustomerId?: string | null;
   routerId?: string | null;
@@ -149,7 +151,7 @@ export async function createPppoeUser(
   request: NextRequest
 ) {
   const {
-    password, profileId, pppoeCustomerId, routerId, areaId,
+    password, portalPassword, profileId, pppoeCustomerId, routerId, areaId,
     email, address, latitude, longitude, ipAddress, macAddress, comment,
     expiredAt, subscriptionType, billingDay, idCardNumber, idCardPhoto,
     installationPhotos, followRoad, registeredAt,
@@ -246,6 +248,7 @@ export async function createPppoeUser(
       username,
       customerId,
       password,
+      portalPassword: portalPassword || '123',
       profileId,
       routerId: routerId || null,
       areaId: areaId || null,
@@ -481,6 +484,7 @@ export async function updatePppoeUser(
     data: {
       ...(data.username && { username: data.username }),
       ...(data.password && { password: data.password }),
+      ...(data.portalPassword && { portalPassword: data.portalPassword }),
       ...(data.profileId && { profileId: data.profileId }),
       ...(data.routerId !== undefined && { routerId: data.routerId || null }),
       ...(data.areaId !== undefined && { areaId: data.areaId || null }),
