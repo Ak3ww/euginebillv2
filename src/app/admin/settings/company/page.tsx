@@ -430,7 +430,7 @@ export default function CompanySettingsPage() {
                   min="1"
                   max="30"
                   value={settings.invoiceGenerateDays}
-                  onChange={(e) => setSettings({ ...settings, invoiceGenerateDays: parseInt(e.target.value) || 7 })}
+                  onChange={(e) => setSettings({ ...settings, invoiceGenerateDays: e.target.value ? parseInt(e.target.value) : ('' as any) })}
                   className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-card focus:ring-1 focus:ring-ring focus:border-primary"
                   placeholder="7"
                   required
