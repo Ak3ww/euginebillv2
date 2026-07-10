@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -836,18 +836,34 @@ export default function RouterPage() {
                   </div>
                 )}
 
-                {/* IP Address */}
+                {/* IP Address (API) */}
                 <div>
-                  <label className="block text-sm font-medium text-[#00f7ff] mb-2">{t('network.ipAddress')} *</label>
+                  <label className="block text-sm font-medium text-[#00f7ff] mb-2">{t('network.ipAddress')} (Untuk API) *</label>
                   <input
                     type="text"
                     value={formData.ipAddress}
-                    onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value, nasname: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
                     className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all disabled:opacity-50"
-                    placeholder="192.168.88.1"
+                    placeholder="192.168.88.1 atau vpn.billinghub.id"
                     required
                     disabled={useVpnClient && !!formData.vpnClientId}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Digunakan oleh VPS untuk meremote MikroTik via Winbox/API port.</p>
+                </div>
+
+                {/* NAS IP Address (RADIUS) */}
+                <div>
+                  <label className="block text-sm font-medium text-amber-400 mb-2">{t('network.nasName')} (Untuk RADIUS) *</label>
+                  <input
+                    type="text"
+                    value={formData.nasname}
+                    onChange={(e) => setFormData({ ...formData, nasname: e.target.value })}
+                    className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 transition-all disabled:opacity-50"
+                    placeholder="10.254.173.54"
+                    required
+                    disabled={useVpnClient && !!formData.vpnClientId}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">IP yang dikirim MikroTik ke RADIUS. Jika pakai 3rd party VPN, isi dengan IP lokal VPN Anda (contoh: 10.254.x.x).</p>
                 </div>
 
                 {/* Ports — only show for MikroTik routers, not gateway/VPS */}
