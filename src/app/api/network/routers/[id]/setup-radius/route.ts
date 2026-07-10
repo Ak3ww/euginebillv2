@@ -140,9 +140,9 @@ ${gatewayRadiusEntry}
     /ip pool add name=pool-radius-default ranges=10.10.10.2-10.10.10.254 comment="EugineBill RADIUS"
 }
 
-# 6. Buat PPP Profile EugineBillradius (jika belum ada)
-:if ([:len [/ppp profile find name="EugineBillradius"]] = 0) do={
-    /ppp profile add name=EugineBillradius local-address=10.10.10.1 remote-address=pool-radius-default use-compression=no use-encryption=no comment="EugineBill RADIUS Profile"
+# 6. Buat PPP Profile EugineBill (jika belum ada)
+:if ([:len [/ppp profile find name="EugineBill"]] = 0) do={
+    /ppp profile add name=EugineBill local-address=10.10.10.1 remote-address=pool-radius-default use-compression=no use-encryption=no comment="EugineBill Profile"
 }
 
 # 7. Enable RADIUS untuk semua Hotspot Server Profile
