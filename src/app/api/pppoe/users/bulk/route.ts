@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
       if (format === 'xlsx') {
         const columns = [
           { key: 'customerId', header: 'ID Pelanggan (kosongkan = auto)', width: 28 },
-          { key: 'username', header: 'Username *', width: 20 },
-          { key: 'password', header: 'Password *', width: 18 },
+          { key: 'username', header: 'Username PPPoE (Router) *', width: 25 },
+          { key: 'password', header: 'Password PPPoE (Router) *', width: 25 },
           { key: 'name', header: 'Nama Lengkap *', width: 24 },
           { key: 'phone', header: 'No. Telepon *', width: 18 },
           { key: 'email', header: 'Email', width: 26 },
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       }
 
       // CSV fallback
-      const template = `ID Pelanggan (kosongkan = auto),Username *,Password *,Nama Lengkap *,No. Telepon *,Email,Alamat,Area/Wilayah,IP Address,Tipe Langganan (POSTPAID/PREPAID),Tanggal Expired (YYYY-MM-DD),Hari Tagihan (1-31),Latitude,Longitude,Auto Isolasi (true/false),Tagihan Pertama (none/prorate/full),Tanggal Register (YYYY-MM-DD)
+      const template = `ID Pelanggan (kosongkan = auto),Username PPPoE (Router) *,Password PPPoE (Router) *,Nama Lengkap *,No. Telepon *,Email,Alamat,Area/Wilayah,IP Address,Tipe Langganan (POSTPAID/PREPAID),Tanggal Expired (YYYY-MM-DD),Hari Tagihan (1-31),Latitude,Longitude,Auto Isolasi (true/false),Tagihan Pertama (none/prorate/full),Tanggal Register (YYYY-MM-DD)
 ,user001,pass123,Budi Santoso,08123456789,budi@example.com,Jl. Merdeka No. 10,Cluster A,10.10.10.2,POSTPAID,,1,-6.200000,106.816666,true,prorate,
 ,user002,pass456,Siti Rahayu,08987654321,siti@example.com,Jl. Sudirman No. 5,,, PREPAID,2026-12-31,,,,true,full,`;
 
@@ -201,6 +201,8 @@ export async function POST(request: NextRequest) {
       // English (existing/fallback)
       'username': 'username',
       'password': 'password',
+      'username pppoe (router) *': 'username',
+      'password pppoe (router) *': 'password',
       'name': 'name',
       'phone': 'phone',
       'email': 'email',

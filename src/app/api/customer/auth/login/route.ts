@@ -1,49 +1,30 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { nanoid } from 'nanoid';
 
 export async function POST(request: NextRequest) {
   try {
-    const { phone, identifier } = await request.json();
+    const { identifier, password } = await request.json();
     
-    // Accept either phone or identifier
-    const input = identifier || phone;
-    console.log('[Customer Login] Input:', input);
+    console.log('[Customer Login] Input:', identifier);
 
-    if (!input) {
+    if (!identifier || !password) {
       return NextResponse.json(
-        { success: false, error: 'Phone number or customer ID is required' },
+        { success: false, error: 'ID Pelanggan dan Password wajib diisi' },
         { status: 400 }
       );
     }
 
-    // Check if OTP is enabled
-    const settings = await prisma.whatsapp_reminder_settings.findFirst();
-    const otpEnabled = settings?.otpEnabled ?? false;
-
-    // Clean phone number
-    let cleanPhone = input.replace(/[^0-9]/g, '');
-    if (cleanPhone.startsWith('0')) {
-      cleanPhone = '62' + cleanPhone.substring(1);
-    }
-    if (!cleanPhone.startsWith('62') && cleanPhone.length > 8) {
-      cleanPhone = '62' + cleanPhone;
-    }
-
-    // Find user by phone or customerId (8-digit ID)
+    // Find user by customerId
     const user = await prisma.pppoeUser.findFirst({
       where: {
-        OR: [
-          { phone: input },
-          { phone: cleanPhone },
-          { phone: '0' + cleanPhone.substring(2) }, // 08xxx format
-          { customerId: input }, // Support 8-digit customer ID
-        ],
+        customerId: identifier,
       },
       select: {
         id: true,
         username: true,
         customerId: true,
+        password: true,
         name: true,
         phone: true,
         email: true,
@@ -59,54 +40,44 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log('[Customer Login] User found:', user ? 'Yes' : 'No', user?.phone);
+    console.log('[Customer Login] User found:', user ? 'Yes' : 'No');
 
     if (!user) {
       return NextResponse.json(
-        { success: false, error: 'Phone number or customer ID not registered' },
+        { success: false, error: 'ID Pelanggan tidak terdaftar' },
         { status: 404 }
       );
     }
 
-    // Use user's phone for session
-    const userPhone = user.phone || cleanPhone;
-    console.log('[Customer Login] OTP Enabled:', otpEnabled, 'Phone:', userPhone);
-
-    // If OTP is disabled, create session and return token
-    if (!otpEnabled) {
-      const token = nanoid(64);
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-
-      await prisma.customerSession.create({
-        data: {
-          userId: user.id,
-          phone: userPhone,
-          token,
-          expiresAt,
-          verified: true,
-          otpCode: null,
-          otpExpiry: null,
-        },
-      });
-
-      return NextResponse.json({
-        success: true,
-        otpEnabled: false,
-        requireOTP: false,
-        user,
-        token,
-      });
+    // Verify password
+    if (user.password !== password) {
+      return NextResponse.json(
+        { success: false, error: 'Password salah' },
+        { status: 401 }
+      );
     }
 
-    // If OTP is enabled, just return that OTP is required
+    // Create session and return token
+    const token = nanoid(64);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    await prisma.customerSession.create({
+      data: {
+        userId: user.id,
+        phone: user.phone || identifier,
+        token,
+        expiresAt,
+        verified: true,
+      },
+    });
+
+    // Remove password from returned user object
+    const { password: _, ...safeUser } = user;
+
     return NextResponse.json({
       success: true,
-      otpEnabled: true,
-      requireOTP: true,
-      user: {
-        phone: userPhone,
-      },
-      token: null,
+      user: safeUser,
+      token,
     });
   } catch (error: any) {
     console.error('Login check error:', error);

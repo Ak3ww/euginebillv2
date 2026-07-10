@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -23,7 +23,7 @@ const templateConfig = {
   'registration-approval': {
     title: '🎉 Persetujuan Pendaftaran',
     description: 'Dikirim saat admin menyetujui pendaftaran customer baru',
-    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{password}}', '{{phone}}', '{{email}}', '{{address}}', '{{profileName}}', '{{ipAddress}}', '{{expiredAt}}', '{{installationFee}}', '{{subscriptionType}}', '{{invoiceNumber}}', '{{paymentLink}}', '{{paymentToken}}', '{{baseUrl}}', '{{bankAccounts}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}'],
+    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{password}}', '{{phone}}', '{{email}}', '{{address}}', '{{profileName}}', '{{ipAddress}}', '{{expiredAt}}', '{{installationFee}}', '{{subscriptionType}}', '{{invoiceNumber}}', '{{paymentLink}}', '{{invoicePdfLink}}', '{{paymentToken}}', '{{baseUrl}}', '{{bankAccounts}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}'],
   },
   'admin-create-user': {
     title: '👤 Admin Create User',
@@ -33,17 +33,17 @@ const templateConfig = {
   'installation-invoice': {
     title: '🔧 Invoice Instalasi',
     description: 'Dikirim saat instalasi selesai dan invoice dibuat',
-    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{phone}}', '{{email}}', '{{address}}', '{{invoiceNumber}}', '{{amount}}', '{{dueDate}}', '{{installationFee}}', '{{paymentLink}}', '{{paymentToken}}', '{{baseUrl}}', '{{bankAccounts}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}'],
+    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{phone}}', '{{email}}', '{{address}}', '{{invoiceNumber}}', '{{amount}}', '{{dueDate}}', '{{installationFee}}', '{{paymentLink}}', '{{invoicePdfLink}}', '{{paymentToken}}', '{{baseUrl}}', '{{bankAccounts}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}'],
   },
   'invoice-reminder': {
     title: '📅 Invoice Bulanan / Jatuh Tempo',
     description: 'Dikirim via cron untuk invoice bulanan yang mendekati jatuh tempo',
-    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{customerUsername}}', '{{phone}}', '{{email}}', '{{address}}', '{{profileName}}', '{{area}}', '{{invoiceNumber}}', '{{amount}}', '{{dueDate}}', '{{daysRemaining}}', '{{paymentLink}}', '{{paymentToken}}', '{{baseUrl}}', '{{bankAccounts}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}'],
+    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{customerUsername}}', '{{phone}}', '{{email}}', '{{address}}', '{{profileName}}', '{{area}}', '{{invoiceNumber}}', '{{amount}}', '{{dueDate}}', '{{daysRemaining}}', '{{paymentLink}}', '{{invoicePdfLink}}', '{{paymentToken}}', '{{baseUrl}}', '{{bankAccounts}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}'],
   },
   'payment-success': {
     title: '✅ Pembayaran Berhasil',
     description: 'Dikirim otomatis saat pembayaran invoice berhasil',
-    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{password}}', '{{phone}}', '{{email}}', '{{address}}', '{{profileName}}', '{{ipAddress}}', '{{expiredDate}}', '{{invoiceNumber}}', '{{amount}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}'],
+    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{password}}', '{{phone}}', '{{email}}', '{{address}}', '{{profileName}}', '{{ipAddress}}', '{{expiredDate}}', '{{invoiceNumber}}', '{{invoicePdfLink}}', '{{amount}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}'],
   },
   'maintenance-outage': {
     title: '⚠️ Informasi Gangguan',
@@ -73,17 +73,12 @@ const templateConfig = {
   'manual-payment-approval': {
     title: '✅ Pembayaran Manual Disetujui',
     description: 'Dikirim otomatis saat admin menyetujui konfirmasi pembayaran manual',
-    variables: ['{{customerName}}', '{{customerUsername}}', '{{invoiceNumber}}', '{{amount}}', '{{profileName}}', '{{area}}', '{{expiredDate}}', '{{companyName}}', '{{companyPhone}}'],
+    variables: ['{{customerName}}', '{{customerUsername}}', '{{invoiceNumber}}', '{{invoicePdfLink}}', '{{amount}}', '{{profileName}}', '{{area}}', '{{expiredDate}}', '{{companyName}}', '{{companyPhone}}'],
   },
   'manual-payment-rejection': {
     title: '❌ Pembayaran Manual Ditolak',
     description: 'Dikirim otomatis saat admin menolak konfirmasi pembayaran manual',
     variables: ['{{customerName}}', '{{customerUsername}}', '{{invoiceNumber}}', '{{profileName}}', '{{area}}', '{{rejectionReason}}', '{{paymentLink}}', '{{companyName}}', '{{companyPhone}}'],
-  },
-  'account-info': {
-    title: '📋 Informasi Akun Pelanggan',
-    description: 'Mengirimkan informasi akun pelanggan seperti username, password, dan detail lainnya',
-    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{password}}', '{{phone}}', '{{email}}', '{{address}}', '{{profileName}}', '{{area}}', '{{ipAddress}}', '{{expiredDate}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}'],
   },
   'auto-renewal-success': {
     title: '🔄 Auto-Renewal Berhasil',
@@ -98,72 +93,22 @@ const templateConfig = {
   'invoice-created': {
     title: '📄 Notifikasi Invoice Baru',
     description: 'Dikirim saat invoice baru dibuat oleh sistem',
-    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{phone}}', '{{email}}', '{{address}}', '{{invoiceNumber}}', '{{amount}}', '{{dueDate}}', '{{paymentLink}}', '{{paymentToken}}', '{{baseUrl}}', '{{bankAccounts}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}'],
+    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{phone}}', '{{email}}', '{{address}}', '{{invoiceNumber}}', '{{amount}}', '{{dueDate}}', '{{paymentLink}}', '{{invoicePdfLink}}', '{{paymentToken}}', '{{baseUrl}}', '{{bankAccounts}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}'],
   },
   'invoice-overdue': {
     title: '⚠️ Invoice Overdue Reminder',
     description: 'Dikirim saat invoice sudah melewati tanggal jatuh tempo',
-    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{phone}}', '{{email}}', '{{invoiceNumber}}', '{{amount}}', '{{dueDate}}', '{{daysOverdue}}', '{{paymentLink}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}'],
+    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{phone}}', '{{email}}', '{{invoiceNumber}}', '{{amount}}', '{{dueDate}}', '{{daysOverdue}}', '{{paymentLink}}', '{{invoicePdfLink}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}'],
   },
   'maintenance-info': {
     title: '🔧 Pemberitahuan Maintenance',
     description: 'Template untuk broadcast informasi maintenance terjadwal',
     variables: ['{{customerName}}', '{{maintenanceDate}}', '{{maintenanceTime}}', '{{duration}}', '{{affectedArea}}', '{{description}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}'],
   },
-  'manual_payment_admin': {
-    title: '🔔 Notifikasi Admin Manual Payment',
-    description: 'Dikirim ke admin saat ada konfirmasi pembayaran manual dari customer',
-    variables: ['{{customerName}}', '{{customerUsername}}', '{{invoiceNumber}}', '{{amount}}', '{{paymentDate}}', '{{paymentMethod}}', '{{bankName}}', '{{accountNumber}}', '{{proofImage}}'],
-  },
-  'outage_notification': {
-    title: '⚡ Notifikasi Gangguan',
-    description: 'Dikirim otomatis saat terdeteksi gangguan jaringan atau layanan',
-    variables: ['{{customerName}}', '{{customerUsername}}', '{{outageType}}', '{{affectedArea}}', '{{description}}', '{{estimatedTime}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}'],
-  },
-  'payment_receipt': {
-    title: '🧾 Bukti Pembayaran',
-    description: 'Dikirim sebagai bukti pembayaran yang telah diterima',
-    variables: ['{{customerName}}', '{{customerUsername}}', '{{invoiceNumber}}', '{{amount}}', '{{paymentDate}}', '{{paymentMethod}}', '{{receiptNumber}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}'],
-  },
-  'payment-confirmed': {
-    title: '✅ Konfirmasi Pembayaran Diterima',
-    description: 'Dikirim saat pembayaran telah dikonfirmasi dan diterima',
-    variables: ['{{customerName}}', '{{customerUsername}}', '{{invoiceNumber}}', '{{amount}}', '{{paymentDate}}', '{{newExpiredAt}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}'],
-  },
-  'payment-reminder-general': {
-    title: '💰 Pengingat Pembayaran Umum',
-    description: 'Template umum untuk mengingatkan pembayaran yang akan jatuh tempo',
-    variables: ['{{customerName}}', '{{customerUsername}}', '{{invoiceNumber}}', '{{amount}}', '{{dueDate}}', '{{daysRemaining}}', '{{paymentLink}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}'],
-  },
-  'payment-warning': {
-    title: '⚠️ Peringatan Pembayaran Tertunda',
-    description: 'Dikirim sebagai peringatan untuk pembayaran yang tertunda',
-    variables: ['{{customerName}}', '{{customerUsername}}', '{{invoiceNumber}}', '{{amount}}', '{{dueDate}}', '{{paymentLink}}', '{{suspensionDate}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}'],
-  },
   'promo-offer': {
     title: '🎁 Promo & Penawaran Khusus',
     description: 'Template untuk broadcast promo atau penawaran khusus kepada pelanggan',
     variables: ['{{customerName}}', '{{promoTitle}}', '{{promoDescription}}', '{{discount}}', '{{validUntil}}', '{{termsConditions}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}'],
-  },
-  'thank-you': {
-    title: '🙏 Ucapan Terima Kasih',
-    description: 'Template ucapan terima kasih kepada pelanggan',
-    variables: ['{{customerName}}', '{{customerUsername}}', '{{message}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}'],
-  },
-  'upgrade-notification': {
-    title: '⬆️ Pemberitahuan Upgrade Paket',
-    description: 'Dikirim saat customer melakukan upgrade paket langganan',
-    variables: ['{{customerName}}', '{{customerUsername}}', '{{oldProfile}}', '{{newProfile}}', '{{newSpeed}}', '{{newPrice}}', '{{effectiveDate}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}'],
-  },
-  'voucher-purchase-success': {
-    title: '🎉 E-Voucher Purchase Success',
-    description: 'Dikirim saat customer berhasil membeli e-voucher',
-    variables: ['{{customerName}}', '{{voucherCodes}}', '{{profileName}}', '{{price}}', '{{quantity}}', '{{totalAmount}}', '{{purchaseDate}}', '{{expiryDate}}', '{{duration}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}'],
-  },
-  'welcome-message': {
-    title: '👋 Selamat Datang Pelanggan Baru',
-    description: 'Pesan selamat datang untuk pelanggan baru yang baru bergabung',
-    variables: ['{{customerName}}', '{{customerUsername}}', '{{profileName}}', '{{expiredAt}}', '{{supportContact}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}'],
   },
 };
 

@@ -38,6 +38,22 @@ export async function POST(req: NextRequest) {
               console.error('Failed to parse SetParameterValues payload', e);
               await CwmpService.markTaskDone(nextTask.id, 'failed');
             }
+          } else if (nextTask.name === 'AddObject') {
+            try {
+              const payload = JSON.parse(nextTask.payload || '{}');
+              responseXml = CwmpService.buildAddObject(cwmpId, payload.objectName || '');
+            } catch (e) {
+              console.error('Failed to parse AddObject payload', e);
+              await CwmpService.markTaskDone(nextTask.id, 'failed');
+            }
+          } else if (nextTask.name === 'GetParameterValues') {
+            try {
+              const payload = JSON.parse(nextTask.payload || '{}');
+              responseXml = CwmpService.buildGetParameterValues(cwmpId, payload.parameterNames || []);
+            } catch (e) {
+              console.error('Failed to parse GetParameterValues payload', e);
+              await CwmpService.markTaskDone(nextTask.id, 'failed');
+            }
           }
         }
       }
@@ -53,7 +69,8 @@ export async function POST(req: NextRequest) {
     } else if (CwmpService.hasCwmpMethod(rawBody, 'TransferComplete') || 
                CwmpService.hasCwmpMethod(rawBody, 'RebootResponse') ||
                CwmpService.hasCwmpMethod(rawBody, 'FactoryResetResponse') ||
-               CwmpService.hasCwmpMethod(rawBody, 'SetParameterValuesResponse')) {
+               CwmpService.hasCwmpMethod(rawBody, 'SetParameterValuesResponse') ||
+               CwmpService.hasCwmpMethod(rawBody, 'AddObjectResponse')) {
       
       // Mark current task as done if exists
       if (session.currentTaskId) {
@@ -62,11 +79,16 @@ export async function POST(req: NextRequest) {
       }
       
       // We can respond with empty 204 or check for another task immediately.
-      // Usually responding with empty string forces CPE to send an empty POST again if it has more tasks,
-      // or we can just reply 204.
+    } else if (CwmpService.hasCwmpMethod(rawBody, 'GetParameterValuesResponse')) {
+      if (session.currentTaskId) {
+        const values = CwmpService.parseParameterValues(rawBody);
+        await CwmpService.markTaskDoneWithResult(session.currentTaskId, 'success', values);
+        session.currentTaskId = undefined;
+      }
     } else if (CwmpService.hasCwmpMethod(rawBody, 'Fault')) {
       if (session.currentTaskId) {
-        await CwmpService.markTaskDone(session.currentTaskId, 'failed');
+        const fault = CwmpService.parseFault(rawBody);
+        await CwmpService.markTaskDoneWithResult(session.currentTaskId, 'failed', fault);
         session.currentTaskId = undefined;
       }
     } else {

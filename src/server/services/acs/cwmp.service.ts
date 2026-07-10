@@ -175,7 +175,7 @@ ${names}
 
   static async getNextTask(serialNumber: string) {
     return await prisma.acsTask.findFirst({
-      where: { serialNumber, status: 'pending' },
+      where: { device: { serialNumber }, status: 'pending' },
       orderBy: { createdAt: 'asc' }
     });
   }
@@ -185,5 +185,21 @@ ${names}
       where: { id: taskId },
       data: { status }
     });
+  }
+
+  static async markTaskDoneWithResult(taskId: string, status: string = 'success', result: any) {
+    await prisma.acsTask.update({
+      where: { id: taskId },
+      data: { status, result }
+    });
+  }
+
+  static buildAddObject(cwmpId: string, objectName: string, parameterKey: string = ''): string {
+    return this.soapEnvelopeWrap(cwmpId,
+      `<cwmp:AddObject>
+        <ObjectName>${this.escapeXml(objectName)}</ObjectName>
+        <ParameterKey>${this.escapeXml(parameterKey)}</ParameterKey>
+      </cwmp:AddObject>`
+    );
   }
 }

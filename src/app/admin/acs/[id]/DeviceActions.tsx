@@ -61,7 +61,55 @@ export default function AcsDeviceActions({ serialNumber }: { serialNumber: strin
         {loading === 'FactoryReset' ? <Loader2 className="w-4 h-4 animate-spin text-red-500" /> : <span className="text-xs text-red-500 border border-red-500/20 px-2 py-0.5 rounded">Reset</span>}
       </button>
 
-      <div className="pt-2 border-t border-border mt-2">
+      <div className="pt-2 border-t border-border mt-2 space-y-3">
+        <h4 className="text-sm font-medium">Pengaturan Lanjutan</h4>
+        <button 
+          onClick={() => {
+            const wanName = prompt('Nama Koneksi WAN (contoh: InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection):');
+            if (wanName) {
+              handleAction('AddObject', { objectName: wanName });
+            }
+          }}
+          disabled={!!loading}
+          className="w-full flex items-center justify-between p-3 border border-border rounded-md hover:bg-muted/50 transition-colors disabled:opacity-50"
+        >
+          <span className="text-sm font-medium">Add WAN Connection (TR-069)</span>
+        </button>
+
+        <button 
+          onClick={() => {
+            const ssidNode = prompt('Parameter SSID (contoh: InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID):');
+            const passNode = prompt('Parameter Password (contoh: InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey):');
+            const ssid = prompt('SSID Baru:');
+            const password = prompt('Password Baru:');
+            if (ssidNode && passNode && ssid && password) {
+              handleAction('SetParameterValues', { 
+                parameterValues: [
+                  { name: ssidNode, value: ssid, type: 'xsd:string' },
+                  { name: passNode, value: password, type: 'xsd:string' }
+                ] 
+              });
+            }
+          }}
+          disabled={!!loading}
+          className="w-full flex items-center justify-between p-3 border border-border rounded-md hover:bg-muted/50 transition-colors disabled:opacity-50"
+        >
+          <span className="text-sm font-medium">Ubah SSID & Password WiFi</span>
+        </button>
+
+        <button 
+          onClick={() => {
+            const rxPowerNode = prompt('Parameter RX Power (contoh: InternetGatewayDevice.WANDevice.1.WANDSLInterfaceConfig.OpticalSignalLevel):');
+            if (rxPowerNode) {
+              handleAction('GetParameterValues', { parameterNames: [rxPowerNode] });
+            }
+          }}
+          disabled={!!loading}
+          className="w-full flex items-center justify-between p-3 border border-border rounded-md hover:bg-muted/50 transition-colors disabled:opacity-50"
+        >
+          <span className="text-sm font-medium">Baca Redaman (Optical Power)</span>
+        </button>
+      </div>
         <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
           Catatan: ONT hanya akan mengeksekusi perintah ini ketika melakukan heartbeat (Inform) berikutnya atau jika fitur Connection Request berhasil diakses.
         </p>

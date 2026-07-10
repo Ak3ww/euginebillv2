@@ -146,22 +146,27 @@ export default function SystemPage() {
         </div>
         <div className="p-4 space-y-4">
           <p className="text-xs text-muted-foreground">
-            Update dilakukan manual via SSH ke VPS. Jalankan perintah berikut dari komputer lokal (Windows PowerShell):
+            Update dilakukan secara manual melalui terminal (SSH) pada server / VPS tempat aplikasi diinstall. Jalankan perintah di bawah ini secara berurutan:
           </p>
 
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">VPS Lokal</p>
-            <CmdBlock>{`echo y | & "C:\\Program Files\\PuTTY\\plink.exe" -ssh root@192.168.54.200 -pw "Seven789@" "cd /var/www/EugineBill-radius && bash vps-install/updater.sh --branch master --skip-backup" 2>&1`}</CmdBlock>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">1. Masuk ke Direktori Aplikasi</p>
+            <CmdBlock>{`cd /var/www/EugineBill-radius`}</CmdBlock>
           </div>
 
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">VPS Publik</p>
-            <CmdBlock>{`echo y | & "C:\\Program Files\\PuTTY\\plink.exe" -ssh root@103.151.140.110 -pw "Seven789@" "cd /var/www/EugineBill-radius && bash vps-install/updater.sh --branch master --skip-backup" 2>&1`}</CmdBlock>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">2. Jalankan Script Update</p>
+            <CmdBlock>{`bash vps-install/updater.sh --branch master`}</CmdBlock>
           </div>
 
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Pantau log build (live)</p>
-            <CmdBlock>{`echo y | & "C:\\Program Files\\PuTTY\\plink.exe" -ssh root@103.151.140.110 -pw "Seven789@" "tail -f /tmp/update-manual.log" 2>&1`}</CmdBlock>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Opsi Tambahan: Update Tanpa Backup DB</p>
+            <CmdBlock>{`bash vps-install/updater.sh --branch master --skip-backup`}</CmdBlock>
+          </div>
+          
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Opsi Tambahan: Pantau Log Update (Buka Tab SSH Baru)</p>
+            <CmdBlock>{`tail -f /tmp/update-manual.log`}</CmdBlock>
           </div>
         </div>
       </div>

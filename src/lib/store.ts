@@ -12,6 +12,7 @@ interface CompanySettings {
   logo?: string;
   timezone: string;
   poweredBy?: string;
+  radiusEnabled?: boolean;
 }
 
 interface AppState {

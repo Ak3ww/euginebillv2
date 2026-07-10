@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/server/db/client';
 import { authOptions } from '@/server/auth/config';
@@ -336,7 +336,8 @@ export async function PATCH(
           .replace(/{{area}}/g, (manualPayment.user as any)?.area?.name || '-')
           .replace(/{{companyName}}/g, company?.name || '')
           .replace(/{{companyPhone}}/g, company?.phone || '')
-          .replace(/{{bankAccounts}}/g, formatBankAccountsWA(company?.bankAccounts));
+          .replace(/{{bankAccounts}}/g, formatBankAccountsWA(company?.bankAccounts))
+          .replace(/{{invoicePdfLink}}/g, `${company?.baseUrl || 'http://localhost:3000'}/invoice/${invoiceNumber}`);
         
         try {
           await WhatsAppService.sendMessage({ phone: manualPayment.user.phone, message });

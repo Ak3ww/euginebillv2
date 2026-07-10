@@ -64,6 +64,7 @@ interface MenuItem {
   children?: { titleKey: string; href: string; badge?: string; requiredPermission?: string }[];
   badge?: string;
   requiredPermission?: string;
+  requiresRadius?: boolean;
 }
 
 interface MenuGroup {
@@ -217,6 +218,7 @@ const menuGroups: MenuGroup[] = [
         titleKey: 'nav.freeradius',
         icon: <Server className="w-4 h-4" />,
         requiredPermission: 'settings.view',
+        requiresRadius: true,
         children: [
           { titleKey: 'nav.radiusStatus', href: '/admin/freeradius/status', requiredPermission: 'settings.view' },
           { titleKey: 'nav.radiusConfig', href: '/admin/freeradius/config', requiredPermission: 'settings.view' },
@@ -385,13 +387,14 @@ const menuGroups: MenuGroup[] = [
   },
 ];
 
-function CategoryItem({ titleKey, items, pendingCount, manualPaymentsCount, unreadNotifications, userPermissions, t, onNavigate }: {
+function CategoryItem({ titleKey, items, pendingCount, manualPaymentsCount, unreadNotifications, userPermissions, radiusEnabled, t, onNavigate }: {
   titleKey: string;
   items: MenuItem[];
   pendingCount: number;
   manualPaymentsCount: number;
   unreadNotifications: number;
   userPermissions: string[];
+  radiusEnabled: boolean;
   t: (key: string, params?: Record<string, string | number>) => string;
   onNavigate?: () => void;
 }) {
@@ -441,6 +444,7 @@ function CategoryItem({ titleKey, items, pendingCount, manualPaymentsCount, unre
             pendingCount={pendingCount}
             manualPaymentsCount={manualPaymentsCount}
             unreadNotifications={unreadNotifications}
+            radiusEnabled={radiusEnabled}
             t={t}
             onNavigate={onNavigate}
           />
@@ -450,33 +454,44 @@ function CategoryItem({ titleKey, items, pendingCount, manualPaymentsCount, unre
   );
 }
 
-function NavItem({ item, pendingCount, manualPaymentsCount, unreadNotifications, collapsed, t, onNavigate }: { item: MenuItem; pendingCount: number; manualPaymentsCount: number; unreadNotifications: number; collapsed?: boolean; t: (key: string, params?: Record<string, string | number>) => string; onNavigate?: () => void }) {
+function NavItem({ item, pendingCount, manualPaymentsCount, unreadNotifications, radiusEnabled, collapsed, t, onNavigate }: { item: MenuItem; pendingCount: number; manualPaymentsCount: number; unreadNotifications: number; radiusEnabled?: boolean; collapsed?: boolean; t: (key: string, params?: Record<string, string | number>) => string; onNavigate?: () => void }) {
   const pathname = usePathname();
   const isActive = item.href === pathname || item.children?.some(c => c.href === pathname);
   const [isOpen, setIsOpen] = useState(isActive);
+  const isDisabled = item.requiresRadius && radiusEnabled === false;
 
   if (item.children) {
     return (
-      <div>
+      <div className={cn(isDisabled && "opacity-50 grayscale")}>
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            if (isDisabled) {
+              const { addToast } = require('@/components/cyberpunk/CyberToast');
+              addToast('radius_disabled_nav', 'FreeRADIUS dinonaktifkan', 'Aktifkan FreeRADIUS di menu Pengaturan Perusahaan', 'info');
+              return;
+            }
+            setIsOpen(!isOpen);
+          }}
           className={cn(
             'w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 group',
-            isActive
+            isActive && !isDisabled
               ? 'text-brand-500 bg-brand-50 dark:text-brand-400 dark:bg-brand-500/[0.12]'
               : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-gray-100 dark:hover:bg-white/5',
+            isDisabled && 'cursor-not-allowed hover:bg-transparent'
           )}
+          title={isDisabled ? "FreeRADIUS dinonaktifkan" : undefined}
         >
           <span className={cn(
             'flex-shrink-0 p-0.5 rounded-md transition-all duration-200 flex items-center justify-center',
-            isActive ? 'text-brand-500 dark:text-brand-400' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300'
+            isActive && !isDisabled ? 'text-brand-500 dark:text-brand-400' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300'
           )}>
             {item.icon}
           </span>
           {!collapsed && (
             <>
               <span className="flex-1 text-left truncate tracking-wide">{t(item.titleKey)}</span>
-              <ChevronDown className={cn('w-3.5 h-3.5 transition-transform duration-300', isOpen && 'rotate-180')} />
+              {!isDisabled && <ChevronDown className={cn('w-3.5 h-3.5 transition-transform duration-300', isOpen && 'rotate-180')} />}
+              {isDisabled && <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
             </>
           )}
         </button>
@@ -525,6 +540,29 @@ function NavItem({ item, pendingCount, manualPaymentsCount, unreadNotifications,
   };
 
   const badgeCount = getBadgeCount();
+
+  if (isDisabled) {
+    return (
+      <button
+        onClick={() => {
+          const { addToast } = require('@/components/cyberpunk/CyberToast');
+          addToast('radius_disabled_nav', 'FreeRADIUS dinonaktifkan', 'Aktifkan FreeRADIUS di menu Pengaturan Perusahaan', 'info');
+        }}
+        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 group text-gray-700 dark:text-gray-300 opacity-50 grayscale cursor-not-allowed hover:bg-transparent"
+        title="FreeRADIUS dinonaktifkan"
+      >
+        <span className="flex-shrink-0 p-0.5 rounded-md transition-all duration-200 flex items-center justify-center text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300">
+          {item.icon}
+        </span>
+        {!collapsed && (
+          <>
+            <span className="flex-1 text-left truncate tracking-wide">{t(item.titleKey)}</span>
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+          </>
+        )}
+      </button>
+    );
+  }
 
   return (
     <Link
@@ -758,6 +796,7 @@ function AdminLayoutContent({
             baseUrl: data.baseUrl || window.location.origin,
             adminPhone: data.phone,
             logo: data.logo || '',
+            radiusEnabled: data.radiusEnabled,
           });
         }
       })
@@ -1006,6 +1045,7 @@ function AdminLayoutContent({
                 manualPaymentsCount={pendingManualPayments}
                 unreadNotifications={unreadNotifications}
                 userPermissions={userPermissions}
+                radiusEnabled={company.radiusEnabled ?? false}
                 t={t}
                 onNavigate={() => setSidebarOpen(false)}
               />

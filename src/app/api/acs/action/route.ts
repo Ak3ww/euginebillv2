@@ -24,7 +24,8 @@ export async function POST(request: Request) {
     // Queue the task
     await prisma.acsTask.create({
       data: {
-        serialNumber,
+        deviceId: device.id,
+        command: action,
         name: action,
         payload: payload ? JSON.stringify(payload) : null,
         status: 'pending'

@@ -44,6 +44,40 @@ export async function generateExcelBuffer(
     worksheet.addRow(row);
   });
 
+  // Add "Petunjuk" sheet if it's the PPPoE Template
+  if (sheetName === 'PPPoE Template') {
+    const guideSheet = workbook.addWorksheet('Petunjuk Pengisian');
+    guideSheet.getColumn(1).width = 30;
+    guideSheet.getColumn(2).width = 80;
+    
+    const guideData = [
+      ['Kolom', 'Keterangan'],
+      ['ID Pelanggan', 'Biarkan kosong untuk generate otomatis (Disarankan).'],
+      ['Username *', 'WAJIB: Username akun PPPoE untuk login di Router/MikroTik.'],
+      ['Password *', 'WAJIB: Password akun PPPoE untuk login di Router/MikroTik.'],
+      ['Nama Lengkap *', 'WAJIB: Nama lengkap pelanggan.'],
+      ['No. Telepon *', 'WAJIB: Nomor WhatsApp yang aktif.'],
+      ['Email', 'Opsional: Email pelanggan.'],
+      ['Alamat', 'Opsional: Alamat lengkap.'],
+      ['Area/Wilayah', 'Opsional: Nama area (harus sama dengan nama area di database).'],
+      ['IP Address', 'Opsional: Static IP Address (jika ada).'],
+      ['Tipe Langganan', 'Isi POSTPAID (Pascabayar) atau PREPAID (Prabayar). Default: POSTPAID.'],
+      ['Tanggal Expired', 'Format YYYY-MM-DD. Berlaku untuk PREPAID.'],
+      ['Hari Tagihan', 'Angka 1-31. Tanggal cetak tagihan bulanan (POSTPAID).'],
+      ['Auto Isolasi', 'true atau false. Jika true, pelanggan akan otomatis terisolir jika telat bayar.'],
+      ['Tagihan Pertama', 'none, prorate, atau full. Untuk membuat tagihan otomatis bulan pertama.'],
+      ['Tanggal Register', 'Format YYYY-MM-DD. Tanggal pelanggan mendaftar.'],
+    ];
+
+    guideData.forEach((row, index) => {
+      const addedRow = guideSheet.addRow(row);
+      if (index === 0) {
+        addedRow.font = { bold: true };
+        addedRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD3D3D3' } };
+      }
+    });
+  }
+
   // Generate buffer
   const buffer = await workbook.xlsx.writeBuffer();
   return new Uint8Array(buffer);
