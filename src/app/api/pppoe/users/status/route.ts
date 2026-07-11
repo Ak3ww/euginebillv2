@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { disconnectPPPoEUser } from '@/server/services/radius/coa-handler.service';
 import { logActivity } from '@/server/services/activity-log.service';
@@ -30,6 +30,10 @@ export async function PUT(request: Request) {
       );
     }
 
+    // Get company settings to check radiusEnabled
+    const company = await prisma.company.findFirst();
+    const isRadiusEnabled = company?.radiusEnabled ?? false;
+
     // Get current user data for comparison
     const currentUser = await prisma.pppoeUser.findUnique({
       where: { id: userId },
@@ -43,7 +47,8 @@ export async function PUT(request: Request) {
         phone: true,
         email: true,
         expiredAt: true,
-        profile: { select: { groupName: true } },
+        routerId: true,
+        profile: { select: { groupName: true, mikrotikProfileName: true, name: true } },
         router: { select: { id: true, nasname: true } },
       },
     });
@@ -56,6 +61,7 @@ export async function PUT(request: Request) {
     }
 
     const oldStatus = currentUser.status;
+    const user = currentUser;
 
     // Update user status in database
     const updatedUser = await prisma.pppoeUser.update({
@@ -63,130 +69,135 @@ export async function PUT(request: Request) {
       data: { status },
     });
 
-    // Use current user data for RADIUS operations
-    const user = currentUser;
+    if (isRadiusEnabled) {
+      // ========== RADIUS MODE ==========
+      if (status === 'active') {
+        // Remove suspension markers
+        await prisma.radcheck.deleteMany({ where: { username: user.username, attribute: 'Auth-Type' } });
+        await prisma.radcheck.deleteMany({ where: { username: user.username, attribute: 'NAS-IP-Address' } });
+        await prisma.radreply.deleteMany({ where: { username: user.username, attribute: 'Reply-Message' } });
 
-    // Update RADIUS based on status
-    if (status === 'active') {
-      // Remove suspension markers
-      await prisma.radcheck.deleteMany({
-        where: {
-          username: user.username,
-          attribute: 'Auth-Type',
-        },
-      });
-      // Remove NAS-IP-Address restriction (can prevent login if NAS-IP differs)
-      await prisma.radcheck.deleteMany({
-        where: {
-          username: user.username,
-          attribute: 'NAS-IP-Address',
-        },
-      });
-      await prisma.radreply.deleteMany({
-        where: {
-          username: user.username,
-          attribute: 'Reply-Message',
-        },
-      });
-
-      // Restore to original profile
-      // 1. Ensure password in radcheck
-      await prisma.$executeRaw`
-        INSERT INTO radcheck (username, attribute, op, value)
-        VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
-        ON DUPLICATE KEY UPDATE value = ${user.password}
-      `;
-
-      // 3. Restore to original group
-      await prisma.$executeRaw`
-        DELETE FROM radusergroup WHERE username = ${user.username}
-      `;
-      await prisma.$executeRaw`
-        INSERT INTO radusergroup (username, groupname, priority)
-        VALUES (${user.username}, ${user.profile.groupName}, 1)
-      `;
-
-      // 4. Restore static IP if exists
-      if (user.ipAddress) {
+        // Restore password in radcheck
         await prisma.$executeRaw`
-          INSERT INTO radreply (username, attribute, op, value)
-          VALUES (${user.username}, 'Framed-IP-Address', ':=', ${user.ipAddress})
-          ON DUPLICATE KEY UPDATE value = ${user.ipAddress}
+          INSERT INTO radcheck (username, attribute, op, value)
+          VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
+          ON DUPLICATE KEY UPDATE value = ${user.password}
         `;
+
+        // Restore to original group
+        await prisma.$executeRaw`DELETE FROM radusergroup WHERE username = ${user.username}`;
+        await prisma.$executeRaw`
+          INSERT INTO radusergroup (username, groupname, priority)
+          VALUES (${user.username}, ${user.profile.groupName}, 1)
+        `;
+
+        // Restore static IP if exists
+        if (user.ipAddress) {
+          await prisma.$executeRaw`
+            INSERT INTO radreply (username, attribute, op, value)
+            VALUES (${user.username}, 'Framed-IP-Address', ':=', ${user.ipAddress})
+            ON DUPLICATE KEY UPDATE value = ${user.ipAddress}
+          `;
+        }
+
+        // CoA disconnect to force re-auth with restored profile
+        const coaResult = await disconnectPPPoEUser(user.username);
+        console.log(`[Status Change] CoA disconnect result for ${user.username}:`, coaResult);
+
+      } else if (status === 'isolated') {
+        // Remove suspension markers (isolated users must still be able to login)
+        await prisma.radcheck.deleteMany({ where: { username: user.username, attribute: 'Auth-Type' } });
+        await prisma.radcheck.deleteMany({ where: { username: user.username, attribute: 'NAS-IP-Address' } });
+        await prisma.radreply.deleteMany({ where: { username: user.username, attribute: 'Reply-Message' } });
+
+        // Keep password in radcheck
+        await prisma.$executeRaw`
+          INSERT INTO radcheck (username, attribute, op, value)
+          VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
+          ON DUPLICATE KEY UPDATE value = ${user.password}
+        `;
+
+        // Move to isolir group
+        await prisma.$executeRaw`DELETE FROM radusergroup WHERE username = ${user.username}`;
+        await prisma.$executeRaw`
+          INSERT INTO radusergroup (username, groupname, priority)
+          VALUES (${user.username}, 'isolir', 1)
+        `;
+
+        // Remove static IP so user gets IP from pool-isolir
+        await prisma.$executeRaw`
+          DELETE FROM radreply WHERE username = ${user.username} AND attribute = 'Framed-IP-Address'
+        `;
+
+        // CoA disconnect to force re-auth with isolir profile
+        const coaResult = await disconnectPPPoEUser(user.username);
+        console.log(`[Status Change] CoA disconnect result for ${user.username}:`, coaResult);
+
+      } else if (status === 'blocked' || status === 'stop') {
+        // Block/Stop: Remove from all RADIUS tables
+        await prisma.$executeRaw`DELETE FROM radcheck WHERE username = ${user.username}`;
+        await prisma.$executeRaw`DELETE FROM radusergroup WHERE username = ${user.username}`;
+        await prisma.$executeRaw`DELETE FROM radreply WHERE username = ${user.username}`;
+
+        // CoA disconnect
+        const coaResult = await disconnectPPPoEUser(user.username);
+        console.log(`[Status Change] CoA disconnect result for ${user.username}:`, coaResult);
       }
-    } else if (status === 'isolated') {
-      // Move to isolir group - MikroTik will apply isolir profile
-      // Remove static IP so user gets IP from MikroTik pool-isolir
 
-      // Remove suspension markers (isolated users must still be able to login)
-      await prisma.radcheck.deleteMany({
-        where: {
-          username: user.username,
-          attribute: 'Auth-Type',
-        },
-      });
-      // Remove NAS-IP-Address restriction (can prevent login if NAS-IP differs)
-      await prisma.radcheck.deleteMany({
-        where: {
-          username: user.username,
-          attribute: 'NAS-IP-Address',
-        },
-      });
-      await prisma.radreply.deleteMany({
-        where: {
-          username: user.username,
-          attribute: 'Reply-Message',
-        },
-      });
-      
-      // 1. Keep password in radcheck
-      await prisma.$executeRaw`
-        INSERT INTO radcheck (username, attribute, op, value)
-        VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
-        ON DUPLICATE KEY UPDATE value = ${user.password}
-      `;
+    } else {
+      // ========== NON-RADIUS MODE (MikroTik Direct) ==========
+      const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+      const routerId = user.routerId;
 
-      // 3. Move to isolir group (this maps to MikroTik profile 'isolir')
-      await prisma.$executeRaw`
-        DELETE FROM radusergroup WHERE username = ${user.username}
-      `;
-      await prisma.$executeRaw`
-        INSERT INTO radusergroup (username, groupname, priority)
-        VALUES (${user.username}, 'isolir', 1)
-      `;
+      if (!routerId) {
+        console.warn(`[Status Change] No routerId for user ${user.username}, skipping MikroTik API call`);
+      } else {
+        if (status === 'isolated') {
+          // Switch PPP secret profile to 'isolir' and kick active session
+          const result = await PPPSecretService.setProfileAndDisconnect(routerId, user.username, 'isolir');
+          console.log(`[Status Change] MikroTik isolate result for ${user.username}:`, result);
 
-      // 4. DELETE Framed-IP so user gets IP from MikroTik pool-isolir
-      await prisma.$executeRaw`
-        DELETE FROM radreply WHERE username = ${user.username} AND attribute = 'Framed-IP-Address'
-      `;
-    } else if (status === 'blocked') {
-      // Block: Remove from all RADIUS tables
-      await prisma.$executeRaw`
-        DELETE FROM radcheck WHERE username = ${user.username}
-      `;
-      await prisma.$executeRaw`
-        DELETE FROM radusergroup WHERE username = ${user.username}
-      `;
-      await prisma.$executeRaw`
-        DELETE FROM radreply WHERE username = ${user.username}
-      `;
-    } else if (status === 'stop') {
-      // Stop subscription: Remove from all RADIUS tables (same as blocked but different intent)
-      // User has voluntarily stopped subscription
-      await prisma.$executeRaw`
-        DELETE FROM radcheck WHERE username = ${user.username}
-      `;
-      await prisma.$executeRaw`
-        DELETE FROM radusergroup WHERE username = ${user.username}
-      `;
-      await prisma.$executeRaw`
-        DELETE FROM radreply WHERE username = ${user.username}
-      `;
+        } else if (status === 'active') {
+          // Restore PPP secret to normal profile and kick active session (force reconnect)
+          const normalProfile = user.profile.mikrotikProfileName || user.profile.name || user.profile.groupName;
+          const result = await PPPSecretService.setProfileAndDisconnect(routerId, user.username, normalProfile);
+          console.log(`[Status Change] MikroTik restore result for ${user.username}:`, result);
+
+        } else if (status === 'blocked' || status === 'stop') {
+          // Disable the PPP secret entirely (user cannot connect)
+          const { MikroTikConnection } = await import('@/server/services/mikrotik/client');
+          const router = await prisma.router.findUnique({ where: { id: routerId } });
+          if (router) {
+            const conn = new MikroTikConnection({
+              host: router.ipAddress,
+              username: router.username,
+              password: router.password,
+              port: router.apiPort,
+            });
+            try {
+              await conn.connect();
+              const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`]);
+              if (existing.length > 0) {
+                await conn.execute('/ppp/secret/set', [
+                  `=.id=${existing[0]['.id']}`,
+                  `=disabled=yes`,
+                ]);
+              }
+              // Kick active connection
+              const active = await conn.execute('/ppp/active/print', [`?name=${user.username}`]);
+              if (active.length > 0) {
+                await conn.execute('/ppp/active/remove', [`=.id=${active[0]['.id']}`]);
+              }
+              await conn.disconnect();
+              console.log(`[Status Change] MikroTik disabled PPP secret for ${user.username}`);
+            } catch (err) {
+              console.error(`[Status Change] MikroTik block/stop error for ${user.username}:`, err);
+              try { await conn.disconnect(); } catch { /* ignore */ }
+            }
+          }
+        }
+      }
     }
-
-    // Send CoA disconnect to force user to re-authenticate with new config
-    const coaResult = await disconnectPPPoEUser(user.username);
-    console.log(`[Status Change] CoA disconnect result for ${user.username}:`, coaResult);
 
     // Log activity
     await logActivity({
@@ -250,7 +261,6 @@ export async function PUT(request: Request) {
     return NextResponse.json({
       success: true,
       user: updatedUser,
-      coa: coaResult,
     });
   } catch (error) {
     console.error('Status change error:', error);
