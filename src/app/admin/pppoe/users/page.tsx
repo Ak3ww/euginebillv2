@@ -1472,7 +1472,7 @@ export default function PppoeUsersPage() {
                     <div className="flex items-center gap-1">Paket <ArrowUpDown className="w-3 h-3" /></div>
                   </th>
                   <th className="px-3 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden lg:table-cell">Network</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden xl:table-cell">Teknis</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden xl:table-cell">Alamat & Lokasi</th>
                   <th className="px-3 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden sm:table-cell cursor-pointer hover:bg-muted" onClick={() => handleSort('createdAt')}>
                     <div className="flex items-center gap-1">Tanggal <ArrowUpDown className="w-3 h-3" /></div>
                   </th>
@@ -1529,7 +1529,7 @@ export default function PppoeUsersPage() {
                         <p className="text-[10px]"><span className="text-muted-foreground">NAS:</span> {user.router?.name || '-'}</p>
                         <p className="text-[10px]"><span className="text-muted-foreground">IP NAS:</span> {user.router?.ipAddress || user.router?.nasname || '-'}</p>
                       </td>
-                      {/* Teknis */}
+                      {/* Alamat & Lokasi */}
                       <td className="px-3 py-2 hidden xl:table-cell">
                         {user.address && <p className="text-[10px] text-muted-foreground truncate max-w-[140px] flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5 flex-shrink-0" />{user.address}</p>}
                         {user.latitude && user.longitude && (
@@ -1575,15 +1575,7 @@ export default function PppoeUsersPage() {
                       {/* Aksi */}
                       <td className="px-3 py-2">
                         <div className="flex justify-end items-center gap-0.5">
-                          {/* Detail */}
-                          <button
-                            onClick={() => handleEdit(user)}
-                            className="compact-action p-1.5 text-green-500 hover:bg-green-500/10 rounded cursor-pointer focus:outline-none"
-                            aria-label="Lihat detail"
-                            title="Lihat detail"
-                          >
-                            <Eye className="h-3.5 w-3.5 pointer-events-none" />
-                          </button>
+
                           {/* Edit */}
                           <button
                             onClick={() => handleEdit(user)}
@@ -1594,14 +1586,16 @@ export default function PppoeUsersPage() {
                             <Pencil className="h-3.5 w-3.5 pointer-events-none" />
                           </button>
                           {/* Sync ke RADIUS */}
-                          <button
-                            onClick={() => handleSyncToRadius(user)}
-                            className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer focus:outline-none"
-                            aria-label="Sync ke RADIUS"
-                            title="Sync ke RADIUS"
-                          >
-                            <RefreshCw className="h-3.5 w-3.5 pointer-events-none" />
-                          </button>
+                          {company.radiusEnabled && (
+                            <button
+                              onClick={() => handleSyncToRadius(user)}
+                              className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer focus:outline-none"
+                              aria-label="Sync ke RADIUS"
+                              title="Sync ke RADIUS"
+                            >
+                              <RefreshCw className="h-3.5 w-3.5 pointer-events-none" />
+                            </button>
+                          )}
                           {/* Isolir */}
                           <button
                             onClick={() => handleStatusChange(user.id, user.status === 'isolated' ? 'active' : 'isolated')}
