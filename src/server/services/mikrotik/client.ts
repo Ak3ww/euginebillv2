@@ -15,11 +15,14 @@ export class MikroTikConnection {
   private conn: RouterOSAPI | null = null
 
   constructor(config: MikroTikConfig) {
+    const port = config.port || 8728;
+    // Auto-enable TLS for port 8729 (API-SSL) if not explicitly set
+    const tls = config.tls !== undefined ? config.tls : (port === 8729);
     this.config = {
       ...config,
-      port: config.port || 8728,
+      port,
       timeout: config.timeout || 10000,
-      tls: config.tls ?? false,
+      tls,
     }
   }
 
@@ -43,6 +46,7 @@ export class MikroTikConnection {
       host: connectionConfig.host,
       user: connectionConfig.user,
       port: connectionConfig.port,
+      tls: !!this.config.tls,
       timeout: connectionConfig.timeout,
     })
     
