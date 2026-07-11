@@ -139,7 +139,6 @@ export async function POST(request: NextRequest) {
           data: { syncedToRadius: true, lastSyncAt: new Date() },
         });
       } catch (e) {
-      } catch (e) {
         console.error('[BG] RADIUS sync error (create):', e);
       }
     })();
