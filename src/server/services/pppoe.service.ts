@@ -98,14 +98,26 @@ export async function listPppoeUsers(params: { status?: string | null }) {
     orderBy: { createdAt: 'desc' },
   });
 
+  const company = await prisma.company.findFirst();
+  const isRadiusEnabled = company?.radiusEnabled ?? false;
+
   // Batch fetch all active sessions in ONE query instead of N queries (N+1 fix)
   const usernames = users.map(u => u.username);
-  const activeSessions = usernames.length > 0
-    ? await prisma.radacct.findMany({
+  let activeSessions: { username: string }[] = [];
+  
+  if (usernames.length > 0) {
+    if (isRadiusEnabled) {
+      activeSessions = await prisma.radacct.findMany({
         where: { username: { in: usernames }, acctstoptime: null },
         select: { username: true },
-      })
-    : [];
+      });
+    } else {
+      activeSessions = await prisma.mikrotikSession.findMany({
+        where: { username: { in: usernames }, stopTime: null },
+        select: { username: true },
+      });
+    }
+  }
   const onlineSet = new Set(activeSessions.map(s => s.username));
 
   return users.map(user => ({ ...user, isOnline: onlineSet.has(user.username) }));
@@ -125,20 +137,44 @@ export async function getPppoeUserById(id: string) {
 
   if (!user) return null;
 
-  const activeSession = await prisma.radacct.findFirst({
-    where: { username: user.username, acctstoptime: null },
-    orderBy: { acctstarttime: 'desc' },
-    select: {
-      radacctid: true,
-      acctstarttime: true,
-      framedipaddress: true,
-      nasipaddress: true,
-      callingstationid: true,
-      acctinputoctets: true,
-      acctoutputoctets: true,
-      acctsessiontime: true,
-    },
-  });
+  const company = await prisma.company.findFirst();
+  const isRadiusEnabled = company?.radiusEnabled ?? false;
+
+  let activeSession: any = null;
+  
+  if (isRadiusEnabled) {
+    activeSession = await prisma.radacct.findFirst({
+      where: { username: user.username, acctstoptime: null },
+      orderBy: { acctstarttime: 'desc' },
+      select: {
+        radacctid: true,
+        acctstarttime: true,
+        framedipaddress: true,
+        nasipaddress: true,
+        callingstationid: true,
+        acctinputoctets: true,
+        acctoutputoctets: true,
+        acctsessiontime: true,
+      },
+    });
+  } else {
+    const ms = await prisma.mikrotikSession.findFirst({
+      where: { username: user.username, stopTime: null },
+      orderBy: { startTime: 'desc' },
+    });
+    if (ms) {
+      activeSession = {
+        radacctid: ms.id,
+        acctstarttime: ms.startTime,
+        framedipaddress: ms.ipAddress,
+        nasipaddress: ms.routerId,
+        callingstationid: ms.macAddress,
+        acctinputoctets: ms.rxBytes,
+        acctoutputoctets: ms.txBytes,
+        acctsessiontime: 0, // Fallback since mikrotikSession stores uptime as string or null
+      };
+    }
+  }
 
   return { user, activeSession };
 }
