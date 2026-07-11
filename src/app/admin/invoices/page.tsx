@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -314,6 +314,34 @@ export default function InvoicesPage() {
       await showError(t('invoices.failedDeleteInvoice'));
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const handleMassDeleteInvoices = async () => {
+    if (selectedInvoices.size === 0) return;
+
+    const confirmed = await showConfirm(
+      `Apakah Anda yakin ingin menghapus ${selectedInvoices.size} tagihan yang dipilih? Data yang dihapus tidak dapat dikembalikan.`,
+      `Hapus ${selectedInvoices.size} Tagihan`
+    );
+    if (!confirmed) return;
+
+    setBroadcasting(true); // Using broadcasting state temporarily for mass delete loading
+    try {
+      const ids = Array.from(selectedInvoices).join(',');
+      const res = await fetch(`/api/invoices?ids=${ids}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`${data.deletedCount} tagihan berhasil dihapus`, 'success');
+        setSelectedInvoices(new Set());
+        loadInvoices();
+      } else {
+        await showError(data.error || 'Gagal menghapus tagihan secara massal');
+      }
+    } catch (error) {
+      await showError('Gagal menghubungi server untuk hapus massal');
+    } finally {
+      setBroadcasting(false);
     }
   };
 
@@ -801,14 +829,24 @@ export default function InvoicesPage() {
           </div>
           <div className="flex gap-1.5 flex-wrap">
             {selectedInvoices.size > 0 && (
-              <button
-                onClick={handleBroadcastInvoices}
-                disabled={broadcasting}
-                className="inline-flex items-center px-2 py-1.5 text-xs bg-accent text-accent-foreground rounded hover:bg-accent/90 disabled:opacity-50"
-              >
-                {broadcasting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <MessageCircle className="h-3 w-3 mr-1" />}
-                {t('invoices.broadcast')} ({selectedInvoices.size})
-              </button>
+              <>
+                <button
+                  onClick={handleBroadcastInvoices}
+                  disabled={broadcasting}
+                  className="inline-flex items-center px-2 py-1.5 text-xs bg-accent text-accent-foreground rounded hover:bg-accent/90 disabled:opacity-50"
+                >
+                  {broadcasting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <MessageCircle className="h-3 w-3 mr-1" />}
+                  {t('invoices.broadcast')} ({selectedInvoices.size})
+                </button>
+                <button
+                  onClick={handleMassDeleteInvoices}
+                  disabled={broadcasting}
+                  className="inline-flex items-center px-2 py-1.5 text-xs bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 disabled:opacity-50"
+                >
+                  {broadcasting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                  Hapus Massal ({selectedInvoices.size})
+                </button>
+              </>
             )}
             <div className="flex items-center gap-1 flex-wrap">
               <span className="text-[10px] text-muted-foreground whitespace-nowrap">Periode:</span>
@@ -1010,6 +1048,9 @@ export default function InvoicesPage() {
                               {copiedId === invoice.id ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
                             </button>
                           )}
+                          <Link href={`/invoice/${invoice.invoiceNumber}`} target="_blank" className="p-1 hover:bg-muted rounded text-blue-500" title="Buka Web Invoice (PDF)">
+                            <ExternalLink className="h-3 w-3" />
+                          </Link>
                           <button onClick={() => setPrintDialogInvoice(invoice)} className="p-1 hover:bg-muted rounded" title="Cetak Invoice">
                             <Printer className="h-3 w-3 text-muted-foreground" />
                           </button>
@@ -1103,6 +1144,9 @@ export default function InvoicesPage() {
                         {copiedId === invoice.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
                       </button>
                     )}
+                    <Link href={`/invoice/${invoice.invoiceNumber}`} target="_blank" className="p-1.5 hover:bg-muted rounded text-blue-500" title="Buka Web Invoice (PDF)">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Link>
                     <button onClick={() => setPrintDialogInvoice(invoice)} className="p-1.5 hover:bg-muted rounded" title="Cetak Invoice">
                       <Printer className="h-3.5 w-3.5 text-muted-foreground" />
                     </button>
