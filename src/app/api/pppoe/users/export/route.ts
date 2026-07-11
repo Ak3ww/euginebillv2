@@ -116,8 +116,10 @@ export async function GET(req: NextRequest) {
       'Longitude',
       'Auto Isolasi (true/false)',
       'Tagihan Pertama (none/prorate/full)',
-      'Tanggal Register (YYYY-MM-DD)',
-      'Status (abaikan saat import)'
+      'Status (abaikan saat import)',
+      'MAC Address',
+      'Komentar',
+      'No. KTP'
     ];
 
     const columns = unifiedHeaders.map(h => ({ key: h, header: h, width: 20 }));
@@ -143,7 +145,10 @@ export async function GET(req: NextRequest) {
       'Auto Isolasi (true/false)': (u as any).autoIsolationEnabled !== false ? 'true' : 'false',
       'Tagihan Pertama (none/prorate/full)': '',
       'Tanggal Register (YYYY-MM-DD)': new Date(u.createdAt).toISOString().split('T')[0],
-      'Status (abaikan saat import)': u.status
+      'Status (abaikan saat import)': u.status,
+      'MAC Address': u.macAddress || '',
+      'Komentar': u.comment || '',
+      'No. KTP': u.idCardNumber || ''
     }));
 
     const excelBuffer = await generateExcelBuffer(data, columns, 'PPPoE Users');
