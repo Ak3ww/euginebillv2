@@ -116,7 +116,9 @@ export async function POST(
       const daysActive = Math.max(1, Math.ceil((expiredAt.getTime() - today.getTime()) / msPerDay));
       const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
       
-      prorateSubscriptionFee = Math.ceil((daysActive / daysInMonth) * registration.profile.price);
+      // 2026 update: calculate by proratePricePerDay
+      const pricePerDay = registration.profile.proratePricePerDay || 0;
+      prorateSubscriptionFee = Math.ceil(daysActive * pricePerDay);
     } else {
       if (subscriptionType === 'POSTPAID') {
         expiredAt = new Date(now);

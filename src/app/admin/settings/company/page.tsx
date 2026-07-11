@@ -33,6 +33,7 @@ interface CompanySettings {
   radiusEnabled: boolean;
   enableProrate: boolean;
   fixedBillingDate: number;
+  shiftBillingDateIfLate: boolean;
   isolateProfileName: string;
   logo?: string;
 }
@@ -59,6 +60,7 @@ export default function CompanySettingsPage() {
     radiusEnabled: false,
     enableProrate: true,
     fixedBillingDate: 6,
+    shiftBillingDateIfLate: false,
     isolateProfileName: '',
     logo: '',
   });
@@ -97,6 +99,7 @@ export default function CompanySettingsPage() {
             radiusEnabled: data.radiusEnabled || false,
             enableProrate: data.enableProrate ?? true,
             fixedBillingDate: data.fixedBillingDate || 6,
+            shiftBillingDateIfLate: data.shiftBillingDateIfLate ?? false,
             isolateProfileName: data.isolateProfileName || '',
             logo: data.logo || '',
           });
@@ -452,6 +455,21 @@ export default function CompanySettingsPage() {
                   </label>
                   <p className="mt-1 text-[10px] text-muted-foreground ml-6">
                     Pelanggan baru akan ditagih sesuai jumlah hari di bulan pertama
+                  </p>
+                </div>
+                
+                <div className="flex flex-col justify-center bg-card border border-border p-3 rounded-lg">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.shiftBillingDateIfLate}
+                      onChange={(e) => setSettings({ ...settings, shiftBillingDateIfLate: e.target.checked })}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"
+                    />
+                    <span className="text-[12px] font-medium text-foreground">Geser Jatuh Tempo Jika Telat</span>
+                  </label>
+                  <p className="mt-1 text-[10px] text-muted-foreground ml-6">
+                    Masa aktif pelanggan yang telat bayar akan direset sesuai tanggal ia membayar (bergeser)
                   </p>
                 </div>
                 

@@ -134,6 +134,7 @@ model company {
   radiusEnabled                Boolean? @default(false) // Toggle RADIUS features
   fixedBillingDate             Int?     @default(6) // Tanggal jatuh tempo tetap per bulan
   enableProrate                Boolean  @default(true)
+  shiftBillingDateIfLate       Boolean  @default(false)
   isolateProfileName           String?  // Nama profile MikroTik untuk isolasi jika radiusEnabled = false
   referralRewardBoth           Boolean? @default(false) // Also reward the referred customer
   referralReferredAmount       Int?     @default(0) // Reward amount for referred customer
@@ -461,6 +462,7 @@ model pppoeProfile {
   id             String                      @id
   name           String                      @unique
   price          Int
+  proratePricePerDay Int                     @default(0)
   createdAt      DateTime                    @default(now())
   updatedAt      DateTime                    @updatedAt
   description    String?

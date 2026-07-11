@@ -385,8 +385,8 @@ export async function createPppoeUser(
         else { nextBilling = new Date(year, month + 1, bd); }
         const msPerDay = 1000 * 60 * 60 * 24;
         const daysActive = Math.max(1, Math.ceil((nextBilling.getTime() - registrationDate.getTime()) / msPerDay));
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        invoiceAmount = Math.ceil((daysActive / daysInMonth) * profile.price);
+        const pricePerDay = profile.proratePricePerDay || 0;
+        invoiceAmount = Math.ceil(daysActive * pricePerDay);
       }
       const invoiceId = crypto.randomUUID();
       const invoiceNumber = generateInvoiceNumber();

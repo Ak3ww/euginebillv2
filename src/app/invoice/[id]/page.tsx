@@ -9,8 +9,8 @@ export const metadata = {
   title: 'Invoice',
 };
 
-export default async function PublicInvoicePage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function PublicInvoicePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   
   const invoice = await prisma.invoice.findUnique({
     where: { invoiceNumber: id },
@@ -144,7 +144,7 @@ export default async function PublicInvoicePage({ params }: { params: { id: stri
                   {/* Subscription Line */}
                   <tr>
                     <td className="py-5 px-6">
-                      <div className="font-medium text-gray-800">Langganan Internet ({invoice.month} {invoice.year})</div>
+                      <div className="font-medium text-gray-800">Langganan Internet ({new Date(invoice.dueDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })})</div>
                       <div className="text-gray-500 text-xs mt-1">{invoice.user?.profile?.name || 'Paket Internet'}</div>
                     </td>
                     <td className="py-5 px-6 text-right font-medium text-gray-800">

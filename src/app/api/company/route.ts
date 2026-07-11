@@ -31,6 +31,7 @@ export async function GET() {
         radiusEnabled: false,
         enableProrate: true,
         fixedBillingDate: 6,
+        shiftBillingDateIfLate: false,
         isolateProfileName: null,
       });
     }
@@ -88,6 +89,7 @@ export async function POST(request: Request) {
           radiusEnabled: data.radiusEnabled ?? false,
           enableProrate: data.enableProrate ?? true,
           fixedBillingDate: data.fixedBillingDate ? parseInt(data.fixedBillingDate) : 6,
+          shiftBillingDateIfLate: data.shiftBillingDateIfLate ?? false,
           isolateProfileName: data.isolateProfileName ?? null,
         },
       });
@@ -115,6 +117,7 @@ export async function POST(request: Request) {
           radiusEnabled: data.radiusEnabled ?? false,
           enableProrate: data.enableProrate ?? true,
           fixedBillingDate: data.fixedBillingDate ? parseInt(data.fixedBillingDate) : 6,
+          shiftBillingDateIfLate: data.shiftBillingDateIfLate ?? false,
           isolateProfileName: data.isolateProfileName ?? null,
         },
       });

@@ -19,6 +19,7 @@ import {
 
 interface PPPoEProfile {
   id: string; name: string; description: string | null; price: number;
+  proratePricePerDay: number;
   hpp?: number | null; ppnActive?: boolean; ppnRate?: number | null;
   downloadSpeed: number; uploadSpeed: number; groupName: string;
   mikrotikProfileName?: string | null; ipPoolName?: string | null; ipPoolRange?: string | null;
@@ -41,7 +42,7 @@ interface RouterOption {
 }
 
 const defaultForm = {
-  name: '', description: '', price: '', hpp: '', ppnActive: false, ppnRate: '11',
+  name: '', description: '', price: '', proratePricePerDay: '', hpp: '', ppnActive: false, ppnRate: '11',
   downloadSpeed: '10', uploadSpeed: '10', speedUnit: 'Mbps' as UnitType,
   burstDownload: '', burstUpload: '',
   burstThresholdDownload: '', burstThresholdUpload: '', burstTime: '8',
@@ -166,6 +167,7 @@ export default function PPPoEProfilesPage() {
         description: formData.description || undefined,
         groupName: generatedGroupName,
         price: parseInt(formData.price),
+        proratePricePerDay: parseInt(formData.proratePricePerDay) || 0,
         hpp: formData.hpp ? parseInt(formData.hpp) : null,
         ppnActive: formData.ppnActive,
         downloadSpeed: dlMbps,
@@ -219,7 +221,7 @@ export default function PPPoEProfilesPage() {
     setShowBurst(hasBurst);
     setFormData({
       name: profile.name, description: profile.description || '',
-      price: profile.price.toString(), hpp: profile.hpp?.toString() || '', ppnActive: profile.ppnActive || false,
+      price: profile.price.toString(), proratePricePerDay: profile.proratePricePerDay?.toString() || '0', hpp: profile.hpp?.toString() || '', ppnActive: profile.ppnActive || false,
       downloadSpeed: profile.downloadSpeed.toString(), uploadSpeed: profile.uploadSpeed.toString(), speedUnit: 'Mbps',
       burstDownload: burstDl, burstUpload: burstUl,
       burstThresholdDownload: thDl, burstThresholdUpload: thUl, burstTime: burstT,
@@ -826,7 +828,7 @@ export default function PPPoEProfilesPage() {
 
               {/* Harga Jual */}
               <div>
-                <ModalLabel required>Harga Jual (IDR)</ModalLabel>
+                <ModalLabel required>Harga Jual Bulanan (IDR)</ModalLabel>
                 <ModalInput type="number" min="0" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="150000" required className={fieldErrors['price'] ? 'border-[#ff4466]' : ''} />
                 {(formData.price && formData.hpp) || (formData.price && formData.ppnActive) ? (
                   <p className="text-[10px] text-green-400 mt-1">
@@ -839,6 +841,13 @@ export default function PPPoEProfilesPage() {
                     )}
                   </p>
                 ) : null}
+              </div>
+
+              {/* Harga Prorate */}
+              <div>
+                <ModalLabel>Harga Prorate per Hari (IDR)</ModalLabel>
+                <ModalInput type="number" min="0" step="1000" value={formData.proratePricePerDay} onChange={(e) => setFormData({ ...formData, proratePricePerDay: e.target.value })} placeholder="5000" />
+                <p className="text-[9px] text-muted-foreground mt-1">Kelipatan 1000 (contoh: 5000 = Rp 5.000/hari)</p>
               </div>
 
               {/* PPN */}

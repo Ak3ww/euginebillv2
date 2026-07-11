@@ -83,6 +83,8 @@ export default function InvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'OTHER'>('CASH');
+  const [sendReceipt, setSendReceipt] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [sendingWA, setSendingWA] = useState<string | null>(null);
@@ -158,6 +160,8 @@ export default function InvoicesPage() {
 
   const handleMarkAsPaid = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
+    setPaymentMethod('CASH');
+    setSendReceipt(true);
     setIsPaymentDialogOpen(true);
   };
 
@@ -170,7 +174,12 @@ export default function InvoicesPage() {
       const res = await fetch('/api/invoices', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedInvoice.id, status: 'PAID' }),
+        body: JSON.stringify({ 
+          id: selectedInvoice.id, 
+          status: 'PAID',
+          paymentMethod,
+          sendReceipt
+        }),
       });
 
       if (res.ok) {
@@ -187,7 +196,54 @@ export default function InvoicesPage() {
       setProcessing(false);
     }
   };
+  const handleCancelPayment = async (invoice: Invoice) => {
+    const confirmed = await showConfirm(
+      'Batalkan Pelunasan?',
+      `Masa aktif pengguna akan dikurangi dan dapat berakibat pemutusan akses internet jika masa aktif baru telah lewat. Apakah Anda yakin?`
+    );
+    if (!confirmed) return;
 
+    try {
+      const res = await fetch(`/api/invoices/${invoice.id}/cancel-payment`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        showToast('Pelunasan berhasil dibatalkan', 'success');
+        loadInvoices();
+      } else {
+        const data = await res.json();
+        await showError(data.error || 'Gagal membatalkan pelunasan');
+      }
+    } catch (error) {
+      await showError('Gagal membatalkan pelunasan');
+    }
+  };
+
+  const handleResendReceipt = async (invoice: Invoice) => {
+    if (!invoice.customerPhone) {
+      await showError('Nomor WhatsApp pelanggan tidak tersedia');
+      return;
+    }
+    
+    setSendingWA(invoice.id);
+    try {
+      const res = await fetch('/api/whatsapp/resend-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId: invoice.id }),
+      });
+      if (res.ok) {
+        showToast('Struk lunas berhasil dikirim ulang', 'success');
+      } else {
+        const data = await res.json();
+        await showError(data.error || 'Gagal mengirim ulang struk');
+      }
+    } catch (error) {
+      await showError('Gagal mengirim ulang struk');
+    } finally {
+      setSendingWA(null);
+    }
+  };
 
 
   const handleViewDetail = (invoice: Invoice) => {
@@ -1078,6 +1134,16 @@ export default function InvoicesPage() {
                               {t('invoices.markAsPaid')}
                             </button>
                           )}
+                          {invoice.status === 'PAID' && (
+                            <>
+                              <button onClick={() => handleResendReceipt(invoice)} disabled={sendingWA === invoice.id} className="p-1 hover:bg-muted rounded text-green-600" title="Kirim Ulang Struk (WhatsApp)">
+                                {sendingWA === invoice.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageCircle className="h-3 w-3" />}
+                              </button>
+                              <button onClick={() => handleCancelPayment(invoice)} className="px-1.5 py-0.5 text-[10px] font-medium bg-destructive/10 text-destructive rounded hover:bg-destructive/20" title="Batalkan Pelunasan">
+                                Cancel
+                              </button>
+                            </>
+                          )}
                           <button onClick={() => handleDeleteInvoice(invoice)} disabled={deleting === invoice.id} className="p-1 hover:bg-destructive/10 rounded text-destructive" title="Hapus">
                             {deleting === invoice.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                           </button>
@@ -1358,6 +1424,34 @@ export default function InvoicesPage() {
                   <div className="flex items-center justify-between px-3.5 py-2.5">
                     <span className="text-[11px] text-muted-foreground">{t('invoices.amount')}</span>
                     <span className="text-sm font-bold text-success">{formatCurrency(Number(selectedInvoice?.amount || 0))}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3 mt-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-foreground">Metode Pembayaran</label>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value as any)}
+                      className="w-full text-xs rounded-md border border-border bg-background px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      <option value="CASH">Cash (Tunai)</option>
+                      <option value="TRANSFER">Bank Transfer</option>
+                      <option value="OTHER">Lainnya</option>
+                    </select>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="sendReceipt"
+                      checked={sendReceipt}
+                      onChange={(e) => setSendReceipt(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary/50"
+                    />
+                    <label htmlFor="sendReceipt" className="text-[11px] text-foreground cursor-pointer">
+                      Kirim Notifikasi Pelunasan via WhatsApp
+                    </label>
                   </div>
                 </div>
 

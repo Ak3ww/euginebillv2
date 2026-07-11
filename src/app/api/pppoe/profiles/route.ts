@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
         mikrotikProfileName: finalMikrotikProfileName,
         ipPoolName: finalIpPoolName,
         price: parseInt(price),
+        proratePricePerDay: proratePricePerDay ? parseInt(proratePricePerDay) : 0,
         downloadSpeed: parseInt(downloadSpeed),
         uploadSpeed: parseInt(uploadSpeed),
         rateLimit: rateLimit || `${downloadSpeed}M/${uploadSpeed}M`,
@@ -166,6 +167,7 @@ export async function PUT(request: NextRequest) {
       mikrotikProfileName,
       ipPoolName,
       price,
+      proratePricePerDay,
       downloadSpeed: rawDownloadSpeed,
       uploadSpeed: rawUploadSpeed,
       rateLimit: bodyRateLimit,
@@ -237,6 +239,7 @@ export async function PUT(request: NextRequest) {
     if (normalizedGroupName) updateData.mikrotikProfileName = normalizedGroupName;
     if (normalizedIpPoolName !== undefined) updateData.ipPoolName = normalizedIpPoolName;
     if (price) updateData.price = parseInt(price);
+    if (proratePricePerDay !== undefined) updateData.proratePricePerDay = parseInt(proratePricePerDay);
     if (downloadSpeed !== undefined) updateData.downloadSpeed = parseInt(downloadSpeed.toString());
     if (uploadSpeed !== undefined) updateData.uploadSpeed = parseInt(uploadSpeed.toString());
     if (bodyRateLimit !== undefined) updateData.rateLimit = bodyRateLimit;

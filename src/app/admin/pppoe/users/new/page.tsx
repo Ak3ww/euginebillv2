@@ -6,7 +6,7 @@ import { ArrowLeft, MapPin, Map, Eye, EyeOff, Loader2, X, ChevronRight, ChevronL
 import MapPicker from '@/components/MapPicker';
 import { ModalInput, ModalSelect, ModalLabel } from '@/components/cyberpunk';
 
-interface Profile { id: string; name: string; groupName: string; price: number; }
+interface Profile { id: string; name: string; groupName: string; price: number; proratePricePerDay: number; }
 interface Router { id: string; name: string; nasname: string; ipAddress: string; }
 interface Area { id: string; name: string; }
 
@@ -170,7 +170,7 @@ export default function NewPppoeUserPage() {
     const msPerDay = 1000 * 60 * 60 * 24;
     const daysActive = Math.max(1, Math.ceil((nextBilling.getTime() - today.getTime()) / msPerDay));
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const prorateAmount = Math.ceil((daysActive / daysInMonth) * profile.price);
+    const prorateAmount = Math.ceil(daysActive * (profile.proratePricePerDay || 0));
     return { daysActive, daysInMonth, nextBilling, prorateAmount, fullPrice: profile.price, profileName: profile.name, isFullMonth: daysActive >= daysInMonth };
   }, [formData.subscriptionType, formData.profileId, formData.billingDay, formData.registeredAt, profiles]);
 

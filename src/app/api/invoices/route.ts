@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, paidAt } = body;
+    const { id, status, paidAt, paymentMethod, sendReceipt } = body;
 
     if (!id) return badRequest('Invoice ID is required');
 
@@ -296,6 +296,22 @@ export async function PUT(request: NextRequest) {
 
     // If marking as PAID and this request was the one that actually changed the status
     if (status === 'PAID' && paidUpdateCount > 0) {
+      const company = await prisma.company.findFirst();
+      
+      // If manual payment method provided, record it
+      if (paymentMethod) {
+        await prisma.payment.create({
+          data: {
+            id: crypto.randomUUID(),
+            invoiceId: id,
+            amount: existingInvoice.amount,
+            method: paymentMethod,
+            status: 'PAID',
+            paidAt: paidAt ? new Date(paidAt) : new Date(),
+          },
+        });
+      }
+
       const user = existingInvoice.user;
 
       if (!user) {
@@ -308,12 +324,16 @@ export async function PUT(request: NextRequest) {
       if (profile) {
         // Calculate new expiredAt
         // Base: use current expiredAt if still in the future, otherwise use now (payment date)
-        // Both PREPAID and POSTPAID get a full validity period after each payment
+        // IF shiftBillingDateIfLate is false, we always base it on expiredAt even if it's in the past (to keep fixed billing cycle).
         const now = new Date();
         let baseDate = user.expiredAt ? new Date(user.expiredAt) : now;
-        if (baseDate < now) {
+        
+        const shiftBillingDate = company?.shiftBillingDateIfLate ?? false;
+        
+        if (shiftBillingDate && baseDate < now) {
           baseDate = now; // Expired already → start fresh from payment date
         }
+        
         let newExpiry = new Date(baseDate);
 
         switch (profile.validityUnit) {
@@ -431,9 +451,10 @@ export async function PUT(request: NextRequest) {
         }
 
         // ============================================
-        // SEND WHATSAPP NOTIFICATION (ALWAYS)
+        // SEND WHATSAPP NOTIFICATION
         // ============================================
-        if (user.phone && profile) {
+        const shouldSendReceipt = sendReceipt !== undefined ? sendReceipt : true;
+        if (user.phone && profile && shouldSendReceipt) {
           try {
             await sendPaymentSuccess({
               customerName: user.name,

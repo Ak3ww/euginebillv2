@@ -674,8 +674,8 @@ export async function POST(request: NextRequest) {
               else { nextBilling = new Date(year, month + 1, bd); }
               const msPerDay = 1000 * 60 * 60 * 24;
               const daysActive = Math.max(1, Math.ceil((nextBilling.getTime() - regDate.getTime()) / msPerDay));
-              const daysInMonth = new Date(year, month + 1, 0).getDate();
-              invoiceAmount = Math.ceil((daysActive / daysInMonth) * rowProfile.price);
+              const pricePerDay = rowProfile.proratePricePerDay || 0;
+              invoiceAmount = Math.ceil(daysActive * pricePerDay);
             }
             const invYear = new Date().getFullYear();
             const invMonth = String(new Date().getMonth() + 1).padStart(2, '0');
