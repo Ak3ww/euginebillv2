@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
   }
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
+  const format = searchParams.get('format') || 'xlsx';
 
   try {
     if (type === 'template') {
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
         ]
       ];
 
-      if (format === 'xlsx') {
+      if (format === 'xlsx' || format === 'excel') {
         const columns = unifiedHeaders.map(h => ({ key: h, header: h, width: 25 }));
         // Map sampleData arrays to objects for exceljs
         const excelData = sampleData.map(row => {

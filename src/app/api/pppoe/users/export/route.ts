@@ -96,52 +96,54 @@ export async function GET(req: NextRequest) {
     }
 
     // Excel export
-    const columns = [
-      { key: 'no', header: 'No', width: 6 },
-      { key: 'customerId', header: 'ID Pelanggan', width: 14 },
-      { key: 'username', header: 'Username', width: 20 },
-      { key: 'password', header: 'Password', width: 20 },
-      { key: 'name', header: 'Nama', width: 25 },
-      { key: 'phone', header: 'Telepon', width: 15 },
-      { key: 'email', header: 'Email', width: 25 },
-      { key: 'address', header: 'Alamat', width: 35 },
-      { key: 'area', header: 'Area', width: 18 },
-      { key: 'profile', header: 'Profile', width: 15 },
-      { key: 'subscriptionType', header: 'Tipe Langganan', width: 15 },
-      { key: 'status', header: 'Status', width: 12 },
-      { key: 'ipAddress', header: 'IP Address', width: 15 },
-      { key: 'macAddress', header: 'MAC Address', width: 18 },
-      { key: 'billingDay', header: 'Hari Tagihan', width: 12 },
-      { key: 'expiredAt', header: 'Expired', width: 15 },
-      { key: 'comment', header: 'Komentar', width: 25 },
-      { key: 'router', header: 'Router', width: 15 },
-      { key: 'latitude', header: 'Latitude', width: 14 },
-      { key: 'longitude', header: 'Longitude', width: 14 },
-      { key: 'createdAt', header: 'Created', width: 15 }
+    const unifiedHeaders = [
+      'ID Pelanggan (kosongkan = auto)',
+      'PPPoE Pelanggan',
+      'Password PPPoE',
+      'Password Portal Pelanggan',
+      'Nama Lengkap *',
+      'No. Telepon *',
+      'Email',
+      'Alamat',
+      'Area/Wilayah',
+      'IP Address',
+      'Tipe Langganan (Wajib isi: POSTPAID atau PREPAID)',
+      'Profile (opsional)',
+      'Router (opsional)',
+      'Tanggal Expired (YYYY-MM-DD)',
+      'Hari Tagihan (1-31)',
+      'Latitude',
+      'Longitude',
+      'Auto Isolasi (true/false)',
+      'Tagihan Pertama (none/prorate/full)',
+      'Tanggal Register (YYYY-MM-DD)',
+      'Status (abaikan saat import)'
     ];
 
-    const data = users.map((u, idx) => ({
-      no: idx + 1,
-      customerId: (u as any).customerId || '',
-      username: u.username,
-      password: u.password,
-      name: u.name,
-      phone: u.phone,
-      email: u.email || '',
-      address: u.address || '',
-      area: (u as any).area?.name || '',
-      profile: u.profile.name,
-      subscriptionType: u.subscriptionType || 'POSTPAID',
-      status: u.status === 'active' ? 'Aktif' : u.status === 'isolated' ? 'Isolir' : u.status === 'blocked' ? 'Block' : 'Stop',
-      ipAddress: u.ipAddress || '',
-      macAddress: (u as any).macAddress || '',
-      billingDay: u.billingDay?.toString() || '',
-      expiredAt: u.expiredAt ? formatDateExport(u.expiredAt) : '',
-      comment: (u as any).comment || '',
-      router: u.router?.name || 'Global',
-      latitude: u.latitude?.toString() || '',
-      longitude: u.longitude?.toString() || '',
-      createdAt: formatDateExport(u.createdAt)
+    const columns = unifiedHeaders.map(h => ({ key: h, header: h, width: 20 }));
+
+    const data = users.map(u => ({
+      'ID Pelanggan (kosongkan = auto)': (u as any).customerId || '',
+      'PPPoE Pelanggan': u.username,
+      'Password PPPoE': u.password,
+      'Password Portal Pelanggan': u.portalPassword || '123',
+      'Nama Lengkap *': u.name,
+      'No. Telepon *': u.phone,
+      'Email': u.email || '',
+      'Alamat': u.address || '',
+      'Area/Wilayah': (u as any).area?.name || '',
+      'IP Address': u.ipAddress || '',
+      'Tipe Langganan (Wajib isi: POSTPAID atau PREPAID)': u.subscriptionType || 'POSTPAID',
+      'Profile (opsional)': u.profile?.name || '',
+      'Router (opsional)': u.router?.name || 'Global',
+      'Tanggal Expired (YYYY-MM-DD)': u.expiredAt ? new Date(u.expiredAt).toISOString().split('T')[0] : '',
+      'Hari Tagihan (1-31)': u.billingDay?.toString() || '',
+      'Latitude': u.latitude?.toString() || '',
+      'Longitude': u.longitude?.toString() || '',
+      'Auto Isolasi (true/false)': (u as any).autoIsolationEnabled !== false ? 'true' : 'false',
+      'Tagihan Pertama (none/prorate/full)': '',
+      'Tanggal Register (YYYY-MM-DD)': new Date(u.createdAt).toISOString().split('T')[0],
+      'Status (abaikan saat import)': u.status
     }));
 
     const excelBuffer = await generateExcelBuffer(data, columns, 'PPPoE Users');
