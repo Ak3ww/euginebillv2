@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { Power, RefreshCw, WifiOff, Search, RotateCcw } from 'lucide-react';
@@ -79,9 +79,18 @@ export default function HotspotSessionsPage() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      await fetch('/api/sessions/sync?type=hotspot', { method: 'POST' });
+      const res = await fetch('/api/sessions/sync?type=hotspot', { method: 'POST' });
+      const data = await res.json();
       await fetchSessions(1);
-      addToast({ type: 'success', title: t('common.success'), description: t('sessions.syncComplete') });
+      
+      if (data.results?.hotspot?.success === false) {
+        // Find the first error message to display
+        const errorResult = data.results.hotspot.results?.find((r: any) => !r.success);
+        const errMsg = errorResult ? errorResult.error : 'Connection failed';
+        addToast({ type: 'error', title: t('common.error'), description: `Gagal terhubung ke MikroTik: ${errMsg}` });
+      } else {
+        addToast({ type: 'success', title: t('common.success'), description: t('sessions.syncComplete') });
+      }
     } catch {
       addToast({ type: 'error', title: t('common.error'), description: t('sessions.syncFailed') });
     } finally {

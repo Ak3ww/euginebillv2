@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { Power, RefreshCw, Wifi, Search, Download, Trash2, RotateCcw } from 'lucide-react';
@@ -198,9 +198,18 @@ export default function PPPoESessionsPage() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      await fetch('/api/sessions/sync?type=pppoe', { method: 'POST' });
+      const res = await fetch('/api/sessions/sync?type=pppoe', { method: 'POST' });
+      const data = await res.json();
       await fetchSessions(1);
-      addToast({ type: 'success', title: t('common.success'), description: t('sessions.syncComplete') });
+      
+      if (data.results?.pppoe?.success === false) {
+        // Find the first error message to display
+        const errorResult = data.results.pppoe.results?.find((r: any) => !r.success);
+        const errMsg = errorResult ? errorResult.error : 'Connection failed';
+        addToast({ type: 'error', title: t('common.error'), description: `Gagal terhubung ke MikroTik: ${errMsg}` });
+      } else {
+        addToast({ type: 'success', title: t('common.success'), description: t('sessions.syncComplete') });
+      }
     } catch {
       addToast({ type: 'error', title: t('common.error'), description: t('sessions.syncFailed') });
     } finally {
