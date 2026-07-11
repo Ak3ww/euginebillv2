@@ -6,16 +6,21 @@ export async function pollMikrotikSessions() {
   
   const routers = await prisma.router.findMany({
     where: { isActive: true },
-    select: { id: true, ipAddress: true, username: true, password: true, apiPort: true, name: true }
+    select: { id: true, ipAddress: true, username: true, password: true, port: true, name: true }
   })
 
   for (const router of routers) {
     // console.log(`[Mikrotik Poller] Syncing router: ${router.name} (${router.ipAddress})`)
+    
+    const apiPort = router.port || 8728
+    const useTls = apiPort === 8729
+
     const conn = new MikroTikConnection({
       host: router.ipAddress,
       username: router.username,
       password: router.password,
-      port: router.apiPort,
+      port: apiPort,
+      tls: useTls,
     })
 
     try {

@@ -253,6 +253,32 @@ export const CRON_JOBS: CronJobConfig[] = [
     enabled: true,
   },
   {
+    type: 'mikrotik_session_poller',
+    name: 'MikroTik Session Poller',
+    description: 'Poll active sessions and traffic directly from MikroTik API (Non-RADIUS)',
+    schedule: '*/2 * * * *',
+    scheduleLabel: 'Every 2 minutes',
+    handler: async () => {
+      const { pollMikrotikSessions } = await import('./mikrotik-poller');
+      await pollMikrotikSessions();
+      return { success: true };
+    },
+    enabled: true,
+  },
+  {
+    type: 'mikrotik_session_cleanup',
+    name: 'MikroTik Session Cleanup',
+    description: 'Clean up old stopped sessions (> 7 days) from mikrotikSession table',
+    schedule: '0 3 * * *',
+    scheduleLabel: 'Daily at 3 AM',
+    handler: async () => {
+      const { cleanupOldMikrotikSessions } = await import('./mikrotik-poller');
+      await cleanupOldMikrotikSessions();
+      return { success: true };
+    },
+    enabled: true,
+  },
+  {
     type: 'suspend_check',
     name: 'Suspend Check',
     description: 'Activate pending suspensions and restore users whose suspend period has ended',
