@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
 
     // Pre-load all profiles and routers for per-row auto-resolution from file data
     const allProfiles = await prisma.pppoeProfile.findMany();
-    const profileByNameMap = new Map(allProfiles.map(p => [p.name.toLowerCase(), p]));
+    const profileByNameMap = new Map(allProfiles.map(p => [p.name.toLowerCase().replace(/\s+/g, ''), p]));
     const allRouters = await prisma.router.findMany();
     const routerByNameMap = new Map(allRouters.map(r => [r.name.toLowerCase(), r]));
 
@@ -431,7 +431,7 @@ export async function POST(request: NextRequest) {
 
         // Resolve profile for this row from 'profilename' column (set by export's "Profile" header)
         const rowProfileName = rowData.profilename?.trim() || '';
-        const rowProfile = rowProfileName ? (profileByNameMap.get(rowProfileName.toLowerCase()) || null) : null;
+        const rowProfile = rowProfileName ? (profileByNameMap.get(rowProfileName.toLowerCase().replace(/\s+/g, '')) || null) : null;
 
         // Resolve router for this row from 'routername' column (set by export's "Router" header)
         let rowRouterId: string | null = null;
