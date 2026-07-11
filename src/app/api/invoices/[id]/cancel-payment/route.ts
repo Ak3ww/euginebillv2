@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
-import { verifyAuth } from '@/server/utils/auth';
-import { IsolationService } from '@/server/services/isolation.service';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/server/auth/config';
+import { disconnectPPPoEUser } from '@/server/services/radius/coa-handler.service';
 
 const ok = (data: any = {}) => NextResponse.json(data);
 const unauthorized = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -13,8 +14,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth) return unauthorized();
+    const session = await getServerSession(authOptions);
+    if (!session) return unauthorized();
 
     const { id } = await params;
     if (!id) return badRequest('Invoice ID is required');
@@ -86,12 +87,13 @@ export async function POST(
     if (updatedUser && updatedUser.expiredAt) {
       const now = new Date();
       if (new Date(updatedUser.expiredAt) < now) {
-        // They are expired! Isolate them.
+        // They are expired! Disconnect them so RADIUS gives them the isolation profile next.
         try {
-          // We call checkAndIsolateUsers to run the global job, which will isolate this user and notify them.
-          await IsolationService.checkAndIsolateUsers();
+          if (updatedUser.username) {
+            await disconnectPPPoEUser(updatedUser.username);
+          }
         } catch (error) {
-          console.error('[Cancel Payment] Error isolating user:', error);
+          console.error('[Cancel Payment] Error disconnecting user:', error);
         }
       }
     }
