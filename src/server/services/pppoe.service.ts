@@ -315,15 +315,17 @@ export async function createPppoeUser(
       }
     }
   } else if (noPppoeAccount && ipAddress) {
-    try {
-      await prisma.radreply.create({
-        data: { username, attribute: 'Framed-IP-Address', op: ':=', value: ipAddress },
-      });
-      await prisma.radusergroup.create({
-        data: { username, groupname: profile.groupName, priority: 0 },
-      });
-    } catch (syncError) {
-      console.error('Static IP sync error:', syncError);
+    if (isRadiusEnabled) {
+      try {
+        await prisma.radreply.create({
+          data: { username, attribute: 'Framed-IP-Address', op: ':=', value: ipAddress },
+        });
+        await prisma.radusergroup.create({
+          data: { username, groupname: profile.groupName, priority: 0 },
+        });
+      } catch (syncError) {
+        console.error('Static IP sync error:', syncError);
+      }
     }
   }
 
@@ -596,48 +598,56 @@ export async function updatePppoeUser(
       }
     }
 
-      // If profile changed, apply new rate limit via CoA
+      // If profile changed, apply new rate limit via CoA or direct MikroTik disconnect
       const profileChanged = data.profileId && data.profileId !== currentUser.profileId;
       if (profileChanged && newProfile) {
-        const activeSession = await prisma.radacct.findFirst({
-          where: { username: oldUsername, acctstoptime: null },
-          select: { acctsessionid: true, nasipaddress: true, framedipaddress: true },
-        });
-
-        if (activeSession) {
-          const routerRow = await prisma.router.findFirst({
-            where: {
-              OR: [
-                { nasname: activeSession.nasipaddress ?? '' },
-                { ipAddress: activeSession.nasipaddress ?? '' },
-              ],
-            },
-            select: { ipAddress: true, nasname: true, port: true, username: true, password: true, secret: true },
-          }) || await prisma.router.findFirst({
-            where: { isActive: true },
-            select: { ipAddress: true, nasname: true, port: true, username: true, password: true, secret: true },
+        if (isRadiusEnabled) {
+          const activeSession = await prisma.radacct.findFirst({
+            where: { username: oldUsername, acctstoptime: null },
+            select: { acctsessionid: true, nasipaddress: true, framedipaddress: true },
           });
 
-          if (routerRow) {
-            const newRateLimit = newProfile.rateLimit || `${newProfile.downloadSpeed}M/${newProfile.uploadSpeed}M`;
-            await changePPPoERateLimit(
-              {
-                ipAddress: routerRow.ipAddress,
-                nasname: routerRow.nasname,
-                port: routerRow.port,
-                username: routerRow.username,
-                password: routerRow.password,
-                secret: routerRow.secret,
+          if (activeSession) {
+            const routerRow = await prisma.router.findFirst({
+              where: {
+                OR: [
+                  { nasname: activeSession.nasipaddress ?? '' },
+                  { ipAddress: activeSession.nasipaddress ?? '' },
+                ],
               },
-              oldUsername,
-              newRateLimit,
-              {
-                acctSessionId: activeSession.acctsessionid || undefined,
-                nasIpAddress: routerRow.ipAddress,
-                framedIpAddress: activeSession.framedipaddress || undefined,
-              },
-              { allowDisconnect: true }
-            );
+              select: { ipAddress: true, nasname: true, port: true, username: true, password: true, secret: true },
+            }) || await prisma.router.findFirst({
+              where: { isActive: true },
+              select: { ipAddress: true, nasname: true, port: true, username: true, password: true, secret: true },
+            });
+
+            if (routerRow) {
+              const newRateLimit = newProfile.rateLimit || `${newProfile.downloadSpeed}M/${newProfile.uploadSpeed}M`;
+              await changePPPoERateLimit(
+                {
+                  ipAddress: routerRow.ipAddress,
+                  nasname: routerRow.nasname,
+                  port: routerRow.port,
+                  username: routerRow.username,
+                  password: routerRow.password,
+                  secret: routerRow.secret,
+                },
+                oldUsername,
+                newRateLimit,
+                {
+                  acctSessionId: activeSession.acctsessionid || undefined,
+                  nasIpAddress: routerRow.ipAddress,
+                  framedIpAddress: activeSession.framedipaddress || undefined,
+                },
+                { allowDisconnect: true }
+              );
+            }
+          }
+        } else {
+          // RADIUS OFF: disconnect user in MikroTik to apply new profile
+          const finalRouterId = data.routerId !== undefined ? data.routerId : currentUser.routerId;
+          if (finalRouterId) {
+             await PPPSecretService.setProfileAndDisconnect(finalRouterId, newUsername, newProfile.name);
           }
         }
       }
