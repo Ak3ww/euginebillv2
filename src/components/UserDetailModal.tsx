@@ -129,6 +129,7 @@ export default function UserDetailModal({
     installationPhotos: [] as string[],
     autoIsolationEnabled: true,
     registeredAt: '',
+    portalPassword: '',
   });
 
   useEffect(() => {
@@ -136,6 +137,7 @@ export default function UserDetailModal({
       setFormData({
         username: user.username,
         password: '',
+        portalPassword: (user as any).portalPassword || '',
         areaId: user.area?.id || '',
         profileId: user.profile.id,
         routerId: user.router?.id || '',
@@ -329,6 +331,16 @@ export default function UserDetailModal({
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Password Portal</label>
+                  <input
+                    type="text"
+                    value={formData.portalPassword}
+                    onChange={(e) => setFormData({ ...formData, portalPassword: e.target.value })}
+                    className={inputCls}
+                    placeholder="Biarkan kosong jika tidak diubah"
+                  />
                 </div>
                 <div>
                   <label className={labelCls}>{t('userModal.name')}</label>

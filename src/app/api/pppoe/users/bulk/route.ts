@@ -44,7 +44,10 @@ export async function GET(request: NextRequest) {
         'Auto Isolasi (true/false)',
         'Tagihan Pertama (none/prorate/full)',
         'Tanggal Register (YYYY-MM-DD)',
-        'Status (abaikan saat import)'
+        'Status (abaikan saat import)',
+        'MAC Address',
+        'Komentar',
+        'No. KTP'
       ];
 
       // Sample template rows
@@ -52,12 +55,12 @@ export async function GET(request: NextRequest) {
         [
           '', 'user001', 'pass123', '123', 'Budi Santoso', '08123456789', 'budi@example.com',
           'Jl. Merdeka No. 10', 'Cluster A', '10.10.10.2', 'POSTPAID', '10 Mbps', 'MikroTik Pusat',
-          '', '1', '-6.200000', '106.816666', 'true', 'prorate', '2026-07-01', ''
+          '', '1', '-6.200000', '106.816666', 'true', 'prorate', '2026-07-01', '', 'AA:BB:CC:DD:EE:FF', 'Pelanggan VIP', '3201234567890123'
         ],
         [
           '', 'user002', 'pass456', '123', 'Siti Rahayu', '08987654321', 'siti@example.com',
           'Jl. Sudirman No. 5', '', '', 'PREPAID', '20 Mbps', 'Global',
-          '2026-12-31', '', '', '', 'true', 'full', '2026-07-02', ''
+          '2026-12-31', '', '', '', 'true', 'full', '2026-07-02', '', '', '', ''
         ]
       ];
 
@@ -132,7 +135,10 @@ export async function GET(request: NextRequest) {
         'Auto Isolasi (true/false)',
         'Tagihan Pertama (none/prorate/full)',
         'Tanggal Register (YYYY-MM-DD)',
-        'Status (abaikan saat import)'
+        'Status (abaikan saat import)',
+        'MAC Address',
+        'Komentar',
+        'No. KTP'
       ];
 
       let csv = unifiedHeaders.map(h => `"${h}"`).join(',') + '\n';
@@ -159,7 +165,10 @@ export async function GET(request: NextRequest) {
           (user as any).autoIsolationEnabled !== false ? 'true' : 'false',
           '', // firstInvoice (empty for export)
           new Date(user.createdAt).toISOString().split('T')[0],
-          user.status
+          user.status,
+          user.macAddress || '',
+          (user.comment || '').replace(/,/g, ';'), // Replace commas in comment for CSV
+          user.idCardNumber || ''
         ];
         csv += row.map(field => `"${field}"`).join(',') + '\n';
       });
@@ -236,6 +245,11 @@ export async function POST(request: NextRequest) {
       'auto isolasi': 'autoisolation',
       'aksi jatuh tempo': 'autoisolation',
       'autoisolationenabled': 'autoisolation',
+      'no. ktp': 'idcardnumber',
+      'no ktp': 'idcardnumber',
+      'ktp': 'idcardnumber',
+      'nik': 'idcardnumber',
+      'idcardnumber': 'idcardnumber',
       // Indonesian labels (from template)
       'username *': 'username',
       'password *': 'password',
@@ -581,6 +595,9 @@ export async function POST(request: NextRequest) {
         }
         if (rowData.autoisolation !== undefined && rowData.autoisolation !== '') {
           userData.autoIsolationEnabled = rowData.autoisolation.toLowerCase() !== 'false' && rowData.autoisolation !== '0';
+        }
+        if (rowData.idcardnumber && rowData.idcardnumber.trim() !== '') {
+          userData.idCardNumber = rowData.idcardnumber.trim();
         }
 
         // Tanggal Register / registeredAt — maps to createdAt in DB
