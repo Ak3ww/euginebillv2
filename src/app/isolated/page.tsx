@@ -220,7 +220,7 @@ function IsolatedContent() {
   /* ─── main page ────────────────────────────────────────────────────────────── */
   // Build user info rows — primary (always shown) and secondary (show more)
   const primaryInfoItems = userInfo ? ([
-    { label: 'Username',     value: userInfo.username,              mono: true },
+    userInfo.customerId   ? { label: 'ID Pelanggan', value: userInfo.customerId, mono: true } : null,
     { label: 'Nama',         value: userInfo.name                              },
     userInfo.profileName  ? { label: 'Paket',       value: userInfo.profileName                } : null,
     { label: 'Expired',      value: fmtDate(userInfo.expiredAt),    warn: true },
@@ -231,7 +231,6 @@ function IsolatedContent() {
     userInfo.profilePrice ? { label: 'Harga Paket', value: fmtCurrency(userInfo.profilePrice) } : null,
     userInfo.email        ? { label: 'Email',        value: userInfo.email                     } : null,
     userInfo.area         ? { label: 'Area',          value: userInfo.area                      } : null,
-    userInfo.customerId   ? { label: 'Customer ID',   value: userInfo.customerId, mono: true    } : null,
     userInfo.address      ? { label: 'Alamat',        value: userInfo.address,    full: true    } : null,
   ] as Array<{ label: string; value: string; mono?: boolean; warn?: boolean; full?: boolean } | null>).filter(Boolean) : [];
 
@@ -441,8 +440,7 @@ function IsolatedContent() {
                 'Klik "Bayar Sekarang" pada tagihan di atas',
                 'Pilih metode pembayaran yang diinginkan',
                 'Selesaikan pembayaran di halaman yang terbuka di tab baru',
-                'Layanan aktif otomatis 1–2 menit setelah dikonfirmasi',
-                'Logout & login ulang PPPoE untuk akses penuh',
+                'Layanan akan aktif otomatis (router akan reconnect dengan sendirinya)',
               ].map((step, i) => (
                 <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                   <span style={{ width: 18, height: 18, minWidth: 18, background: 'rgba(99,102,241,0.25)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8', fontWeight: 800, fontSize: 9 }}>{i + 1}</span>
