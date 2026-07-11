@@ -537,30 +537,6 @@ export default function CompanySettingsPage() {
                 <p className="mt-1 text-[10px] text-muted-foreground">Teks ini akan ditampilkan di footer invoice sebagai "Support by ..." . Kosongkan jika tidak ingin ditampilkan.</p>
               </div>
 
-              {/* RADIUS Toggle */}
-              <div>
-                <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
-                  🔒 Integrasi RADIUS (FreeRADIUS)
-                </label>
-                <div className="flex items-center justify-between p-3 border border-border rounded-lg bg-card mt-1">
-                  <div>
-                    <h4 className="text-xs font-semibold">Aktifkan RADIUS</h4>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      Jika OFF, sistem akan mode fallback menggunakan sinkronisasi murni MikroTik /ppp secret. 
-                      Aktifkan hanya jika Anda sudah menginstal FreeRADIUS.
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="sr-only peer"
-                      checked={settings.radiusEnabled}
-                      onChange={(e) => setSettings({ ...settings, radiusEnabled: e.target.checked })}
-                    />
-                    <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                  </label>
-                </div>
-              </div>
 
               {/* Timezone */}
               <div>

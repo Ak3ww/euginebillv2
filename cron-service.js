@@ -196,6 +196,16 @@ cron.schedule('0 4 * * *', async () => {
   await runCronJob('cron_history_cleanup', 'Cron History Cleanup', { lockTtl: 120 });
 });
 
+// 17. MikroTik Session Sync - Every 5 minutes
+cron.schedule('*/5 * * * *', async () => {
+  await runCronJob('mikrotik_session_sync', 'MikroTik Session Sync', { lockTtl: 120 });
+});
+
+// 18. MikroTik Session Cleanup - Daily at 3 AM
+cron.schedule('0 3 * * *', async () => {
+  await runCronJob('mikrotik_session_cleanup', 'MikroTik Session Cleanup', { lockTtl: 120 });
+});
+
 console.log('[CRON SERVICE] All cron jobs initialized successfully!');
 console.log('[CRON SERVICE] Schedules:');
 console.log('  - Hotspot Sync: Every minute');

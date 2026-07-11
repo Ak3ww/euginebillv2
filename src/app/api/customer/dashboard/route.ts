@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 
 
@@ -70,43 +70,96 @@ export async function GET(request: NextRequest) {
     // Fetch dashboard data
     const dashboardData = await (async () => {
 
-    // Get active session from RADIUS
-    const activeSession = await prisma.radacct.findFirst({
-      where: {
-        username: user.username,
-        acctstoptime: null,
-      },
-      orderBy: {
-        acctstarttime: 'desc',
-      },
-      select: {
-        framedipaddress: true,
-        acctstarttime: true,
-        acctinputoctets: true,
-        acctoutputoctets: true,
-      },
-    });
+    const company = await prisma.company.findFirst();
+    const radiusEnabled = company?.radiusEnabled ?? true;
+
+    let activeSession = null;
+    if (radiusEnabled) {
+      // Get active session from RADIUS
+      activeSession = await prisma.radacct.findFirst({
+        where: {
+          username: user.username,
+          acctstoptime: null,
+        },
+        orderBy: {
+          acctstarttime: 'desc',
+        },
+        select: {
+          framedipaddress: true,
+          acctstarttime: true,
+          acctinputoctets: true,
+          acctoutputoctets: true,
+        },
+      });
+    } else {
+      const ms = await prisma.mikrotikSession.findFirst({
+        where: {
+          username: user.username,
+          stopTime: null,
+        },
+        orderBy: {
+          startTime: 'desc',
+        },
+        select: {
+          ipAddress: true,
+          startTime: true,
+          txBytes: true,
+          rxBytes: true,
+        },
+      });
+      if (ms) {
+        activeSession = {
+          framedipaddress: ms.ipAddress,
+          acctstarttime: ms.startTime,
+          acctinputoctets: ms.txBytes,
+          acctoutputoctets: ms.rxBytes,
+        };
+      }
+    }
 
     // Get usage stats for current month
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     
-    const usageStats = await prisma.radacct.aggregate({
-      where: {
-        username: user.username,
-        acctstarttime: {
-          gte: startOfMonth,
-        },
-      },
-      _sum: {
-        acctinputoctets: true,
-        acctoutputoctets: true,
-      },
-    });
+    let downloadBytes = 0;
+    let uploadBytes = 0;
+    let totalBytes = 0;
 
-    const downloadBytes = Number(usageStats._sum.acctoutputoctets || 0);
-    const uploadBytes = Number(usageStats._sum.acctinputoctets || 0);
-    const totalBytes = downloadBytes + uploadBytes;
+    if (radiusEnabled) {
+      const usageStats = await prisma.radacct.aggregate({
+        where: {
+          username: user.username,
+          acctstarttime: {
+            gte: startOfMonth,
+          },
+        },
+        _sum: {
+          acctinputoctets: true,
+          acctoutputoctets: true,
+        },
+      });
+
+      downloadBytes = Number(usageStats._sum.acctoutputoctets || 0);
+      uploadBytes = Number(usageStats._sum.acctinputoctets || 0);
+      totalBytes = downloadBytes + uploadBytes;
+    } else {
+      const usageStats = await prisma.mikrotikSession.aggregate({
+        where: {
+          username: user.username,
+          startTime: {
+            gte: startOfMonth,
+          },
+        },
+        _sum: {
+          txBytes: true,
+          rxBytes: true,
+        },
+      });
+
+      downloadBytes = Number(usageStats._sum.rxBytes || 0);
+      uploadBytes = Number(usageStats._sum.txBytes || 0);
+      totalBytes = downloadBytes + uploadBytes;
+    }
 
     // Get invoice summary
     const unpaidInvoices = await prisma.invoice.count({

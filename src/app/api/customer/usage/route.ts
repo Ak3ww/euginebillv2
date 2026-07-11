@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 
 /**
@@ -51,22 +51,48 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     
-    const usageStats = await prisma.radacct.aggregate({
-      where: {
-        username: user.username,
-        acctstarttime: {
-          gte: startOfMonth,
-        },
-      },
-      _sum: {
-        acctinputoctets: true,
-        acctoutputoctets: true,
-      },
-    });
+    let downloadBytes = 0;
+    let uploadBytes = 0;
+    let totalBytes = 0;
 
-    const downloadBytes = Number(usageStats._sum.acctoutputoctets || 0);
-    const uploadBytes = Number(usageStats._sum.acctinputoctets || 0);
-    const totalBytes = downloadBytes + uploadBytes;
+    const company = await prisma.company.findFirst();
+    const radiusEnabled = company?.radiusEnabled ?? true;
+
+    if (radiusEnabled) {
+      const usageStats = await prisma.radacct.aggregate({
+        where: {
+          username: user.username,
+          acctstarttime: {
+            gte: startOfMonth,
+          },
+        },
+        _sum: {
+          acctinputoctets: true,
+          acctoutputoctets: true,
+        },
+      });
+
+      downloadBytes = Number(usageStats._sum.acctoutputoctets || 0);
+      uploadBytes = Number(usageStats._sum.acctinputoctets || 0);
+      totalBytes = downloadBytes + uploadBytes;
+    } else {
+      const usageStats = await prisma.mikrotikSession.aggregate({
+        where: {
+          username: user.username,
+          startTime: {
+            gte: startOfMonth,
+          },
+        },
+        _sum: {
+          txBytes: true,
+          rxBytes: true,
+        },
+      });
+
+      downloadBytes = Number(usageStats._sum.rxBytes || 0);
+      uploadBytes = Number(usageStats._sum.txBytes || 0);
+      totalBytes = downloadBytes + uploadBytes;
+    }
 
     return NextResponse.json({
       success: true,

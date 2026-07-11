@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 
 export async function GET(
@@ -25,66 +25,103 @@ export async function GET(
     }
 
     if (type === 'sessions') {
-      // Get session history from radacct
-      const sessions = await prisma.radacct.findMany({
-        where: {
-          username: user.username,
-        },
-        orderBy: {
-          acctstarttime: 'desc',
-        },
-        take: limit,
-        select: {
-          radacctid: true,
-          acctsessionid: true,
-          acctstarttime: true,
-          acctstoptime: true,
-          acctsessiontime: true,
-          acctinputoctets: true,
-          acctoutputoctets: true,
-          nasipaddress: true,
-          acctterminatecause: true,
-          callingstationid: true, // MAC address (client)
-        },
-      });
+      const company = await prisma.company.findFirst();
+      const radiusEnabled = company?.radiusEnabled ?? true;
+      let formattedSessions;
 
-      // Format sessions
-      const formattedSessions = sessions.map((session) => {
-        const download = Number(session.acctinputoctets || 0);
-        const upload = Number(session.acctoutputoctets || 0);
-        const total = download + upload;
+      const formatBytes = (bytes: number) => {
+        if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+        if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(2)} MB`;
+        if (bytes >= 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+        return `${bytes} B`;
+      };
 
-        const formatBytes = (bytes: number) => {
-          if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
-          if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(2)} MB`;
-          if (bytes >= 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-          return `${bytes} B`;
-        };
+      const formatDuration = (seconds: number | null) => {
+        if (!seconds) return '-';
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return `${hours}h ${minutes}m ${secs}s`;
+      };
 
-        const formatDuration = (seconds: number | null) => {
-          if (!seconds) return '-';
-          const hours = Math.floor(seconds / 3600);
-          const minutes = Math.floor((seconds % 3600) / 60);
-          const secs = seconds % 60;
-          return `${hours}h ${minutes}m ${secs}s`;
-        };
+      if (radiusEnabled) {
+        // Get session history from radacct
+        const sessions = await prisma.radacct.findMany({
+          where: {
+            username: user.username,
+          },
+          orderBy: {
+            acctstarttime: 'desc',
+          },
+          take: limit,
+          select: {
+            radacctid: true,
+            acctsessionid: true,
+            acctstarttime: true,
+            acctstoptime: true,
+            acctsessiontime: true,
+            acctinputoctets: true,
+            acctoutputoctets: true,
+            nasipaddress: true,
+            acctterminatecause: true,
+            callingstationid: true, // MAC address (client)
+          },
+        });
 
-        return {
-          id: session.radacctid.toString(),
-          sessionId: session.acctsessionid,
-          startTime: session.acctstarttime,
-          stopTime: session.acctstoptime,
-          duration: session.acctsessiontime,
-          durationFormatted: formatDuration(session.acctsessiontime),
-          download: formatBytes(download),
-          upload: formatBytes(upload),
-          total: formatBytes(total),
-          nasIp: session.nasipaddress,
-          terminateCause: session.acctterminatecause,
-          macAddress: session.callingstationid || '-',
-          isOnline: !session.acctstoptime,
-        };
-      });
+        formattedSessions = sessions.map((session) => {
+          const download = Number(session.acctinputoctets || 0);
+          const upload = Number(session.acctoutputoctets || 0);
+          const total = download + upload;
+
+          return {
+            id: session.radacctid.toString(),
+            sessionId: session.acctsessionid,
+            startTime: session.acctstarttime,
+            stopTime: session.acctstoptime,
+            duration: session.acctsessiontime,
+            durationFormatted: formatDuration(session.acctsessiontime),
+            download: formatBytes(download),
+            upload: formatBytes(upload),
+            total: formatBytes(total),
+            nasIp: session.nasipaddress,
+            terminateCause: session.acctterminatecause,
+            macAddress: session.callingstationid || '-',
+            isOnline: !session.acctstoptime,
+          };
+        });
+      } else {
+        const sessions = await prisma.mikrotikSession.findMany({
+          where: {
+            username: user.username,
+          },
+          orderBy: {
+            startTime: 'desc',
+          },
+          take: limit,
+        });
+
+        formattedSessions = sessions.map((session) => {
+          const download = Number(session.rxBytes || 0);
+          const upload = Number(session.txBytes || 0);
+          const total = download + upload;
+
+          return {
+            id: session.id.toString(),
+            sessionId: session.id.toString(),
+            startTime: session.startTime,
+            stopTime: session.stopTime,
+            duration: session.uptime,
+            durationFormatted: formatDuration(session.uptime),
+            download: formatBytes(download),
+            upload: formatBytes(upload),
+            total: formatBytes(total),
+            nasIp: session.ipAddress || '-',
+            terminateCause: session.terminateCause || '-',
+            macAddress: session.macAddress || '-',
+            isOnline: !session.stopTime,
+          };
+        });
+      }
 
       return NextResponse.json({
         success: true,

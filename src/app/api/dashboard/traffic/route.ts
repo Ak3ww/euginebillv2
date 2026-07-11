@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/config";
 import { prisma } from "@/server/db/client";
@@ -34,36 +34,59 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Aggregate active session bytes per NAS IP from radacct (Full RADIUS — no RouterOS connection)
-    const sessionAggs = await prisma.radacct.groupBy({
-      by: ['nasipaddress'],
-      where: { acctstoptime: null },
-      _sum: {
-        acctinputoctets: true,
-        acctoutputoctets: true,
-      },
-      _count: { radacctid: true },
-    });
+    const company = await prisma.company.findFirst();
+    const radiusEnabled = company?.radiusEnabled ?? true;
 
-    // Build map: nasipaddress → aggregated stats
     const aggByNas = new Map<string, { rxBytes: number; txBytes: number; sessions: number }>();
-    for (const agg of sessionAggs) {
-      aggByNas.set(agg.nasipaddress, {
-        // From NAS perspective: inputOctets = bytes received from user (user upload)
-        //                       outputOctets = bytes sent to user (user download)
-        rxBytes: Number(agg._sum.acctoutputoctets ?? 0), // user download
-        txBytes: Number(agg._sum.acctinputoctets ?? 0),  // user upload
-        sessions: agg._count.radacctid,
+    const aggByRouterId = new Map<string, { rxBytes: number; txBytes: number; sessions: number }>();
+
+    if (radiusEnabled) {
+      const sessionAggs = await prisma.radacct.groupBy({
+        by: ['nasipaddress'],
+        where: { acctstoptime: null },
+        _sum: {
+          acctinputoctets: true,
+          acctoutputoctets: true,
+        },
+        _count: { radacctid: true },
       });
+
+      for (const agg of sessionAggs) {
+        aggByNas.set(agg.nasipaddress, {
+          rxBytes: Number(agg._sum.acctoutputoctets ?? 0),
+          txBytes: Number(agg._sum.acctinputoctets ?? 0),
+          sessions: agg._count.radacctid,
+        });
+      }
+    } else {
+      const mikrotikSessionAggs = await prisma.mikrotikSession.groupBy({
+        by: ['routerId'],
+        where: { stopTime: null },
+        _sum: {
+          rxBytes: true,
+          txBytes: true,
+        },
+        _count: { id: true },
+      });
+
+      for (const agg of mikrotikSessionAggs) {
+        aggByRouterId.set(agg.routerId, {
+          rxBytes: Number(agg._sum.rxBytes ?? 0),
+          txBytes: Number(agg._sum.txBytes ?? 0),
+          sessions: agg._count.id,
+        });
+      }
     }
 
     // Build response in the same format as the original RouterOSAPI-based route
     // so frontend components (TrafficMonitor, TrafficChartMonitor) work without changes.
     const routerTraffic = routers.map((router) => {
-      const stats =
-        aggByNas.get(router.nasname) ||
-        aggByNas.get(router.ipAddress) ||
-        { rxBytes: 0, txBytes: 0, sessions: 0 };
+      let stats = { rxBytes: 0, txBytes: 0, sessions: 0 };
+      if (radiusEnabled) {
+        stats = aggByNas.get(router.nasname) || aggByNas.get(router.ipAddress) || stats;
+      } else {
+        stats = aggByRouterId.get(router.id) || stats;
+      }
 
       return {
         routerId: router.id,

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/server/db/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/config";
@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) {
 
     const result = await (async () => {
     const now = nowWIB();
+    const company = await prisma.company.findFirst();
+    const radiusEnabled = company?.radiusEnabled ?? true;
     const startOfMonth = new Date(Date.UTC(selectedYear, selectedMonth, 1));
     const startOfNextMonth = new Date(Date.UTC(selectedYear, selectedMonth + 1, 1));
     // last day of selected month (handles 28/29/30/31 days correctly)
@@ -63,10 +65,18 @@ export async function GET(request: NextRequest) {
       // Sama dengan halaman Sesi: if username ada di pppoeUser → PPPoE, else → Hotspot.
       const normalizeUsername = (u: string) => u.includes('@') ? u.split('@')[0] : u;
 
-      const activeRadacctSessions = await prisma.radacct.findMany({
-        where: { acctstoptime: null },
-        select: { username: true },
-      });
+      let activeRadacctSessions;
+      if (radiusEnabled) {
+        activeRadacctSessions = await prisma.radacct.findMany({
+          where: { acctstoptime: null },
+          select: { username: true },
+        });
+      } else {
+        activeRadacctSessions = await prisma.mikrotikSession.findMany({
+          where: { stopTime: null },
+          select: { username: true },
+        });
+      }
 
       const onlineUsernames = new Set<string>(
         activeRadacctSessions.map(s => s.username).filter(Boolean) as string[]
@@ -133,18 +143,34 @@ export async function GET(request: NextRequest) {
       if (activeCandidates.length > 0) {
         const candidateCodes = activeCandidates.map(v => v.code);
         // Find the latest stopped session per voucher code
-        const stoppedRows = await prisma.radacct.findMany({
-          where: {
-            username: { in: candidateCodes },
-            acctstoptime: { not: null },
-          },
-          select: { username: true, acctstoptime: true },
-          orderBy: { acctstoptime: 'desc' },
-        });
         const latestStopMap = new Map<string, Date>();
-        for (const r of stoppedRows) {
-          if (r.acctstoptime && !latestStopMap.has(r.username)) {
-            latestStopMap.set(r.username, new Date(r.acctstoptime));
+        if (radiusEnabled) {
+          const stoppedRows = await prisma.radacct.findMany({
+            where: {
+              username: { in: candidateCodes },
+              acctstoptime: { not: null },
+            },
+            select: { username: true, acctstoptime: true },
+            orderBy: { acctstoptime: 'desc' },
+          });
+          for (const r of stoppedRows) {
+            if (r.acctstoptime && !latestStopMap.has(r.username)) {
+              latestStopMap.set(r.username, new Date(r.acctstoptime));
+            }
+          }
+        } else {
+          const stoppedRows = await prisma.mikrotikSession.findMany({
+            where: {
+              username: { in: candidateCodes },
+              stopTime: { not: null },
+            },
+            select: { username: true, stopTime: true },
+            orderBy: { stopTime: 'desc' },
+          });
+          for (const r of stoppedRows) {
+            if (r.stopTime && !latestStopMap.has(r.username)) {
+              latestStopMap.set(r.username, new Date(r.stopTime));
+            }
           }
         }
         // Count vouchers where session is still "active" (not properly stopped after last login)
@@ -395,21 +421,23 @@ export async function GET(request: NextRequest) {
     let radiusAuthLog: { username: string; reply: string; authdate: Date | string }[] = [];
     let radiusAuthStats = { acceptToday: 0, rejectToday: 0 };
     try {
-      const startOfToday = startOfDayWIBtoUTC(now);
+      if (radiusEnabled) {
+        const startOfToday = startOfDayWIBtoUTC(now);
 
-      [radiusAuthLog, radiusAuthStats.acceptToday, radiusAuthStats.rejectToday] = await Promise.all([
-        prisma.radpostauth.findMany({
-          orderBy: { authdate: 'desc' },
-          take: 15,
-          select: { username: true, reply: true, authdate: true },
-        }),
-        prisma.radpostauth.count({
-          where: { reply: 'Access-Accept', authdate: { gte: startOfToday } },
-        }),
-        prisma.radpostauth.count({
-          where: { reply: 'Access-Reject', authdate: { gte: startOfToday } },
-        }),
-      ]);
+        [radiusAuthLog, radiusAuthStats.acceptToday, radiusAuthStats.rejectToday] = await Promise.all([
+          prisma.radpostauth.findMany({
+            orderBy: { authdate: 'desc' },
+            take: 15,
+            select: { username: true, reply: true, authdate: true },
+          }),
+          prisma.radpostauth.count({
+            where: { reply: 'Access-Accept', authdate: { gte: startOfToday } },
+          }),
+          prisma.radpostauth.count({
+            where: { reply: 'Access-Reject', authdate: { gte: startOfToday } },
+          }),
+        ]);
+      }
     } catch (e) {
       console.error('[Dashboard] Error loading RADIUS auth log:', e);
     }
@@ -423,12 +451,21 @@ export async function GET(request: NextRequest) {
     const apiStatus = true;
 
     try {
-      const recentRadacct = await prisma.radacct.findFirst({
-        where: {
-          acctstarttime: { gte: new Date(now.getTime() - 3600000) },
-        },
-      });
-      radiusStatus = !!recentRadacct;
+      if (radiusEnabled) {
+        const recentRadacct = await prisma.radacct.findFirst({
+          where: {
+            acctstarttime: { gte: new Date(now.getTime() - 3600000) },
+          },
+        });
+        radiusStatus = !!recentRadacct;
+      } else {
+        const recentSession = await prisma.mikrotikSession.findFirst({
+          where: {
+            startTime: { gte: new Date(now.getTime() - 3600000) },
+          },
+        });
+        radiusStatus = !!recentSession;
+      }
     } catch (error) {
       radiusStatus = false;
     }

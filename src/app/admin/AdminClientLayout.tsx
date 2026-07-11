@@ -406,6 +406,7 @@ function CategoryItem({ titleKey, items, pendingCount, manualPaymentsCount, unre
 
   const visibleItems = items
     .filter(item => !item.requiredPermission || userPermissions.includes(item.requiredPermission))
+    .filter(item => !(item.requiresRadius && radiusEnabled === false))
     .map(item => ({
       ...item,
       children: item.children?.filter(child => !child.requiredPermission || userPermissions.includes(child.requiredPermission)),

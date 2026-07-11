@@ -348,6 +348,7 @@ model router {
   agents         agent[]            // Agents assigned to this router
   oltRouters     networkOLTRouter[] // OLT router assignments
   vpnClient      vpnClient?         @relation(fields: [vpnClientId], references: [id], onDelete: SetNull)
+  mikrotikSessions mikrotikSession[]
 
   @@unique([nasname, ports, secret]) // Allow same IP with different port/secret
   @@index([nasname])
@@ -2479,4 +2480,23 @@ model acsTask {
   result       Json?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+model mikrotikSession {
+  id             String    @id @default(uuid())
+  routerId       String
+  username       String
+  ipAddress      String?
+  macAddress     String?
+  uptime         String?
+  startTime      DateTime  @default(now())
+  stopTime       DateTime?
+  rxBytes        BigInt    @default(0)
+  txBytes        BigInt    @default(0)
+  terminateCause String?
+
+  router         router    @relation(fields: [routerId], references: [id])
+  
+  @@index([routerId, username])
+  @@index([stopTime])
 }

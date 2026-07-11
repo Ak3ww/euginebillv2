@@ -71,12 +71,24 @@ export async function GET(request: NextRequest) {
     // Query radacct for active sessions (acctstoptime IS NULL)
     const activeSet = new Set<string>();
     if (allUsernames.length > 0) {
-      const activeSessions = await (prisma as any).radacct.findMany({
-        where: { username: { in: allUsernames }, acctstoptime: null },
-        select: { username: true },
-        distinct: ['username'],
-      });
-      activeSessions.forEach((s: any) => activeSet.add(s.username));
+      const company = await (prisma as any).company.findFirst();
+      const radiusEnabled = company?.radiusEnabled ?? true;
+
+      if (radiusEnabled) {
+        const activeSessions = await (prisma as any).radacct.findMany({
+          where: { username: { in: allUsernames }, acctstoptime: null },
+          select: { username: true },
+          distinct: ['username'],
+        });
+        activeSessions.forEach((s: any) => activeSet.add(s.username));
+      } else {
+        const activeSessions = await (prisma as any).mikrotikSession.findMany({
+          where: { username: { in: allUsernames }, stopTime: null },
+          select: { username: true },
+          distinct: ['username'],
+        });
+        activeSessions.forEach((s: any) => activeSet.add(s.username));
+      }
     }
 
     // Enrich each customer with session info

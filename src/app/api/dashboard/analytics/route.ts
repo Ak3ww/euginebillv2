@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/server/db/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/config";
@@ -181,6 +181,9 @@ export async function GET(request: NextRequest) {
 
     // ==================== SESSION MONITORING ====================
     if (type === 'all' || type === 'sessions') {
+      const company = await prisma.company.findFirst();
+      const radiusEnabled = company?.radiusEnabled ?? true;
+
       // Session counts for last 24 hours (hourly)
       const sessionsData = [];
       const hoursAgo = 24;
@@ -190,28 +193,42 @@ export async function GET(request: NextRequest) {
         const hourStart = new Date(nowMs - (i + 1) * 60 * 60 * 1000);
         const hourEnd = new Date(nowMs - i * 60 * 60 * 1000);
 
-        // Count sessions active during this hour
-        const pppoeCount = await prisma.radacct.count({
-          where: {
-            acctstarttime: { lte: hourEnd },
-            OR: [
-              { acctstoptime: null },
-              { acctstoptime: { gte: hourStart } },
-            ],
-            groupname: { not: 'hotspot' },
-          },
-        });
+        let pppoeCount = 0;
+        let hotspotCount = 0;
 
-        const hotspotCount = await prisma.radacct.count({
-          where: {
-            acctstarttime: { lte: hourEnd },
-            OR: [
-              { acctstoptime: null },
-              { acctstoptime: { gte: hourStart } },
-            ],
-            groupname: 'hotspot',
-          },
-        });
+        if (radiusEnabled) {
+          pppoeCount = await prisma.radacct.count({
+            where: {
+              acctstarttime: { lte: hourEnd },
+              OR: [
+                { acctstoptime: null },
+                { acctstoptime: { gte: hourStart } },
+              ],
+              groupname: { not: 'hotspot' },
+            },
+          });
+
+          hotspotCount = await prisma.radacct.count({
+            where: {
+              acctstarttime: { lte: hourEnd },
+              OR: [
+                { acctstoptime: null },
+                { acctstoptime: { gte: hourStart } },
+              ],
+              groupname: 'hotspot',
+            },
+          });
+        } else {
+          pppoeCount = await prisma.mikrotikSession.count({
+            where: {
+              startTime: { lte: hourEnd },
+              OR: [
+                { stopTime: null },
+                { stopTime: { gte: hourStart } },
+              ],
+            },
+          });
+        }
 
         sessionsData.push({
           time: `${hourEnd.getUTCHours().toString().padStart(2, '0')}:00`,
@@ -226,18 +243,36 @@ export async function GET(request: NextRequest) {
         const dayStart = new Date(Date.UTC(currentYear, currentMonth, now.getUTCDate() - i, 0, 0, 0));
         const dayEnd = new Date(Date.UTC(currentYear, currentMonth, now.getUTCDate() - i, 23, 59, 59));
 
-        const bandwidth = await prisma.radacct.aggregate({
-          where: {
-            acctstarttime: { gte: dayStart, lte: dayEnd },
-          },
-          _sum: {
-            acctinputoctets: true,
-            acctoutputoctets: true,
-          },
-        });
+        let uploadMB = 0;
+        let downloadMB = 0;
 
-        const uploadMB = Number(bandwidth._sum.acctinputoctets || 0) / (1024 * 1024);
-        const downloadMB = Number(bandwidth._sum.acctoutputoctets || 0) / (1024 * 1024);
+        if (radiusEnabled) {
+          const bandwidth = await prisma.radacct.aggregate({
+            where: {
+              acctstarttime: { gte: dayStart, lte: dayEnd },
+            },
+            _sum: {
+              acctinputoctets: true,
+              acctoutputoctets: true,
+            },
+          });
+
+          uploadMB = Number(bandwidth._sum.acctinputoctets || 0) / (1024 * 1024);
+          downloadMB = Number(bandwidth._sum.acctoutputoctets || 0) / (1024 * 1024);
+        } else {
+          const bandwidth = await prisma.mikrotikSession.aggregate({
+            where: {
+              startTime: { gte: dayStart, lte: dayEnd },
+            },
+            _sum: {
+              txBytes: true,
+              rxBytes: true,
+            },
+          });
+
+          uploadMB = Number(bandwidth._sum.txBytes || 0) / (1024 * 1024);
+          downloadMB = Number(bandwidth._sum.rxBytes || 0) / (1024 * 1024);
+        }
 
         bandwidthData.push({
           time: `${dayStart.getUTCDate()}/${dayStart.getUTCMonth() + 1}`,

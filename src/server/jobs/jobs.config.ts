@@ -305,6 +305,30 @@ export const CRON_JOBS: CronJobConfig[] = [
     },
     enabled: true,
   },
+  {
+    type: 'mikrotik_session_sync',
+    name: 'MikroTik Session Sync',
+    description: 'Sync active sessions directly from MikroTik routers (Non-RADIUS Mode)',
+    schedule: '*/5 * * * *',
+    scheduleLabel: 'Every 5 minutes',
+    handler: async () => {
+      const { pollMikrotikSessions } = await import('./mikrotik-poller');
+      return pollMikrotikSessions();
+    },
+    enabled: true,
+  },
+  {
+    type: 'mikrotik_session_cleanup',
+    name: 'MikroTik Session Cleanup',
+    description: 'Clean old MikroTik session history older than 7 days',
+    schedule: '0 3 * * *',
+    scheduleLabel: 'Daily at 3 AM',
+    handler: async () => {
+      const { cleanupOldMikrotikSessions } = await import('./mikrotik-poller');
+      return cleanupOldMikrotikSessions();
+    },
+    enabled: true,
+  },
 ];
 
 // Helper to get next run time from cron pattern.
