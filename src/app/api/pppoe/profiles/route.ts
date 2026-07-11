@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { changePPPoERateLimit } from '@/server/services/mikrotik/rate-limit';
 import { getServerSession } from 'next-auth';
@@ -110,9 +110,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const company = await prisma.company.findFirst();
+    const isRadiusEnabled = company?.radiusEnabled ?? false;
+
     // Sync to FreeRADIUS in background — don't block the HTTP response
-    void (async () => {
-      try {
+    if (isRadiusEnabled) {
+      void (async () => {
+        try {
         const finalRateLimit = rateLimit || `${downloadSpeed}M/${uploadSpeed}M`;
         const existingGroup = await prisma.radgroupreply.findFirst({
           where: { groupname: finalGroupName, attribute: 'Mikrotik-Group' },
@@ -135,9 +139,11 @@ export async function POST(request: NextRequest) {
           data: { syncedToRadius: true, lastSyncAt: new Date() },
         });
       } catch (e) {
+      } catch (e) {
         console.error('[BG] RADIUS sync error (create):', e);
       }
     })();
+  }
 
     return NextResponse.json({
       success: true,
@@ -249,6 +255,9 @@ export async function PUT(request: NextRequest) {
       data: updateData,
     });
 
+    const company = await prisma.company.findFirst();
+    const isRadiusEnabled = company?.radiusEnabled ?? false;
+
     // Return immediately — RADIUS re-sync + MikroTik CoA run in background
     if (normalizedGroupName || normalizedMikrotikProfileName !== undefined || parsedFromRateLimit || bodyRateLimit || sharedUser !== undefined) {
       void (async () => {
@@ -260,19 +269,21 @@ export async function PUT(request: NextRequest) {
           const newUpload = uploadSpeed !== undefined ? uploadSpeed : currentProfile.uploadSpeed;
           const rateLimit = bodyRateLimit || `${newDownload}M/${newUpload}M`;
 
-          await prisma.radgroupreply.deleteMany({ where: { groupname: oldGroupName } });
-          await prisma.radgroupcheck.deleteMany({ where: { groupname: oldGroupName, attribute: 'Simultaneous-Use' } });
-          await prisma.radgroupreply.createMany({
-            data: [
-              { groupname: newGroupName, attribute: 'Mikrotik-Group', op: ':=', value: newMikrotikProfileName },
-              { groupname: newGroupName, attribute: 'Mikrotik-Rate-Limit', op: ':=', value: rateLimit },
-            ],
-          });
-          const finalSharedUser = sharedUser !== undefined ? sharedUser : currentProfile.sharedUser;
-          if (finalSharedUser) {
-            await prisma.radgroupcheck.create({
-              data: { groupname: newGroupName, attribute: 'Simultaneous-Use', op: ':=', value: '1' },
+          if (isRadiusEnabled) {
+            await prisma.radgroupreply.deleteMany({ where: { groupname: oldGroupName } });
+            await prisma.radgroupcheck.deleteMany({ where: { groupname: oldGroupName, attribute: 'Simultaneous-Use' } });
+            await prisma.radgroupreply.createMany({
+              data: [
+                { groupname: newGroupName, attribute: 'Mikrotik-Group', op: ':=', value: newMikrotikProfileName },
+                { groupname: newGroupName, attribute: 'Mikrotik-Rate-Limit', op: ':=', value: rateLimit },
+              ],
             });
+            const finalSharedUser = sharedUser !== undefined ? sharedUser : currentProfile.sharedUser;
+            if (finalSharedUser) {
+              await prisma.radgroupcheck.create({
+                data: { groupname: newGroupName, attribute: 'Simultaneous-Use', op: ':=', value: '1' },
+              });
+            }
           }
           await prisma.pppoeProfile.update({
             where: { id },
@@ -287,26 +298,35 @@ export async function PUT(request: NextRequest) {
             });
             for (const user of usersWithProfile) {
               try {
-                const activeSession = await prisma.radacct.findFirst({
-                  where: { username: user.username, acctstoptime: null },
-                  select: { acctsessionid: true, nasipaddress: true, framedipaddress: true },
-                });
-                if (!activeSession) continue;
-                const routerRow = await prisma.router.findFirst({
-                  where: { OR: [{ nasname: activeSession.nasipaddress ?? '' }, { ipAddress: activeSession.nasipaddress ?? '' }] },
-                  select: { ipAddress: true, nasname: true, port: true, username: true, password: true, secret: true },
-                }) || await prisma.router.findFirst({
-                  where: { isActive: true },
-                  select: { ipAddress: true, nasname: true, port: true, username: true, password: true, secret: true },
-                });
-                if (routerRow) {
-                  await changePPPoERateLimit(
-                    { ipAddress: routerRow.ipAddress, nasname: routerRow.nasname, port: routerRow.port, username: routerRow.username, password: routerRow.password, secret: routerRow.secret },
-                    user.username,
-                    rateLimit,
-                    { acctSessionId: activeSession.acctsessionid || undefined, nasIpAddress: routerRow.ipAddress, framedIpAddress: activeSession.framedipaddress || undefined },
-                    { allowDisconnect: true }
-                  );
+                if (isRadiusEnabled) {
+                  const activeSession = await prisma.radacct.findFirst({
+                    where: { username: user.username, acctstoptime: null },
+                    select: { acctsessionid: true, nasipaddress: true, framedipaddress: true },
+                  });
+                  if (!activeSession) continue;
+                  const routerRow = await prisma.router.findFirst({
+                    where: { OR: [{ nasname: activeSession.nasipaddress ?? '' }, { ipAddress: activeSession.nasipaddress ?? '' }] },
+                    select: { ipAddress: true, nasname: true, port: true, username: true, password: true, secret: true },
+                  }) || await prisma.router.findFirst({
+                    where: { isActive: true },
+                    select: { ipAddress: true, nasname: true, port: true, username: true, password: true, secret: true },
+                  });
+                  if (routerRow) {
+                    await changePPPoERateLimit(
+                      { ipAddress: routerRow.ipAddress, nasname: routerRow.nasname, port: routerRow.port, username: routerRow.username, password: routerRow.password, secret: routerRow.secret },
+                      user.username,
+                      rateLimit,
+                      { acctSessionId: activeSession.acctsessionid || undefined, nasIpAddress: routerRow.ipAddress, framedIpAddress: activeSession.framedipaddress || undefined },
+                      { allowDisconnect: true }
+                    );
+                  }
+                } else {
+                  // Fallback: Disconnect from MikroTik directly if router is attached
+                  const userDetail = await prisma.pppoeUser.findUnique({ where: { username: user.username }, select: { routerId: true } });
+                  if (userDetail?.routerId) {
+                    const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+                    await PPPSecretService.setProfileAndDisconnect(userDetail.routerId, user.username, newGroupName);
+                  }
                 }
               } catch (coaErr) {
                 console.error(`[BG] CoA error for user ${user.username}:`, coaErr);
@@ -365,13 +385,18 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    const company = await prisma.company.findFirst();
+    const isRadiusEnabled = company?.radiusEnabled ?? false;
+
     // Delete RADIUS entries
-    try {
-      await prisma.radgroupreply.deleteMany({
-        where: { groupname: profile.groupName },
-      });
-    } catch (syncError) {
-      console.error('RADIUS cleanup error:', syncError);
+    if (isRadiusEnabled) {
+      try {
+        await prisma.radgroupreply.deleteMany({
+          where: { groupname: profile.groupName },
+        });
+      } catch (syncError) {
+        console.error('RADIUS cleanup error:', syncError);
+      }
     }
 
     // Delete profile
