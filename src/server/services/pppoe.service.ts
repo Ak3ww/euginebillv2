@@ -369,8 +369,10 @@ export async function createPppoeUser(
   const firstInvoice = (data as any).firstInvoice as 'none' | 'prorate' | 'full' | undefined;
   if (firstInvoice && firstInvoice !== 'none') {
     try {
+      const companyConfig = await prisma.company.findFirst();
+      
       let invoiceAmount = profile.price;
-      if (firstInvoice === 'prorate' || (company?.enableProrate && subscriptionType !== 'PREPAID')) {
+      if (firstInvoice === 'prorate' || (companyConfig?.enableProrate && subscriptionType !== 'PREPAID')) {
         // Calculate prorate: days from today to next billing date
         const registrationDate = registeredAt ? new Date(registeredAt + 'T00:00:00') : new Date();
         registrationDate.setHours(0, 0, 0, 0);
@@ -388,8 +390,7 @@ export async function createPppoeUser(
       }
       const invoiceId = crypto.randomUUID();
       const invoiceNumber = generateInvoiceNumber();
-      const company = await prisma.company.findFirst({ select: { baseUrl: true } });
-      const baseUrl = company?.baseUrl || 'http://localhost:3000';
+      const baseUrl = companyConfig?.baseUrl || 'http://localhost:3000';
       const paymentToken = randomBytes(32).toString('hex');
       const paymentLink = `${baseUrl}/pay/${paymentToken}`;
       await prisma.invoice.create({
