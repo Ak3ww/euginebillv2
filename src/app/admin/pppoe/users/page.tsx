@@ -1,5 +1,6 @@
 'use client';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
+import { useAppStore } from '@/lib/store';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useState, useEffect, useRef } from 'react';
@@ -309,8 +310,9 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
 }
 
 export default function PppoeUsersPage() {
-  const { hasPermission, loading: permLoading } = usePermissions();
+  const company = useAppStore((state) => state.company);
   const { t } = useTranslation();
+  const { hasPermission, loading: permLoading } = usePermissions();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1478,7 +1480,9 @@ export default function PppoeUsersPage() {
                     <div className="flex items-center gap-1">Status <ArrowUpDown className="w-3 h-3" /></div>
                   </th>
                   <th className="px-3 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">Sesi</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden md:table-cell">RADIUS</th>
+                  {company.radiusEnabled && (
+                    <th className="px-3 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden md:table-cell">RADIUS</th>
+                  )}
                   <th className="px-3 py-2 text-right text-[10px] font-medium text-muted-foreground uppercase">Aksi</th>
                 </tr>
               </thead>
@@ -1559,13 +1563,15 @@ export default function PppoeUsersPage() {
                         }
                       </td>
                       {/* RADIUS */}
-                      <td className="px-3 py-2 hidden md:table-cell">
-                        {user.syncedToRadius ? (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-accent/20 text-accent dark:bg-purple-900/30"><CheckCircle2 className="h-2 w-2 mr-0.5" />Synced</span>
-                        ) : (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground">Not synced</span>
-                        )}
-                      </td>
+                      {company.radiusEnabled && (
+                        <td className="px-3 py-2 hidden md:table-cell">
+                          {user.syncedToRadius ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-accent/20 text-accent dark:bg-purple-900/30"><CheckCircle2 className="h-2 w-2 mr-0.5" />Synced</span>
+                          ) : (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground">Not synced</span>
+                          )}
+                        </td>
+                      )}
                       {/* Aksi */}
                       <td className="px-3 py-2">
                         <div className="flex justify-end items-center gap-0.5">
