@@ -27,8 +27,15 @@ export async function POST(request: NextRequest) {
     const results: Record<string, any> = {};
 
     if (!type || type === 'pppoe') {
-      const pppoeResult = await syncPPPoESessions();
-      results.pppoe = pppoeResult;
+      const company = await prisma.company.findFirst()
+      if (company?.radiusEnabled === false) {
+        const { pollMikrotikSessions } = await import('@/server/jobs/mikrotik-poller');
+        await pollMikrotikSessions();
+        results.pppoe = { success: true, message: 'MikroTik sessions polled' };
+      } else {
+        const pppoeResult = await syncPPPoESessions();
+        results.pppoe = pppoeResult;
+      }
     }
 
     if (!type || type === 'hotspot') {

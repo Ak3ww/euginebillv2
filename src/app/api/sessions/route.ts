@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
@@ -154,30 +154,59 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── 2. Query radacct for active sessions ────────────────────────────────
-    // Active = acctstoptime IS NULL
-    const radacctWhere: any = {
-      acctstoptime: null,
-    };
+    // ── 2. Query active sessions (RADIUS or MikroTik) ───────────────────────
+    const company = await prisma.company.findFirst();
+    const radiusEnabled = company?.radiusEnabled ?? true;
 
-    // Filter by router NAS IPs if routerId is specified
-    if (routerId && nasIpList.length > 0) {
-      radacctWhere.nasipaddress = { in: nasIpList };
+    let activeSessions: any[] = [];
+
+    if (radiusEnabled) {
+      const radacctWhere: any = { acctstoptime: null };
+      if (routerId && nasIpList.length > 0) {
+        radacctWhere.nasipaddress = { in: nasIpList };
+      }
+      if (search) {
+        radacctWhere.OR = [
+          { username: { contains: search } },
+          { framedipaddress: { contains: search } },
+          { callingstationid: { contains: search } },
+        ];
+      }
+      activeSessions = await prisma.radacct.findMany({
+        where: radacctWhere,
+        orderBy: { acctstarttime: 'desc' },
+      });
+    } else {
+      const msWhere: any = { stopTime: null };
+      if (routerId) msWhere.routerId = routerId;
+      if (search) {
+        msWhere.OR = [
+          { username: { contains: search } },
+          { ipAddress: { contains: search } },
+          { macAddress: { contains: search } },
+        ];
+      }
+      const msSessions = await prisma.mikrotikSession.findMany({
+        where: msWhere,
+        orderBy: { startTime: 'desc' },
+        include: { router: true }
+      });
+      activeSessions = msSessions.map(ms => ({
+        radacctid: BigInt(0),
+        acctsessionid: ms.id,
+        username: ms.username,
+        nasipaddress: ms.router?.nasname || '',
+        framedipaddress: ms.ipAddress || '',
+        callingstationid: ms.macAddress || '',
+        acctstarttime: ms.startTime,
+        acctupdatetime: ms.startTime,
+        acctstoptime: ms.stopTime,
+        acctsessiontime: Math.floor((Date.now() - ms.startTime.getTime()) / 1000),
+        acctinputoctets: ms.rxBytes,
+        acctoutputoctets: ms.txBytes,
+        acctterminatecause: ms.terminateCause || '',
+      }));
     }
-
-    // Search filter (username, IP, MAC)
-    if (search) {
-      radacctWhere.OR = [
-        { username: { contains: search } },
-        { framedipaddress: { contains: search } },
-        { callingstationid: { contains: search } },
-      ];
-    }
-
-    const activeSessions = await prisma.radacct.findMany({
-      where: radacctWhere,
-      orderBy: { acctstarttime: 'desc' },
-    });
 
     // ── 3. Determine session types ──────────────────────────────────────────
     // Look up all usernames in pppoeUser and hotspotVoucher
