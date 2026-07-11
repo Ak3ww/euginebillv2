@@ -17,8 +17,7 @@ export async function pollMikrotikSessions() {
     console.log(`[Mikrotik Poller] Syncing router: ${router.name} (${router.ipAddress}:${router.port || 8728})`)
     
     const apiPort = router.port || 8728
-    // If they explicitly configured SSL port 8729 in either field, use TLS
-    const useTls = apiPort === 8729 || router.apiPort === 8729
+    const useTls = false // Forced non-SSL per user request
 
     const conn = new MikroTikConnection({
       host: router.ipAddress,

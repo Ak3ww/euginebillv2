@@ -868,7 +868,7 @@ export default function RouterPage() {
 
                 {/* Ports — only show for MikroTik routers, not gateway/VPS */}
                 {formData.type !== 'gateway' && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-[#00f7ff] mb-2">{t('network.apiPort')}</label>
                     <input
@@ -877,16 +877,6 @@ export default function RouterPage() {
                       onChange={(e) => setFormData({ ...formData, port: e.target.value })}
                       className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
                       placeholder="8728"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#00f7ff] mb-2">{t('network.apiSslPortLabel')}</label>
-                    <input
-                      type="number"
-                      value={formData.apiPort}
-                      onChange={(e) => setFormData({ ...formData, apiPort: e.target.value })}
-                      className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
-                      placeholder="8729"
                     />
                   </div>
                 </div>

@@ -15,9 +15,8 @@ export class PPPSecretService {
     if (!user || !user.router) return false
 
     // Use router.port (user-configured public API port, e.g. 10772 or 8728)
-    // TLS is only for port 8729 (API-SSL). router.port is usually plain API.
     const apiPort = user.router.port || 8728
-    const useTls = apiPort === 8729
+    const useTls = false // Forced non-SSL per user request
 
     const conn = new MikroTikConnection({
       host: user.router.ipAddress,
@@ -79,10 +78,8 @@ export class PPPSecretService {
     }
     
     // Use router.port (user-configured public API port)
-    // TLS auto-detect: port 8729 = API-SSL (TLS), anything else = plain API
     const apiPort = router.port || 8728
-    const useTls = apiPort === 8729
-    
+    const useTls = false // Forced non-SSL per user request 
     console.log(`[PPPSecretService] Connecting to router: ${router.ipAddress}:${apiPort} (tls=${useTls}), user=${router.username}`)
 
     const conn = new MikroTikConnection({
@@ -141,7 +138,7 @@ export class PPPSecretService {
 
     // Use router.port (user-configured public API port)
     const apiPort = router.port || 8728
-    const useTls = apiPort === 8729
+    const useTls = false // Forced non-SSL per user request
 
     const conn = new MikroTikConnection({
       host: router.ipAddress,

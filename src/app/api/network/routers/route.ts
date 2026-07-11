@@ -121,7 +121,6 @@ export async function POST(request: NextRequest) {
 
     // Parse integers
     const portInt = parseInt(port) || 8728;
-    const apiPortInt = parseInt(apiPort) || 8729;
 
     // Generate shortname from name (remove spaces, lowercase)
     const shortname = name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -192,7 +191,7 @@ export async function POST(request: NextRequest) {
         username: username || '',  // Empty string for gateway type
         password: password || '',  // Empty string for gateway type
         port: portInt,
-        apiPort: apiPortInt,
+        apiPort: null,
         secret: secret || 'secret123',
         // server: NULL - untuk FreeRADIUS virtual_server name
         ports: 1812, // RADIUS auth port
