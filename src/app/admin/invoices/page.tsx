@@ -1048,7 +1048,18 @@ export default function InvoicesPage() {
                               {copiedId === invoice.id ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
                             </button>
                           )}
-                          <Link href={`/invoice/${invoice.invoiceNumber}`} target="_blank" className="p-1 hover:bg-muted rounded text-blue-500" title="Buka Web Invoice (PDF)">
+                          <button 
+                            onClick={() => {
+                              const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                              navigator.clipboard.writeText(`${origin}/invoice/${invoice.invoiceNumber}/pdf`);
+                              showToast('Link PDF Invoice disalin', 'success');
+                            }} 
+                            className="p-1 hover:bg-muted rounded" 
+                            title="Salin Link PDF"
+                          >
+                            <Copy className="h-3 w-3 text-blue-500" />
+                          </button>
+                          <Link href={`/invoice/${invoice.invoiceNumber}`} target="_blank" className="p-1 hover:bg-muted rounded text-blue-500" title="Buka Web Invoice">
                             <ExternalLink className="h-3 w-3" />
                           </Link>
                           <button onClick={() => setPrintDialogInvoice(invoice)} className="p-1 hover:bg-muted rounded" title="Cetak Invoice">
@@ -1144,7 +1155,18 @@ export default function InvoicesPage() {
                         {copiedId === invoice.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
                       </button>
                     )}
-                    <Link href={`/invoice/${invoice.invoiceNumber}`} target="_blank" className="p-1.5 hover:bg-muted rounded text-blue-500" title="Buka Web Invoice (PDF)">
+                    <button 
+                      onClick={() => {
+                        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                        navigator.clipboard.writeText(`${origin}/invoice/${invoice.invoiceNumber}/pdf`);
+                        showToast('Link PDF Invoice disalin', 'success');
+                      }} 
+                      className="p-1.5 hover:bg-muted rounded" 
+                      title="Salin Link PDF"
+                    >
+                      <Copy className="h-3.5 w-3.5 text-blue-500" />
+                    </button>
+                    <Link href={`/invoice/${invoice.invoiceNumber}`} target="_blank" className="p-1.5 hover:bg-muted rounded text-blue-500" title="Buka Web Invoice">
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Link>
                     <button onClick={() => setPrintDialogInvoice(invoice)} className="p-1.5 hover:bg-muted rounded" title="Cetak Invoice">
