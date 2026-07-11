@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
+import { prisma } from '@/server/db/client';
 import { syncPPPoESessions } from '@/server/jobs/pppoe-session-sync';
 import { syncHotspotWithRadius } from '@/server/jobs/hotspot-sync';
 
@@ -30,8 +31,8 @@ export async function POST(request: NextRequest) {
       const company = await prisma.company.findFirst()
       if (company?.radiusEnabled === false) {
         const { pollMikrotikSessions } = await import('@/server/jobs/mikrotik-poller');
-        await pollMikrotikSessions();
-        results.pppoe = { success: true, message: 'MikroTik sessions polled' };
+        const mkResult = await pollMikrotikSessions();
+        results.pppoe = mkResult;
       } else {
         const pppoeResult = await syncPPPoESessions();
         results.pppoe = pppoeResult;

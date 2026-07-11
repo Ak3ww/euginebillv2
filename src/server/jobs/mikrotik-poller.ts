@@ -6,14 +6,19 @@ export async function pollMikrotikSessions() {
   
   const routers = await prisma.router.findMany({
     where: { isActive: true },
-    select: { id: true, ipAddress: true, username: true, password: true, port: true, name: true }
+    select: { id: true, ipAddress: true, username: true, password: true, port: true, name: true, apiPort: true }
   })
 
+  let totalSynced = 0;
+  let totalErrors = 0;
+  const results: any[] = [];
+
   for (const router of routers) {
-    // console.log(`[Mikrotik Poller] Syncing router: ${router.name} (${router.ipAddress})`)
+    console.log(`[Mikrotik Poller] Syncing router: ${router.name} (${router.ipAddress}:${router.port || 8728})`)
     
     const apiPort = router.port || 8728
-    const useTls = apiPort === 8729
+    // If they explicitly configured SSL port 8729 in either field, use TLS
+    const useTls = apiPort === 8729 || router.apiPort === 8729
 
     const conn = new MikroTikConnection({
       host: router.ipAddress,
@@ -24,7 +29,9 @@ export async function pollMikrotikSessions() {
     })
 
     try {
+      console.log(`[Mikrotik Poller] Connecting to ${router.name} (tls=${useTls})...`);
       await conn.connect()
+      console.log(`[Mikrotik Poller] Connected to ${router.name} successfully.`);
       
       const activePPP = await conn.execute('/ppp/active/print')
       const interfaces = await conn.execute('/interface/print', ['?type=pppoe-in'])
@@ -64,6 +71,8 @@ export async function pollMikrotikSessions() {
       }
 
       // Process active sessions
+      let inserted = 0;
+      let updated = 0;
       for (const [username, routerSession] of currentRouterSessions.entries()) {
         const ifaceData = interfaceMap.get(username)
         const macAddress = routerSession.callerId || ifaceData?.mac || null
@@ -82,6 +91,7 @@ export async function pollMikrotikSessions() {
               txBytes,
             }
           })
+          updated++;
         } else {
           await prisma.mikrotikSession.create({
             data: {
@@ -94,10 +104,12 @@ export async function pollMikrotikSessions() {
               txBytes,
             }
           })
+          inserted++;
         }
       }
 
       // Process stopped sessions
+      let stopped = 0;
       for (const [username, dbSession] of dbSessionMap.entries()) {
         if (!currentRouterSessions.has(username)) {
           await prisma.mikrotikSession.update({
@@ -107,15 +119,23 @@ export async function pollMikrotikSessions() {
               terminateCause: 'Poller-Disconnect'
             }
           })
+          stopped++;
         }
       }
 
+      console.log(`[Mikrotik Poller] Router ${router.name}: inserted ${inserted}, updated ${updated}, stopped ${stopped}.`);
+      results.push({ router: router.name, success: true, inserted, updated, stopped });
+      totalSynced++;
       await conn.disconnect()
     } catch (error: any) {
       console.error(`[Mikrotik Poller] Failed to sync router ${router.name}:`, error.message)
+      results.push({ router: router.name, success: false, error: error.message });
+      totalErrors++;
       try { await conn.disconnect() } catch { /* ignore */ }
     }
   }
+
+  return { success: totalErrors === 0, totalSynced, totalErrors, results };
 }
 
 export async function cleanupOldMikrotikSessions() {
