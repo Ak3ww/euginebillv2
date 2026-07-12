@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/auth/config'
 import { prisma } from '@/server/db/client'
@@ -126,6 +126,11 @@ export async function POST(request: NextRequest) {
             await sendInvoiceReminder({
               phone: invoice.customerPhone,
               ...reminderData
+            })
+            // Log WA send timestamp to database
+            await prisma.invoice.update({
+              where: { id: invoice.id },
+              data: { waNotifiedAt: new Date() }
             })
             results.whatsapp = { success: true }
             hasSuccess = true

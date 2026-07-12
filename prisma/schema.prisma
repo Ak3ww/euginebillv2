@@ -245,7 +245,8 @@ model invoice {
   invoiceType      InvoiceType     @default(MONTHLY)
   baseAmount       Int?            // Amount before tax
   taxRate          Decimal?        @db.Decimal(5,2) // Tax percentage
-  additionalFees   Json?           // [{name: string, amount: number}]
+  additionalFees   Json?           // [{name: string, amount: number}] — gunakan amount negatif untuk diskon
+  waNotifiedAt     DateTime?       // Timestamp terakhir WA tagihan/pengingat berhasil dikirim
   
   user             pppoeUser?           @relation(fields: [userId], references: [id])
   payments         payment[]

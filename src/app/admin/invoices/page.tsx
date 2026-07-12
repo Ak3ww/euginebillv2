@@ -40,6 +40,10 @@ interface Invoice {
   paymentToken: string | null;
   paymentLink: string | null;
   createdAt: string;
+  waNotifiedAt: string | null;
+  baseAmount?: number;
+  notes?: string | null;
+  additionalFees?: { name: string; amount: number }[] | null;
   user: {
     customerId: string | null;  // ID Pelanggan
     name: string;
@@ -83,9 +87,15 @@ export default function InvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'OTHER'>('CASH');
   const [sendReceipt, setSendReceipt] = useState(true);
   const [processing, setProcessing] = useState(false);
+  
+  // Edit form state
+  const [editNotes, setEditNotes] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editAdditionalFees, setEditAdditionalFees] = useState<{name: string, amount: number}[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [sendingWA, setSendingWA] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -110,6 +120,7 @@ export default function InvoicesPage() {
   const [genLoadingUsers, setGenLoadingUsers] = useState(false);
   const [genSkipExisting, setGenSkipExisting] = useState(true);
   const [genSendWa, setGenSendWa] = useState(false);
+  const [genAdditionalFees, setGenAdditionalFees] = useState<{name: string, amount: number}[]>([]);
   const [genResult, setGenResult] = useState<{ generated: number; skipped: number; errors: { username: string; error: string }[]; message: string } | null>(null);
 
   const MONTH_NAMES_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -251,6 +262,42 @@ export default function InvoicesPage() {
     setIsDetailDialogOpen(true);
   };
 
+  const handleEditInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setEditNotes(invoice.notes || '');
+    setEditDueDate(invoice.dueDate ? new Date(invoice.dueDate).toISOString().split('T')[0] : '');
+    setEditAdditionalFees(invoice.additionalFees || []);
+    setIsEditDialogOpen(true);
+  };
+
+  const submitEditInvoice = async () => {
+    if (!selectedInvoice) return;
+    setProcessing(true);
+    try {
+      const res = await fetch(`/api/invoices/${selectedInvoice.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dueDate: editDueDate,
+          notes: editNotes,
+          additionalFees: editAdditionalFees
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('Tagihan berhasil diperbarui', 'success');
+        setIsEditDialogOpen(false);
+        loadInvoices();
+      } else {
+        await showError(data.error || 'Gagal memperbarui tagihan');
+      }
+    } catch (error) {
+      await showError('Gagal memperbarui tagihan');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleCopyPaymentLink = async (invoice: Invoice) => {
     if (!invoice.paymentLink) return;
     try {
@@ -282,6 +329,8 @@ export default function InvoicesPage() {
       const data = await res.json();
       if (data.success) {
         await showSuccess(t('invoices.whatsappReminderSent'));
+        // Update waNotifiedAt in local state without reloading all invoices
+        setInvoices(invoices.map(inv => inv.id === invoice.id ? { ...inv, waNotifiedAt: new Date().toISOString() } : inv));
       } else {
         await showError(data.error || t('invoices.failedToSend'));
       }
@@ -808,6 +857,7 @@ export default function InvoicesPage() {
           userId: genScope === 'single' ? genUserId : undefined,
           skipExisting: genSkipExisting,
           sendWa: genSendWa,
+          additionalFees: genScope === 'single' ? genAdditionalFees : undefined,
         }),
       });
       const data = await res.json();
@@ -1099,6 +1149,16 @@ export default function InvoicesPage() {
                       <TableCell className="py-2 hidden sm:table-cell text-[10px] text-muted-foreground">{formatDate(invoice.dueDate)}</TableCell>
                       <TableCell className="py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {invoice.waNotifiedAt ? (
+                            <div className="flex items-center mr-1 px-1.5 py-0.5 rounded bg-success/10 text-success text-[9px] font-medium" title={`Terakhir WA dikirim: ${formatWIB(invoice.waNotifiedAt)}`}>
+                              <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
+                              WA Terkirim
+                            </div>
+                          ) : (
+                            <div className="flex items-center mr-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[9px] font-medium">
+                              Belum WA
+                            </div>
+                          )}
                           {invoice.paymentLink && (
                             <button onClick={() => handleCopyPaymentLink(invoice)} className="p-1 hover:bg-muted rounded" title="Salin Link Pembayaran">
                               {copiedId === invoice.id ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
@@ -1124,6 +1184,13 @@ export default function InvoicesPage() {
                           <button onClick={() => handleViewDetail(invoice)} className="p-1 hover:bg-muted rounded" title="Lihat Detail">
                             <Eye className="h-3 w-3 text-muted-foreground" />
                           </button>
+                          {(invoice.status === 'PENDING' || invoice.status === 'OVERDUE') && (
+                            <button onClick={() => handleEditInvoice(invoice)} className="p-1 hover:bg-muted rounded" title="Edit Tagihan">
+                              <svg className="h-3 w-3 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                          )}
                           {(invoice.status === 'PENDING' || invoice.status === 'OVERDUE') && invoice.customerPhone && (
                             <button onClick={() => handleSendWhatsApp(invoice)} disabled={sendingWA === invoice.id} className="p-1 hover:bg-muted rounded" title="WhatsApp">
                               {sendingWA === invoice.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageCircle className="h-3 w-3 text-muted-foreground" />}
@@ -1395,6 +1462,82 @@ export default function InvoicesPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Edit Invoice Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-md p-0 overflow-hidden gap-0">
+            <div className="h-1 w-full bg-gradient-to-r from-amber-500 to-yellow-400" />
+            <div className="p-5">
+              <DialogHeader className="mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-full bg-amber-500/15 border border-amber-500/30">
+                    <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <DialogTitle className="text-sm font-bold">Edit Tagihan</DialogTitle>
+                    <DialogDescription className="text-[11px] font-mono mt-0.5">
+                      {selectedInvoice?.invoiceNumber}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div>
+                  <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Jatuh Tempo</label>
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={e => setEditDueDate(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-muted border border-border rounded-xl focus:outline-none focus:border-amber-500/60"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Catatan Internal</label>
+                  <textarea
+                    value={editNotes}
+                    onChange={e => setEditNotes(e.target.value)}
+                    rows={2}
+                    placeholder="Catatan..."
+                    className="w-full px-3 py-2 text-xs bg-muted border border-border rounded-xl focus:outline-none focus:border-amber-500/60"
+                  />
+                </div>
+                
+                {/* Additional Fees / Discount */}
+                <div className="pt-2 border-t border-border">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[11px] font-bold">Biaya Tambahan & Diskon</label>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setEditAdditionalFees([...editAdditionalFees, {name: '', amount: 0}])} className="text-[10px] text-blue-500 hover:text-blue-600 font-medium">+ Biaya</button>
+                      <button type="button" onClick={() => setEditAdditionalFees([...editAdditionalFees, {name: 'Diskon ', amount: 0}])} className="text-[10px] text-amber-500 hover:text-amber-600 font-medium">+ Diskon</button>
+                    </div>
+                  </div>
+                  {editAdditionalFees.length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground italic">Tidak ada biaya tambahan atau diskon.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {editAdditionalFees.map((fee, idx) => (
+                        <div key={idx} className="flex gap-2 items-center">
+                          <input type="text" placeholder="Nama Biaya/Diskon" value={fee.name} onChange={e => { const newFees = [...editAdditionalFees]; newFees[idx].name = e.target.value; setEditAdditionalFees(newFees); }} className="flex-1 px-2 py-1.5 text-xs bg-muted border rounded focus:outline-none" />
+                          <input type="number" placeholder="Nominal (Gunakan - untuk diskon)" value={fee.amount === 0 ? '' : fee.amount} onChange={e => { const newFees = [...editAdditionalFees]; newFees[idx].amount = Number(e.target.value); setEditAdditionalFees(newFees); }} className="w-28 px-2 py-1.5 text-xs bg-muted border rounded focus:outline-none text-right" />
+                          <button type="button" onClick={() => setEditAdditionalFees(editAdditionalFees.filter((_, i) => i !== idx))} className="p-1.5 text-destructive hover:bg-destructive/10 rounded"><Trash2 className="w-3 h-3" /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[9px] text-muted-foreground mt-1.5">*Gunakan nilai negatif (contoh: -20000) untuk diskon.</p>
+                </div>
+              </div>
+              <div className="mt-5 flex gap-2">
+                <Button type="button" variant="outline" size="sm" className="flex-1 h-9 text-xs" onClick={() => setIsEditDialogOpen(false)} disabled={processing}>Batal</Button>
+                <Button type="button" size="sm" className="flex-1 h-9 text-xs bg-amber-500 hover:bg-amber-600 text-white" onClick={submitEditInvoice} disabled={processing}>
+                  {processing ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : null} Simpan Perubahan
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Payment Dialog */}
         <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
           <DialogContent className="max-w-xs p-0 overflow-hidden gap-0">
@@ -1602,6 +1745,33 @@ export default function InvoicesPage() {
                       className="w-full px-3 py-2 text-xs bg-muted/50 border border-border rounded-xl focus:outline-none focus:border-blue-500/60"
                     />
                   </div>
+
+                  {/* Additional Fees / Discount (Single Scope Only) */}
+                  {genScope === 'single' && (
+                    <div className="pt-2 border-t border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-[11px] font-medium text-muted-foreground">Biaya Tambahan & Diskon</label>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => setGenAdditionalFees([...genAdditionalFees, {name: '', amount: 0}])} className="text-[10px] text-blue-500 hover:text-blue-600 font-medium">+ Biaya</button>
+                          <button type="button" onClick={() => setGenAdditionalFees([...genAdditionalFees, {name: 'Diskon ', amount: 0}])} className="text-[10px] text-amber-500 hover:text-amber-600 font-medium">+ Diskon</button>
+                        </div>
+                      </div>
+                      {genAdditionalFees.length === 0 ? (
+                        <p className="text-[10px] text-muted-foreground italic">Tidak ada biaya tambahan atau diskon.</p>
+                      ) : (
+                        <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                          {genAdditionalFees.map((fee, idx) => (
+                            <div key={idx} className="flex gap-2 items-center">
+                              <input type="text" placeholder="Nama Biaya/Diskon" value={fee.name} onChange={e => { const newFees = [...genAdditionalFees]; newFees[idx].name = e.target.value; setGenAdditionalFees(newFees); }} className="flex-1 px-2 py-1.5 text-xs bg-muted border rounded focus:outline-none" />
+                              <input type="number" placeholder="Nominal (- diskon)" value={fee.amount === 0 ? '' : fee.amount} onChange={e => { const newFees = [...genAdditionalFees]; newFees[idx].amount = Number(e.target.value); setGenAdditionalFees(newFees); }} className="w-24 px-2 py-1.5 text-xs bg-muted border rounded focus:outline-none text-right" />
+                              <button type="button" onClick={() => setGenAdditionalFees(genAdditionalFees.filter((_, i) => i !== idx))} className="p-1.5 text-destructive hover:bg-destructive/10 rounded"><Trash2 className="w-3 h-3" /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
 
                   {/* Options */}
                   <div className="space-y-2">

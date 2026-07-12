@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { targetMonth, scope, userId, skipExisting = true, sendWa = false } = body;
+    const { targetMonth, scope, userId, skipExisting = true, sendWa = false, additionalFees } = body;
 
     if (!targetMonth || !/^\d{4}-\d{2}$/.test(targetMonth)) {
       return badRequest('targetMonth harus format YYYY-MM');
@@ -132,6 +132,12 @@ export async function POST(request: NextRequest) {
           taxRate = user.profile.ppnRate;
           amount = Math.round(baseAmount + (baseAmount * taxRate / 100));
         }
+        
+        let feesTotal = 0;
+        if (additionalFees && Array.isArray(additionalFees)) {
+          feesTotal = additionalFees.reduce((sum: number, fee: any) => sum + (Number(fee.amount) || 0), 0);
+          amount = Math.max(0, amount + feesTotal);
+        }
 
         const invoiceId = nanoid();
         const invoiceNumber = generateInvoiceNumber();
@@ -146,6 +152,7 @@ export async function POST(request: NextRequest) {
             amount,
             baseAmount,
             ...(taxRate !== null && { taxRate }),
+            ...(additionalFees && { additionalFees }),
             dueDate,
             status: 'PENDING',
             invoiceType: invoiceType as any,
