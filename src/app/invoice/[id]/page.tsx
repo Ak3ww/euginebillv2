@@ -39,15 +39,15 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 print:bg-white print:p-0">
       <div className="max-w-3xl mx-auto">
         {/* Action Bar (hidden when printing) */}
-        <div className="mb-6 flex justify-between items-center print:hidden bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <Link href="/" className="text-primary hover:underline text-sm font-medium">
+        <div className="mb-6 flex justify-between items-center print:hidden bg-white p-4 rounded-xl shadow-sm border border-emerald-100">
+          <Link href="/" className="text-emerald-600 hover:underline text-sm font-medium">
             &larr; Kembali ke Beranda
           </Link>
           <div className="flex items-center gap-3">
             {!isPaid && (
               <Link 
                 href={invoice.paymentToken ? `/pay-manual?token=${invoice.paymentToken}` : '#'} 
-                className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
               >
                 Bayar Sekarang
               </Link>
@@ -61,7 +61,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
           <div className="p-8 sm:p-12">
             
             {/* Header section */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10 border-b border-gray-100 pb-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10 border-b-2 border-emerald-600 pb-8">
               <div className="flex items-center gap-4">
                 {company?.logo ? (
                   <Image src={company.logo} alt="Company Logo" width={64} height={64} className="rounded-lg object-contain" />
@@ -71,7 +71,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                   </div>
                 )}
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">{company?.name || 'EugineBill RADIUS'}</h1>
+                  <h1 className="text-2xl font-bold text-emerald-700">{company?.name || 'EugineBill RADIUS'}</h1>
                   <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5" />
                     {company?.address || 'Alamat belum diatur'}
@@ -88,7 +88,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
               </div>
               
               <div className="text-left sm:text-right">
-                <h2 className="text-3xl font-black text-gray-800 tracking-tight uppercase">INVOICE</h2>
+                <h2 className="text-3xl font-black text-emerald-600 tracking-tight uppercase">INVOICE</h2>
                 <p className="text-sm text-gray-500 mt-1 font-mono">{invoice.invoiceNumber}</p>
                 <div className={`mt-3 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                   isPaid ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
@@ -136,9 +136,9 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
             <div className="mb-10 rounded-xl overflow-hidden border border-gray-200">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider">
-                    <th className="py-4 px-6 font-semibold">Deskripsi Layanan</th>
-                    <th className="py-4 px-6 font-semibold text-right">Jumlah</th>
+                  <tr className="bg-emerald-600 text-white text-xs uppercase tracking-wider">
+                    <th className="py-4 px-6 font-semibold rounded-tl-lg">Deskripsi Layanan</th>
+                    <th className="py-4 px-6 font-semibold text-right rounded-tr-lg">Jumlah</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm">
@@ -165,10 +165,10 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="bg-gray-50/50">
+                <tfoot className="bg-emerald-50">
                   <tr>
-                    <td className="py-4 px-6 font-bold text-gray-800 text-right">TOTAL TAGIHAN</td>
-                    <td className="py-4 px-6 font-bold text-gray-900 text-right text-lg">
+                    <td className="py-4 px-6 font-bold text-emerald-800 text-right">TOTAL TAGIHAN</td>
+                    <td className="py-4 px-6 font-bold text-emerald-700 text-right text-lg">
                       Rp {invoice.amount.toLocaleString('id-ID')}
                     </td>
                   </tr>
