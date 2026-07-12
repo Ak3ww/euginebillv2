@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
@@ -31,6 +31,7 @@ export async function GET() {
         tripayApiKey: true,
         tripayPrivateKey: true,
         tripayEnvironment: true,
+        qrinToken: true,
       }
     });
 

@@ -50,6 +50,8 @@ export default function PaymentPage() {
   const [processing, setProcessing] = useState(false);
   const [duitkuMethods, setDuitkuMethods] = useState<{ code: string; name: string; group: string }[]>([]);
   const [loadingDuitkuMethods, setLoadingDuitkuMethods] = useState(false);
+  const [qrinMethods, setQrinMethods] = useState<{ code: string; name: string; group: string; logo?: string }[]>([]);
+  const [loadingQrinMethods, setLoadingQrinMethods] = useState(false);
   
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualForm, setManualForm] = useState({ bankName: '', accountNumber: '', accountName: '', notes: '', receiptImage: null as File | null });
@@ -71,6 +73,9 @@ export default function PaymentPage() {
       if ((data.paymentGateways || []).some((g: PaymentGateway) => g.provider === 'duitku')) {
         fetchDuitkuMethods(data.invoice?.amount || 10000);
       }
+      if ((data.paymentGateways || []).some((g: PaymentGateway) => g.provider === 'qrin')) {
+        fetchQrinMethods();
+      }
     } catch (err) { setError('Koneksi terputus saat memuat tagihan'); } finally { setLoading(false); }
   };
 
@@ -84,6 +89,19 @@ export default function PaymentPage() {
       // Use empty
     } finally {
       setLoadingDuitkuMethods(false);
+    }
+  };
+
+  const fetchQrinMethods = async () => {
+    setLoadingQrinMethods(true);
+    try {
+      const res = await fetch(`/api/payment/qrin-methods`);
+      const data = await res.json();
+      setQrinMethods(data.methods || []);
+    } catch {
+      // Use empty
+    } finally {
+      setLoadingQrinMethods(false);
     }
   };
 
@@ -461,6 +479,35 @@ export default function PaymentPage() {
                             <div className="flex items-center gap-4">
                               <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors border border-slate-100 group-hover:border-blue-100">
                                 <CreditCard className="w-5 h-5" />
+                              </div>
+                              <span className="text-sm font-bold text-slate-900">{method.name}</span>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  }
+                  
+                  if (gateway.provider === 'qrin') {
+                    if (loadingQrinMethods) return (
+                      <div key={gateway.id} className="flex items-center justify-center py-6 bg-slate-50 border border-slate-200 rounded-2xl">
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-600 mr-2" />
+                        <span className="text-sm font-medium text-slate-500">Memuat kanal pembayaran QRIN...</span>
+                      </div>
+                    );
+                    if (qrinMethods.length > 0) return (
+                      <div key={gateway.id} className="space-y-3">
+                        {qrinMethods.map((method) => (
+                          <button
+                            key={method.code}
+                            onClick={() => handlePayment(gateway.provider, method.code)}
+                            disabled={processing}
+                            className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:shadow-lg hover:shadow-blue-900/5 transition-all group disabled:opacity-50"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors border border-slate-100 group-hover:border-blue-100 p-2 overflow-hidden">
+                                {method.logo ? <img src={method.logo} alt={method.name} className="max-w-full max-h-full object-contain mix-blend-multiply" /> : <CreditCard className="w-5 h-5" />}
                               </div>
                               <span className="text-sm font-bold text-slate-900">{method.name}</span>
                             </div>

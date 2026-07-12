@@ -1,9 +1,11 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { createMidtransPayment } from '@/server/services/payment/midtrans.service';
 import { createXenditInvoice } from '@/server/services/payment/xendit.service';
+import { createXenditClient } from '@/server/services/payment/xendit.service';
 import { createDuitkuClient } from '@/server/services/payment/duitku.service';
 import { createTripayClient } from '@/server/services/payment/tripay.service';
+import { createQrinClient } from '@/server/services/payment/qrin.service';
 import { rateLimit, RateLimitPresets } from '@/server/middleware/rate-limit';
 
 export const dynamic = 'force-dynamic';
@@ -293,6 +295,48 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
+    } else if (gateway === 'qrin') {
+      try {
+        const qrinClient = createQrinClient(gatewayConfig.qrinToken || '');
+        const qrinMethod = paymentMethod || 'qris';
+        
+        const result = await qrinClient.createTransaction(qrinMethod, {
+          no_ref_merchant: orderId,
+          amount_value: invoice.amount,
+          amount_currency: "IDR",
+          product_details: JSON.stringify([`Invoice ${invoice.invoiceNumber}`]),
+          validity: "1440", // 24 hours
+          additional_info: {
+            customer_name: customerName,
+            customer_email: customerEmail,
+            customer_phone: customerPhone
+          }
+        });
+
+        if (result.success && result.data) {
+          transactionId = result.data.id_transaksi || orderId;
+          // QRIN returns qr_string for QRIS, or virtual_account for VA.
+          // They also have `payment_url` which might not be needed if we display QR directly.
+          if (qrinMethod === 'qris') {
+            qrString = result.data.qr_string || '';
+            paymentUrl = result.data.payment_url || '';
+          } else {
+            // For VA we just return it via paymentUrl as a generic fallback, or the frontend needs to handle it.
+            // Currently our UI for Duitku handles `qrString`. If `paymentUrl` is a VA number, it won't work as a link.
+            // Let's pass the VA directly to paymentUrl or let frontend handle.
+            paymentUrl = result.data.payment_url || result.data.virtual_account || '';
+          }
+          console.log('[QRIN] Payment created:', transactionId);
+        } else {
+           throw new Error(result.message || 'Gagal membuat transaksi QRIN');
+        }
+      } catch (error) {
+        console.error('[QRIN] Payment creation error:', error);
+        return NextResponse.json(
+          { error: 'Failed to create QRIN payment', details: error instanceof Error ? error.message : 'Unknown error' },
+          { status: 500 }
+        );
+      }
     } else {
       return NextResponse.json(
         { error: 'Unsupported payment gateway' },
@@ -530,6 +574,43 @@ async function createVoucherPayment(order: any, gateway: string) {
       console.error('[Tripay] Payment creation error:', error);
       return NextResponse.json(
         { error: 'Failed to create Tripay payment', details: error instanceof Error ? error.message : 'Unknown error' },
+        { status: 500 }
+      );
+    }
+  } else if (gateway === 'qrin') {
+    try {
+      const qrinClient = createQrinClient(gatewayConfig.qrinToken || '');
+      const qrinMethod = paymentMethod || 'qris';
+      
+      const result = await qrinClient.createTransaction(qrinMethod, {
+        no_ref_merchant: orderId,
+        amount_value: order.totalAmount,
+        amount_currency: "IDR",
+        product_details: JSON.stringify([`Voucher ${order.profile.name}`]),
+        validity: "1440", // 24 hours
+        additional_info: {
+          customer_name: customerName,
+          customer_email: customerEmail,
+          customer_phone: customerPhone
+        }
+      });
+
+      if (result.success && result.data) {
+        transactionId = result.data.id_transaksi || orderId;
+        if (qrinMethod === 'qris') {
+          qrString = result.data.qr_string || '';
+          paymentUrl = result.data.payment_url || '';
+        } else {
+          paymentUrl = result.data.payment_url || result.data.virtual_account || '';
+        }
+        console.log('[QRIN Voucher] Payment created:', transactionId);
+      } else {
+         throw new Error(result.message || 'Gagal membuat transaksi QRIN');
+      }
+    } catch (error) {
+      console.error('[QRIN] Payment creation error:', error);
+      return NextResponse.json(
+        { error: 'Failed to create QRIN payment', details: error instanceof Error ? error.message : 'Unknown error' },
         { status: 500 }
       );
     }

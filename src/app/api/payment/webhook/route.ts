@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { syncVoucherToRadius } from '@/server/services/radius/hotspot-sync.service';
 import { sendPaymentSuccess, sendVoucherPurchaseSuccess } from '@/server/services/notifications/whatsapp-templates.service';
@@ -282,6 +282,62 @@ export async function POST(request: Request) {
       }
 
       console.log('[Tripay] Webhook processed - Status:', tripayStatus);
+    }
+    // QRIN Detection
+    else if (payload.status && payload.request_payload && payload.request_payload.no_ref_merchant) {
+      gateway = 'qrin';
+      orderId = payload.request_payload.no_ref_merchant;
+      // transactionId is not provided in QRIN webhook docs, we'll use orderId
+      transactionId = payload.transaction_id || orderId; 
+      paymentType = 'qrin';
+      amount = payload.request_payload.amount_value ? parseInt(payload.request_payload.amount_value.toString()) : undefined;
+
+      const qrinStatus = (payload.status || '').toLowerCase();
+
+      // Map QRIN status
+      if (qrinStatus === 'success') {
+        status = 'settlement';
+        paidAt = new Date();
+      } else if (qrinStatus === 'failed') {
+        status = 'failed';
+      } else if (qrinStatus === 'pending') {
+        status = 'pending';
+      } else {
+        status = qrinStatus;
+      }
+
+      // Verify QRIN signature
+      const gatewayConfig = await prisma.paymentGateway.findUnique({
+        where: { provider: 'qrin' }
+      });
+
+      if (gatewayConfig?.qrinToken) {
+        const receivedSignature = request.headers.get('x-callback-signature');
+
+        if (!receivedSignature) {
+          console.error('[QRIN] Missing signature header');
+          return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+        }
+
+        // Formula: HMAC-SHA256(raw body JSON, token_qrin)
+        const expectedSignature = crypto
+          .createHmac('sha256', gatewayConfig.qrinToken)
+          .update(rawBody)
+          .digest('hex');
+
+        console.log('[QRIN] Signature validation:', {
+          received: receivedSignature,
+          expected: expectedSignature,
+          match: receivedSignature === expectedSignature
+        });
+
+        if (receivedSignature !== expectedSignature) {
+          console.error('[QRIN] Invalid signature');
+          return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+        }
+      }
+
+      console.log('[QRIN] Webhook processed - Status:', qrinStatus);
     }
     else {
       console.error('Unknown webhook payload format');

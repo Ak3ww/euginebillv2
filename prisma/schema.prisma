@@ -379,6 +379,7 @@ model paymentGateway {
   tripayApiKey        String?
   tripayPrivateKey    String?
   tripayEnvironment   String       @default("sandbox")
+  qrinToken           String?
   payments            payment[]
   logs                webhookLog[]
 

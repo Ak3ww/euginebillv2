@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -27,6 +27,7 @@ interface PaymentGateway {
   tripayApiKey?: string | null;
   tripayPrivateKey?: string | null;
   tripayEnvironment: string;
+  qrinToken?: string | null;
 }
 
 interface WebhookLog {
@@ -64,6 +65,7 @@ export default function PaymentGatewayPage() {
   const [xenditForm, setXenditForm] = useState({ apiKey: '', webhookToken: '', environment: 'sandbox', isActive: false });
   const [duitkuForm, setDuitkuForm] = useState({ merchantCode: '', apiKey: '', environment: 'sandbox', isActive: false });
   const [tripayForm, setTripayForm] = useState({ merchantCode: '', apiKey: '', privateKey: '', environment: 'sandbox', isActive: false });
+  const [qrinForm, setQrinForm] = useState({ token: '', isActive: false });
 
   useEffect(() => {
     fetchConfigs();
@@ -120,6 +122,14 @@ export default function PaymentGatewayPage() {
           privateKey: tripay.tripayPrivateKey || '',
           environment: tripay.tripayEnvironment || 'sandbox',
           isActive: tripay.isActive
+        });
+      }
+
+      const qrin = data.find((c: PaymentGateway) => c.provider === 'qrin');
+      if (qrin) {
+        setQrinForm({
+          token: qrin.qrinToken || '',
+          isActive: qrin.isActive
         });
       }
     } catch (error) {
@@ -206,6 +216,7 @@ export default function PaymentGatewayPage() {
   const xenditActive = configs.find(c => c.provider === 'xendit')?.isActive;
   const duitkuActive = configs.find(c => c.provider === 'duitku')?.isActive;
   const tripayActive = configs.find(c => c.provider === 'tripay')?.isActive;
+  const qrinActive = configs.find(c => c.provider === 'qrin')?.isActive;
 
   return (
     <div className="bg-background relative">
@@ -257,7 +268,8 @@ export default function PaymentGatewayPage() {
             { id: 'midtrans', label: 'Midtrans', icon: CreditCard, active: midtransActive },
             { id: 'xendit', label: 'Xendit', icon: Wallet, active: xenditActive },
             { id: 'duitku', label: 'Duitku', icon: Wallet, active: duitkuActive },
-            { id: 'tripay', label: 'Tripay', icon: Wallet, active: tripayActive }
+            { id: 'tripay', label: 'Tripay', icon: Wallet, active: tripayActive },
+            { id: 'qrin', label: 'QRIN', icon: Wallet, active: qrinActive }
           ].map(tab => (
             <button
               key={tab.id}
@@ -594,6 +606,34 @@ export default function PaymentGatewayPage() {
               <button onClick={() => saveGateway('tripay', { tripayMerchantCode: tripayForm.merchantCode, tripayApiKey: tripayForm.apiKey, tripayPrivateKey: tripayForm.privateKey, tripayEnvironment: tripayForm.environment, isActive: tripayForm.isActive })} disabled={saving || !tripayForm.merchantCode || !tripayForm.apiKey || !tripayForm.privateKey} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground text-white text-xs font-medium rounded-lg disabled:opacity-50">
                 {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                 Save Tripay Configuration
+              </button>
+            </div>
+            </div>
+          )}
+          {activeTab === 'qrin' && (
+            <div className="p-4 space-y-4 max-w-xl animate-in fade-in duration-300">
+              <div className="flex items-center justify-between pb-4 border-b border-border">
+                <div>
+                  <h3 className="text-sm font-semibold">QRIN Integration</h3>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Konfigurasi token API QRIN (QRIS & VA)</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" checked={qrinForm.isActive} onChange={(e) => setQrinForm({ ...qrinForm, isActive: e.target.checked })} />
+                  <div className="w-8 h-4 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-success"></div>
+                </label>
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-foreground">Token QRIN</label>
+                <div className="relative mt-1">
+                  <input type={showSecrets['qr-token'] ? 'text' : 'password'} value={qrinForm.token} onChange={(e) => setQrinForm({ ...qrinForm, token: e.target.value })} className="w-full px-2.5 py-1.5 text-sm font-mono border border-border rounded-lg bg-card pr-8" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+                  <button type="button" onClick={() => toggleSecret('qr-token')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {showSecrets['qr-token'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+              <button onClick={() => saveGateway('qrin', { qrinToken: qrinForm.token, isActive: qrinForm.isActive })} disabled={saving || !qrinForm.token} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground text-white text-xs font-medium rounded-lg disabled:opacity-50">
+                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                Save QRIN Configuration
               </button>
             </div>
           )}
