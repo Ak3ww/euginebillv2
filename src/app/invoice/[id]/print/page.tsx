@@ -100,7 +100,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
     items.push({ description: 'Top Up Saldo', quantity: 1, price: rawInvoice.amount, total: rawInvoice.amount });
   } else {
     items.push({ 
-      description: \`Langganan Internet (\${new Date(rawInvoice.dueDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}) - \${rawInvoice.user?.profile?.name || 'Paket Internet'}\`, 
+      description: 'Langganan Internet (' + new Date(rawInvoice.dueDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) + ') - ' + (rawInvoice.user?.profile?.name || 'Paket Internet'), 
       quantity: 1, 
       price: baseAmt, 
       total: baseAmt 
@@ -124,11 +124,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
     <div className="min-h-screen bg-gray-50 p-8 print:p-0 print:bg-white text-gray-800 font-sans text-[11px] leading-relaxed flex justify-center">
       <PrintAction />
       
-      <style dangerouslySetInnerHTML={{ __html: \`
-        @media print {
-          @page { size: A4; margin: 10mm; }
-        }
-      \`}} />
+      <style dangerouslySetInnerHTML={{ __html: '@media print { @page { size: A4; margin: 10mm; } }' }} />
 
       <div className="w-[210mm] max-w-full bg-white shadow-[0_18px_50px_rgba(15,118,110,0.08)] print:shadow-none border border-[#dbe7e4] print:border-none rounded-[18px] print:rounded-none overflow-hidden flex flex-col relative">
         <div className="h-[7px] bg-gradient-to-r from-teal-600 via-teal-500 to-teal-300 print:hidden" />
