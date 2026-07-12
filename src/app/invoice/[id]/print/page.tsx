@@ -128,9 +128,16 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
       <div className="w-[210mm] max-w-full bg-white shadow-[0_18px_50px_rgba(15,118,110,0.08)] print:shadow-none border border-[#dbe7e4] print:border-none rounded-[18px] print:rounded-none overflow-hidden flex flex-col relative">
         <div className="h-[7px] bg-gradient-to-r from-teal-600 via-teal-500 to-teal-300 print:hidden" />
         
-        <div className="p-6 print:p-0 flex-1 mt-4 print:mt-0">
-          {/* Header */}
-          <div className="flex justify-between items-start mb-5 gap-5">
+        <div className="p-6 print:p-0 flex-1 mt-4 print:mt-0 relative">
+          {inv.company.logo && (
+            <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none z-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={inv.company.logo} className="max-w-[70%] max-h-[70%] object-contain" alt="Watermark" />
+            </div>
+          )}
+          <div className="relative z-10">
+            {/* Header */}
+            <div className="flex justify-between items-start mb-5 gap-5">
             <div className="flex items-center gap-3.5">
               {inv.company.logo && (
                 <div className="w-[78px] h-[78px] rounded-2xl bg-gradient-to-b from-cyan-50 to-teal-50 border border-teal-100 flex items-center justify-center p-2.5 print:border-none print:bg-none">
@@ -260,6 +267,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
                   <div className="text-[9px] mt-1.5 text-gray-500 font-medium">Scan untuk e-receipt</div>
                 </div>
               )}
+            </div>
             </div>
           </div>
         </div>

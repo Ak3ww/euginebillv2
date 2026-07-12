@@ -6,9 +6,10 @@ import { mkdir } from 'fs/promises';
 
 export async function POST(
   request: Request,
-  { params }: { params: { token: string } }
+  props: { params: Promise<{ token: string }> }
 ) {
   try {
+    const params = await props.params;
     const { token } = params;
     const formData = await request.formData();
     

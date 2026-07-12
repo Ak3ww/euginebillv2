@@ -117,9 +117,10 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
       <style dangerouslySetInnerHTML={{ __html: `
         * { box-sizing: border-box; }
         body { font-family: "Inter", "Segoe UI", Arial, sans-serif; font-size: 12px; color: #1e293b; margin: 0; padding: 24px 24px 80px; background: #f8fafc; }
-        .sheet { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.04); max-width: 900px; margin: 0 auto; }
+        .sheet { position: relative; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.04); max-width: 900px; margin: 0 auto; }
+        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; pointer-events: none; max-width: 70%; max-height: 70%; z-index: 0; }
         .topbar { height: 6px; background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd); }
-        .content { padding: 40px 48px; }
+        .content { position: relative; z-index: 1; padding: 40px 48px; }
         .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; gap: 24px; }
         .brand-wrap { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; }
         .header-right { text-align: right; flex-shrink: 0; }
@@ -197,6 +198,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
       ` }} />
       <div className="sheet">
         <div className="topbar"></div>
+        {inv.company.logo && <img src={inv.company.logo} className="watermark" alt="watermark" />}
         <div className="content">
           <div className="header">
             <div className="brand-wrap">
@@ -249,7 +251,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
             </div>
             <div className="meta-card">
               <div className="section-title">Status Pembayaran</div>
-              <div className="info-row"><span className="info-label">Status: </span><strong>{inv.invoice.status === 'PAID' ? '✓ LUNAS' : inv.invoice.status === 'OVERDUE' ? '⚠️ TERLAMBAT' : '⏳ BELUM BAYAR'}</strong></div>
+              <div className="info-row"><span className="info-label">Status: </span><strong>{inv.invoice.status === 'PAID' ? '✓ LUNAS' : inv.invoice.status === 'OVERDUE' ? '⚠️ TERLAMBAT' : 'BELUM BAYAR'}</strong></div>
               {inv.invoice.paidAt && (
                 <>
                   <div className="info-row"><span className="info-label">Dibayar pada: </span>{inv.invoice.paidAt}</div>
