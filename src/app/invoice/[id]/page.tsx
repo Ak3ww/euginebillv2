@@ -118,7 +118,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
         * { box-sizing: border-box; }
         body { font-family: "Inter", "Segoe UI", Arial, sans-serif; font-size: 12px; color: #1e293b; margin: 0; padding: 24px 24px 80px; background: #f8fafc; }
         .sheet { position: relative; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.04); max-width: 900px; margin: 0 auto; }
-        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; pointer-events: none; max-width: 70%; max-height: 70%; z-index: 0; }
+        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg) scale(1.3); opacity: 0.05; pointer-events: none; min-width: 60%; max-width: 90%; max-height: 90%; z-index: 0; }
         .topbar { height: 6px; background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd); }
         .content { position: relative; z-index: 1; padding: 40px 48px; }
         .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; gap: 24px; }

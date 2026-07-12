@@ -608,7 +608,6 @@ export default function PaymentGatewayPage() {
                 Save Tripay Configuration
               </button>
             </div>
-            </div>
           )}
           {activeTab === 'qrin' && (
             <div className="p-4 space-y-4 max-w-xl animate-in fade-in duration-300">

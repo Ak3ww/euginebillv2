@@ -130,9 +130,9 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
         
         <div className="p-6 print:p-0 flex-1 mt-4 print:mt-0 relative">
           {inv.company.logo && (
-            <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none z-0">
+            <div className="absolute inset-0 flex items-center justify-center opacity-[0.05] pointer-events-none z-0 overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={inv.company.logo} className="max-w-[70%] max-h-[70%] object-contain" alt="Watermark" />
+              <img src={inv.company.logo} className="w-[80%] max-w-[800px] object-contain -rotate-12 scale-125" alt="Watermark" />
             </div>
           )}
           <div className="relative z-10">
