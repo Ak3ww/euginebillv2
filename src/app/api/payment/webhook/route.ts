@@ -284,13 +284,12 @@ export async function POST(request: Request) {
       console.log('[Tripay] Webhook processed - Status:', tripayStatus);
     }
     // QRIN Detection
-    else if (payload.status && payload.request_payload && payload.request_payload.no_ref_merchant) {
+    else if (payload.status && payload.no_ref_merchant && payload.no_referensi) {
       gateway = 'qrin';
-      orderId = payload.request_payload.no_ref_merchant;
-      // transactionId is not provided in QRIN webhook docs, we'll use orderId
-      transactionId = payload.transaction_id || orderId; 
+      orderId = payload.no_ref_merchant;
+      transactionId = payload.no_referensi || orderId; 
       paymentType = 'qrin';
-      amount = payload.request_payload.amount_value ? parseInt(payload.request_payload.amount_value.toString()) : undefined;
+      amount = payload.jumlah_dibayar ? parseInt(payload.jumlah_dibayar.toString()) : undefined;
 
       const qrinStatus = (payload.status || '').toLowerCase();
 

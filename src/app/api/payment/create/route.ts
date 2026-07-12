@@ -317,8 +317,8 @@ export async function POST(request: NextRequest) {
           const dataObj = Array.isArray(result.data) ? result.data[0] : result.data;
           transactionId = dataObj.id_transaksi || dataObj.reference || orderId;
           
-          qrString = dataObj.qr_string || dataObj.qr_code || dataObj.payload || '';
-          paymentUrl = dataObj.payment_url || dataObj.virtual_account || dataObj.checkout_url || '';
+          qrString = dataObj.qris_data || dataObj.qr_string || dataObj.qr_code || dataObj.payload || '';
+          paymentUrl = dataObj.va_number || dataObj.payment_url || dataObj.virtual_account || dataObj.checkout_url || '';
           
           if (!qrString && !paymentUrl) {
              console.error('[QRIN] Unexpected data format:', JSON.stringify(result.data));
