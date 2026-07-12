@@ -80,7 +80,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
   };
 
   inv.paidVia = paidVia;
-  inv.paymentLink = rawInvoice.paymentLink || (rawInvoice.paymentToken ? \`/pay/\${rawInvoice.paymentToken}\` : '');
+  inv.paymentLink = rawInvoice.paymentLink || (rawInvoice.paymentToken ? '/pay/' + rawInvoice.paymentToken : '');
 
   const baseAmt = rawInvoice.baseAmount ?? rawInvoice.amount;
   const taxRateNum = rawInvoice.taxRate ? Number(rawInvoice.taxRate) : 0;

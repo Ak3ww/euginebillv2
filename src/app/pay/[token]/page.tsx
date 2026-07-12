@@ -416,7 +416,7 @@ export default function PaymentPage() {
                     <span className="text-[10px] text-[#e0d0ff]/50 uppercase tracking-wider">Payment Otomatis</span>
                     <div className="h-[1px] flex-1 bg-[#bc13fe]/20"></div>
                   </div>
-                {paymentGateways.map((gateway) => {
+                  {paymentGateways.map((gateway) => {
                   // For Duitku: show individual payment method options
                   if (gateway.provider === 'duitku') {
                     if (loadingDuitkuMethods) {
@@ -483,9 +483,9 @@ export default function PaymentPage() {
                       )}
                     </button>
                   );
-                })}
-              </div>
-            )}
+                  })}
+                </>
+              )}
           </div>
         </div>
 
