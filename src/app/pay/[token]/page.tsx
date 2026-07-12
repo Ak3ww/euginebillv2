@@ -1,9 +1,13 @@
 'use client';
-import { showError } from '@/lib/sweetalert';
+
 import { formatWIB } from '@/lib/timezone';
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { Wifi, CheckCircle, Clock, AlertCircle, CreditCard, Building2, Loader2, User, Phone, Package, Calendar, MapPin, Router, Network, Mail, Hash, Zap } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { 
+  CheckCircle, Clock, AlertCircle, CreditCard, Building2, 
+  Loader2, User, Phone, Package, Calendar, MapPin, 
+  Mail, Hash, Zap, ChevronRight, Lock, CheckCircle2, ShieldCheck, FileText, Image as ImageIcon
+} from 'lucide-react';
 
 interface Invoice {
   id: string;
@@ -36,6 +40,8 @@ interface CompanySetting { name: string; address: string | null; phone: string |
 export default function PaymentPage() {
   const params = useParams();
   const token = params.token as string;
+  const router = useRouter();
+  
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [paymentGateways, setPaymentGateways] = useState<PaymentGateway[]>([]);
@@ -44,11 +50,13 @@ export default function PaymentPage() {
   const [processing, setProcessing] = useState(false);
   const [duitkuMethods, setDuitkuMethods] = useState<{ code: string; name: string; group: string }[]>([]);
   const [loadingDuitkuMethods, setLoadingDuitkuMethods] = useState(false);
+  
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualForm, setManualForm] = useState({ bankName: '', accountNumber: '', accountName: '', notes: '', receiptImage: null as File | null });
   const [uploading, setUploading] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
+  const [manualSuccess, setManualSuccess] = useState(false);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadInvoice(); }, [token]);
 
   const loadInvoice = async () => {
@@ -56,15 +64,14 @@ export default function PaymentPage() {
       setLoading(true);
       const res = await fetch(`/api/invoices/by-token/${token}`);
       const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Failed to load invoice'); return; }
+      if (!res.ok) { setError(data.error || 'Gagal memuat tagihan'); return; }
       setInvoice(data.invoice);
       setPaymentGateways(data.paymentGateways || []);
       setCompany(data.company || null);
-      // If Duitku is in the list, fetch its payment methods
       if ((data.paymentGateways || []).some((g: PaymentGateway) => g.provider === 'duitku')) {
         fetchDuitkuMethods(data.invoice?.amount || 10000);
       }
-    } catch (err) { setError('Failed to load invoice'); } finally { setLoading(false); }
+    } catch (err) { setError('Koneksi terputus saat memuat tagihan'); } finally { setLoading(false); }
   };
 
   const fetchDuitkuMethods = async (amount: number) => {
@@ -74,7 +81,7 @@ export default function PaymentPage() {
       const data = await res.json();
       setDuitkuMethods(data.methods || []);
     } catch {
-      // Use empty = will show nothing for Duitku methods
+      // Use empty
     } finally {
       setLoadingDuitkuMethods(false);
     }
@@ -84,31 +91,37 @@ export default function PaymentPage() {
   const formatDate = (dateStr: string) => formatWIB(dateStr, 'd MMM yyyy');
 
   const getStatusBadge = (status: string) => {
-    const stylesInHeader: Record<string, string> = {
-      PAID: 'bg-white text-green-700',
-      PENDING: 'bg-white text-yellow-600',
-      OVERDUE: 'bg-white text-red-600'
+    const styles: Record<string, string> = {
+      PAID: 'bg-emerald-500 text-white shadow-emerald-500/30',
+      PENDING: 'bg-amber-500 text-white shadow-amber-500/30',
+      OVERDUE: 'bg-rose-500 text-white shadow-rose-500/30'
     };
-    const icons: Record<string, React.ReactNode> = { PAID: <CheckCircle className="w-3 h-3" />, PENDING: <Clock className="w-3 h-3" />, OVERDUE: <AlertCircle className="w-3 h-3" /> };
-    return <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-md ${stylesInHeader[status] || 'bg-white text-gray-700'} shadow-sm`}>{icons[status]} {status}</span>;
+    const icons: Record<string, React.ReactNode> = { PAID: <CheckCircle className="w-3.5 h-3.5" />, PENDING: <Clock className="w-3.5 h-3.5" />, OVERDUE: <AlertCircle className="w-3.5 h-3.5" /> };
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-full shadow-lg ${styles[status] || 'bg-slate-500 text-white'}`}>
+        {icons[status]} {status === 'PAID' ? 'Lunas' : status === 'PENDING' ? 'Belum Bayar' : 'Terlambat'}
+      </span>
+    );
   };
 
   const handlePayment = async (gateway: string, paymentMethod?: string) => {
     if (!invoice) return;
     setProcessing(true);
+    setError(null);
     try {
       const body: any = { invoiceId: invoice.id, gateway };
       if (paymentMethod) body.paymentMethod = paymentMethod;
       const res = await fetch('/api/payment/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
-      if (!res.ok) { await showError(data.error || 'Failed'); return; }
-      if (data.paymentUrl) window.location.href = data.paymentUrl; else await showError('Payment URL not available');
-    } catch { await showError('Failed to process payment'); } finally { setProcessing(false); }
+      if (!res.ok) { setError(data.error || 'Transaksi gagal diproses'); return; }
+      if (data.paymentUrl) window.location.href = data.paymentUrl; else setError('Link pembayaran tidak tersedia');
+    } catch { setError('Gagal terhubung ke gateway pembayaran'); } finally { setProcessing(false); }
   };
 
   const handleManualSubmit = async () => {
+    setManualError(null);
     if (!manualForm.bankName || !manualForm.accountName || !manualForm.receiptImage) {
-      await showError('Mohon lengkapi bank pengirim, nama pengirim, dan bukti transfer.');
+      setManualError('Mohon lengkapi bank pengirim, nama pengirim, dan bukti transfer.');
       return;
     }
     setUploading(true);
@@ -125,120 +138,142 @@ export default function PaymentPage() {
         body: formData,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Gagal upload');
+      if (!res.ok) throw new Error(data.error || 'Gagal mengirim bukti transfer');
       
-      await showError('Bukti transfer berhasil dikirim, menunggu konfirmasi admin.', 'success');
-      window.location.reload();
+      setManualSuccess(true);
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
     } catch (err: any) {
-      await showError(err.message || 'Gagal upload bukti transfer');
+      setManualError(err.message || 'Gagal upload bukti transfer');
     } finally {
       setUploading(false);
     }
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <Loader2 className="w-10 h-10 animate-spin mx-auto text-red-600 mb-3" />
-        <p className="text-sm text-gray-500">Memuat data tagihan...</p>
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+      <div className="w-16 h-16 relative flex items-center justify-center">
+        <div className="absolute inset-0 rounded-full border-4 border-slate-200"></div>
+        <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
+        <ShieldCheck className="w-6 h-6 text-blue-600 absolute" />
       </div>
+      <p className="mt-4 font-medium text-slate-500">Mempersiapkan Portal Pembayaran Aman...</p>
     </div>
   );
 
   if (error || !invoice) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl border border-red-200 p-6 max-w-sm w-full text-center shadow-sm">
-        <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-3" />
-        <h2 className="text-lg font-bold text-gray-900 mb-1">Tagihan Tidak Ditemukan</h2>
-        <p className="text-sm text-gray-600">{error || 'Link pembayaran tidak valid atau sudah kadaluarsa.'}</p>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl border border-slate-100 p-8 max-w-sm w-full text-center shadow-xl shadow-slate-200/50">
+        <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-5">
+          <AlertCircle className="w-10 h-10" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Tagihan Tidak Ditemukan</h2>
+        <p className="text-sm text-slate-500 leading-relaxed">{error || 'Link pembayaran tidak valid atau sudah kadaluarsa.'}</p>
+        <button onClick={() => window.location.reload()} className="mt-6 w-full bg-slate-900 text-white rounded-xl py-3 text-sm font-bold hover:bg-slate-800 transition-colors">Muat Ulang</button>
       </div>
     </div>
   );
 
   if (invoice.status === 'PAID') return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl border border-gray-200 p-6 max-w-sm w-full text-center shadow-sm">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle className="w-8 h-8 text-green-600" />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl border border-slate-100 p-8 max-w-sm w-full shadow-xl shadow-emerald-900/5 text-center">
+        <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-5">
+          <CheckCircle2 className="w-10 h-10 text-emerald-600" />
         </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Pembayaran Berhasil</h2>
-        <p className="text-sm text-gray-600 mb-6">Terima kasih, tagihan Anda telah lunas.</p>
-        <div className="bg-gray-50 rounded-lg p-4 text-left space-y-3 border border-gray-100">
-          <div className="flex justify-between text-sm"><span className="text-gray-500">No. Tagihan</span><span className="font-semibold text-gray-900">{invoice.invoiceNumber}</span></div>
-          <div className="flex justify-between text-sm"><span className="text-gray-500">Jumlah</span><span className="font-bold text-gray-900">{formatCurrency(invoice.amount)}</span></div>
-          {invoice.paidAt && <div className="flex justify-between text-sm"><span className="text-gray-500">Waktu Bayar</span><span className="text-gray-900">{formatDate(invoice.paidAt)}</span></div>}
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">Pembayaran Berhasil</h2>
+        <p className="text-sm text-slate-500 mb-8">Terima kasih, tagihan Anda telah lunas.</p>
+        
+        <div className="bg-slate-50 rounded-2xl p-5 text-left space-y-4 border border-slate-100">
+          <div className="flex justify-between items-center text-sm border-b border-slate-200 pb-3">
+            <span className="text-slate-500">No. Tagihan</span>
+            <span className="font-bold text-slate-900 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-blue-600"/>{invoice.invoiceNumber}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm border-b border-slate-200 pb-3">
+            <span className="text-slate-500">Total Dibayar</span>
+            <span className="font-bold text-slate-900 text-lg">{formatCurrency(invoice.amount)}</span>
+          </div>
+          {invoice.paidAt && (
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-slate-500">Waktu Bayar</span>
+              <span className="font-semibold text-slate-700 text-xs">{formatDate(invoice.paidAt)}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 font-sans">
-      <div className="max-w-lg mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50/50 via-slate-50 to-white py-8 px-4 font-sans pb-24">
+      <div className="max-w-xl mx-auto space-y-6">
         
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Portal Pembayaran</h1>
-          <p className="text-sm text-gray-500 mt-1">Silakan periksa detail tagihan Anda di bawah ini</p>
+        {/* Secure Header */}
+        <div className="flex flex-col items-center text-center mb-2">
+          <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100 mb-4">
+            <Lock className="w-3.5 h-3.5" /> Portal Pembayaran Aman SSL
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Checkout</h1>
         </div>
 
-        {/* Invoice Card */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="bg-red-600 px-6 py-4 flex items-center justify-between">
-            <span className="text-sm font-semibold text-white uppercase tracking-wider">Detail Tagihan</span>
-            {getStatusBadge(invoice.status)}
+        {/* Global Error Banner */}
+        {error && (
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <p className="text-sm font-semibold">{error}</p>
+          </div>
+        )}
+
+        {/* Primary Invoice Card */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+          <div className="bg-slate-900 px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Total Tagihan</p>
+              <p className="text-3xl font-bold text-white">{formatCurrency(invoice.amount)}</p>
+            </div>
+            <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2">
+              {getStatusBadge(invoice.status)}
+              <span className="text-slate-400 text-xs font-mono">{invoice.invoiceNumber}</span>
+            </div>
           </div>
           
-          <div className="p-6 space-y-6">
-            {/* Amount */}
-            <div className="text-center">
-              <p className="text-sm text-gray-500 mb-1">Total Tagihan</p>
-              <p className="text-4xl font-bold text-gray-900">{formatCurrency(invoice.amount)}</p>
-            </div>
-
-            <div className="flex justify-between items-center py-4 border-y border-gray-100">
-              <span className="text-sm text-gray-500">No. Tagihan</span>
-              <span className="font-mono font-semibold text-gray-900">{invoice.invoiceNumber}</span>
-            </div>
-
-            {/* Customer Info */}
+          <div className="p-6 sm:p-8 space-y-6">
+            {/* Customer Information */}
             <div>
-              <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-4 border-b border-gray-200 pb-2">Informasi Pelanggan</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 flex items-center gap-2"><User className="w-4 h-4" /> Nama</span>
-                  <span className="font-medium text-gray-900 text-right">{invoice.user?.name || invoice.customerName}</span>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Informasi Pelanggan</h3>
+              <div className="grid gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <User className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-slate-900">{invoice.user?.name || invoice.customerName}</p>
+                    <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap gap-x-4 gap-y-1">
+                      {invoice.user?.customerId && <span className="flex items-center gap-1"><Hash className="w-3 h-3"/> {invoice.user.customerId}</span>}
+                      <span className="flex items-center gap-1"><Phone className="w-3 h-3"/> {invoice.user?.phone || invoice.customerPhone}</span>
+                      {invoice.user?.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3"/> {invoice.user.email}</span>}
+                    </div>
+                  </div>
                 </div>
-                {invoice.user?.customerId && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 flex items-center gap-2"><Hash className="w-4 h-4" /> ID Pelanggan</span>
-                    <span className="font-mono text-gray-900 text-right">{invoice.user.customerId}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 flex items-center gap-2"><Phone className="w-4 h-4" /> Telepon</span>
-                  <span className="font-medium text-gray-900 text-right">{invoice.user?.phone || invoice.customerPhone}</span>
-                </div>
-                {invoice.user?.email && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 flex items-center gap-2"><Mail className="w-4 h-4" /> Email</span>
-                    <span className="font-medium text-gray-900 text-right break-all">{invoice.user.email}</span>
-                  </div>
-                )}
-                {invoice.user?.address && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 flex items-center gap-2"><MapPin className="w-4 h-4" /> Alamat</span>
-                    <span className="font-medium text-gray-900 text-right max-w-[60%]">{invoice.user.address}</span>
-                  </div>
-                )}
 
+                {invoice.user?.address && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <MapPin className="w-4 h-4 text-slate-500" />
+                    </div>
+                    <p className="text-sm text-slate-600 leading-relaxed pt-1.5">{invoice.user.address}</p>
+                  </div>
+                )}
+                
                 {invoice.user?.profile && (
-                  <div className="flex justify-between text-sm pt-3 border-t border-gray-100 mt-3">
-                    <span className="text-gray-500 flex items-center gap-2"><Package className="w-4 h-4" /> Paket</span>
-                    <div className="text-right">
-                      <p className="font-medium text-gray-900">{invoice.user.profile.name}</p>
+                  <div className="flex items-start gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 mt-2">
+                    <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                      <Package className="w-4 h-4 text-slate-700" />
+                    </div>
+                    <div className="flex-1 pt-0.5">
+                      <p className="text-sm font-bold text-slate-900">{invoice.user.profile.name}</p>
                       {(invoice.user.profile.downloadSpeed > 0) && (
-                        <p className="text-xs text-gray-500 flex items-center justify-end gap-1 mt-1"><Zap className="w-3 h-3" /> {invoice.user.profile.downloadSpeed}M / {invoice.user.profile.uploadSpeed}M</p>
+                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-1"><Zap className="w-3 h-3 text-amber-500" /> {invoice.user.profile.downloadSpeed} Mbps</p>
                       )}
                     </div>
                   </div>
@@ -246,231 +281,239 @@ export default function PaymentPage() {
               </div>
             </div>
 
-            {/* Dates */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> Tanggal Terbit</p>
-                <p className="text-sm font-medium text-gray-900">{formatDate(invoice.createdAt)}</p>
+            {/* Dates Grid */}
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+              <div>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Tanggal Terbit</p>
+                <p className="text-sm font-bold text-slate-700 pl-5">{formatDate(invoice.createdAt)}</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> Jatuh Tempo</p>
-                <p className="text-sm font-medium text-gray-900">{formatDate(invoice.dueDate)}</p>
+              <div>
+                <p className="text-[11px] font-bold text-rose-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Jatuh Tempo</p>
+                <p className="text-sm font-bold text-rose-600 pl-5">{formatDate(invoice.dueDate)}</p>
               </div>
             </div>
+          </div>
+        </div>
 
-            {invoice.status === 'OVERDUE' && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold text-red-700">Pembayaran Terlambat</p>
-                  <p className="text-xs text-red-600 mt-0.5">Segera lakukan pembayaran untuk menghindari pemutusan layanan.</p>
+        {/* Payment Methods Section */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+          <div className="px-6 sm:px-8 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-700">
+              <CreditCard className="w-4 h-4" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">Pilih Metode Pembayaran</h2>
+          </div>
+          
+          <div className="p-6 sm:p-8 space-y-4">
+            
+            {/* Manual Transfer Option */}
+            <div className="border border-slate-200 rounded-2xl overflow-hidden transition-all duration-300">
+              <button
+                onClick={() => setShowManualForm(!showManualForm)}
+                className={`w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors ${showManualForm ? 'border-b border-slate-100 bg-slate-50' : ''}`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${showManualForm ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-100 text-slate-600'}`}>
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-bold text-slate-900">Transfer Manual Bank</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Upload bukti transfer</p>
+                  </div>
                 </div>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 ${showManualForm ? 'bg-blue-100 text-blue-600 rotate-90' : 'bg-slate-100 text-slate-400'}`}>
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+              </button>
+
+              {/* Manual Form Body */}
+              {showManualForm && (
+                <div className="p-5 sm:p-6 bg-white animate-in slide-in-from-top-2 duration-300">
+                  {manualSuccess ? (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle2 className="w-8 h-8" />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 mb-2">Bukti Terkirim!</h3>
+                      <p className="text-sm text-slate-500">Bukti transfer Anda telah berhasil diunggah dan sedang menunggu konfirmasi Admin.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-8">
+                      {/* Bank Accounts */}
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <Building2 className="w-4 h-4" /> Tujuan Transfer
+                        </h4>
+                        {company?.bankAccounts && Array.isArray(company.bankAccounts) && company.bankAccounts.length > 0 ? (
+                          <div className="grid gap-3">
+                            {company.bankAccounts.map((acc: any, i: number) => (
+                              <div key={i} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-blue-300 transition-colors">
+                                <div>
+                                  <p className="text-xs font-bold text-blue-600 mb-1 uppercase tracking-wider">{acc.bankName}</p>
+                                  <p className="text-xl font-mono font-bold text-slate-900 tracking-tight">{acc.accountNumber}</p>
+                                  <p className="text-xs text-slate-600 mt-1 font-medium">a/n {acc.accountName}</p>
+                                </div>
+                                <button onClick={() => {
+                                  navigator.clipboard.writeText(acc.accountNumber);
+                                  // Simple native tooltip visual feedback could go here
+                                }} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm">
+                                  Salin Rekening
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="bg-rose-50 text-rose-600 p-4 rounded-xl text-sm border border-rose-100 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4" /> Belum ada rekening tujuan yang disetting admin.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Upload Form */}
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-t border-slate-100 pt-6 flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4" /> Konfirmasi Pembayaran
+                        </h4>
+                        
+                        {manualError && (
+                          <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-xl text-sm flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {manualError}
+                          </div>
+                        )}
+
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs font-bold text-slate-700 block mb-1.5">Bank Pengirim</label>
+                              <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" placeholder="Contoh: BCA / DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />
+                            </div>
+                            <div>
+                              <label className="text-xs font-bold text-slate-700 block mb-1.5">Atas Nama Pengirim</label>
+                              <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" placeholder="Nama pemilik rekening" value={manualForm.accountName} onChange={e => setManualForm({...manualForm, accountName: e.target.value})} />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs font-bold text-slate-700 block mb-1.5">No. Rekening (Opsional)</label>
+                              <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" placeholder="12345678" value={manualForm.accountNumber} onChange={e => setManualForm({...manualForm, accountNumber: e.target.value})} />
+                            </div>
+                            <div>
+                              <label className="text-xs font-bold text-slate-700 block mb-1.5">Catatan (Opsional)</label>
+                              <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" placeholder="Cth: Tagihan bln ini" value={manualForm.notes} onChange={e => setManualForm({...manualForm, notes: e.target.value})} />
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <label className="text-xs font-bold text-slate-700 block mb-1.5">Bukti Transfer (Gambar)</label>
+                            <div className="relative">
+                              <input type="file" accept="image/*" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-500 outline-none transition-all file:mr-4 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" onChange={e => setManualForm({...manualForm, receiptImage: e.target.files?.[0] || null})} />
+                            </div>
+                          </div>
+                          
+                          <button onClick={handleManualSubmit} disabled={uploading} className="w-full bg-slate-900 text-white rounded-xl py-3.5 text-sm font-bold hover:bg-blue-600 transition-colors disabled:opacity-50 mt-4 flex justify-center items-center shadow-lg shadow-slate-900/10">
+                            {uploading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ImageIcon className="w-5 h-5 mr-2" />}
+                            {uploading ? 'Mengunggah...' : 'Kirim Bukti Transfer'}
+                          </button>
+
+                          {/* WhatsApp Alternative */}
+                          {company?.phone && (
+                            <div className="pt-6 mt-6 border-t border-slate-100 text-center">
+                              <p className="text-xs text-slate-500 mb-3 font-medium">Bermasalah saat upload? Konfirmasi via WhatsApp:</p>
+                              <a href={`https://wa.me/${company.phone.replace(/[^0-9]/g, '')}?text=Halo, saya ingin konfirmasi pembayaran untuk tagihan ${invoice.invoiceNumber}.`} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20b958] text-white rounded-xl py-3.5 text-sm font-bold shadow-lg shadow-[#25D366]/20 transition-all">
+                                <Phone className="w-4 h-4" /> Hubungi Admin
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Auto Payment Gateways */}
+            {paymentGateways.length > 0 && (
+              <>
+                <div className="flex items-center gap-4 py-4">
+                  <div className="h-px flex-1 bg-slate-200"></div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pembayaran Otomatis</span>
+                  <div className="h-px flex-1 bg-slate-200"></div>
+                </div>
+
+                {paymentGateways.map((gateway) => {
+                  if (gateway.provider === 'duitku') {
+                    if (loadingDuitkuMethods) return (
+                      <div key={gateway.id} className="flex items-center justify-center py-6 bg-slate-50 border border-slate-200 rounded-2xl">
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-600 mr-2" />
+                        <span className="text-sm font-medium text-slate-500">Memuat kanal pembayaran...</span>
+                      </div>
+                    );
+                    if (duitkuMethods.length > 0) return (
+                      <div key={gateway.id} className="space-y-3">
+                        {duitkuMethods.map((method) => (
+                          <button
+                            key={method.code}
+                            onClick={() => handlePayment(gateway.provider, method.code)}
+                            disabled={processing}
+                            className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:shadow-lg hover:shadow-blue-900/5 transition-all group disabled:opacity-50"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors border border-slate-100 group-hover:border-blue-100">
+                                <CreditCard className="w-5 h-5" />
+                              </div>
+                              <span className="text-sm font-bold text-slate-900">{method.name}</span>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  }
+                  
+                  // Default generic gateway button
+                  return (
+                    <button
+                      key={gateway.id}
+                      onClick={() => handlePayment(gateway.provider)}
+                      disabled={processing}
+                      className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:shadow-lg hover:shadow-blue-900/5 transition-all group disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors border border-slate-100 group-hover:border-blue-100">
+                          <CreditCard className="w-5 h-5" />
+                        </div>
+                        <span className="text-sm font-bold text-slate-900">{gateway.name}</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                    </button>
+                  );
+                })}
+              </>
+            )}
+
+            {paymentGateways.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-sm font-medium text-slate-500">Silakan gunakan fitur transfer manual di atas.</p>
               </div>
             )}
           </div>
         </div>
-
-        {/* Payment Methods */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-gray-500" />
-              Metode Pembayaran
-            </h2>
-          </div>
-          <div className="p-6">
-            {paymentGateways.length === 0 ? (
-              <div className="text-center py-6">
-                <Building2 className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-500">Tidak ada metode otomatis tersedia.</p>
-              </div>
-            ) : null}
-            
-            <div className="space-y-3">
-              {/* Manual Transfer */}
-              <button
-                onClick={() => setShowManualForm(!showManualForm)}
-                className="w-full flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-red-600 hover:shadow-sm transition-all mb-3 group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-red-50 transition-colors">
-                    <Building2 className="w-5 h-5 text-gray-600 group-hover:text-red-600" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-gray-900">Transfer Manual</p>
-                    <p className="text-xs text-gray-500">Upload bukti transfer</p>
-                  </div>
-                </div>
-                <span className="text-xs font-semibold text-red-600">{showManualForm ? 'Tutup' : 'Pilih'}</span>
-              </button>
-
-              {showManualForm && (
-                <div className="p-5 bg-gray-50 rounded-lg border border-gray-200 space-y-5 mb-5">
-                  {/* Bank Accounts */}
-                  <div>
-                    <p className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Rekening Tujuan</p>
-                    {company?.bankAccounts && Array.isArray(company.bankAccounts) && company.bankAccounts.length > 0 ? (
-                      <div className="grid gap-3">
-                        {company.bankAccounts.map((acc: any, i: number) => (
-                          <div key={i} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-bold text-gray-500 mb-1">{acc.bankName}</p>
-                              <p className="text-lg font-mono font-semibold text-gray-900 tracking-wider">{acc.accountNumber}</p>
-                              <p className="text-xs text-gray-600 mt-1">a/n {acc.accountName}</p>
-                            </div>
-                            <button onClick={() => navigator.clipboard.writeText(acc.accountNumber)} className="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-md border border-red-100 transition-colors">
-                              Salin No. Rek
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-red-500 bg-red-50 p-3 rounded-lg border border-red-100">Belum ada rekening tujuan yang disetting.</p>
-                    )}
-                  </div>
-
-                  {/* Form Upload */}
-                  <div className="border-t border-gray-200 pt-5 space-y-4">
-                    <p className="text-xs font-bold text-gray-900 uppercase tracking-wider">Konfirmasi Pembayaran</p>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs font-medium text-gray-700 block mb-1">Bank Pengirim</label>
-                        <input type="text" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all" placeholder="Contoh: BCA, DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-gray-700 block mb-1">Atas Nama Pengirim</label>
-                        <input type="text" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all" placeholder="Nama pemilik rekening/akun" value={manualForm.accountName} onChange={e => setManualForm({...manualForm, accountName: e.target.value})} />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-gray-700 block mb-1">No. Rekening Pengirim (Opsional)</label>
-                        <input type="text" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all" placeholder="12345678" value={manualForm.accountNumber} onChange={e => setManualForm({...manualForm, accountNumber: e.target.value})} />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-gray-700 block mb-1">Catatan (Opsional)</label>
-                        <input type="text" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all" placeholder="Cth: Bayar bulan ini" value={manualForm.notes} onChange={e => setManualForm({...manualForm, notes: e.target.value})} />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-gray-700 block mb-1">Bukti Transfer (Gambar)</label>
-                        <input type="file" accept="image/*" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer" onChange={e => setManualForm({...manualForm, receiptImage: e.target.files?.[0] || null})} />
-                      </div>
-                      
-                      <button onClick={handleManualSubmit} disabled={uploading} className="w-full bg-red-600 text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 mt-2 flex justify-center items-center">
-                        {uploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                        {uploading ? 'Mengirim...' : 'Kirim Bukti Pembayaran'}
-                      </button>
-
-                      {/* WhatsApp Alternative */}
-                      {company?.phone && (
-                        <div className="pt-4 mt-2 text-center border-t border-gray-200">
-                          <p className="text-xs text-gray-500 mb-2">Atau konfirmasi manual via WhatsApp</p>
-                          <a href={`https://wa.me/${company.phone.replace(/[^0-9]/g, '')}?text=Halo, saya ingin konfirmasi pembayaran untuk tagihan ${invoice.invoiceNumber}.`} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20b958] text-white rounded-lg py-2.5 text-sm font-semibold transition-colors">
-                            <Phone className="w-4 h-4" /> Konfirmasi via WhatsApp
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {paymentGateways.length > 0 && (
-                <>
-                  <div className="flex items-center gap-4 py-2">
-                    <div className="h-px flex-1 bg-gray-200"></div>
-                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Payment Otomatis</span>
-                    <div className="h-px flex-1 bg-gray-200"></div>
-                  </div>
-
-                  {paymentGateways.map((gateway) => {
-                    if (gateway.provider === 'duitku') {
-                      if (loadingDuitkuMethods) {
-                        return (
-                          <div key={gateway.id} className="flex items-center justify-center py-4 bg-white border border-gray-200 rounded-lg">
-                            <Loader2 className="w-5 h-5 animate-spin text-red-600 mr-2" />
-                            <span className="text-sm text-gray-500">Memuat metode Duitku...</span>
-                          </div>
-                        );
-                      }
-                      if (duitkuMethods.length > 0) {
-                        return (
-                          <div key={gateway.id} className="space-y-3">
-                            <p className="text-xs font-bold text-gray-900 uppercase tracking-wider px-1">{gateway.name}</p>
-                            {duitkuMethods.map((method) => (
-                              <button
-                                key={method.code}
-                                onClick={() => handlePayment('duitku', method.code)}
-                                disabled={processing}
-                                className="w-full flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-red-600 hover:shadow-sm transition-all group disabled:opacity-50"
-                              >
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-red-50 transition-colors">
-                                    <CreditCard className="w-5 h-5 text-gray-600 group-hover:text-red-600" />
-                                  </div>
-                                  <div className="text-left">
-                                    <p className="text-sm font-bold text-gray-900">{method.name}</p>
-                                    <p className="text-xs text-gray-500 uppercase">{method.code}</p>
-                                  </div>
-                                </div>
-                                {processing ? (
-                                  <Loader2 className="w-5 h-5 animate-spin text-red-600" />
-                                ) : (
-                                  <span className="text-xs font-semibold text-red-600">Bayar</span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        );
-                      }
-                    }
-
-                    return (
-                      <button
-                        key={gateway.id}
-                        onClick={() => handlePayment(gateway.provider)}
-                        disabled={processing}
-                        className="w-full flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-red-600 hover:shadow-sm transition-all group disabled:opacity-50"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-red-50 transition-colors">
-                            <CreditCard className="w-5 h-5 text-gray-600 group-hover:text-red-600" />
-                          </div>
-                          <div className="text-left">
-                            <p className="text-sm font-bold text-gray-900">{gateway.name}</p>
-                            <p className="text-xs text-gray-500 capitalize">{gateway.provider}</p>
-                          </div>
-                        </div>
-                        {processing ? (
-                          <Loader2 className="w-5 h-5 animate-spin text-red-600" />
-                        ) : (
-                          <span className="text-xs font-semibold text-red-600">Bayar Sekarang</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Company Info */}
-        {company && (
-          <div className="text-center pt-4 pb-2">
-            <h3 className="text-sm font-bold text-gray-900">{company.name}</h3>
-            {company.address && <p className="text-xs text-gray-500 mt-1">{company.address}</p>}
-            <div className="flex flex-wrap justify-center gap-4 text-xs text-gray-500 mt-2">
-              {company.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {company.phone}</span>}
-              {company.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {company.email}</span>}
-            </div>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="text-center space-y-1 pb-6">
-          <p className="text-xs text-gray-400">Pembayaran aman didukung oleh</p>
-          <p className="text-sm font-bold text-gray-900">{company?.name || 'ISP Billing'}</p>
-        </div>
       </div>
+      
+      {/* Loading Overlay */}
+      {processing && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
+          <div className="bg-white rounded-3xl p-8 flex flex-col items-center shadow-2xl max-w-sm w-full mx-4">
+            <div className="w-16 h-16 relative flex items-center justify-center mb-4">
+              <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
+            </div>
+            <p className="text-lg font-bold text-slate-900">Memproses Transaksi...</p>
+            <p className="text-sm text-slate-500 mt-2 text-center">Mohon tunggu, jangan tutup halaman ini.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
