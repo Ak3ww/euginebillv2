@@ -488,6 +488,7 @@ export default function PaymentPage() {
               )}
             </div>
           </div>
+        </div>
 
         {/* Company Info */}
         {company && (
