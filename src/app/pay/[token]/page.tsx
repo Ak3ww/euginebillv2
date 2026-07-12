@@ -6,8 +6,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { 
   CheckCircle, Clock, AlertCircle, CreditCard, Building2, 
   Loader2, User, Phone, Package, Calendar, MapPin, 
-  Mail, Hash, Zap, ChevronRight, Lock, CheckCircle2, ShieldCheck, FileText, Image as ImageIcon
+  Mail, Hash, Zap, ChevronRight, Lock, CheckCircle2, ShieldCheck, FileText, Image as ImageIcon, X, QrCode
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface Invoice {
   id: string;
@@ -58,6 +59,7 @@ export default function PaymentPage() {
   const [uploading, setUploading] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
   const [manualSuccess, setManualSuccess] = useState(false);
+  const [qrString, setQrString] = useState<string | null>(null);
 
   useEffect(() => { loadInvoice(); }, [token]);
 
@@ -132,7 +134,13 @@ export default function PaymentPage() {
       const res = await fetch('/api/payment/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Transaksi gagal diproses'); return; }
-      if (data.paymentUrl) window.location.href = data.paymentUrl; else setError('Link pembayaran tidak tersedia');
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      } else if (data.qrString) {
+        setQrString(data.qrString);
+      } else {
+        setError('Link pembayaran tidak tersedia');
+      }
     } catch { setError('Gagal terhubung ke gateway pembayaran'); } finally { setProcessing(false); }
   };
 
@@ -566,6 +574,34 @@ export default function PaymentPage() {
           </div>
         </div>
       </div>
+
+      {/* QR Code Modal */}
+      {qrString && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setQrString(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-2 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
+              <QrCode className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Scan QRIS</h3>
+            <p className="text-sm text-slate-500 mb-6">Silakan gunakan aplikasi M-Banking atau E-Wallet Anda untuk memindai kode QRIS ini.</p>
+            <div className="bg-white p-4 rounded-2xl inline-block border-2 border-slate-100 shadow-sm mb-6">
+              <QRCodeSVG value={qrString} size={200} level="H" includeMargin={false} />
+            </div>
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl transition-all"
+            >
+              Saya Sudah Bayar
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Loading Overlay */}
       {processing && (
