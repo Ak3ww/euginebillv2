@@ -1506,8 +1506,7 @@ export default function InvoicesPage() {
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-[11px] font-bold">Biaya Tambahan & Diskon</label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => setEditAdditionalFees([...editAdditionalFees, {name: '', amount: 0}])} className="text-[10px] text-blue-500 hover:text-blue-600 font-medium">+ Biaya</button>
-                      <button type="button" onClick={() => setEditAdditionalFees([...editAdditionalFees, {name: 'Diskon ', amount: 0}])} className="text-[10px] text-amber-500 hover:text-amber-600 font-medium">+ Diskon</button>
+                      <button type="button" onClick={() => setEditAdditionalFees([...editAdditionalFees, {name: '', amount: 0}])} className="text-[10px] text-blue-500 hover:text-blue-600 font-medium">+ Item Tambahan</button>
                     </div>
                   </div>
                   {editAdditionalFees.length === 0 ? (
@@ -1750,8 +1749,7 @@ export default function InvoicesPage() {
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-[11px] font-medium text-muted-foreground">Biaya Tambahan & Diskon</label>
                         <div className="flex gap-2">
-                          <button type="button" onClick={() => setGenAdditionalFees([...genAdditionalFees, {name: '', amount: 0}])} className="text-[10px] text-blue-500 hover:text-blue-600 font-medium">+ Biaya</button>
-                          <button type="button" onClick={() => setGenAdditionalFees([...genAdditionalFees, {name: 'Diskon ', amount: 0}])} className="text-[10px] text-amber-500 hover:text-amber-600 font-medium">+ Diskon</button>
+                          <button type="button" onClick={() => setGenAdditionalFees([...genAdditionalFees, {name: '', amount: 0}])} className="text-[10px] text-blue-500 hover:text-blue-600 font-medium">+ Item Tambahan</button>
                         </div>
                       </div>
                       {genAdditionalFees.length === 0 ? (

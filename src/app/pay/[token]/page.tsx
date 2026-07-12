@@ -201,7 +201,10 @@ export default function PaymentPage() {
         </div>
         <h2 className="text-xl font-bold text-slate-900 mb-2">Tagihan Tidak Ditemukan</h2>
         <p className="text-sm text-slate-500 leading-relaxed">{error || 'Link pembayaran tidak valid atau sudah kadaluarsa.'}</p>
-        <button onClick={() => window.location.reload()} className="mt-6 w-full bg-slate-900 text-white rounded-xl py-3 text-sm font-bold hover:bg-slate-800 transition-colors">Muat Ulang</button>
+        <div className="mt-6 flex flex-col gap-3">
+          <button onClick={() => window.location.reload()} className="w-full bg-slate-900 text-white rounded-xl py-3 text-sm font-bold hover:bg-slate-800 transition-colors">Muat Ulang</button>
+          <a href="/" className="w-full bg-slate-100 text-slate-700 rounded-xl py-3 text-sm font-bold hover:bg-slate-200 transition-colors block">Kembali ke Beranda</a>
+        </div>
       </div>
     </div>
   );
@@ -215,7 +218,7 @@ export default function PaymentPage() {
         <h2 className="text-2xl font-bold text-slate-900 mb-2">Pembayaran Berhasil</h2>
         <p className="text-sm text-slate-500 mb-8">Terima kasih, tagihan Anda telah lunas.</p>
         
-        <div className="bg-slate-50 rounded-2xl p-5 text-left space-y-4 border border-slate-100">
+        <div className="bg-slate-50 rounded-2xl p-5 text-left space-y-4 border border-slate-100 mb-8">
           <div className="flex justify-between items-center text-sm border-b border-slate-200 pb-3">
             <span className="text-slate-500">No. Tagihan</span>
             <span className="font-bold text-slate-900 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-blue-600"/>{invoice.invoiceNumber}</span>
@@ -231,6 +234,8 @@ export default function PaymentPage() {
             </div>
           )}
         </div>
+        
+        <a href="/" className="w-full bg-slate-900 text-white rounded-xl py-3.5 px-4 text-sm font-bold hover:bg-slate-800 transition-colors block">Tutup / Kembali</a>
       </div>
     </div>
   );
