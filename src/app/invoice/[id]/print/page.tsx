@@ -60,8 +60,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
     name: rawInvoice.user?.name || 'Pelanggan',
     customerId: rawInvoice.user?.customerId || '',
     phone: rawInvoice.user?.phone || '',
-    username: rawInvoice.user?.username || '',
-    area: rawInvoice.user?.area?.name || '',
+    address: rawInvoice.user?.address || '',
   };
 
   const paidVia = (() => {
@@ -152,7 +151,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
             </div>
             <div className="text-right pt-0.5">
               <div className="text-[26px] font-bold text-gray-900 tracking-[2px] leading-[1.25]">INVOICE</div>
-              <div className="text-[13px] font-bold text-teal-600 my-1 leading-[1.35]">{inv.invoice.number}</div>
+              <div className="text-[13px] font-bold text-red-600 my-1 leading-[1.35]">{inv.invoice.number}</div>
               <div>
                 <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 print:border-emerald-500 print:text-emerald-900" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
                   &#10003; SUDAH BAYAR
@@ -161,7 +160,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
             </div>
           </div>
 
-          <hr className="border-t-2 border-teal-600 my-3.5" />
+          <hr className="border-t-2 border-red-600 my-3.5" />
 
           {/* Grid Information */}
           <div className="grid grid-cols-2 gap-6 mb-4.5">
@@ -176,8 +175,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
               <div className="mb-0.5"><strong>{inv.customer.name}</strong></div>
               {inv.customer.customerId && <div className="mb-0.5"><span className="text-gray-500">ID Pelanggan: </span>{inv.customer.customerId}</div>}
               {inv.customer.phone && <div className="mb-0.5"><span className="text-gray-500">Telp: </span>{inv.customer.phone}</div>}
-              {inv.customer.username && <div className="mb-0.5"><span className="text-gray-500">Username: </span>{inv.customer.username}</div>}
-              {inv.customer.area && <div className="mb-0.5"><span className="text-gray-500">Area: </span>{inv.customer.area}</div>}
+              {inv.customer.address && <div className="mb-0.5"><span className="text-gray-500">Alamat: </span>{inv.customer.address}</div>}
             </div>
           </div>
 
@@ -205,10 +203,10 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
           <table className="w-full border-collapse mb-4 table-fixed">
             <thead>
               <tr>
-                <th className="bg-teal-600 text-white p-2 text-left text-[11px] print:bg-teal-700 print:text-white border-b border-teal-700" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Deskripsi</th>
-                <th className="bg-teal-600 text-white p-2 text-center w-[60px] text-[11px] print:bg-teal-700 print:text-white border-b border-teal-700" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Qty</th>
-                <th className="bg-teal-600 text-white p-2 text-right w-[130px] text-[11px] print:bg-teal-700 print:text-white border-b border-teal-700" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Harga</th>
-                <th className="bg-teal-600 text-white p-2 text-right w-[130px] text-[11px] print:bg-teal-700 print:text-white border-b border-teal-700" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Total</th>
+                <th className="bg-black text-white px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider rounded-tl-lg">Deskripsi</th>
+                <th className="bg-black text-white px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wider w-16">Qty</th>
+                <th className="bg-black text-white px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wider w-28">Harga</th>
+                <th className="bg-black text-white px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wider w-32 rounded-tr-lg">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -241,8 +239,8 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
                 </>
               )}
               <tr>
-                <td colSpan={3} className="text-right font-bold text-[13px] bg-teal-50 border-t-2 border-teal-600 print:bg-transparent print:border-t-[2px] print:border-teal-700 p-2 text-gray-900" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>TOTAL</td>
-                <td className="text-right font-bold text-[13px] bg-teal-50 border-t-2 border-teal-600 print:bg-transparent print:border-t-[2px] print:border-teal-700 p-2 text-gray-900" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{inv.amountFormatted}</td>
+                <td colSpan={3} className="text-right font-bold text-[13px] bg-red-50 border-t-2 border-red-600 print:bg-transparent print:border-t-[2px] print:border-red-700 p-2 text-gray-900" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>TOTAL</td>
+                <td className="text-right font-bold text-[13px] bg-red-50 border-t-2 border-red-600 print:bg-transparent print:border-t-[2px] print:border-red-700 p-2 text-gray-900" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{inv.amountFormatted}</td>
               </tr>
             </tbody>
           </table>

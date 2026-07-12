@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 
 // GET - Get invoice by payment token
@@ -82,6 +82,7 @@ export async function GET(
         address: true,
         phone: true,
         email: true,
+        bankAccounts: true,
       },
     });
 

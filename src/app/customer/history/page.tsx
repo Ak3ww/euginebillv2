@@ -346,40 +346,39 @@ export default function PaymentHistoryPage() {
         }
         * { box-sizing: border-box; }
         body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; color: #1f2937; margin: 0; padding: 24px 24px 80px; background: #f8fafc; }
-        .sheet { background: #fff; border: 1px solid #dbe7e4; border-radius: 18px; overflow: visible; box-shadow: 0 18px 50px rgba(15, 118, 110, 0.08); max-width: 980px; margin: 0 auto; }
-        .topbar { height: 7px; background: linear-gradient(90deg, #0d9488, #14b8a6, #5eead4); }
+        .sheet { background: #fff; border: 1px solid #e5e7eb; border-radius: 18px; overflow: visible; box-shadow: 0 18px 50px rgba(0,0,0,0.05); max-width: 980px; margin: 0 auto; }
+        .topbar { height: 7px; background: linear-gradient(90deg, #dc2626, #ef4444, #f87171); }
         .content { padding: 24px; }
         .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; gap: 20px; }
         .brand-wrap { display:flex; align-items:center; gap:14px; }
         .header-right { text-align:right; padding-top: 2px; }
-        .logo-box { width: 78px; height: 78px; border-radius: 16px; background: linear-gradient(180deg, #ecfeff, #f0fdfa); border: 1px solid #c7f9f1; display:flex; align-items:center; justify-content:center; padding: 10px; }
-        .company-name { font-size: 20px; font-weight: bold; color: #0d9488; }
+        .logo-box { width: 78px; height: 78px; border-radius: 16px; background: #fff; border: 1px solid #e5e7eb; display:flex; align-items:center; justify-content:center; padding: 10px; }
+        .company-name { font-size: 20px; font-weight: bold; color: #000; }
         .company-sub { color: #555; margin-top: 3px; font-size: 10px; line-height: 1.6; }
         .inv-title { font-size: 26px; font-weight: bold; color: #111; letter-spacing: 2px; line-height: 1.25; padding-top: 1px; }
-        .inv-number { font-size: 13px; font-weight: bold; color: #0d9488; margin: 4px 0; line-height: 1.35; }
+        .inv-number { font-size: 13px; font-weight: bold; color: #dc2626; margin: 4px 0; line-height: 1.35; }
         .status-badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; }
-        .paid-badge { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
-        .pending-badge { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
-        .divider { border: none; border-top: 2px solid #0d9488; margin: 14px 0; }
+        .paid-badge { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .pending-badge { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .divider { border: none; border-top: 2px solid #000; margin: 14px 0; }
+        .thin-divider { border: none; border-top: 1px solid #e5e7eb; margin: 12px 0; }
         .section-title { font-weight: bold; font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
         .bill-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 18px; }
         .meta-card { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px 16px; }
         .info-row { margin-bottom: 3px; }
         .info-label { color: #555; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-        th { background: #0d9488; color: #fff; padding: 8px 10px; text-align: left; font-size: 11px; }
+        th { background: #000; color: #fff; padding: 8px 10px; text-align: left; font-size: 11px; }
         td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; font-size: 11px; }
         .td-right { text-align: right; }
-        .total-row td { font-weight: bold; font-size: 13px; background: #f0fdfa; border-top: 2px solid #0d9488; }
-        .payment-card { padding: 16px; border-radius: 14px; border: 1px solid #99f6e4; background: linear-gradient(180deg, #f0fdfa, #ffffff); }
-        .payment-card-title { font-size: 13px; font-weight: 700; color: #0f766e; margin-bottom: 6px; }
+        .total-row td { font-weight: bold; font-size: 13px; background: #fef2f2; border-top: 2px solid #dc2626; }
         .paid-stamp { display: block; margin: 20px auto; padding: 12px 28px; border: 4px solid #10b981; border-radius: 10px; text-align: center; width: fit-content; }
         .paid-stamp-text { font-size: 24px; font-weight: bold; color: #10b981; letter-spacing: 6px; }
         .paid-stamp-sub { font-size: 11px; color: #555; margin-top: 2px; }
         .footer { margin-top: 28px; text-align: center; color: #aaa; font-size: 10px; border-top: 1px solid #e5e7eb; padding-top: 12px; }
         .action-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; gap: 10px; padding: 12px 16px; background: #fff; border-top: 1px solid #e5e7eb; box-shadow: 0 -4px 12px rgba(0,0,0,0.08); z-index: 100; }
-        .btn-print { flex: 1; padding: 12px; background: #0d9488; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
-        .btn-close { flex: 1; padding: 12px; background: #6b7280; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-print { flex: 1; padding: 12px; background: #dc2626; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-close { flex: 1; padding: 12px; background: #000; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
         @media (max-width: 640px) {
           body { padding: 8px 8px 80px !important; }
           .sheet { border-radius: 10px !important; max-width: 100% !important; }
@@ -428,7 +427,7 @@ export default function PaymentHistoryPage() {
           <div class="info-row"><strong>${inv.customer.name}</strong></div>
           ${inv.customer.customerId ? `<div class="info-row"><span class="info-label">ID Pelanggan: </span>${inv.customer.customerId}</div>` : ''}
           ${inv.customer.phone ? `<div class="info-row"><span class="info-label">Telp: </span>${inv.customer.phone}</div>` : ''}
-          ${inv.customer.username ? `<div class="info-row"><span class="info-label">Username: </span>${inv.customer.username}</div>` : ''}
+          ${inv.customer.address ? `<div class="info-row"><span class="info-label">Alamat: </span>${inv.customer.address}</div>` : ''}
         </div>
       </div>
       <div class="bill-grid">

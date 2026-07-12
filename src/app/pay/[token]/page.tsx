@@ -84,13 +84,13 @@ export default function PaymentPage() {
   const formatDate = (dateStr: string) => formatWIB(dateStr, 'd MMM yyyy');
 
   const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      PAID: 'bg-[#00ff88]/20 text-[#00ff88] border border-[#00ff88]/40',
-      PENDING: 'bg-[#ff44cc]/20 text-[#ff44cc] border border-[#ff44cc]/40',
-      OVERDUE: 'bg-[#ff4466]/20 text-[#ff6b8a] border border-[#ff4466]/40'
+    const stylesInHeader: Record<string, string> = {
+      PAID: 'bg-white text-green-700',
+      PENDING: 'bg-white text-yellow-600',
+      OVERDUE: 'bg-white text-red-600'
     };
     const icons: Record<string, React.ReactNode> = { PAID: <CheckCircle className="w-3 h-3" />, PENDING: <Clock className="w-3 h-3" />, OVERDUE: <AlertCircle className="w-3 h-3" /> };
-    return <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold rounded-lg ${styles[status] || 'bg-gray-100'}`}>{icons[status]} {status}</span>;
+    return <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-md ${stylesInHeader[status] || 'bg-white text-gray-700'} shadow-sm`}>{icons[status]} {status}</span>;
   };
 
   const handlePayment = async (gateway: string, paymentMethod?: string) => {
@@ -137,174 +137,133 @@ export default function PaymentPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-[#1a0f35] relative overflow-hidden flex items-center justify-center">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#bc13fe]/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#00f7ff]/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-      </div>
-      <div className="text-center relative z-10">
-        <Loader2 className="w-10 h-10 animate-spin mx-auto text-[#00f7ff] drop-shadow-[0_0_20px_rgba(0,247,255,0.6)] mb-3" />
-        <p className="text-xs text-[#e0d0ff]/70">Loading...</p>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-10 h-10 animate-spin mx-auto text-red-600 mb-3" />
+        <p className="text-sm text-gray-500">Memuat data tagihan...</p>
       </div>
     </div>
   );
 
   if (error || !invoice) return (
-    <div className="min-h-screen bg-[#1a0f35] relative overflow-hidden flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#ff4466]/20 rounded-full blur-3xl"></div>
-      </div>
-      <div className="relative z-10 bg-[#1a0f35]/80 backdrop-blur-xl rounded-2xl border-2 border-[#ff4466]/50 p-6 max-w-sm w-full text-center shadow-[0_0_50px_rgba(255,68,102,0.2)]">
-        <AlertCircle className="w-12 h-12 text-[#ff6b8a] mx-auto mb-3 drop-shadow-[0_0_15px_rgba(255,68,102,0.5)]" />
-        <h2 className="text-base font-bold text-white mb-1">Tagihan Tidak Ditemukan</h2>
-        <p className="text-xs text-[#e0d0ff]/70">{error || 'Link pembayaran tidak valid atau sudah kadaluarsa.'}</p>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl border border-red-200 p-6 max-w-sm w-full text-center shadow-sm">
+        <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-3" />
+        <h2 className="text-lg font-bold text-gray-900 mb-1">Tagihan Tidak Ditemukan</h2>
+        <p className="text-sm text-gray-600">{error || 'Link pembayaran tidak valid atau sudah kadaluarsa.'}</p>
       </div>
     </div>
   );
 
   if (invoice.status === 'PAID') return (
-    <div className="min-h-screen bg-[#1a0f35] relative overflow-hidden flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#00ff88]/20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#00f7ff]/20 rounded-full blur-3xl"></div>
-      </div>
-      <div className="relative z-10 bg-[#1a0f35]/80 backdrop-blur-xl rounded-2xl border-2 border-[#00ff88]/50 p-6 max-w-sm w-full text-center shadow-[0_0_50px_rgba(0,255,136,0.2)]">
-        <div className="w-14 h-14 bg-[#00ff88]/20 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-[#00ff88]/50 shadow-[0_0_30px_rgba(0,255,136,0.3)]">
-          <CheckCircle className="w-7 h-7 text-[#00ff88] drop-shadow-[0_0_10px_rgba(0,255,136,0.8)]" />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-6 max-w-sm w-full text-center shadow-sm">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle className="w-8 h-8 text-green-600" />
         </div>
-        <h2 className="text-base font-bold text-white mb-1">Pembayaran Diterima</h2>
-        <p className="text-xs text-[#e0d0ff]/70 mb-4">Tagihan ini sudah dibayar</p>
-        <div className="bg-[#0a0520]/50 rounded-xl p-4 text-left space-y-2">
-          <div className="flex justify-between text-xs"><span className="text-[#e0d0ff]/60">Tagihan</span><span className="font-mono font-bold text-white">{invoice.invoiceNumber}</span></div>
-          <div className="flex justify-between text-xs"><span className="text-[#e0d0ff]/60">Jumlah</span><span className="font-bold text-[#00ff88]">{formatCurrency(invoice.amount)}</span></div>
-          {invoice.paidAt && <div className="flex justify-between text-xs"><span className="text-[#e0d0ff]/60">Dibayar</span><span className="text-white">{formatDate(invoice.paidAt)}</span></div>}
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Pembayaran Berhasil</h2>
+        <p className="text-sm text-gray-600 mb-6">Terima kasih, tagihan Anda telah lunas.</p>
+        <div className="bg-gray-50 rounded-lg p-4 text-left space-y-3 border border-gray-100">
+          <div className="flex justify-between text-sm"><span className="text-gray-500">No. Tagihan</span><span className="font-semibold text-gray-900">{invoice.invoiceNumber}</span></div>
+          <div className="flex justify-between text-sm"><span className="text-gray-500">Jumlah</span><span className="font-bold text-gray-900">{formatCurrency(invoice.amount)}</span></div>
+          {invoice.paidAt && <div className="flex justify-between text-sm"><span className="text-gray-500">Waktu Bayar</span><span className="text-gray-900">{formatDate(invoice.paidAt)}</span></div>}
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#1a0f35] relative py-6 px-4">
-      {/* Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#bc13fe]/15 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#00f7ff]/15 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-[#ff44cc]/15 rounded-full blur-3xl"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(188,19,254,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(188,19,254,0.02)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
-      </div>
-
-      <div className="max-w-lg mx-auto space-y-4 relative z-10">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 font-sans">
+      <div className="max-w-lg mx-auto space-y-6">
+        
         {/* Header */}
         <div className="text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#bc13fe] to-[#00f7ff] rounded-full mb-3 shadow-[0_0_20px_rgba(188,19,254,0.4)]">
-            <Wifi className="w-4 h-4 text-white" />
-            <span className="text-xs font-bold text-white">Tagihan Pembayaran</span>
-          </div>
-          <p className="text-xs text-[#e0d0ff]/70">Silakan periksa detail tagihan Anda di bawah ini</p>
+          <h1 className="text-2xl font-bold text-gray-900">Portal Pembayaran</h1>
+          <p className="text-sm text-gray-500 mt-1">Silakan periksa detail tagihan Anda di bawah ini</p>
         </div>
 
         {/* Invoice Card */}
-        <div className="bg-[#1a0f35]/80 backdrop-blur-xl rounded-2xl border-2 border-[#bc13fe]/30 overflow-hidden shadow-[0_0_30px_rgba(188,19,254,0.15)]">
-          <div className="bg-gradient-to-r from-[#bc13fe] to-[#00f7ff] px-4 py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-white">Detail Tagihan</span>
-              {getStatusBadge(invoice.status)}
-            </div>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="bg-red-600 px-6 py-4 flex items-center justify-between">
+            <span className="text-sm font-semibold text-white uppercase tracking-wider">Detail Tagihan</span>
+            {getStatusBadge(invoice.status)}
           </div>
-          <div className="p-4 space-y-4">
-            {/* Invoice Number */}
-            <div className="flex justify-between items-center pb-3 border-b border-[#bc13fe]/20">
-              <span className="text-xs text-[#e0d0ff]/60">Nomor Tagihan</span>
-              <span className="font-mono font-bold text-sm text-[#00f7ff]">{invoice.invoiceNumber}</span>
+          
+          <div className="p-6 space-y-6">
+            {/* Amount */}
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-1">Total Tagihan</p>
+              <p className="text-4xl font-bold text-gray-900">{formatCurrency(invoice.amount)}</p>
+            </div>
+
+            <div className="flex justify-between items-center py-4 border-y border-gray-100">
+              <span className="text-sm text-gray-500">No. Tagihan</span>
+              <span className="font-mono font-semibold text-gray-900">{invoice.invoiceNumber}</span>
             </div>
 
             {/* Customer Info */}
             <div>
-              <p className="text-[10px] font-bold text-[#00f7ff] uppercase tracking-widest mb-2 flex items-center gap-2">
-                <span className="w-6 h-[1px] bg-gradient-to-r from-[#00f7ff] to-transparent"></span>
-                Informasi Pelanggan
-              </p>
-              <div className="bg-[#0a0520]/50 rounded-xl p-3 space-y-2.5">
-                {/* Nama */}
-                <div className="flex justify-between items-start text-xs gap-2">
-                  <span className="text-[#e0d0ff]/60 flex items-center gap-1.5 shrink-0"><User className="w-3 h-3 text-[#bc13fe]" />Nama</span>
-                  <span className="font-semibold text-white text-right">{invoice.user?.name || invoice.customerName}</span>
+              <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-4 border-b border-gray-200 pb-2">Informasi Pelanggan</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 flex items-center gap-2"><User className="w-4 h-4" /> Nama</span>
+                  <span className="font-medium text-gray-900 text-right">{invoice.user?.name || invoice.customerName}</span>
                 </div>
-
-                {/* Customer ID */}
                 {invoice.user?.customerId && (
-                  <div className="flex justify-between items-start text-xs gap-2">
-                    <span className="text-[#e0d0ff]/60 flex items-center gap-1.5 shrink-0"><Hash className="w-3 h-3 text-[#00f7ff]" />ID Pelanggan</span>
-                    <span className="font-mono text-white text-right">{invoice.user.customerId}</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 flex items-center gap-2"><Hash className="w-4 h-4" /> ID Pelanggan</span>
+                    <span className="font-mono text-gray-900 text-right">{invoice.user.customerId}</span>
                   </div>
                 )}
-                {/* Telepon */}
-                <div className="flex justify-between items-start text-xs gap-2">
-                  <span className="text-[#e0d0ff]/60 flex items-center gap-1.5 shrink-0"><Phone className="w-3 h-3 text-[#00f7ff]" />Telepon</span>
-                  <span className="font-medium text-white text-right">{invoice.user?.phone || invoice.customerPhone}</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 flex items-center gap-2"><Phone className="w-4 h-4" /> Telepon</span>
+                  <span className="font-medium text-gray-900 text-right">{invoice.user?.phone || invoice.customerPhone}</span>
                 </div>
-                {/* Email */}
                 {invoice.user?.email && (
-                  <div className="flex justify-between items-start text-xs gap-2">
-                    <span className="text-[#e0d0ff]/60 flex items-center gap-1.5 shrink-0"><Mail className="w-3 h-3 text-[#ff44cc]" />Email</span>
-                    <span className="font-medium text-white text-right break-all">{invoice.user.email}</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 flex items-center gap-2"><Mail className="w-4 h-4" /> Email</span>
+                    <span className="font-medium text-gray-900 text-right break-all">{invoice.user.email}</span>
                   </div>
                 )}
-                {/* Alamat */}
                 {invoice.user?.address && (
-                  <div className="flex justify-between items-start text-xs gap-2">
-                    <span className="text-[#e0d0ff]/60 flex items-center gap-1.5 shrink-0"><MapPin className="w-3 h-3 text-[#ff44cc]" />Alamat</span>
-                    <span className="font-medium text-white text-right max-w-[60%]">{invoice.user.address}</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 flex items-center gap-2"><MapPin className="w-4 h-4" /> Alamat</span>
+                    <span className="font-medium text-gray-900 text-right max-w-[60%]">{invoice.user.address}</span>
                   </div>
                 )}
 
-
-                {/* Divider */}
-                <div className="border-t border-[#bc13fe]/15 pt-2 space-y-2.5">
-                  {/* Paket */}
-                  {invoice.user?.profile && (
-                    <div className="flex justify-between items-start text-xs gap-2">
-                      <span className="text-[#e0d0ff]/60 flex items-center gap-1.5 shrink-0"><Package className="w-3 h-3 text-[#ff44cc]" />Paket</span>
-                      <div className="text-right">
-                        <p className="font-semibold text-white">{invoice.user.profile.name}</p>
-                        {(invoice.user.profile.downloadSpeed > 0) && (
-                          <p className="text-[10px] text-[#00f7ff]/70 flex items-center justify-end gap-1"><Zap className="w-2.5 h-2.5" />{invoice.user.profile.downloadSpeed}M / {invoice.user.profile.uploadSpeed}M</p>
-                        )}
-                      </div>
+                {invoice.user?.profile && (
+                  <div className="flex justify-between text-sm pt-3 border-t border-gray-100 mt-3">
+                    <span className="text-gray-500 flex items-center gap-2"><Package className="w-4 h-4" /> Paket</span>
+                    <div className="text-right">
+                      <p className="font-medium text-gray-900">{invoice.user.profile.name}</p>
+                      {(invoice.user.profile.downloadSpeed > 0) && (
+                        <p className="text-xs text-gray-500 flex items-center justify-end gap-1 mt-1"><Zap className="w-3 h-3" /> {invoice.user.profile.downloadSpeed}M / {invoice.user.profile.uploadSpeed}M</p>
+                      )}
                     </div>
-                  )}
-
-                </div>
+                  </div>
+                )}
               </div>
-            </div>
-
-            {/* Amount */}
-            <div className="bg-gradient-to-br from-[#bc13fe]/20 to-[#00f7ff]/20 rounded-xl p-5 text-center border border-[#bc13fe]/30">
-              <p className="text-[10px] text-[#e0d0ff]/60 mb-1">Total Tagihan</p>
-              <p className="text-3xl font-bold text-[#00f7ff] drop-shadow-[0_0_15px_rgba(0,247,255,0.5)]">{formatCurrency(invoice.amount)}</p>
             </div>
 
             {/* Dates */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-[#0a0520]/50 rounded-xl p-3">
-                <p className="text-[10px] text-[#e0d0ff]/60 mb-0.5 flex items-center gap-1"><Calendar className="w-3 h-3 text-[#bc13fe]" />Tanggal Terbit</p>
-                <p className="text-xs font-medium text-white">{formatDate(invoice.createdAt)}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> Tanggal Terbit</p>
+                <p className="text-sm font-medium text-gray-900">{formatDate(invoice.createdAt)}</p>
               </div>
-              <div className="bg-[#0a0520]/50 rounded-xl p-3">
-                <p className="text-[10px] text-[#e0d0ff]/60 mb-0.5 flex items-center gap-1"><Calendar className="w-3 h-3 text-[#00f7ff]" />Jatuh Tempo</p>
-                <p className="text-xs font-medium text-white">{formatDate(invoice.dueDate)}</p>
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> Jatuh Tempo</p>
+                <p className="text-sm font-medium text-gray-900">{formatDate(invoice.dueDate)}</p>
               </div>
             </div>
 
-            {/* Overdue Warning */}
             {invoice.status === 'OVERDUE' && (
-              <div className="bg-[#ff4466]/10 border border-[#ff4466]/30 rounded-xl p-3">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-[#ff6b8a] mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-[#ff6b8a]">Pembayaran Terlambat</p>
-                    <p className="text-[10px] text-[#ff6b8a]/80 mt-0.5">Segera lakukan pembayaran.</p>
-                  </div>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-red-700">Pembayaran Terlambat</p>
+                  <p className="text-xs text-red-600 mt-0.5">Segera lakukan pembayaran untuk menghindari pemutusan layanan.</p>
                 </div>
               </div>
             )}
@@ -312,99 +271,104 @@ export default function PaymentPage() {
         </div>
 
         {/* Payment Methods */}
-        <div className="bg-[#1a0f35]/80 backdrop-blur-xl rounded-2xl border-2 border-[#bc13fe]/30 overflow-hidden shadow-[0_0_30px_rgba(188,19,254,0.15)]">
-          <div className="px-4 py-3 border-b border-[#bc13fe]/20">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-[#00f7ff]" />
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-gray-500" />
               Metode Pembayaran
             </h2>
           </div>
-          <div className="p-4">
+          <div className="p-6">
             {paymentGateways.length === 0 ? (
               <div className="text-center py-6">
-                <Building2 className="w-10 h-10 text-[#e0d0ff]/40 mx-auto mb-2" />
-                <p className="text-xs text-[#e0d0ff]/60">Tidak ada metode pembayaran otomatis tersedia.</p>
+                <Building2 className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">Tidak ada metode otomatis tersedia.</p>
               </div>
             ) : null}
             
-            <div className="space-y-2">
-              {/* Manual Transfer Button */}
+            <div className="space-y-3">
+              {/* Manual Transfer */}
               <button
                 onClick={() => setShowManualForm(!showManualForm)}
-                className="w-full flex items-center justify-between p-4 bg-[#0a0520]/50 border-2 border-[#bc13fe]/20 rounded-xl hover:border-[#00f7ff]/50 hover:bg-[#0a0520]/80 transition-all mb-2"
+                className="w-full flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-red-600 hover:shadow-sm transition-all mb-3 group"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-[#bc13fe] to-[#00f7ff] rounded-xl flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-white" />
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-red-50 transition-colors">
+                    <Building2 className="w-5 h-5 text-gray-600 group-hover:text-red-600" />
                   </div>
                   <div className="text-left">
-                    <p className="text-xs font-bold text-white">Transfer Manual</p>
-                    <p className="text-[10px] text-[#e0d0ff]/60">Upload bukti transfer</p>
+                    <p className="text-sm font-bold text-gray-900">Transfer Manual</p>
+                    <p className="text-xs text-gray-500">Upload bukti transfer</p>
                   </div>
                 </div>
-                <span className="text-[10px] text-[#00f7ff] font-medium">{showManualForm ? 'Tutup' : 'Pilih →'}</span>
+                <span className="text-xs font-semibold text-red-600">{showManualForm ? 'Tutup' : 'Pilih'}</span>
               </button>
 
               {showManualForm && (
-                <div className="p-4 bg-[#0a0520]/80 rounded-xl border border-[#bc13fe]/30 space-y-4 mb-4">
+                <div className="p-5 bg-gray-50 rounded-lg border border-gray-200 space-y-5 mb-5">
                   {/* Bank Accounts */}
-                  {company?.bankAccounts && Array.isArray(company.bankAccounts) && company.bankAccounts.length > 0 ? (
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-[#00f7ff] uppercase tracking-widest">Rekening Tujuan:</p>
-                      {company.bankAccounts.map((acc: any, i: number) => (
-                        <div key={i} className="bg-[#1a0f35] p-3 rounded-xl border border-[#bc13fe]/20">
-                          <p className="text-xs font-bold text-[#00f7ff]">{acc.bankName}</p>
-                          <div className="flex justify-between items-center mt-1">
-                            <p className="text-sm font-mono text-white tracking-wider">{acc.accountNumber}</p>
-                            <button onClick={() => navigator.clipboard.writeText(acc.accountNumber)} className="text-[10px] text-[#00f7ff]/70 hover:text-[#00f7ff] border border-[#00f7ff]/30 px-2 py-1 rounded">Salin</button>
+                  <div>
+                    <p className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Rekening Tujuan</p>
+                    {company?.bankAccounts && Array.isArray(company.bankAccounts) && company.bankAccounts.length > 0 ? (
+                      <div className="grid gap-3">
+                        {company.bankAccounts.map((acc: any, i: number) => (
+                          <div key={i} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-bold text-gray-500 mb-1">{acc.bankName}</p>
+                              <p className="text-lg font-mono font-semibold text-gray-900 tracking-wider">{acc.accountNumber}</p>
+                              <p className="text-xs text-gray-600 mt-1">a/n {acc.accountName}</p>
+                            </div>
+                            <button onClick={() => navigator.clipboard.writeText(acc.accountNumber)} className="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-md border border-red-100 transition-colors">
+                              Salin No. Rek
+                            </button>
                           </div>
-                          <p className="text-[10px] text-[#e0d0ff]/70 mt-1">a/n {acc.accountName}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-red-400">Belum ada rekening tujuan disetting oleh admin.</p>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-red-500 bg-red-50 p-3 rounded-lg border border-red-100">Belum ada rekening tujuan yang disetting.</p>
+                    )}
+                  </div>
 
                   {/* Form Upload */}
-                  <div className="space-y-3 pt-2 border-t border-[#bc13fe]/20">
-                    <p className="text-[10px] font-bold text-[#00f7ff] uppercase tracking-widest">Konfirmasi Transfer:</p>
-                    <div>
-                      <label className="text-[10px] text-[#e0d0ff]/70 block mb-1">Bank Pengirim</label>
-                      <input type="text" className="w-full bg-[#1a0f35] border border-[#bc13fe]/30 rounded-lg px-3 py-2 text-xs text-white focus:border-[#00f7ff] outline-none transition-all" placeholder="Contoh: BCA, DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-[#e0d0ff]/70 block mb-1">Atas Nama Pengirim</label>
-                      <input type="text" className="w-full bg-[#1a0f35] border border-[#bc13fe]/30 rounded-lg px-3 py-2 text-xs text-white focus:border-[#00f7ff] outline-none transition-all" placeholder="Nama pemilik rekening/akun" value={manualForm.accountName} onChange={e => setManualForm({...manualForm, accountName: e.target.value})} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-[#e0d0ff]/70 block mb-1">No. Rekening Pengirim (Opsional)</label>
-                      <input type="text" className="w-full bg-[#1a0f35] border border-[#bc13fe]/30 rounded-lg px-3 py-2 text-xs text-white focus:border-[#00f7ff] outline-none transition-all" placeholder="12345678" value={manualForm.accountNumber} onChange={e => setManualForm({...manualForm, accountNumber: e.target.value})} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-[#e0d0ff]/70 block mb-1">Catatan (Opsional)</label>
-                      <input type="text" className="w-full bg-[#1a0f35] border border-[#bc13fe]/30 rounded-lg px-3 py-2 text-xs text-white focus:border-[#00f7ff] outline-none transition-all" placeholder="Cth: Bayar bulan ini" value={manualForm.notes} onChange={e => setManualForm({...manualForm, notes: e.target.value})} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-[#e0d0ff]/70 block mb-1">Bukti Transfer (Gambar)</label>
-                      <div className="relative">
-                        <input type="file" accept="image/*" className="w-full bg-[#1a0f35] border border-[#bc13fe]/30 rounded-lg px-3 py-2 text-xs text-white focus:border-[#00f7ff] outline-none transition-all file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-[#00f7ff]/20 file:text-[#00f7ff] hover:file:bg-[#00f7ff]/30 cursor-pointer" onChange={e => setManualForm({...manualForm, receiptImage: e.target.files?.[0] || null})} />
+                  <div className="border-t border-gray-200 pt-5 space-y-4">
+                    <p className="text-xs font-bold text-gray-900 uppercase tracking-wider">Konfirmasi Pembayaran</p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 block mb-1">Bank Pengirim</label>
+                        <input type="text" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all" placeholder="Contoh: BCA, DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />
                       </div>
-                    </div>
-                    
-                    <button onClick={handleManualSubmit} disabled={uploading} className="w-full bg-gradient-to-r from-[#bc13fe] to-[#00f7ff] text-white rounded-xl py-3 text-xs font-bold hover:shadow-[0_0_15px_rgba(0,247,255,0.4)] transition-all disabled:opacity-50 mt-2 flex justify-center items-center">
-                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Kirim Bukti Pembayaran'}
-                    </button>
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 block mb-1">Atas Nama Pengirim</label>
+                        <input type="text" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all" placeholder="Nama pemilik rekening/akun" value={manualForm.accountName} onChange={e => setManualForm({...manualForm, accountName: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 block mb-1">No. Rekening Pengirim (Opsional)</label>
+                        <input type="text" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all" placeholder="12345678" value={manualForm.accountNumber} onChange={e => setManualForm({...manualForm, accountNumber: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 block mb-1">Catatan (Opsional)</label>
+                        <input type="text" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all" placeholder="Cth: Bayar bulan ini" value={manualForm.notes} onChange={e => setManualForm({...manualForm, notes: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 block mb-1">Bukti Transfer (Gambar)</label>
+                        <input type="file" accept="image/*" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer" onChange={e => setManualForm({...manualForm, receiptImage: e.target.files?.[0] || null})} />
+                      </div>
+                      
+                      <button onClick={handleManualSubmit} disabled={uploading} className="w-full bg-red-600 text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 mt-2 flex justify-center items-center">
+                        {uploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        {uploading ? 'Mengirim...' : 'Kirim Bukti Pembayaran'}
+                      </button>
 
-                    {/* WhatsApp Alternative */}
-                    {company?.phone && (
-                      <div className="pt-4 mt-2 text-center border-t border-[#bc13fe]/20">
-                        <p className="text-[10px] text-[#e0d0ff]/60 mb-2">Atau konfirmasi manual via WhatsApp</p>
-                        <a href={`https://wa.me/${company.phone.replace(/[^0-9]/g, '')}?text=Halo, saya ingin konfirmasi pembayaran untuk tagihan ${invoice.invoiceNumber}.`} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 w-full bg-[#25D366]/20 border border-[#25D366]/50 text-[#25D366] rounded-xl py-2.5 text-xs font-bold hover:bg-[#25D366]/30 transition-all">
-                          <Phone className="w-4 h-4" /> Kirim Bukti via WhatsApp
-                        </a>
-                      </div>
-                    )}
+                      {/* WhatsApp Alternative */}
+                      {company?.phone && (
+                        <div className="pt-4 mt-2 text-center border-t border-gray-200">
+                          <p className="text-xs text-gray-500 mb-2">Atau konfirmasi manual via WhatsApp</p>
+                          <a href={`https://wa.me/${company.phone.replace(/[^0-9]/g, '')}?text=Halo, saya ingin konfirmasi pembayaran untuk tagihan ${invoice.invoiceNumber}.`} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20b958] text-white rounded-lg py-2.5 text-sm font-semibold transition-colors">
+                            <Phone className="w-4 h-4" /> Konfirmasi via WhatsApp
+                          </a>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -412,77 +376,76 @@ export default function PaymentPage() {
               {paymentGateways.length > 0 && (
                 <>
                   <div className="flex items-center gap-4 py-2">
-                    <div className="h-[1px] flex-1 bg-[#bc13fe]/20"></div>
-                    <span className="text-[10px] text-[#e0d0ff]/50 uppercase tracking-wider">Payment Otomatis</span>
-                    <div className="h-[1px] flex-1 bg-[#bc13fe]/20"></div>
+                    <div className="h-px flex-1 bg-gray-200"></div>
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Payment Otomatis</span>
+                    <div className="h-px flex-1 bg-gray-200"></div>
                   </div>
-                  {paymentGateways.map((gateway) => {
-                  // For Duitku: show individual payment method options
-                  if (gateway.provider === 'duitku') {
-                    if (loadingDuitkuMethods) {
-                      return (
-                        <div key={gateway.id} className="flex items-center justify-center py-4">
-                          <Loader2 className="w-5 h-5 animate-spin text-[#00f7ff] mr-2" />
-                          <span className="text-xs text-[#e0d0ff]/60">Memuat metode Duitku...</span>
-                        </div>
-                      );
-                    }
-                    if (duitkuMethods.length > 0) {
-                      return (
-                        <div key={gateway.id} className="space-y-2">
-                          <p className="text-[10px] font-bold text-[#00f7ff] uppercase tracking-widest px-1">{gateway.name}</p>
-                          {duitkuMethods.map((method) => (
-                            <button
-                              key={method.code}
-                              onClick={() => handlePayment('duitku', method.code)}
-                              disabled={processing}
-                              className="w-full flex items-center justify-between p-4 bg-[#0a0520]/50 border-2 border-[#bc13fe]/20 rounded-xl hover:border-[#00f7ff]/50 hover:bg-[#0a0520]/80 hover:shadow-[0_0_20px_rgba(0,247,255,0.1)] transition-all disabled:opacity-50"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-[#bc13fe] to-[#00f7ff] rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(188,19,254,0.3)]">
-                                  <CreditCard className="w-5 h-5 text-white" />
-                                </div>
-                                <div className="text-left">
-                                  <p className="text-xs font-bold text-white">{method.name}</p>
-                                  <p className="text-[10px] text-[#e0d0ff]/60 uppercase">{method.code}</p>
-                                </div>
-                              </div>
-                              {processing ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-[#00f7ff]" />
-                              ) : (
-                                <span className="text-[10px] text-[#00f7ff] font-medium">Bayar →</span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    }
-                    // Fallback: show single Duitku button with SP default
-                  }
 
-                  return (
-                    <button
-                      key={gateway.id}
-                      onClick={() => handlePayment(gateway.provider)}
-                      disabled={processing}
-                      className="w-full flex items-center justify-between p-4 bg-[#0a0520]/50 border-2 border-[#bc13fe]/20 rounded-xl hover:border-[#00f7ff]/50 hover:bg-[#0a0520]/80 hover:shadow-[0_0_20px_rgba(0,247,255,0.1)] transition-all disabled:opacity-50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-[#bc13fe] to-[#00f7ff] rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(188,19,254,0.3)]">
-                          <CreditCard className="w-5 h-5 text-white" />
+                  {paymentGateways.map((gateway) => {
+                    if (gateway.provider === 'duitku') {
+                      if (loadingDuitkuMethods) {
+                        return (
+                          <div key={gateway.id} className="flex items-center justify-center py-4 bg-white border border-gray-200 rounded-lg">
+                            <Loader2 className="w-5 h-5 animate-spin text-red-600 mr-2" />
+                            <span className="text-sm text-gray-500">Memuat metode Duitku...</span>
+                          </div>
+                        );
+                      }
+                      if (duitkuMethods.length > 0) {
+                        return (
+                          <div key={gateway.id} className="space-y-3">
+                            <p className="text-xs font-bold text-gray-900 uppercase tracking-wider px-1">{gateway.name}</p>
+                            {duitkuMethods.map((method) => (
+                              <button
+                                key={method.code}
+                                onClick={() => handlePayment('duitku', method.code)}
+                                disabled={processing}
+                                className="w-full flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-red-600 hover:shadow-sm transition-all group disabled:opacity-50"
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-red-50 transition-colors">
+                                    <CreditCard className="w-5 h-5 text-gray-600 group-hover:text-red-600" />
+                                  </div>
+                                  <div className="text-left">
+                                    <p className="text-sm font-bold text-gray-900">{method.name}</p>
+                                    <p className="text-xs text-gray-500 uppercase">{method.code}</p>
+                                  </div>
+                                </div>
+                                {processing ? (
+                                  <Loader2 className="w-5 h-5 animate-spin text-red-600" />
+                                ) : (
+                                  <span className="text-xs font-semibold text-red-600">Bayar</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      }
+                    }
+
+                    return (
+                      <button
+                        key={gateway.id}
+                        onClick={() => handlePayment(gateway.provider)}
+                        disabled={processing}
+                        className="w-full flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-red-600 hover:shadow-sm transition-all group disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-red-50 transition-colors">
+                            <CreditCard className="w-5 h-5 text-gray-600 group-hover:text-red-600" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-sm font-bold text-gray-900">{gateway.name}</p>
+                            <p className="text-xs text-gray-500 capitalize">{gateway.provider}</p>
+                          </div>
                         </div>
-                        <div className="text-left">
-                          <p className="text-xs font-bold text-white">{gateway.name}</p>
-                          <p className="text-[10px] text-[#e0d0ff]/60 capitalize">{gateway.provider}</p>
-                        </div>
-                      </div>
-                      {processing ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-[#00f7ff]" />
-                      ) : (
-                        <span className="text-[10px] text-[#00f7ff] font-medium">Bayar Sekarang →</span>
-                      )}
-                    </button>
-                  );
+                        {processing ? (
+                          <Loader2 className="w-5 h-5 animate-spin text-red-600" />
+                        ) : (
+                          <span className="text-xs font-semibold text-red-600">Bayar Sekarang</span>
+                        )}
+                      </button>
+                    );
                   })}
                 </>
               )}
@@ -492,20 +455,20 @@ export default function PaymentPage() {
 
         {/* Company Info */}
         {company && (
-          <div className="bg-[#1a0f35]/80 backdrop-blur-xl rounded-2xl border-2 border-[#bc13fe]/30 p-4 text-center shadow-[0_0_30px_rgba(188,19,254,0.1)]">
-            <h3 className="text-sm font-bold text-white">{company.name}</h3>
-            {company.address && <p className="text-[10px] text-[#e0d0ff]/60 mt-1">📍 {company.address}</p>}
-            <div className="flex flex-wrap justify-center gap-3 text-[10px] text-[#e0d0ff]/60 mt-2">
-              {company.phone && <span>📞 {company.phone}</span>}
-              {company.email && <span>✉️ {company.email}</span>}
+          <div className="text-center pt-4 pb-2">
+            <h3 className="text-sm font-bold text-gray-900">{company.name}</h3>
+            {company.address && <p className="text-xs text-gray-500 mt-1">{company.address}</p>}
+            <div className="flex flex-wrap justify-center gap-4 text-xs text-gray-500 mt-2">
+              {company.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {company.phone}</span>}
+              {company.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {company.email}</span>}
             </div>
           </div>
         )}
 
         {/* Footer */}
-        <div className="text-center space-y-1">
-          <p className="text-[10px] text-[#e0d0ff]/50">Pembayaran aman didukung oleh</p>
-          <p className="text-xs font-bold bg-gradient-to-r from-[#00f7ff] to-[#bc13fe] bg-clip-text text-transparent">{company?.name || 'ISP Billing'}</p>
+        <div className="text-center space-y-1 pb-6">
+          <p className="text-xs text-gray-400">Pembayaran aman didukung oleh</p>
+          <p className="text-sm font-bold text-gray-900">{company?.name || 'ISP Billing'}</p>
         </div>
       </div>
     </div>
