@@ -60,6 +60,8 @@ export default function PaymentPage() {
   const [manualError, setManualError] = useState<string | null>(null);
   const [manualSuccess, setManualSuccess] = useState(false);
   const [qrString, setQrString] = useState<string | null>(null);
+  const [vaNumber, setVaNumber] = useState<string | null>(null);
+  const [vaBank, setVaBank] = useState<string | null>(null);
 
   useEffect(() => { loadInvoice(); }, [token]);
 
@@ -138,6 +140,9 @@ export default function PaymentPage() {
         window.location.href = data.paymentUrl;
       } else if (data.qrString) {
         setQrString(data.qrString);
+      } else if (data.vaNumber) {
+        setVaNumber(data.vaNumber);
+        setVaBank(data.vaBank || 'Virtual Account');
       } else {
         setError('Link pembayaran tidak tersedia');
       }
@@ -436,7 +441,7 @@ export default function PaymentPage() {
                             </div>
                           </div>
                           
-                          <button onClick={handleManualSubmit} disabled={uploading} className="w-full bg-slate-900 text-white rounded-xl py-3.5 text-sm font-bold hover:bg-blue-600 transition-colors disabled:opacity-50 mt-4 flex justify-center items-center shadow-lg shadow-slate-900/10">
+                          <button onClick={handleManualSubmit} disabled={uploading} className="w-full bg-red-600 text-white rounded-xl py-3.5 text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-50 mt-4 flex justify-center items-center shadow-lg shadow-red-600/20">
                             {uploading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ImageIcon className="w-5 h-5 mr-2" />}
                             {uploading ? 'Mengunggah...' : 'Kirim Bukti Transfer'}
                           </button>
@@ -590,9 +595,86 @@ export default function PaymentPage() {
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">Scan QRIS</h3>
             <p className="text-sm text-slate-500 mb-6">Silakan gunakan aplikasi M-Banking atau E-Wallet Anda untuk memindai kode QRIS ini.</p>
-            <div className="bg-white p-4 rounded-2xl inline-block border-2 border-slate-100 shadow-sm mb-6">
-              <QRCodeSVG value={qrString} size={200} level="H" includeMargin={false} />
+            <div className="bg-white p-4 rounded-2xl inline-block border-2 border-slate-100 shadow-sm mb-6 relative group">
+              <QRCodeSVG id="qris-svg" value={qrString} size={200} level="H" includeMargin={false} />
             </div>
+            <div className="flex gap-3 mb-6">
+              <button 
+                onClick={() => {
+                  const svg = document.getElementById('qris-svg');
+                  if (!svg) return;
+                  const svgData = new XMLSerializer().serializeToString(svg);
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d');
+                  const img = new Image();
+                  img.onload = () => {
+                    canvas.width = img.width + 40;
+                    canvas.height = img.height + 40;
+                    if (ctx) {
+                      ctx.fillStyle = 'white';
+                      ctx.fillRect(0, 0, canvas.width, canvas.height);
+                      ctx.drawImage(img, 20, 20);
+                    }
+                    const a = document.createElement('a');
+                    a.download = `QRIS-${invoice.invoiceNumber}.png`;
+                    a.href = canvas.toDataURL('image/png');
+                    a.click();
+                  };
+                  img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+                }}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+              >
+                <ImageIcon className="w-4 h-4" /> Simpan
+              </button>
+              <button 
+                onClick={() => window.location.reload()}
+                className="flex-[2] bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-xl transition-all text-sm"
+              >
+                Saya Sudah Bayar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VA Modal */}
+      {vaNumber && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setVaNumber(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-2 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
+              <CreditCard className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Instruksi Pembayaran</h3>
+            <p className="text-sm text-slate-500 mb-6">Silakan lakukan transfer ke nomor Virtual Account atau tunjukkan kode pembayaran berikut.</p>
+            
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-left space-y-4 mb-6">
+              <div>
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Metode</p>
+                <p className="text-sm font-bold text-slate-900">{vaBank}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Nomor / Kode</p>
+                <div className="flex items-center justify-between bg-white px-3 py-2 border border-slate-200 rounded-lg">
+                  <p className="font-mono text-lg font-bold text-blue-600">{vaNumber}</p>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(vaNumber);
+                      alert('Disalin!');
+                    }}
+                    className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600 hover:bg-slate-200 font-semibold"
+                  >
+                    Salin
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <button 
               onClick={() => window.location.reload()}
               className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl transition-all"

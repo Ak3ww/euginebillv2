@@ -318,9 +318,12 @@ export async function POST(request: NextRequest) {
           transactionId = dataObj.id_transaksi || dataObj.reference || orderId;
           
           qrString = dataObj.qris_data || dataObj.qr_string || dataObj.qr_code || dataObj.payload || '';
-          paymentUrl = dataObj.va_number || dataObj.payment_url || dataObj.virtual_account || dataObj.checkout_url || '';
+          const vaNum = dataObj.va_number || dataObj.payment_code || '';
+          const vaName = dataObj.va_bank || dataObj.payment_name || '';
           
-          if (!qrString && !paymentUrl) {
+          paymentUrl = dataObj.payment_url || dataObj.checkout_url || '';
+          
+          if (!qrString && !paymentUrl && !vaNum) {
              console.error('[QRIN] Unexpected data format:', JSON.stringify(result.data));
              // Fallback for VA if they just return raw string or something
              if (qrinMethod !== 'qris' && typeof dataObj === 'string') {
@@ -328,6 +331,12 @@ export async function POST(request: NextRequest) {
              }
           }
           console.log('[QRIN] Payment created:', transactionId);
+          
+          // Attach VA info directly to response if it exists
+          if (vaNum) {
+             (payment as any)._vaNumber = vaNum;
+             (payment as any)._vaBank = vaName;
+          }
         } else {
            throw new Error(result.message || 'Gagal membuat transaksi QRIN');
         }
@@ -382,13 +391,23 @@ export async function POST(request: NextRequest) {
       console.error('Failed to create webhook log:', logError);
     }
 
+    let vaNumberResponse: string | undefined = undefined;
+    let vaBankResponse: string | undefined = undefined;
+    
+    if ((payment as any)._vaNumber) {
+      vaNumberResponse = (payment as any)._vaNumber;
+      vaBankResponse = (payment as any)._vaBank;
+    }
+
     return NextResponse.json({
       success: true,
       payment,
       orderId,
       paymentUrl,
       snapToken,
-      qrString: qrString || undefined // Include QR string if available (Duitku QRIS)
+      qrString: qrString || undefined,
+      vaNumber: vaNumberResponse,
+      vaBank: vaBankResponse
     });
 
   } catch (error) {
