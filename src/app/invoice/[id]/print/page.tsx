@@ -139,7 +139,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
                 </div>
               )}
               <div>
-                <div className="text-xl font-bold text-teal-600">{inv.company.name}</div>
+                <div className="text-xl font-bold text-gray-900">{inv.company.name}</div>
                 <div className="text-gray-500 mt-1 text-[10px] leading-[1.6]">
                   {inv.company.address && <span dangerouslySetInnerHTML={{__html: inv.company.address}} />}
                   {inv.company.address && <br />}
