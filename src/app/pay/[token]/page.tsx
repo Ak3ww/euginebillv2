@@ -685,13 +685,6 @@ export default function PaymentPage() {
               <BankInstructions bankName={vaBank || ''} vaNumber={vaNumber} />
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-6 flex items-start gap-3 text-left">
-              <QrCode className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                <span className="font-bold">💡 Tips Pembayaran:</span> Bebas ribet ketik angka dan tanpa perlu tunggu verifikasi lama? Gunakan opsi <b>QRIS</b> untuk pembayaran yang langsung lunas dalam hitungan detik!
-              </p>
-            </div>
-
             <button 
               onClick={() => window.location.reload()}
               className="w-full bg-black hover:bg-neutral-900 text-white font-bold py-3.5 px-4 rounded-xl transition-all"
