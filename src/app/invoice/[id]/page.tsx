@@ -282,37 +282,21 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
           </table>
 
           {!inv.invoice.paidAt && inv.paymentLink && (
-            <div className="actions-grid">
-              <div className="payment-card">
-                <div className="payment-card-title">Link Pembayaran Online</div>
-                <p className="payment-note">Pelanggan dapat membuka link berikut untuk melakukan pembayaran langsung.</p>
-                <Link className="payment-cta" href={inv.paymentLink}>Buka Halaman Bayar</Link>
-              </div>
-              <div className="payment-card">
-                <div className="payment-card-title">Petunjuk Pembayaran</div>
-                <p className="payment-note">Gunakan link pembayaran online di samping atau transfer manual ke rekening perusahaan di bawah.</p>
-              </div>
+            <div style={{ marginTop: '32px', textAlign: 'center' }} className="no-print">
+              <Link className="payment-cta" style={{ maxWidth: '300px', margin: '0 auto' }} href={inv.paymentLink}>
+                BAYAR SEKARANG
+              </Link>
+              <p style={{ marginTop: '12px', fontSize: '11px', color: '#94a3b8' }}>
+                Pilih metode transfer manual atau gateway online di halaman selanjutnya.
+              </p>
             </div>
           )}
 
-          {inv.invoice.paidAt ? (
-            <div className="paid-stamp"><div className="paid-stamp-text">LUNAS</div><div className="paid-stamp-sub">Dibayar pada {inv.invoice.paidAt}</div></div>
-          ) : (
-            inv.company.bankAccounts && inv.company.bankAccounts.length > 0 && (
-              <div style={{margin:'18px 0',padding:'16px',border:'1px solid #6ee7b7',borderRadius:'8px',background:'#f0fdfa'}}>
-                <div className="section-title" style={{marginBottom:'10px'}}>Pembayaran Manual</div>
-                <p style={{margin:'0 0 12px',fontSize:'11px',color:'#555'}}>Transfer ke salah satu rekening berikut sebelum jatuh tempo:</p>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))',gap:'10px'}}>
-                  {inv.company.bankAccounts.map((ba: any, i: number) => (
-                    <div key={i} style={{border:'1px solid #0d948840',borderRadius:'8px',padding:'10px 14px',background:'#fff'}}>
-                      <div style={{fontWeight:'bold',fontSize:'12px',color:'#0d9488',marginBottom:'4px'}}>{ba.bankName}</div>
-                      <div style={{fontSize:'14px',fontWeight:'bold',letterSpacing:'1px'}}>{ba.accountNumber}</div>
-                      <div style={{fontSize:'11px',color:'#555',marginTop:'2px'}}>a/n {ba.accountName}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
+          {inv.invoice.paidAt && (
+            <div className="paid-stamp" style={{ marginTop: '32px' }}>
+              <div className="paid-stamp-text">LUNAS</div>
+              <div className="paid-stamp-sub">Dibayar pada {inv.invoice.paidAt}</div>
+            </div>
           )}
 
           <div className="footer">Terima kasih atas kepercayaan Anda &mdash; {inv.company.name}</div>
