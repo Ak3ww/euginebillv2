@@ -496,25 +496,44 @@ export default function PaymentPage() {
                         <span className="text-sm font-medium text-slate-500">Memuat kanal pembayaran QRIN...</span>
                       </div>
                     );
-                    if (qrinMethods.length > 0) return (
-                      <div key={gateway.id} className="space-y-3">
-                        {qrinMethods.map((method) => (
-                          <button
-                            key={method.code}
-                            onClick={() => handlePayment(gateway.provider, method.code)}
-                            disabled={processing}
-                            className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:shadow-lg hover:shadow-blue-900/5 transition-all group disabled:opacity-50"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors border border-slate-100 group-hover:border-blue-100 p-2 overflow-hidden">
-                                {method.logo ? <img src={method.logo} alt={method.name} className="max-w-full max-h-full object-contain mix-blend-multiply" /> : <CreditCard className="w-5 h-5" />}
+                    if (qrinMethods.length > 0) {
+                      return (
+                        <div key={gateway.id} className="space-y-3">
+                          {qrinMethods.map((method) => (
+                            <button
+                              key={method.code}
+                              onClick={() => handlePayment(gateway.provider, method.code)}
+                              disabled={processing}
+                              className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:shadow-lg hover:shadow-blue-900/5 transition-all group disabled:opacity-50"
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors border border-slate-100 group-hover:border-blue-100 p-2 overflow-hidden">
+                                  {method.logo ? <img src={method.logo} alt={method.name} className="max-w-full max-h-full object-contain mix-blend-multiply" /> : <CreditCard className="w-5 h-5" />}
+                                </div>
+                                <span className="text-sm font-bold text-slate-900">{method.name}</span>
                               </div>
-                              <span className="text-sm font-bold text-slate-900">{method.name}</span>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
-                          </button>
-                        ))}
-                      </div>
+                              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    }
+                    // Fallback jika API QRIN gagal memuat methods / token salah / kosong
+                    return (
+                      <button
+                        key={gateway.id}
+                        onClick={() => handlePayment(gateway.provider, 'qris')}
+                        disabled={processing}
+                        className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:shadow-lg hover:shadow-blue-900/5 transition-all group disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors border border-slate-100 group-hover:border-blue-100">
+                            <CreditCard className="w-5 h-5" />
+                          </div>
+                          <span className="text-sm font-bold text-slate-900">QRIS / VA (QRIN)</span>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                      </button>
                     );
                   }
                   
