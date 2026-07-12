@@ -155,6 +155,8 @@ export async function POST(request: NextRequest) {
     let snapToken = '';
     let transactionId = '';
     let qrString = ''; // For Duitku QRIS
+    let vaNumber = ''; // For QRIN VA
+    let vaBank = ''; // For QRIN VA
 
     // ============================================
     // CREATE PAYMENT VIA GATEWAY
@@ -325,17 +327,15 @@ export async function POST(request: NextRequest) {
           
           if (!qrString && !paymentUrl && !vaNum) {
              console.error('[QRIN] Unexpected data format:', JSON.stringify(result.data));
-             // Fallback for VA if they just return raw string or something
              if (qrinMethod !== 'qris' && typeof dataObj === 'string') {
                 paymentUrl = dataObj;
              }
           }
           console.log('[QRIN] Payment created:', transactionId);
           
-          // Attach VA info directly to response if it exists
           if (vaNum) {
-             (payment as any)._vaNumber = vaNum;
-             (payment as any)._vaBank = vaName;
+             vaNumber = vaNum;
+             vaBank = vaName;
           }
         } else {
            throw new Error(result.message || 'Gagal membuat transaksi QRIN');
@@ -391,14 +391,6 @@ export async function POST(request: NextRequest) {
       console.error('Failed to create webhook log:', logError);
     }
 
-    let vaNumberResponse: string | undefined = undefined;
-    let vaBankResponse: string | undefined = undefined;
-    
-    if ((payment as any)._vaNumber) {
-      vaNumberResponse = (payment as any)._vaNumber;
-      vaBankResponse = (payment as any)._vaBank;
-    }
-
     return NextResponse.json({
       success: true,
       payment,
@@ -406,8 +398,8 @@ export async function POST(request: NextRequest) {
       paymentUrl,
       snapToken,
       qrString: qrString || undefined,
-      vaNumber: vaNumberResponse,
-      vaBank: vaBankResponse
+      vaNumber: vaNumber || undefined,
+      vaBank: vaBank || undefined
     });
 
   } catch (error) {
@@ -444,6 +436,8 @@ async function createVoucherPayment(order: any, gateway: string) {
   let paymentUrl = '';
   let snapToken = '';
   let qrString = ''; // For Duitku QRIS
+  let vaNumber = '';
+  let vaBank = '';
 
   // Get base URL for return redirect
   const company = await prisma.company.findFirst();
