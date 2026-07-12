@@ -410,6 +410,25 @@ export default function PppoeUsersPage() {
     } catch (error) { console.error('Save user error:', error); await showError(t('management.failedSaveUser')); throw error; }
   };
 
+  const handleActivateAndBill = async (user: PppoeUser) => {
+    try {
+      const confirm = await showConfirm(`Kirim tagihan pertama untuk ${user.username}?`, 'Status pelanggan akan berubah menjadi Aktif dan tagihan akan dibuat.');
+      if (!confirm) return;
+      
+      const res = await fetch(`/api/pppoe/users/${user.id}/activate-and-bill`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        await showSuccess('Berhasil!', 'Tagihan pertama telah dikirim via WhatsApp dan status pelanggan aktif.');
+        await loadData();
+      } else {
+        await showError(data.error || 'Gagal mengaktifkan pelanggan.');
+      }
+    } catch (e) {
+      console.error(e);
+      await showError('Gagal menghubungi server.');
+    }
+  };
+
   const handlePrintStandard = async (invoice: { id: string }) => {
     try {
       const res = await fetch(`/api/invoices/${invoice.id}/pdf`);
@@ -1553,7 +1572,7 @@ export default function PppoeUsersPage() {
                       </td>
                       {/* Status */}
                       <td className="px-3 py-2">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium ${user.status === 'active' ? 'bg-success/20 text-success dark:bg-green-900/30' : user.status === 'isolated' ? 'bg-warning/20 text-warning dark:bg-yellow-900/30' : 'bg-destructive/20 text-destructive dark:bg-red-900/30'}`}>{user.status}</span>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium ${user.status === 'active' ? 'bg-success/20 text-success dark:bg-green-900/30' : user.status === 'isolated' ? 'bg-warning/20 text-warning dark:bg-yellow-900/30' : user.status === 'PENDING_INSTALLATION' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-destructive/20 text-destructive dark:bg-red-900/30'}`}>{user.status}</span>
                       </td>
                       {/* Sesi */}
                       <td className="px-3 py-2">
@@ -1585,6 +1604,17 @@ export default function PppoeUsersPage() {
                           >
                             <Pencil className="h-3.5 w-3.5 pointer-events-none" />
                           </button>
+                          {/* Kirim Tagihan Pertama / Aktivasi */}
+                          {user.status === 'PENDING_INSTALLATION' && (
+                            <button
+                              onClick={() => handleActivateAndBill(user)}
+                              className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer focus:outline-none"
+                              aria-label="Aktivasi & Kirim Tagihan"
+                              title="Aktivasi & Kirim Tagihan"
+                            >
+                              <Send className="h-3.5 w-3.5 pointer-events-none" />
+                            </button>
+                          )}
                           {/* Sync ke RADIUS */}
                           {company.radiusEnabled && (
                             <button

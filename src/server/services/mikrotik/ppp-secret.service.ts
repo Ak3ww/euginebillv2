@@ -42,7 +42,7 @@ export class PPPSecretService {
           `=profile=${profileName}`,
           `=service=pppoe`,
           `=comment=${user.name} - ${user.customerId || ''}`,
-          `=disabled=${user.status === 'active' ? 'no' : 'yes'}`
+          `=disabled=${['active', 'PENDING_INSTALLATION'].includes(user.status) ? 'no' : 'yes'}`
         ])
       } else {
         // Add new secret
@@ -52,7 +52,7 @@ export class PPPSecretService {
           `=profile=${profileName}`,
           `=service=pppoe`,
           `=comment=${user.name} - ${user.customerId || ''}`,
-          `=disabled=${user.status === 'active' ? 'no' : 'yes'}`
+          `=disabled=${['active', 'PENDING_INSTALLATION'].includes(user.status) ? 'no' : 'yes'}`
         ])
       }
       

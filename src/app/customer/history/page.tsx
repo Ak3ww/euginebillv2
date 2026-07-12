@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -757,13 +757,6 @@ export default function PaymentHistoryPage() {
                       >
                         <Eye className="w-3.5 h-3.5" />
                         Lihat Detail
-                      </button>
-                      <button
-                        onClick={() => setPrintDialogPayment(payment)}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-muted/20 hover:bg-muted/40 border border-border/50 rounded-lg text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors"
-                        title="Cetak Nota"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>

@@ -31,7 +31,7 @@ interface Invoice {
 }
 
 interface PaymentGateway { id: string; name: string; provider: string; isActive: boolean; }
-interface CompanySetting { name: string; address: string | null; phone: string | null; email: string | null; }
+interface CompanySetting { name: string; address: string | null; phone: string | null; email: string | null; bankAccounts?: any; }
 
 export default function PaymentPage() {
   const params = useParams();
@@ -44,6 +44,9 @@ export default function PaymentPage() {
   const [processing, setProcessing] = useState(false);
   const [duitkuMethods, setDuitkuMethods] = useState<{ code: string; name: string; group: string }[]>([]);
   const [loadingDuitkuMethods, setLoadingDuitkuMethods] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualForm, setManualForm] = useState({ bankName: '', accountNumber: '', accountName: '', notes: '', receiptImage: null as File | null });
+  const [uploading, setUploading] = useState(false);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadInvoice(); }, [token]);
@@ -101,6 +104,36 @@ export default function PaymentPage() {
       if (!res.ok) { await showError(data.error || 'Failed'); return; }
       if (data.paymentUrl) window.location.href = data.paymentUrl; else await showError('Payment URL not available');
     } catch { await showError('Failed to process payment'); } finally { setProcessing(false); }
+  };
+
+  const handleManualSubmit = async () => {
+    if (!manualForm.bankName || !manualForm.accountName || !manualForm.receiptImage) {
+      await showError('Mohon lengkapi bank pengirim, nama pengirim, dan bukti transfer.');
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('bankName', manualForm.bankName);
+      formData.append('accountNumber', manualForm.accountNumber);
+      formData.append('accountName', manualForm.accountName);
+      formData.append('notes', manualForm.notes);
+      formData.append('receiptImage', manualForm.receiptImage);
+
+      const res = await fetch(`/api/pay/${token}/manual`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal upload');
+      
+      await showError('Bukti transfer berhasil dikirim, menunggu konfirmasi admin.', 'success');
+      window.location.reload();
+    } catch (err: any) {
+      await showError(err.message || 'Gagal upload bukti transfer');
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (loading) return (
@@ -290,10 +323,99 @@ export default function PaymentPage() {
             {paymentGateways.length === 0 ? (
               <div className="text-center py-6">
                 <Building2 className="w-10 h-10 text-[#e0d0ff]/40 mx-auto mb-2" />
-                <p className="text-xs text-[#e0d0ff]/60">Tidak ada metode pembayaran tersedia.</p>
+                <p className="text-xs text-[#e0d0ff]/60">Tidak ada metode pembayaran otomatis tersedia.</p>
               </div>
-            ) : (
-              <div className="space-y-2">
+            ) : null}
+            
+            <div className="space-y-2">
+              {/* Manual Transfer Button */}
+              <button
+                onClick={() => setShowManualForm(!showManualForm)}
+                className="w-full flex items-center justify-between p-4 bg-[#0a0520]/50 border-2 border-[#bc13fe]/20 rounded-xl hover:border-[#00f7ff]/50 hover:bg-[#0a0520]/80 transition-all mb-2"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-[#bc13fe] to-[#00f7ff] rounded-xl flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-white">Transfer Manual</p>
+                    <p className="text-[10px] text-[#e0d0ff]/60">Upload bukti transfer</p>
+                  </div>
+                </div>
+                <span className="text-[10px] text-[#00f7ff] font-medium">{showManualForm ? 'Tutup' : 'Pilih →'}</span>
+              </button>
+
+              {showManualForm && (
+                <div className="p-4 bg-[#0a0520]/80 rounded-xl border border-[#bc13fe]/30 space-y-4 mb-4">
+                  {/* Bank Accounts */}
+                  {company?.bankAccounts && Array.isArray(company.bankAccounts) && company.bankAccounts.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-bold text-[#00f7ff] uppercase tracking-widest">Rekening Tujuan:</p>
+                      {company.bankAccounts.map((acc: any, i: number) => (
+                        <div key={i} className="bg-[#1a0f35] p-3 rounded-xl border border-[#bc13fe]/20">
+                          <p className="text-xs font-bold text-[#00f7ff]">{acc.bankName}</p>
+                          <div className="flex justify-between items-center mt-1">
+                            <p className="text-sm font-mono text-white tracking-wider">{acc.accountNumber}</p>
+                            <button onClick={() => navigator.clipboard.writeText(acc.accountNumber)} className="text-[10px] text-[#00f7ff]/70 hover:text-[#00f7ff] border border-[#00f7ff]/30 px-2 py-1 rounded">Salin</button>
+                          </div>
+                          <p className="text-[10px] text-[#e0d0ff]/70 mt-1">a/n {acc.accountName}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-red-400">Belum ada rekening tujuan disetting oleh admin.</p>
+                  )}
+
+                  {/* Form Upload */}
+                  <div className="space-y-3 pt-2 border-t border-[#bc13fe]/20">
+                    <p className="text-[10px] font-bold text-[#00f7ff] uppercase tracking-widest">Konfirmasi Transfer:</p>
+                    <div>
+                      <label className="text-[10px] text-[#e0d0ff]/70 block mb-1">Bank Pengirim</label>
+                      <input type="text" className="w-full bg-[#1a0f35] border border-[#bc13fe]/30 rounded-lg px-3 py-2 text-xs text-white focus:border-[#00f7ff] outline-none transition-all" placeholder="Contoh: BCA, DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#e0d0ff]/70 block mb-1">Atas Nama Pengirim</label>
+                      <input type="text" className="w-full bg-[#1a0f35] border border-[#bc13fe]/30 rounded-lg px-3 py-2 text-xs text-white focus:border-[#00f7ff] outline-none transition-all" placeholder="Nama pemilik rekening/akun" value={manualForm.accountName} onChange={e => setManualForm({...manualForm, accountName: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#e0d0ff]/70 block mb-1">No. Rekening Pengirim (Opsional)</label>
+                      <input type="text" className="w-full bg-[#1a0f35] border border-[#bc13fe]/30 rounded-lg px-3 py-2 text-xs text-white focus:border-[#00f7ff] outline-none transition-all" placeholder="12345678" value={manualForm.accountNumber} onChange={e => setManualForm({...manualForm, accountNumber: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#e0d0ff]/70 block mb-1">Catatan (Opsional)</label>
+                      <input type="text" className="w-full bg-[#1a0f35] border border-[#bc13fe]/30 rounded-lg px-3 py-2 text-xs text-white focus:border-[#00f7ff] outline-none transition-all" placeholder="Cth: Bayar bulan ini" value={manualForm.notes} onChange={e => setManualForm({...manualForm, notes: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#e0d0ff]/70 block mb-1">Bukti Transfer (Gambar)</label>
+                      <div className="relative">
+                        <input type="file" accept="image/*" className="w-full bg-[#1a0f35] border border-[#bc13fe]/30 rounded-lg px-3 py-2 text-xs text-white focus:border-[#00f7ff] outline-none transition-all file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-[#00f7ff]/20 file:text-[#00f7ff] hover:file:bg-[#00f7ff]/30 cursor-pointer" onChange={e => setManualForm({...manualForm, receiptImage: e.target.files?.[0] || null})} />
+                      </div>
+                    </div>
+                    
+                    <button onClick={handleManualSubmit} disabled={uploading} className="w-full bg-gradient-to-r from-[#bc13fe] to-[#00f7ff] text-white rounded-xl py-3 text-xs font-bold hover:shadow-[0_0_15px_rgba(0,247,255,0.4)] transition-all disabled:opacity-50 mt-2 flex justify-center items-center">
+                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Kirim Bukti Pembayaran'}
+                    </button>
+
+                    {/* WhatsApp Alternative */}
+                    {company?.phone && (
+                      <div className="pt-4 mt-2 text-center border-t border-[#bc13fe]/20">
+                        <p className="text-[10px] text-[#e0d0ff]/60 mb-2">Atau konfirmasi manual via WhatsApp</p>
+                        <a href={`https://wa.me/${company.phone.replace(/[^0-9]/g, '')}?text=Halo, saya ingin konfirmasi pembayaran untuk tagihan ${invoice.invoiceNumber}.`} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 w-full bg-[#25D366]/20 border border-[#25D366]/50 text-[#25D366] rounded-xl py-2.5 text-xs font-bold hover:bg-[#25D366]/30 transition-all">
+                          <Phone className="w-4 h-4" /> Kirim Bukti via WhatsApp
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {paymentGateways.length > 0 && (
+                <>
+                  <div className="flex items-center gap-4 py-2">
+                    <div className="h-[1px] flex-1 bg-[#bc13fe]/20"></div>
+                    <span className="text-[10px] text-[#e0d0ff]/50 uppercase tracking-wider">Payment Otomatis</span>
+                    <div className="h-[1px] flex-1 bg-[#bc13fe]/20"></div>
+                  </div>
                 {paymentGateways.map((gateway) => {
                   // For Duitku: show individual payment method options
                   if (gateway.provider === 'duitku') {

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -398,15 +398,6 @@ export default function CustomerInvoicesPage() {
                           <Banknote className="w-3.5 h-3.5 mr-1" />Kirim Bukti
                         </CyberButton>
                       </div>
-                    )}
-                    {inv.status === 'PAID' && (
-                      <button
-                        onClick={() => setPrintDialogInvoice(inv)}
-                        className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg border border-slate-700/50 hover:border-slate-600 text-slate-400 hover:text-slate-300 transition-all text-xs"
-                        title="Pilih Jenis Print"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                      </button>
                     )}
                   </div>
                 </div>

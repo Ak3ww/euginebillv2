@@ -1362,7 +1362,7 @@ export default function InvoicesPage() {
               </DialogHeader>
               <div className="flex flex-col gap-3">
                 <button
-                  onClick={() => { if (printDialogInvoice) { setPrintDialogInvoice(null); handlePrintStandard(printDialogInvoice); } }}
+                  onClick={() => { if (printDialogInvoice) { setPrintDialogInvoice(null); window.open('/invoice/' + printDialogInvoice.invoiceNumber + '/print', '_blank'); } }}
                   className="flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                 >
                   <FileText className="w-5 h-5 flex-shrink-0" />
@@ -1372,7 +1372,7 @@ export default function InvoicesPage() {
                   </div>
                 </button>
                 <button
-                  onClick={() => { if (printDialogInvoice) { setPrintDialogInvoice(null); handlePrintThermal(printDialogInvoice); } }}
+                  onClick={() => { if (printDialogInvoice) { setPrintDialogInvoice(null); window.open('/invoice/' + printDialogInvoice.invoiceNumber + '/print', '_blank'); } }}
                   className="flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
                 >
                   <Printer className="w-5 h-5 flex-shrink-0" />

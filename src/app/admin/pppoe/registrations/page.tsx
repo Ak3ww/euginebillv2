@@ -94,6 +94,8 @@ export default function RegistrationsPage() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [approveRouterId, setApproveRouterId] = useState('');
   const [routers, setRouters] = useState<Router[]>([]);
+  const [approveUsername, setApproveUsername] = useState('');
+  const [approvePassword, setApprovePassword] = useState('');
   const [approving, setApproving] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -133,6 +135,12 @@ export default function RegistrationsPage() {
     setBillingDay('1');
     setApproveAreaId(registration.areaId || '');
     setApproveRouterId('');
+    
+    const baseName = registration.name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+    const defaultUsername = `${baseName}-${registration.phone}`;
+    setApproveUsername(defaultUsername);
+    setApprovePassword(defaultUsername);
+
     setApproveModalOpen(true);
   };
 
@@ -150,6 +158,8 @@ export default function RegistrationsPage() {
           billingDay: subscriptionType === 'POSTPAID' ? parseInt(billingDay) : 1,
           areaId: approveAreaId || null,
           routerId: approveRouterId || null,
+          username: approveUsername,
+          password: approvePassword,
         }),
       });
       const data = await res.json();
@@ -157,10 +167,7 @@ export default function RegistrationsPage() {
         await showSuccess(
           `Approved!\n` +
           `Username: ${data.pppoeUser.username}\n` +
-          `Password: ${data.pppoeUser.password}\n\n` +
-          `Tagihan dibuat:\n` +
-          `${data.invoice.invoiceNumber}\n` +
-          `Total: Rp ${data.invoice.amount.toLocaleString('id-ID')}`
+          `Password: ${data.pppoeUser.password}`
         );
         setApproveModalOpen(false);
         fetchRegistrations();
@@ -571,7 +578,16 @@ export default function RegistrationsPage() {
                   <div className="flex justify-between"><span className="text-muted-foreground">{t('common.name')}:</span><span className="font-medium text-foreground">{selectedRegistration.name}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">{t('common.phone')}:</span><span className="font-medium text-foreground">{selectedRegistration.phone}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">{t('pppoe.profile')}:</span><span className="font-medium text-foreground">{selectedRegistration.profile.name}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">{t('pppoe.username')}:</span><span className="font-mono text-[#00f7ff]">{selectedRegistration.name.split(' ')[0].toLowerCase()}-{selectedRegistration.phone}</span></div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <ModalLabel required>Username PPPoE</ModalLabel>
+                    <ModalInput value={approveUsername} onChange={(e) => setApproveUsername(e.target.value)} />
+                  </div>
+                  <div>
+                    <ModalLabel required>Password PPPoE</ModalLabel>
+                    <ModalInput value={approvePassword} onChange={(e) => setApprovePassword(e.target.value)} />
+                  </div>
                 </div>
                 <div>
                   <ModalLabel required>{t('pppoe.subscriptionType')}</ModalLabel>

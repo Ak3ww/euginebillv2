@@ -7,14 +7,7 @@ import { generateUniqueReferralCode } from '@/server/services/referral.service';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 
-// Helper to generate username from name and phone
-function generateUsername(name: string, phone: string): string {
-  const namePart = name
-    .split(' ')[0]
-    .toLowerCase()
-    .replace(/[^a-z]/g, '');
-  return `${namePart}-${phone}`;
-}
+// generateUsername removed
 
 export async function POST(
   request: NextRequest,
@@ -25,7 +18,7 @@ export async function POST(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const { id } = await params;
     const body = await request.json();
-    const { installationFee = 0, subscriptionType = 'POSTPAID', billingDay = 1, areaId, routerId, additionalFees = [] } = body;
+    const { installationFee = 0, subscriptionType = 'POSTPAID', billingDay = 1, areaId, routerId, additionalFees = [], username, password } = body;
 
     // Installation fee is optional, default to 0
     const fee = installationFee || 0;
@@ -61,9 +54,12 @@ export async function POST(
       );
     }
 
-    // Generate username and password
-    const username = generateUsername(registration.name, registration.phone);
-    const password = username;
+    if (!username || !password) {
+      return NextResponse.json(
+        { error: 'Username and password are required' },
+        { status: 400 }
+      );
+    }
 
     // Check if username already exists
     const existingUser = await prisma.pppoeUser.findUnique({
@@ -162,7 +158,7 @@ export async function POST(
         profileId: registration.profileId,
         areaId: areaId || (registration as any).areaId || null,
         routerId: routerId || null,
-        status: 'active', // Create as active first
+        status: 'PENDING_INSTALLATION', // Create as PENDING_INSTALLATION
         syncedToRadius: false,
         subscriptionType: subscriptionType as 'POSTPAID' | 'PREPAID',
         billingDay: activeBillingDay,
@@ -215,145 +211,41 @@ export async function POST(
       }
     }
 
-    // Sync to RADIUS (radcheck + radusergroup)
-    // Password
-    await prisma.radcheck.upsert({
-      where: {
-        username_attribute: {
-          username,
-          attribute: 'Cleartext-Password',
-        },
-      },
-      create: {
-        username,
-        attribute: 'Cleartext-Password',
-        op: ':=',
-        value: password,
-      },
-      update: {
-        value: password,
-      },
-    });
+    // Sync to RADIUS or Mikrotik
+    if (companyInfo?.radiusEnabled) {
+      // Password
+      await prisma.radcheck.upsert({
+        where: { username_attribute: { username, attribute: 'Cleartext-Password' } },
+        create: { username, attribute: 'Cleartext-Password', op: ':=', value: password },
+        update: { value: password },
+      });
 
-    // Add to group
-    await prisma.radusergroup.upsert({
-      where: {
-        username_groupname: {
-          username,
-          groupname: registration.profile.groupName,
-        },
-      },
-      create: {
-        username,
-        groupname: registration.profile.groupName,
-        priority: 1,
-      },
-      update: {
-        groupname: registration.profile.groupName,
-      },
-    });
+      // Add to group
+      await prisma.radusergroup.upsert({
+        where: { username_groupname: { username, groupname: registration.profile.groupName } },
+        create: { username, groupname: registration.profile.groupName, priority: 1 },
+        update: { groupname: registration.profile.groupName },
+      });
 
-    // Mark as synced and keep active (matches tambah pelanggan flow)
-    await prisma.pppoeUser.update({
-      where: { id: pppoeUser.id },
-      data: { syncedToRadius: true },
-    });
-
-    // Generate invoice number: INV-YYYYMM-XXXX
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const invPrefix = `INV-${year}${month}-`;
-    
-    const count = await prisma.invoice.count({
-      where: {
-        invoiceNumber: {
-          startsWith: invPrefix,
-        },
-      },
-    });
-    
-    const invoiceNumber = `${invPrefix}${String(count + 1).padStart(4, '0')}`;
-
-    // Calculate invoice amounts based on subscription type
-    let baseAmount: number;
-    let invoiceType: string;
-    
-    // Calculate total from additionalFees (can be negative for discounts)
-    let extraFeesTotal = 0;
-    if (Array.isArray(additionalFees)) {
-      extraFeesTotal = additionalFees.reduce((sum: number, fee: any) => sum + (Number(fee.amount) || 0), 0);
-    }
-    
-    // Add prorate discount to additionalFees if enabled
-    const finalAdditionalFees = [...(Array.isArray(additionalFees) ? additionalFees : [])];
-    
-    if (companyInfo?.enableProrate) {
-      baseAmount = Math.round(Number(fee)) + registration.profile.price;
-      
-      // Calculate prorate discount (negative value)
-      const prorateDiscount = prorateSubscriptionFee - registration.profile.price;
-      if (prorateDiscount < 0) {
-        finalAdditionalFees.push({
-          name: `Diskon Prorata (${registration.profile.name})`,
-          amount: prorateDiscount
-        });
-        extraFeesTotal += prorateDiscount;
-      }
-      
-      invoiceType = 'INSTALLATION';
+      await prisma.pppoeUser.update({
+        where: { id: pppoeUser.id },
+        data: { syncedToRadius: true },
+      });
     } else {
-      if (subscriptionType === 'PREPAID') {
-        // PREPAID: installation + first month subscription
-        baseAmount = Math.round(Number(fee)) + registration.profile.price;
-        invoiceType = 'INSTALLATION';
-      } else {
-        // POSTPAID: installation only
-        baseAmount = Math.round(Number(fee));
-        invoiceType = 'INSTALLATION';
-      }
-    }
-    
-    // Add extra fees to baseAmount
-    baseAmount += extraFeesTotal;
-    
-    // Ensure baseAmount doesn't go below 0
-    if (baseAmount < 0) baseAmount = 0;
-
-    // Calculate PPN if enabled on profile
-    let invoiceAmount = baseAmount;
-    let taxRate: number | null = null;
-    if (registration.profile.ppnActive && registration.profile.ppnRate > 0) {
-      taxRate = registration.profile.ppnRate;
-      invoiceAmount = Math.round(baseAmount + (baseAmount * taxRate / 100));
+      const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+      await PPPSecretService.syncSecret(pppoeUser.id);
+      await prisma.pppoeUser.update({
+        where: { id: pppoeUser.id },
+        data: { syncedToRadius: true },
+      });
     }
 
-    // Get company baseUrl from database
-    const baseUrl = companyInfo?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
-    // Generate payment token and link
-    const paymentToken = crypto.randomBytes(32).toString('hex');
-    const paymentLink = `${baseUrl}/pay/${paymentToken}`;
-
-    // Create invoice
-    const invoice = await prisma.invoice.create({
-      data: {
-        id: crypto.randomUUID(),
-        invoiceNumber,
-        userId: pppoeUser.id,
-        amount: invoiceAmount,
-        baseAmount: baseAmount,
-        ...(taxRate !== null && { taxRate }),
-        status: 'PENDING',
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-        customerName: registration.name,
-        customerPhone: registration.phone,
-        customerUsername: pppoeUser.username,
-        paymentToken,
-        paymentLink,
-        invoiceType: invoiceType as any,
-        additionalFees: finalAdditionalFees.length > 0 ? finalAdditionalFees : undefined,
-      },
-    });
+    // Save additionalFees to notes to be used in activate-and-bill
+    let updatedNotes = registration.notes;
+    if (additionalFees && additionalFees.length > 0) {
+      const feesData = JSON.stringify({ additionalFees });
+      updatedNotes = updatedNotes ? `${updatedNotes}\n\n[ADMIN_FEES]: ${feesData}` : `[ADMIN_FEES]: ${feesData}`;
+    }
 
     // Update registration
     await prisma.registrationRequest.update({
@@ -362,50 +254,9 @@ export async function POST(
         status: 'APPROVED',
         installationFee: fee,
         pppoeUserId: pppoeUser.id,
-        invoiceId: invoice.id,
+        notes: updatedNotes,
       },
     });
-
-    // Send WhatsApp notification
-    await sendRegistrationApproval({
-      customerName: registration.name,
-      customerPhone: registration.phone,
-      customerId: (pppoeUser as any).customerId || undefined,
-      username: pppoeUser.username,
-      password: pppoeUser.password,
-      profileName: registration.profile.name,
-      installationFee: Math.round(Number(fee)),
-      invoiceNumber: invoice.invoiceNumber,
-      subscriptionType: subscriptionType as string,
-      dueDate: invoice.dueDate,
-      paymentLink: paymentLink,
-      totalAmount: invoiceAmount,
-    });
-
-    // Send Email notification
-    if (registration.email) {
-      try {
-        const { EmailService } = await import('@/server/services/notifications/email.service');
-        await EmailService.sendRegistrationApprovalEmail({
-          toEmail: registration.email,
-          toName: registration.name,
-          username: pppoeUser.username,
-          password: pppoeUser.password,
-          profile: registration.profile.name,
-          installationFee: Math.round(Number(fee)),
-          invoiceNumber: invoice.invoiceNumber,
-          totalAmount: invoiceAmount,
-          dueDate: invoice.dueDate,
-          paymentLink: paymentLink,
-          paymentToken: paymentToken,
-          subscriptionType: subscriptionType as 'POSTPAID' | 'PREPAID',
-        });
-        console.log('[Email] Registration approval sent to:', registration.email);
-      } catch (emailError) {
-        console.error('[Email] Failed to send registration approval:', emailError);
-        // Don't fail the whole approval if email fails
-      }
-    }
 
     return NextResponse.json({
       success: true,
@@ -416,12 +267,6 @@ export async function POST(
         password: pppoeUser.password,
         status: pppoeUser.status,
         subscriptionType: subscriptionType,
-      },
-      invoice: {
-        id: invoice.id,
-        invoiceNumber: invoice.invoiceNumber,
-        amount: invoiceAmount,
-        paymentLink,
       },
     });
   } catch (error: any) {
