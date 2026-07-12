@@ -31,7 +31,8 @@ export async function GET(
             profile: { select: { name: true, price: true } }
           }
         },
-        payment: true,
+        payments: { take: 1 },
+        manualPayments: { take: 1 },
       }
     });
 

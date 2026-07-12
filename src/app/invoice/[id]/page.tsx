@@ -18,7 +18,8 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
       user: {
         include: { profile: true, area: true }
       },
-      payment: true,
+      payments: { take: 1 },
+      manualPayments: { take: 1 },
     }
   });
 
