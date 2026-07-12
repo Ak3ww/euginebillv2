@@ -1107,13 +1107,13 @@ export default function InvoicesPage() {
                           <button 
                             onClick={() => {
                               const origin = typeof window !== 'undefined' ? window.location.origin : '';
-                              navigator.clipboard.writeText(`${origin}/invoice/${invoice.invoiceNumber}/pdf`);
-                              showToast('Link PDF Invoice disalin', 'success');
+                              navigator.clipboard.writeText(`${origin}/invoice/${invoice.invoiceNumber}`);
+                              showToast('Link Invoice disalin', 'success');
                             }} 
                             className="p-1 hover:bg-muted rounded" 
-                            title="Salin Link PDF"
+                            title="Salin Link Invoice"
                           >
-                            <Copy className="h-3 w-3 text-blue-500" />
+                            <Copy className="h-3 w-3 text-emerald-600" />
                           </button>
                           <Link href={`/invoice/${invoice.invoiceNumber}`} target="_blank" className="p-1 hover:bg-muted rounded text-blue-500" title="Buka Web Invoice">
                             <ExternalLink className="h-3 w-3" />
@@ -1224,13 +1224,13 @@ export default function InvoicesPage() {
                     <button 
                       onClick={() => {
                         const origin = typeof window !== 'undefined' ? window.location.origin : '';
-                        navigator.clipboard.writeText(`${origin}/invoice/${invoice.invoiceNumber}/pdf`);
-                        showToast('Link PDF Invoice disalin', 'success');
+                        navigator.clipboard.writeText(`${origin}/invoice/${invoice.invoiceNumber}`);
+                        showToast('Link Invoice disalin', 'success');
                       }} 
                       className="p-1.5 hover:bg-muted rounded" 
-                      title="Salin Link PDF"
+                      title="Salin Link Invoice"
                     >
-                      <Copy className="h-3.5 w-3.5 text-blue-500" />
+                      <Copy className="h-3.5 w-3.5 text-emerald-600" />
                     </button>
                     <Link href={`/invoice/${invoice.invoiceNumber}`} target="_blank" className="p-1.5 hover:bg-muted rounded text-blue-500" title="Buka Web Invoice">
                       <ExternalLink className="h-3.5 w-3.5" />
