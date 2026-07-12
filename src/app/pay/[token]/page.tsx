@@ -115,13 +115,13 @@ export default function PaymentPage() {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      PAID: 'bg-emerald-500 text-white shadow-emerald-500/30',
+      PAID: 'bg-green-500 text-white shadow-green-500/30',
       PENDING: 'bg-amber-500 text-white shadow-amber-500/30',
       OVERDUE: 'bg-rose-500 text-white shadow-rose-500/30'
     };
     const icons: Record<string, React.ReactNode> = { PAID: <CheckCircle className="w-3.5 h-3.5" />, PENDING: <Clock className="w-3.5 h-3.5" />, OVERDUE: <AlertCircle className="w-3.5 h-3.5" /> };
     return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-full shadow-lg ${styles[status] || 'bg-slate-500 text-white'}`}>
+      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-full shadow-lg ${styles[status] || 'bg-neutral-500 text-white'}`}>
         {icons[status]} {status === 'PAID' ? 'Lunas' : status === 'PENDING' ? 'Belum Bayar' : 'Terlambat'}
       </span>
     );
@@ -184,73 +184,73 @@ export default function PaymentPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-neutral-50 flex flex-col items-center justify-center">
       <div className="w-16 h-16 relative flex items-center justify-center">
-        <div className="absolute inset-0 rounded-full border-4 border-slate-200"></div>
-        <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
-        <ShieldCheck className="w-6 h-6 text-blue-600 absolute" />
+        <div className="absolute inset-0 rounded-full border-4 border-neutral-200"></div>
+        <div className="absolute inset-0 rounded-full border-4 border-red-600 border-t-transparent animate-spin"></div>
+        <ShieldCheck className="w-6 h-6 text-red-600 absolute" />
       </div>
-      <p className="mt-4 font-medium text-slate-500">Mempersiapkan Portal Pembayaran Aman...</p>
+      <p className="mt-4 font-medium text-neutral-500">Mempersiapkan Portal Pembayaran Aman...</p>
     </div>
   );
 
   if (error || !invoice) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl border border-slate-100 p-8 max-w-sm w-full text-center shadow-xl shadow-slate-200/50">
+    <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl border border-neutral-100 p-8 max-w-sm w-full text-center shadow-xl shadow-neutral-200/50">
         <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-5">
           <AlertCircle className="w-10 h-10" />
         </div>
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Tagihan Tidak Ditemukan</h2>
-        <p className="text-sm text-slate-500 leading-relaxed">{error || 'Link pembayaran tidak valid atau sudah kadaluarsa.'}</p>
+        <h2 className="text-xl font-bold text-neutral-900 mb-2">Tagihan Tidak Ditemukan</h2>
+        <p className="text-sm text-neutral-500 leading-relaxed">{error || 'Link pembayaran tidak valid atau sudah kadaluarsa.'}</p>
         <div className="mt-6 flex flex-col gap-3">
-          <button onClick={() => window.location.reload()} className="w-full bg-slate-900 text-white rounded-xl py-3 text-sm font-bold hover:bg-slate-800 transition-colors">Muat Ulang</button>
-          <a href="/" className="w-full bg-slate-100 text-slate-700 rounded-xl py-3 text-sm font-bold hover:bg-slate-200 transition-colors block">Kembali ke Beranda</a>
+          <button onClick={() => window.location.reload()} className="w-full bg-black text-white rounded-xl py-3 text-sm font-bold hover:bg-neutral-900 transition-colors">Muat Ulang</button>
+          <a href="/" className="w-full bg-neutral-100 text-neutral-700 rounded-xl py-3 text-sm font-bold hover:bg-neutral-200 transition-colors block">Kembali ke Beranda</a>
         </div>
       </div>
     </div>
   );
 
   if (invoice.status === 'PAID') return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl border border-slate-100 p-8 max-w-sm w-full shadow-xl shadow-emerald-900/5 text-center">
-        <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-5">
-          <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+    <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl border border-neutral-100 p-8 max-w-sm w-full shadow-xl shadow-green-900/5 text-center">
+        <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-5">
+          <CheckCircle2 className="w-10 h-10 text-green-600" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">Pembayaran Berhasil</h2>
-        <p className="text-sm text-slate-500 mb-8">Terima kasih, tagihan Anda telah lunas.</p>
+        <h2 className="text-2xl font-bold text-neutral-900 mb-2">Pembayaran Berhasil</h2>
+        <p className="text-sm text-neutral-500 mb-8">Terima kasih, tagihan Anda telah lunas.</p>
         
-        <div className="bg-slate-50 rounded-2xl p-5 text-left space-y-4 border border-slate-100 mb-8">
-          <div className="flex justify-between items-center text-sm border-b border-slate-200 pb-3">
-            <span className="text-slate-500">No. Tagihan</span>
-            <span className="font-bold text-slate-900 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-blue-600"/>{invoice.invoiceNumber}</span>
+        <div className="bg-neutral-50 rounded-2xl p-5 text-left space-y-4 border border-neutral-100 mb-8">
+          <div className="flex justify-between items-center text-sm border-b border-neutral-200 pb-3">
+            <span className="text-neutral-500">No. Tagihan</span>
+            <span className="font-bold text-neutral-900 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-red-600"/>{invoice.invoiceNumber}</span>
           </div>
-          <div className="flex justify-between items-center text-sm border-b border-slate-200 pb-3">
-            <span className="text-slate-500">Total Dibayar</span>
-            <span className="font-bold text-slate-900 text-lg">{formatCurrency(invoice.amount)}</span>
+          <div className="flex justify-between items-center text-sm border-b border-neutral-200 pb-3">
+            <span className="text-neutral-500">Total Dibayar</span>
+            <span className="font-bold text-neutral-900 text-lg">{formatCurrency(invoice.amount)}</span>
           </div>
           {invoice.paidAt && (
             <div className="flex justify-between items-center text-sm">
-              <span className="text-slate-500">Waktu Bayar</span>
-              <span className="font-semibold text-slate-700 text-xs">{formatDate(invoice.paidAt)}</span>
+              <span className="text-neutral-500">Waktu Bayar</span>
+              <span className="font-semibold text-neutral-700 text-xs">{formatDate(invoice.paidAt)}</span>
             </div>
           )}
         </div>
         
-        <a href="/" className="w-full bg-slate-900 text-white rounded-xl py-3.5 px-4 text-sm font-bold hover:bg-slate-800 transition-colors block">Tutup / Kembali</a>
+        <a href="/" className="w-full bg-black text-white rounded-xl py-3.5 px-4 text-sm font-bold hover:bg-neutral-900 transition-colors block">Tutup / Kembali</a>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50/50 via-slate-50 to-white py-8 px-4 font-sans pb-24">
+    <div className="min-h-screen bg-neutral-50 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-red-50/50 via-neutral-50 to-white py-8 px-4 font-sans pb-24">
       <div className="max-w-xl mx-auto space-y-6">
         
         {/* Secure Header */}
         <div className="flex flex-col items-center text-center mb-2">
-          <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100 mb-4">
+          <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-bold border border-red-100 mb-4">
             <Lock className="w-3.5 h-3.5" /> Portal Pembayaran Aman SSL
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Checkout</h1>
+          <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">Checkout</h1>
         </div>
 
         {/* Global Error Banner */}
@@ -262,30 +262,30 @@ export default function PaymentPage() {
         )}
 
         {/* Primary Invoice Card */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-          <div className="bg-slate-900 px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-white rounded-3xl border border-neutral-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+          <div className="bg-black px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Total Tagihan</p>
+              <p className="text-neutral-400 text-xs font-medium uppercase tracking-wider mb-1">Total Tagihan</p>
               <p className="text-3xl font-bold text-white">{formatCurrency(invoice.amount)}</p>
             </div>
             <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2">
               {getStatusBadge(invoice.status)}
-              <span className="text-slate-400 text-xs font-mono">{invoice.invoiceNumber}</span>
+              <span className="text-neutral-400 text-xs font-mono">{invoice.invoiceNumber}</span>
             </div>
           </div>
           
           <div className="p-6 sm:p-8 space-y-6">
             {/* Customer Information */}
             <div>
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Informasi Pelanggan</h3>
+              <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 border-b border-neutral-100 pb-2">Informasi Pelanggan</h3>
               <div className="grid gap-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <User className="w-4 h-4 text-blue-600" />
+                  <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <User className="w-4 h-4 text-red-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-slate-900">{invoice.user?.name || invoice.customerName}</p>
-                    <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap gap-x-4 gap-y-1">
+                    <p className="text-sm font-bold text-neutral-900">{invoice.user?.name || invoice.customerName}</p>
+                    <div className="text-xs text-neutral-500 mt-0.5 flex flex-wrap gap-x-4 gap-y-1">
                       {invoice.user?.customerId && <span className="flex items-center gap-1"><Hash className="w-3 h-3"/> {invoice.user.customerId}</span>}
                       <span className="flex items-center gap-1"><Phone className="w-3 h-3"/> {invoice.user?.phone || invoice.customerPhone}</span>
                       {invoice.user?.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3"/> {invoice.user.email}</span>}
@@ -295,22 +295,22 @@ export default function PaymentPage() {
 
                 {invoice.user?.address && (
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <MapPin className="w-4 h-4 text-slate-500" />
+                    <div className="w-8 h-8 rounded-full bg-neutral-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <MapPin className="w-4 h-4 text-neutral-500" />
                     </div>
-                    <p className="text-sm text-slate-600 leading-relaxed pt-1.5">{invoice.user.address}</p>
+                    <p className="text-sm text-neutral-600 leading-relaxed pt-1.5">{invoice.user.address}</p>
                   </div>
                 )}
                 
                 {invoice.user?.profile && (
-                  <div className="flex items-start gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 mt-2">
+                  <div className="flex items-start gap-3 bg-neutral-50 p-3 rounded-xl border border-neutral-100 mt-2">
                     <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0">
-                      <Package className="w-4 h-4 text-slate-700" />
+                      <Package className="w-4 h-4 text-neutral-700" />
                     </div>
                     <div className="flex-1 pt-0.5">
-                      <p className="text-sm font-bold text-slate-900">{invoice.user.profile.name}</p>
+                      <p className="text-sm font-bold text-neutral-900">{invoice.user.profile.name}</p>
                       {(invoice.user.profile.downloadSpeed > 0) && (
-                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-1"><Zap className="w-3 h-3 text-amber-500" /> {invoice.user.profile.downloadSpeed} Mbps</p>
+                        <p className="text-xs text-neutral-500 flex items-center gap-1 mt-1"><Zap className="w-3 h-3 text-amber-500" /> {invoice.user.profile.downloadSpeed} Mbps</p>
                       )}
                     </div>
                   </div>
@@ -319,10 +319,10 @@ export default function PaymentPage() {
             </div>
 
             {/* Dates Grid */}
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-100">
               <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Tanggal Terbit</p>
-                <p className="text-sm font-bold text-slate-700 pl-5">{formatDate(invoice.createdAt)}</p>
+                <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Tanggal Terbit</p>
+                <p className="text-sm font-bold text-neutral-700 pl-5">{formatDate(invoice.createdAt)}</p>
               </div>
               <div>
                 <p className="text-[11px] font-bold text-rose-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Jatuh Tempo</p>
@@ -333,32 +333,32 @@ export default function PaymentPage() {
         </div>
 
         {/* Payment Methods Section */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-          <div className="px-6 sm:px-8 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-700">
+        <div className="bg-white rounded-3xl border border-neutral-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+          <div className="px-6 sm:px-8 py-5 border-b border-neutral-100 bg-neutral-50/50 flex items-center gap-3">
+            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center text-red-700">
               <CreditCard className="w-4 h-4" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">Pilih Metode Pembayaran</h2>
+            <h2 className="text-lg font-bold text-neutral-900">Pilih Metode Pembayaran</h2>
           </div>
           
           <div className="p-6 sm:p-8 space-y-4">
             
             {/* Manual Transfer Option */}
-            <div className="border border-slate-200 rounded-2xl overflow-hidden transition-all duration-300">
+            <div className="border border-neutral-200 rounded-2xl overflow-hidden transition-all duration-300">
               <button
                 onClick={() => setShowManualForm(!showManualForm)}
-                className={`w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors ${showManualForm ? 'border-b border-slate-100 bg-slate-50' : ''}`}
+                className={`w-full flex items-center justify-between p-4 bg-white hover:bg-neutral-50 transition-colors ${showManualForm ? 'border-b border-neutral-100 bg-neutral-50' : ''}`}
               >
                 <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${showManualForm ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-100 text-slate-600'}`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${showManualForm ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : 'bg-neutral-100 text-neutral-600'}`}>
                     <Building2 className="w-5 h-5" />
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-bold text-slate-900">Transfer Manual Bank</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Upload bukti transfer</p>
+                    <p className="text-sm font-bold text-neutral-900">Transfer Manual Bank</p>
+                    <p className="text-xs text-neutral-500 mt-0.5">Upload bukti transfer</p>
                   </div>
                 </div>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 ${showManualForm ? 'bg-blue-100 text-blue-600 rotate-90' : 'bg-slate-100 text-slate-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 ${showManualForm ? 'bg-red-100 text-red-600 rotate-90' : 'bg-neutral-100 text-neutral-400'}`}>
                   <ChevronRight className="w-4 h-4" />
                 </div>
               </button>
@@ -368,32 +368,32 @@ export default function PaymentPage() {
                 <div className="p-5 sm:p-6 bg-white animate-in slide-in-from-top-2 duration-300">
                   {manualSuccess ? (
                     <div className="text-center py-8">
-                      <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                         <CheckCircle2 className="w-8 h-8" />
                       </div>
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">Bukti Terkirim!</h3>
-                      <p className="text-sm text-slate-500">Bukti transfer Anda telah berhasil diunggah dan sedang menunggu konfirmasi Admin.</p>
+                      <h3 className="text-lg font-bold text-neutral-900 mb-2">Bukti Terkirim!</h3>
+                      <p className="text-sm text-neutral-500">Bukti transfer Anda telah berhasil diunggah dan sedang menunggu konfirmasi Admin.</p>
                     </div>
                   ) : (
                     <div className="space-y-8">
                       {/* Bank Accounts */}
                       <div>
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                           <Building2 className="w-4 h-4" /> Tujuan Transfer
                         </h4>
                         {company?.bankAccounts && Array.isArray(company.bankAccounts) && company.bankAccounts.length > 0 ? (
                           <div className="grid gap-3">
                             {company.bankAccounts.map((acc: any, i: number) => (
-                              <div key={i} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-blue-300 transition-colors">
+                              <div key={i} className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-red-300 transition-colors">
                                 <div>
-                                  <p className="text-xs font-bold text-blue-600 mb-1 uppercase tracking-wider">{acc.bankName}</p>
-                                  <p className="text-xl font-mono font-bold text-slate-900 tracking-tight">{acc.accountNumber}</p>
-                                  <p className="text-xs text-slate-600 mt-1 font-medium">a/n {acc.accountName}</p>
+                                  <p className="text-xs font-bold text-red-600 mb-1 uppercase tracking-wider">{acc.bankName}</p>
+                                  <p className="text-xl font-mono font-bold text-neutral-900 tracking-tight">{acc.accountNumber}</p>
+                                  <p className="text-xs text-neutral-600 mt-1 font-medium">a/n {acc.accountName}</p>
                                 </div>
                                 <button onClick={() => {
                                   navigator.clipboard.writeText(acc.accountNumber);
                                   // Simple native tooltip visual feedback could go here
-                                }} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm">
+                                }} className="text-xs font-bold text-neutral-700 bg-white px-4 py-2 rounded-lg border border-neutral-200 hover:bg-neutral-50 hover:text-red-600 transition-all shadow-sm">
                                   Salin Rekening
                                 </button>
                               </div>
@@ -408,7 +408,7 @@ export default function PaymentPage() {
 
                       {/* Upload Form */}
                       <div>
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-t border-slate-100 pt-6 flex items-center gap-2">
+                        <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 border-t border-neutral-100 pt-6 flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4" /> Konfirmasi Pembayaran
                         </h4>
                         
@@ -421,29 +421,29 @@ export default function PaymentPage() {
                         <div className="space-y-4">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                              <label className="text-xs font-bold text-slate-700 block mb-1.5">Bank Pengirim</label>
-                              <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" placeholder="Contoh: BCA / DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />
+                              <label className="text-xs font-bold text-neutral-700 block mb-1.5">Bank Pengirim</label>
+                              <input type="text" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-medium text-neutral-900 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none transition-all" placeholder="Contoh: BCA / DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />
                             </div>
                             <div>
-                              <label className="text-xs font-bold text-slate-700 block mb-1.5">Atas Nama Pengirim</label>
-                              <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" placeholder="Nama pemilik rekening" value={manualForm.accountName} onChange={e => setManualForm({...manualForm, accountName: e.target.value})} />
+                              <label className="text-xs font-bold text-neutral-700 block mb-1.5">Atas Nama Pengirim</label>
+                              <input type="text" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-medium text-neutral-900 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none transition-all" placeholder="Nama pemilik rekening" value={manualForm.accountName} onChange={e => setManualForm({...manualForm, accountName: e.target.value})} />
                             </div>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                              <label className="text-xs font-bold text-slate-700 block mb-1.5">No. Rekening (Opsional)</label>
-                              <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" placeholder="12345678" value={manualForm.accountNumber} onChange={e => setManualForm({...manualForm, accountNumber: e.target.value})} />
+                              <label className="text-xs font-bold text-neutral-700 block mb-1.5">No. Rekening (Opsional)</label>
+                              <input type="text" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-medium text-neutral-900 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none transition-all" placeholder="12345678" value={manualForm.accountNumber} onChange={e => setManualForm({...manualForm, accountNumber: e.target.value})} />
                             </div>
                             <div>
-                              <label className="text-xs font-bold text-slate-700 block mb-1.5">Catatan (Opsional)</label>
-                              <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" placeholder="Cth: Tagihan bln ini" value={manualForm.notes} onChange={e => setManualForm({...manualForm, notes: e.target.value})} />
+                              <label className="text-xs font-bold text-neutral-700 block mb-1.5">Catatan (Opsional)</label>
+                              <input type="text" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-medium text-neutral-900 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none transition-all" placeholder="Cth: Tagihan bln ini" value={manualForm.notes} onChange={e => setManualForm({...manualForm, notes: e.target.value})} />
                             </div>
                           </div>
                           
                           <div>
-                            <label className="text-xs font-bold text-slate-700 block mb-1.5">Bukti Transfer (Gambar)</label>
+                            <label className="text-xs font-bold text-neutral-700 block mb-1.5">Bukti Transfer (Gambar)</label>
                             <div className="relative">
-                              <input type="file" accept="image/*" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-500 outline-none transition-all file:mr-4 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" onChange={e => setManualForm({...manualForm, receiptImage: e.target.files?.[0] || null})} />
+                              <input type="file" accept="image/*" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-medium text-neutral-900 focus:bg-white focus:border-red-500 outline-none transition-all file:mr-4 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 cursor-pointer" onChange={e => setManualForm({...manualForm, receiptImage: e.target.files?.[0] || null})} />
                             </div>
                           </div>
                           
@@ -454,8 +454,8 @@ export default function PaymentPage() {
 
                           {/* WhatsApp Alternative */}
                           {company?.phone && (
-                            <div className="pt-6 mt-6 border-t border-slate-100 text-center">
-                              <p className="text-xs text-slate-500 mb-3 font-medium">Bermasalah saat upload? Konfirmasi via WhatsApp:</p>
+                            <div className="pt-6 mt-6 border-t border-neutral-100 text-center">
+                              <p className="text-xs text-neutral-500 mb-3 font-medium">Bermasalah saat upload? Konfirmasi via WhatsApp:</p>
                               <a href={`https://wa.me/${company.phone.replace(/[^0-9]/g, '')}?text=Halo, saya ingin konfirmasi pembayaran untuk tagihan ${invoice.invoiceNumber}.`} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20b958] text-white rounded-xl py-3.5 text-sm font-bold shadow-lg shadow-[#25D366]/20 transition-all">
                                 <Phone className="w-4 h-4" /> Hubungi Admin
                               </a>
@@ -473,17 +473,17 @@ export default function PaymentPage() {
             {paymentGateways.length > 0 && (
               <>
                 <div className="flex items-center gap-4 py-4">
-                  <div className="h-px flex-1 bg-slate-200"></div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pembayaran Otomatis</span>
-                  <div className="h-px flex-1 bg-slate-200"></div>
+                  <div className="h-px flex-1 bg-neutral-200"></div>
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Pembayaran Otomatis</span>
+                  <div className="h-px flex-1 bg-neutral-200"></div>
                 </div>
 
                 {paymentGateways.map((gateway) => {
                   if (gateway.provider === 'duitku') {
                     if (loadingDuitkuMethods) return (
-                      <div key={gateway.id} className="flex items-center justify-center py-6 bg-slate-50 border border-slate-200 rounded-2xl">
-                        <Loader2 className="w-5 h-5 animate-spin text-blue-600 mr-2" />
-                        <span className="text-sm font-medium text-slate-500">Memuat kanal pembayaran...</span>
+                      <div key={gateway.id} className="flex items-center justify-center py-6 bg-neutral-50 border border-neutral-200 rounded-2xl">
+                        <Loader2 className="w-5 h-5 animate-spin text-red-600 mr-2" />
+                        <span className="text-sm font-medium text-neutral-500">Memuat kanal pembayaran...</span>
                       </div>
                     );
                     if (duitkuMethods.length > 0) return (
@@ -493,15 +493,15 @@ export default function PaymentPage() {
                             key={method.code}
                             onClick={() => handlePayment(gateway.provider, method.code)}
                             disabled={processing}
-                            className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:shadow-lg hover:shadow-blue-900/5 transition-all group disabled:opacity-50"
+                            className="w-full flex items-center justify-between p-4 bg-white border border-neutral-200 rounded-2xl hover:border-red-400 hover:shadow-lg hover:shadow-red-900/5 transition-all group disabled:opacity-50"
                           >
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors border border-slate-100 group-hover:border-blue-100">
+                              <div className="w-12 h-12 bg-neutral-50 rounded-xl flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 transition-colors border border-neutral-100 group-hover:border-red-100">
                                 <CreditCard className="w-5 h-5" />
                               </div>
-                              <span className="text-sm font-bold text-slate-900">{method.name}</span>
+                              <span className="text-sm font-bold text-neutral-900">{method.name}</span>
                             </div>
-                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                            <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-red-600 transition-colors" />
                           </button>
                         ))}
                       </div>
@@ -510,9 +510,9 @@ export default function PaymentPage() {
                   
                   if (gateway.provider === 'qrin') {
                     if (loadingQrinMethods) return (
-                      <div key={gateway.id} className="flex items-center justify-center py-6 bg-slate-50 border border-slate-200 rounded-2xl">
-                        <Loader2 className="w-5 h-5 animate-spin text-blue-600 mr-2" />
-                        <span className="text-sm font-medium text-slate-500">Memuat kanal pembayaran QRIN...</span>
+                      <div key={gateway.id} className="flex items-center justify-center py-6 bg-neutral-50 border border-neutral-200 rounded-2xl">
+                        <Loader2 className="w-5 h-5 animate-spin text-red-600 mr-2" />
+                        <span className="text-sm font-medium text-neutral-500">Memuat kanal pembayaran QRIN...</span>
                       </div>
                     );
                     if (qrinMethods.length > 0) {
@@ -523,15 +523,15 @@ export default function PaymentPage() {
                               key={method.code}
                               onClick={() => handlePayment(gateway.provider, method.code)}
                               disabled={processing}
-                              className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:shadow-lg hover:shadow-blue-900/5 transition-all group disabled:opacity-50"
+                              className="w-full flex items-center justify-between p-4 bg-white border border-neutral-200 rounded-2xl hover:border-red-400 hover:shadow-lg hover:shadow-red-900/5 transition-all group disabled:opacity-50"
                             >
                               <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors border border-slate-100 group-hover:border-blue-100 p-2 overflow-hidden">
+                                <div className="w-12 h-12 bg-neutral-50 rounded-xl flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 transition-colors border border-neutral-100 group-hover:border-red-100 p-2 overflow-hidden">
                                   {method.logo ? <img src={method.logo} alt={method.name} className="max-w-full max-h-full object-contain mix-blend-multiply" /> : <CreditCard className="w-5 h-5" />}
                                 </div>
-                                <span className="text-sm font-bold text-slate-900">{method.name}</span>
+                                <span className="text-sm font-bold text-neutral-900">{method.name}</span>
                               </div>
-                              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                              <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-red-600 transition-colors" />
                             </button>
                           ))}
                         </div>
@@ -543,15 +543,15 @@ export default function PaymentPage() {
                         key={gateway.id}
                         onClick={() => handlePayment(gateway.provider, 'qris')}
                         disabled={processing}
-                        className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:shadow-lg hover:shadow-blue-900/5 transition-all group disabled:opacity-50"
+                        className="w-full flex items-center justify-between p-4 bg-white border border-neutral-200 rounded-2xl hover:border-red-400 hover:shadow-lg hover:shadow-red-900/5 transition-all group disabled:opacity-50"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors border border-slate-100 group-hover:border-blue-100">
+                          <div className="w-12 h-12 bg-neutral-50 rounded-xl flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 transition-colors border border-neutral-100 group-hover:border-red-100">
                             <CreditCard className="w-5 h-5" />
                           </div>
-                          <span className="text-sm font-bold text-slate-900">QRIS / VA (QRIN)</span>
+                          <span className="text-sm font-bold text-neutral-900">QRIS / VA (QRIN)</span>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                        <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-red-600 transition-colors" />
                       </button>
                     );
                   }
@@ -562,15 +562,15 @@ export default function PaymentPage() {
                       key={gateway.id}
                       onClick={() => handlePayment(gateway.provider)}
                       disabled={processing}
-                      className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:shadow-lg hover:shadow-blue-900/5 transition-all group disabled:opacity-50"
+                      className="w-full flex items-center justify-between p-4 bg-white border border-neutral-200 rounded-2xl hover:border-red-400 hover:shadow-lg hover:shadow-red-900/5 transition-all group disabled:opacity-50"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors border border-slate-100 group-hover:border-blue-100">
+                        <div className="w-12 h-12 bg-neutral-50 rounded-xl flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 transition-colors border border-neutral-100 group-hover:border-red-100">
                           <CreditCard className="w-5 h-5" />
                         </div>
-                        <span className="text-sm font-bold text-slate-900">{gateway.name}</span>
+                        <span className="text-sm font-bold text-neutral-900">{gateway.name}</span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                      <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-red-600 transition-colors" />
                     </button>
                   );
                 })}
@@ -579,7 +579,7 @@ export default function PaymentPage() {
 
             {paymentGateways.length === 0 && (
               <div className="text-center py-8">
-                <p className="text-sm font-medium text-slate-500">Silakan gunakan fitur transfer manual di atas.</p>
+                <p className="text-sm font-medium text-neutral-500">Silakan gunakan fitur transfer manual di atas.</p>
               </div>
             )}
           </div>
@@ -588,20 +588,20 @@ export default function PaymentPage() {
 
       {/* QR Code Modal */}
       {qrString && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
             <button 
               onClick={() => setQrString(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-2 transition-colors"
+              className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-full p-2 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
               <QrCode className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Scan QRIS</h3>
-            <p className="text-sm text-slate-500 mb-6">Silakan gunakan aplikasi M-Banking atau E-Wallet Anda untuk memindai kode QRIS ini.</p>
-            <div className="bg-white p-4 rounded-2xl inline-block border-2 border-slate-100 shadow-sm mb-6 relative group">
+            <h3 className="text-xl font-bold text-neutral-900 mb-2">Scan QRIS</h3>
+            <p className="text-sm text-neutral-500 mb-6">Silakan gunakan aplikasi M-Banking atau E-Wallet Anda untuk memindai kode QRIS ini.</p>
+            <div className="bg-white p-4 rounded-2xl inline-block border-2 border-neutral-100 shadow-sm mb-6 relative group">
               <QRCodeSVG id="qris-svg" value={qrString} size={200} level="H" includeMargin={false} />
             </div>
             <div className="flex gap-3 mb-6">
@@ -628,13 +628,13 @@ export default function PaymentPage() {
                   };
                   img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
                 }}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
               >
                 <ImageIcon className="w-4 h-4" /> Simpan
               </button>
               <button 
                 onClick={() => window.location.reload()}
-                className="flex-[2] bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-xl transition-all text-sm"
+                className="flex-[2] bg-black hover:bg-neutral-900 text-white font-bold py-3 px-4 rounded-xl transition-all text-sm"
               >
                 Saya Sudah Bayar
               </button>
@@ -645,35 +645,35 @@ export default function PaymentPage() {
 
       {/* VA Modal */}
       {vaNumber && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
             <button 
               onClick={() => setVaNumber(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-2 transition-colors"
+              className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-full p-2 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
               <CreditCard className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Instruksi Pembayaran</h3>
-            <p className="text-sm text-slate-500 mb-6">Silakan lakukan transfer ke nomor Virtual Account atau tunjukkan kode pembayaran berikut.</p>
+            <h3 className="text-xl font-bold text-neutral-900 mb-2">Instruksi Pembayaran</h3>
+            <p className="text-sm text-neutral-500 mb-6">Silakan lakukan transfer ke nomor Virtual Account atau tunjukkan kode pembayaran berikut.</p>
             
-            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-left space-y-4 mb-6">
+            <div className="bg-neutral-50 p-5 rounded-2xl border border-neutral-100 text-left space-y-4 mb-6">
               <div>
-                <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Metode</p>
-                <p className="text-sm font-bold text-slate-900">{vaBank}</p>
+                <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider mb-1">Metode</p>
+                <p className="text-sm font-bold text-neutral-900">{vaBank}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Nomor / Kode</p>
-                <div className="flex items-center justify-between bg-white px-3 py-2 border border-slate-200 rounded-lg">
-                  <p className="font-mono text-lg font-bold text-blue-600">{vaNumber}</p>
+                <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider mb-1">Nomor / Kode</p>
+                <div className="flex items-center justify-between bg-white px-3 py-2 border border-neutral-200 rounded-lg">
+                  <p className="font-mono text-lg font-bold text-red-600">{vaNumber}</p>
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(vaNumber);
                       alert('Disalin!');
                     }}
-                    className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600 hover:bg-slate-200 font-semibold"
+                    className="text-xs bg-neutral-100 px-2 py-1 rounded text-neutral-600 hover:bg-neutral-200 font-semibold"
                   >
                     Salin
                   </button>
@@ -681,7 +681,7 @@ export default function PaymentPage() {
               </div>
             </div>
             
-            <div className="bg-white border border-slate-200 p-4 rounded-xl mb-6 shadow-sm">
+            <div className="bg-white border border-neutral-200 p-4 rounded-xl mb-6 shadow-sm">
               <BankInstructions bankName={vaBank || ''} vaNumber={vaNumber} />
             </div>
 
@@ -694,7 +694,7 @@ export default function PaymentPage() {
 
             <button 
               onClick={() => window.location.reload()}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl transition-all"
+              className="w-full bg-black hover:bg-neutral-900 text-white font-bold py-3.5 px-4 rounded-xl transition-all"
             >
               Saya Sudah Bayar
             </button>
@@ -704,17 +704,18 @@ export default function PaymentPage() {
       
       {/* Loading Overlay */}
       {processing && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
           <div className="bg-white rounded-3xl p-8 flex flex-col items-center shadow-2xl max-w-sm w-full mx-4">
             <div className="w-16 h-16 relative flex items-center justify-center mb-4">
-              <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
-              <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-neutral-100"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-red-600 border-t-transparent animate-spin"></div>
             </div>
-            <p className="text-lg font-bold text-slate-900">Memproses Transaksi...</p>
-            <p className="text-sm text-slate-500 mt-2 text-center">Mohon tunggu, jangan tutup halaman ini.</p>
+            <p className="text-lg font-bold text-neutral-900">Memproses Transaksi...</p>
+            <p className="text-sm text-neutral-500 mt-2 text-center">Mohon tunggu, jangan tutup halaman ini.</p>
           </div>
         </div>
       )}
     </div>
   );
 }
+export const dynamic = 'force-dynamic'; 

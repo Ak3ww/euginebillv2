@@ -118,7 +118,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
         * { box-sizing: border-box; }
         body { font-family: "Inter", "Segoe UI", Arial, sans-serif; font-size: 12px; color: #1e293b; margin: 0; padding: 24px 24px 80px; background: #f8fafc; }
         .sheet { position: relative; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.04); max-width: 900px; margin: 0 auto; }
-        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg) scale(1.3); opacity: 0.05; pointer-events: none; min-width: 60%; max-width: 90%; max-height: 90%; z-index: 0; }
+        .watermark { position: absolute; top: 50%; left: 50%; transform: tranneutral(-50%, -50%) rotate(-15deg) scale(1.3); opacity: 0.05; pointer-events: none; min-width: 60%; max-width: 90%; max-height: 90%; z-index: 0; }
         .topbar { height: 6px; background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd); }
         .content { position: relative; z-index: 1; padding: 40px 48px; }
         .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; gap: 24px; }
@@ -160,7 +160,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
         .btn-print { flex: 1; padding: 14px; background: #fff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .btn-print:hover { background: #f8fafc; border-color: #94a3b8; }
         .btn-pay { flex: 1; padding: 14px; background: #3b82f6; color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
-        .btn-pay:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4); }
+        .btn-pay:hover { background: #2563eb; transform: tranneutralY(-1px); box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4); }
         
         @media print {
           @page { size: A4; margin: 10mm; }
