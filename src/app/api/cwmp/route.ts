@@ -8,6 +8,7 @@ const sessions = new Map<string, { deviceId: string, currentTaskId?: string }>()
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
+    require('fs').appendFileSync('cwmp-debug.log', new Date().toISOString() + '\n' + rawBody + '\n\n');
     const sessionId = req.cookies.get('acs_session')?.value || crypto.randomUUID();
     
     // Create new session if doesn't exist
