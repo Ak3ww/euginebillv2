@@ -471,110 +471,111 @@ export default function PaymentPage() {
 
             {/* Auto Payment Gateways */}
             {paymentGateways.length > 0 && (
-              <>
-                <div className="flex items-center gap-4 py-4">
-                  <div className="h-px flex-1 bg-neutral-200"></div>
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Pembayaran Otomatis</span>
-                  <div className="h-px flex-1 bg-neutral-200"></div>
-                </div>
-
-                {paymentGateways.map((gateway) => {
-                  if (gateway.provider === 'duitku') {
-                    if (loadingDuitkuMethods) return (
-                      <div key={gateway.id} className="flex items-center justify-center py-6 bg-neutral-50 border border-neutral-200 rounded-2xl">
-                        <Loader2 className="w-5 h-5 animate-spin text-red-600 mr-2" />
-                        <span className="text-sm font-medium text-neutral-500">Memuat kanal pembayaran...</span>
-                      </div>
-                    );
-                    if (duitkuMethods.length > 0) return (
-                      <div key={gateway.id} className="space-y-3">
-                        {duitkuMethods.map((method) => (
-                          <button
-                            key={method.code}
-                            onClick={() => handlePayment(gateway.provider, method.code)}
-                            disabled={processing}
-                            className="w-full flex items-center justify-between p-4 bg-white border border-neutral-200 rounded-2xl hover:border-red-400 hover:shadow-lg hover:shadow-red-900/5 transition-all group disabled:opacity-50"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 bg-neutral-50 rounded-xl flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 transition-colors border border-neutral-100 group-hover:border-red-100">
-                                <CreditCard className="w-5 h-5" />
-                              </div>
-                              <span className="text-sm font-bold text-neutral-900">{method.name}</span>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-red-600 transition-colors" />
-                          </button>
-                        ))}
-                      </div>
-                    );
-                  }
-                  
-                  if (gateway.provider === 'qrin') {
-                    if (loadingQrinMethods) return (
-                      <div key={gateway.id} className="flex items-center justify-center py-6 bg-neutral-50 border border-neutral-200 rounded-2xl">
-                        <Loader2 className="w-5 h-5 animate-spin text-red-600 mr-2" />
-                        <span className="text-sm font-medium text-neutral-500">Memuat kanal pembayaran QRIN...</span>
-                      </div>
-                    );
-                    if (qrinMethods.length > 0) {
-                      return (
-                        <div key={gateway.id} className="space-y-3">
-                          {qrinMethods.map((method) => (
-                            <button
-                              key={method.code}
-                              onClick={() => handlePayment(gateway.provider, method.code)}
-                              disabled={processing}
-                              className="w-full flex items-center justify-between p-4 bg-white border border-neutral-200 rounded-2xl hover:border-red-400 hover:shadow-lg hover:shadow-red-900/5 transition-all group disabled:opacity-50"
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-neutral-50 rounded-xl flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 transition-colors border border-neutral-100 group-hover:border-red-100 p-2 overflow-hidden">
-                                  {method.logo ? <img src={method.logo} alt={method.name} className="max-w-full max-h-full object-contain mix-blend-multiply" /> : <CreditCard className="w-5 h-5" />}
+              <details className="group bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm" open>
+                <summary className="flex items-center justify-between p-4 cursor-pointer list-none outline-none select-none hover:bg-neutral-50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center">
+                      <Zap className="w-5 h-5" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-neutral-900">Pembayaran Otomatis</p>
+                      <p className="text-[11px] text-neutral-500">QRIS, Virtual Account, & Gerai Ritel</p>
+                    </div>
+                  </div>
+                  <span className="transition-transform duration-300 group-open:rotate-180 text-neutral-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </span>
+                </summary>
+                
+                <div className="p-4 pt-0 border-t border-neutral-100">
+                  <div className="mt-4">
+                    {paymentGateways.map((gateway) => {
+                      if (gateway.provider === 'duitku') {
+                        if (loadingDuitkuMethods) return (
+                          <div key={gateway.id} className="flex items-center justify-center py-6 bg-neutral-50 border border-neutral-200 rounded-2xl mb-4">
+                            <Loader2 className="w-5 h-5 animate-spin text-red-600 mr-2" />
+                            <span className="text-sm font-medium text-neutral-500">Memuat kanal pembayaran...</span>
+                          </div>
+                        );
+                        if (duitkuMethods.length > 0) return (
+                          <div key={gateway.id} className="grid grid-cols-2 gap-3 mb-4">
+                            {duitkuMethods.map((method) => (
+                              <button
+                                key={method.code}
+                                onClick={() => handlePayment(gateway.provider, method.code)}
+                                disabled={processing}
+                                className="w-full flex flex-col items-center text-center p-3 bg-white border border-neutral-200 rounded-xl hover:border-red-400 hover:shadow-lg hover:shadow-red-900/5 transition-all group disabled:opacity-50"
+                              >
+                                <div className="w-10 h-10 bg-neutral-50 rounded-lg flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 transition-colors border border-neutral-100 group-hover:border-red-100 mb-2">
+                                  <CreditCard className="w-5 h-5" />
                                 </div>
-                                <span className="text-sm font-bold text-neutral-900">{method.name}</span>
-                              </div>
-                              <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-red-600 transition-colors" />
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    }
-                    // Fallback jika API QRIN gagal memuat methods / token salah / kosong
-                    return (
-                      <button
-                        key={gateway.id}
-                        onClick={() => handlePayment(gateway.provider, 'qris')}
-                        disabled={processing}
-                        className="w-full flex items-center justify-between p-4 bg-white border border-neutral-200 rounded-2xl hover:border-red-400 hover:shadow-lg hover:shadow-red-900/5 transition-all group disabled:opacity-50"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-neutral-50 rounded-xl flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 transition-colors border border-neutral-100 group-hover:border-red-100">
+                                <span className="text-xs font-bold text-neutral-800 line-clamp-2 leading-tight">{method.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      }
+                      
+                      if (gateway.provider === 'qrin') {
+                        if (loadingQrinMethods) return (
+                          <div key={gateway.id} className="flex items-center justify-center py-6 bg-neutral-50 border border-neutral-200 rounded-2xl mb-4">
+                            <Loader2 className="w-5 h-5 animate-spin text-red-600 mr-2" />
+                            <span className="text-sm font-medium text-neutral-500">Memuat kanal pembayaran...</span>
+                          </div>
+                        );
+                        if (qrinMethods.length > 0) {
+                          return (
+                            <div key={gateway.id} className="grid grid-cols-2 gap-3 mb-4">
+                              {qrinMethods.map((method) => (
+                                <button
+                                  key={method.code}
+                                  onClick={() => handlePayment(gateway.provider, method.code)}
+                                  disabled={processing}
+                                  className="w-full flex flex-col items-center text-center p-3 bg-white border border-neutral-200 rounded-xl hover:border-red-400 hover:shadow-lg hover:shadow-red-900/5 transition-all group disabled:opacity-50"
+                                >
+                                  <div className="w-10 h-10 bg-neutral-50 rounded-lg flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 transition-colors border border-neutral-100 group-hover:border-red-100 p-1.5 overflow-hidden mb-2">
+                                    {method.logo ? <img src={method.logo} alt={method.name} className="max-w-full max-h-full object-contain mix-blend-multiply" /> : <CreditCard className="w-4 h-4" />}
+                                  </div>
+                                  <span className="text-xs font-bold text-neutral-800 line-clamp-2 leading-tight">{method.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        }
+                        // Fallback
+                        return (
+                          <button
+                            key={gateway.id}
+                            onClick={() => handlePayment(gateway.provider, 'qris')}
+                            disabled={processing}
+                            className="w-full flex flex-col items-center text-center p-3 bg-white border border-neutral-200 rounded-xl hover:border-red-400 transition-all group disabled:opacity-50 mb-4"
+                          >
+                            <div className="w-10 h-10 bg-neutral-50 rounded-lg flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 mb-2">
+                              <CreditCard className="w-5 h-5" />
+                            </div>
+                            <span className="text-xs font-bold text-neutral-800">QRIS / VA (QRIN)</span>
+                          </button>
+                        );
+                      }
+                      
+                      // Default generic gateway button
+                      return (
+                        <button
+                          key={gateway.id}
+                          onClick={() => handlePayment(gateway.provider)}
+                          disabled={processing}
+                          className="w-full flex flex-col items-center text-center p-3 bg-white border border-neutral-200 rounded-xl hover:border-red-400 transition-all group disabled:opacity-50 mb-4"
+                        >
+                          <div className="w-10 h-10 bg-neutral-50 rounded-lg flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 mb-2">
                             <CreditCard className="w-5 h-5" />
                           </div>
-                          <span className="text-sm font-bold text-neutral-900">QRIS / VA (QRIN)</span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-red-600 transition-colors" />
-                      </button>
-                    );
-                  }
-                  
-                  // Default generic gateway button
-                  return (
-                    <button
-                      key={gateway.id}
-                      onClick={() => handlePayment(gateway.provider)}
-                      disabled={processing}
-                      className="w-full flex items-center justify-between p-4 bg-white border border-neutral-200 rounded-2xl hover:border-red-400 hover:shadow-lg hover:shadow-red-900/5 transition-all group disabled:opacity-50"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-neutral-50 rounded-xl flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 transition-colors border border-neutral-100 group-hover:border-red-100">
-                          <CreditCard className="w-5 h-5" />
-                        </div>
-                        <span className="text-sm font-bold text-neutral-900">{gateway.name}</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-red-600 transition-colors" />
-                    </button>
-                  );
-                })}
-              </>
+                          <span className="text-xs font-bold text-neutral-800">{gateway.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </details>
             )}
 
             {paymentGateways.length === 0 && (
