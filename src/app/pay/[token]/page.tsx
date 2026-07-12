@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { showError } from '@/lib/sweetalert';
 import { formatWIB } from '@/lib/timezone';
 import { useEffect, useState } from 'react';
@@ -197,13 +197,7 @@ export default function PaymentPage() {
                   <span className="text-[#e0d0ff]/60 flex items-center gap-1.5 shrink-0"><User className="w-3 h-3 text-[#bc13fe]" />Nama</span>
                   <span className="font-semibold text-white text-right">{invoice.user?.name || invoice.customerName}</span>
                 </div>
-                {/* Username */}
-                {invoice.user?.username && (
-                  <div className="flex justify-between items-start text-xs gap-2">
-                    <span className="text-[#e0d0ff]/60 flex items-center gap-1.5 shrink-0"><Hash className="w-3 h-3 text-[#bc13fe]" />Username</span>
-                    <span className="font-mono text-[#00f7ff] text-right">{invoice.user.username}</span>
-                  </div>
-                )}
+
                 {/* Customer ID */}
                 {invoice.user?.customerId && (
                   <div className="flex justify-between items-start text-xs gap-2">
@@ -230,13 +224,7 @@ export default function PaymentPage() {
                     <span className="font-medium text-white text-right max-w-[60%]">{invoice.user.address}</span>
                   </div>
                 )}
-                {/* Area */}
-                {invoice.user?.area?.name && (
-                  <div className="flex justify-between items-start text-xs gap-2">
-                    <span className="text-[#e0d0ff]/60 flex items-center gap-1.5 shrink-0"><Network className="w-3 h-3 text-[#bc13fe]" />Area</span>
-                    <span className="font-medium text-white text-right">{invoice.user.area.name}</span>
-                  </div>
-                )}
+
 
                 {/* Divider */}
                 <div className="border-t border-[#bc13fe]/15 pt-2 space-y-2.5">
@@ -252,24 +240,7 @@ export default function PaymentPage() {
                       </div>
                     </div>
                   )}
-                  {/* Tipe & Status */}
-                  <div className="flex justify-between items-center text-xs gap-2">
-                    <span className="text-[#e0d0ff]/60 flex items-center gap-1.5 shrink-0"><CreditCard className="w-3 h-3 text-[#00f7ff]" />Tipe</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                        invoice.user?.subscriptionType === 'PREPAID'
-                          ? 'bg-[#ff44cc]/20 text-[#ff44cc] border border-[#ff44cc]/30'
-                          : 'bg-[#00f7ff]/15 text-[#00f7ff] border border-[#00f7ff]/30'
-                      }`}>{invoice.user?.subscriptionType || 'POSTPAID'}</span>
-                    </div>
-                  </div>
-                  {/* Router */}
-                  {invoice.user?.router?.shortname && (
-                    <div className="flex justify-between items-start text-xs gap-2">
-                      <span className="text-[#e0d0ff]/60 flex items-center gap-1.5 shrink-0"><Router className="w-3 h-3 text-[#bc13fe]" />Router</span>
-                      <span className="font-medium text-white text-right">{invoice.user.router.shortname}</span>
-                    </div>
-                  )}
+
                 </div>
               </div>
             </div>

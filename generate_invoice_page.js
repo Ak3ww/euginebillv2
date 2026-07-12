@@ -1,4 +1,26 @@
-import { prisma } from '@/server/db/client';
+const fs = require('fs');
+
+function main() {
+    const admin_path = 'src/app/admin/invoices/page.tsx';
+    let content = fs.readFileSync(admin_path, 'utf-8');
+    
+    const start_str = 'win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Invoice ${inv.invoice.number}</title>';
+    let start_idx = content.indexOf(start_str);
+    if (start_idx === -1) {
+        console.log("Not found");
+        return;
+    }
+        
+    start_idx += start_str.length;
+    let end_idx = content.indexOf('</body></html>`);', start_idx);
+    let html_content = content.substring(start_idx, end_idx);
+    
+    // Extract style block
+    let style_start = html_content.indexOf("<style>") + "<style>".length;
+    let style_end = html_content.indexOf("</style>");
+    let style_block = html_content.substring(style_start, style_end).trim();
+    
+    let new_page = `import { prisma } from '@/server/db/client';
 import { notFound } from 'next/navigation';
 import PrintButton from './PrintButton';
 import Link from 'next/link';
@@ -72,7 +94,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   };
 
   inv.paidVia = paidVia;
-  inv.paymentLink = rawInvoice.paymentLink || (rawInvoice.paymentToken ? `/pay/${rawInvoice.paymentToken}` : '');
+  inv.paymentLink = rawInvoice.paymentToken ? \`/pay-manual?token=\${rawInvoice.paymentToken}\` : '';
 
   const baseAmt = rawInvoice.baseAmount ?? rawInvoice.amount;
   const taxRateNum = rawInvoice.taxRate ? Number(rawInvoice.taxRate) : 0;
@@ -92,7 +114,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     items.push({ description: 'Top Up Saldo', quantity: 1, price: rawInvoice.amount, total: rawInvoice.amount });
   } else {
     items.push({ 
-      description: `Langganan Internet (${new Date(rawInvoice.dueDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}) - ${rawInvoice.user?.profile?.name || 'Paket Internet'}`, 
+      description: \`Langganan Internet (\${new Date(rawInvoice.dueDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}) - \${rawInvoice.user?.profile?.name || 'Paket Internet'}\`, 
       quantity: 1, 
       price: baseAmt, 
       total: baseAmt 
@@ -115,77 +137,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `@media print {
-          @page { size: A4; margin: 10mm; }
-          html, body { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
-          body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .no-print { display: none !important; }
-          .topbar { display: none !important; }
-          .sheet { border: none !important; border-radius: 0 !important; box-shadow: none !important; overflow: visible !important; max-width: 100% !important; width: 100% !important; margin: 0 !important; }
-          .content { padding: 6mm 8mm !important; }
-          .header-right { padding-top: 0 !important; overflow: visible !important; }
-          .inv-title { overflow: visible !important; padding-top: 0 !important; line-height: 1.3 !important; }
-          .inv-number { overflow: visible !important; line-height: 1.4 !important; }
-          .meta-card, .payment-card, .paid-stamp { break-inside: avoid; page-break-inside: avoid; }
-          table { table-layout: fixed; }
-          th, td { word-break: break-word; }
-        }
-        * { box-sizing: border-box; }
-        body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; color: #1f2937; margin: 0; padding: 24px 24px 80px; background: #f8fafc; }
-        .sheet { background: #fff; border: 1px solid #dbe7e4; border-radius: 18px; overflow: visible; box-shadow: 0 18px 50px rgba(15, 118, 110, 0.08); max-width: 980px; margin: 0 auto; }
-        .topbar { height: 7px; background: linear-gradient(90deg, #0d9488, #14b8a6, #5eead4); }
-        .content { padding: 24px; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; gap: 20px; }
-        .brand-wrap { display:flex; align-items:center; gap:14px; }
-        .header-right { text-align:right; padding-top: 2px; }
-        .logo-box { width: 78px; height: 78px; border-radius: 16px; background: linear-gradient(180deg, #ecfeff, #f0fdfa); border: 1px solid #c7f9f1; display:flex; align-items:center; justify-content:center; padding: 10px; }
-        .company-name { font-size: 20px; font-weight: bold; color: #0d9488; }
-        .company-sub { color: #555; margin-top: 3px; font-size: 10px; line-height: 1.6; }
-        .inv-title { font-size: 26px; font-weight: bold; color: #111; letter-spacing: 2px; line-height: 1.25; padding-top: 1px; }
-        .inv-number { font-size: 13px; font-weight: bold; color: #0d9488; margin: 4px 0; line-height: 1.35; }
-        .status-badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; }
-        .paid-badge { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
-        .pending-badge { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
-        .divider { border: none; border-top: 2px solid #0d9488; margin: 14px 0; }
-        .thin-divider { border: none; border-top: 1px solid #e5e7eb; margin: 12px 0; }
-        .section-title { font-weight: bold; font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
-        .bill-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 18px; }
-        .meta-card { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px 16px; }
-        .info-row { margin-bottom: 3px; }
-        .info-label { color: #555; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-        th { background: #0d9488; color: #fff; padding: 8px 10px; text-align: left; font-size: 11px; }
-        td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; font-size: 11px; }
-        .td-right { text-align: right; }
-        .total-row td { font-weight: bold; font-size: 13px; background: #f0fdfa; border-top: 2px solid #0d9488; }
-        .actions-grid { display:grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin: 18px 0 6px; }
-        .payment-card { padding: 16px; border-radius: 14px; border: 1px solid #99f6e4; background: linear-gradient(180deg, #f0fdfa, #ffffff); }
-        .payment-card-title { font-size: 13px; font-weight: 700; color: #0f766e; margin-bottom: 6px; }
-        .payment-link { display:block; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #0f172a; color: #fff; text-decoration: none; font-size: 11px; line-height: 1.5; word-break: break-all; }
-        .payment-note { margin: 0; color: #475569; font-size: 11px; line-height: 1.6; }
-        .payment-cta { display:inline-block; margin-top: 10px; padding: 8px 14px; border-radius: 999px; background: #0d9488; color: #fff; text-decoration: none; font-size: 11px; font-weight: 700; }
-        .paid-stamp { display: block; margin: 20px auto; padding: 12px 28px; border: 4px solid #10b981; border-radius: 10px; text-align: center; width: fit-content; }
-        .paid-stamp-text { font-size: 24px; font-weight: bold; color: #10b981; letter-spacing: 6px; }
-        .paid-stamp-sub { font-size: 11px; color: #555; margin-top: 2px; }
-        .footer { margin-top: 28px; text-align: center; color: #aaa; font-size: 10px; border-top: 1px solid #e5e7eb; padding-top: 12px; }
-        .action-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; gap: 10px; padding: 12px 16px; background: #fff; border-top: 1px solid #e5e7eb; box-shadow: 0 -4px 12px rgba(0,0,0,0.08); z-index: 100; }
-        .btn-print { flex: 1; padding: 12px; background: #0d9488; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
-        .btn-close { flex: 1; padding: 12px; background: #6b7280; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
-        @media (max-width: 640px) {
-          body { padding: 8px 8px 80px !important; }
-          .sheet { border-radius: 10px !important; max-width: 100% !important; }
-          .content { padding: 14px !important; }
-          .header { flex-direction: column; gap: 10px; }
-          .header-right { text-align: left; padding-top: 0; }
-          .inv-title { font-size: 20px; }
-          .inv-number { font-size: 12px; }
-          .bill-grid { grid-template-columns: 1fr; gap: 12px; }
-          .meta-card { padding: 10px 12px; }
-          .actions-grid { grid-template-columns: 1fr; }
-          table { font-size: 10px; }
-          th, td { padding: 5px 6px; }
-          .paid-stamp-text { font-size: 18px; }
-        }` }} />
+      <style dangerouslySetInnerHTML={{ __html: \`${style_block}\` }} />
       <div className="sheet">
         <div className="topbar"></div>
         <div className="content">
@@ -319,3 +271,8 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     </>
   );
 }
+`;
+    fs.writeFileSync('src/app/invoice/[id]/page.tsx', new_page, 'utf-8');
+}
+
+main();
