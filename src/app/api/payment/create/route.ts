@@ -314,17 +314,18 @@ export async function POST(request: NextRequest) {
         });
 
         if (result.success && result.data) {
-          transactionId = result.data.id_transaksi || orderId;
-          // QRIN returns qr_string for QRIS, or virtual_account for VA.
-          // They also have `payment_url` which might not be needed if we display QR directly.
-          if (qrinMethod === 'qris') {
-            qrString = result.data.qr_string || '';
-            paymentUrl = result.data.payment_url || '';
-          } else {
-            // For VA we just return it via paymentUrl as a generic fallback, or the frontend needs to handle it.
-            // Currently our UI for Duitku handles `qrString`. If `paymentUrl` is a VA number, it won't work as a link.
-            // Let's pass the VA directly to paymentUrl or let frontend handle.
-            paymentUrl = result.data.payment_url || result.data.virtual_account || '';
+          const dataObj = Array.isArray(result.data) ? result.data[0] : result.data;
+          transactionId = dataObj.id_transaksi || dataObj.reference || orderId;
+          
+          qrString = dataObj.qr_string || dataObj.qr_code || dataObj.payload || '';
+          paymentUrl = dataObj.payment_url || dataObj.virtual_account || dataObj.checkout_url || '';
+          
+          if (!qrString && !paymentUrl) {
+             console.error('[QRIN] Unexpected data format:', JSON.stringify(result.data));
+             // Fallback for VA if they just return raw string or something
+             if (qrinMethod !== 'qris' && typeof dataObj === 'string') {
+                paymentUrl = dataObj;
+             }
           }
           console.log('[QRIN] Payment created:', transactionId);
         } else {
