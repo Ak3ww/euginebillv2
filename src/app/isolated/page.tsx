@@ -272,11 +272,11 @@ function IsolatedContent() {
                 <FileText className="w-4 h-4 text-red-600" />
                 Tagihan Tertunda
                 <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs ml-auto">
-                  {userInfo.unpaidInvoices.length} Tagihan
+                  {userInfo.unpaidInvoices?.length || 0} Tagihan
                 </span>
               </h3>
               
-              {userInfo.unpaidInvoices.length === 0 ? (
+              {(!userInfo.unpaidInvoices || userInfo.unpaidInvoices.length === 0) ? (
                 <div className="bg-white rounded-2xl border border-neutral-200 p-6 text-center">
                   <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-3" />
                   <p className="text-sm text-neutral-600 font-medium">Tidak ada tagihan tertunda ditemukan.</p>

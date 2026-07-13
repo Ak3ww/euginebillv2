@@ -126,8 +126,13 @@ export async function listPppoeUsers(params: { status?: string | null }) {
 // ─── Get one ──────────────────────────────────────────────────────────────────
 
 export async function getPppoeUserById(id: string) {
-  const user = await prisma.pppoeUser.findUnique({
-    where: { id },
+  const user = await prisma.pppoeUser.findFirst({
+    where: {
+      OR: [
+        { id: id },
+        { customerId: id }
+      ]
+    },
     include: {
       profile: true,
       router: true,

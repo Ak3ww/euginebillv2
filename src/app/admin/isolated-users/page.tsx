@@ -295,7 +295,7 @@ export default function IsolatedUsersMonitorPage() {
                         {/* Action buttons */}
                         <div className="flex items-center gap-1 shrink-0">
                           <a
-                            href={`/admin/pppoe/users/${user.id}`}
+                            href={`/admin/pppoe/users/${user.customerId || user.id}`}
                             className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-primary/10 border border-primary/30 rounded text-primary hover:bg-primary/20 transition-all"
                           >
                             <Eye className="w-3 h-3" />

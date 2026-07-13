@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 
 // PUBLIC endpoint — called from /isolated page by isolated customers (no admin session)
@@ -127,6 +127,7 @@ export async function GET(request: NextRequest) {
         amount: true,
         dueDate: true,
         paymentLink: true,
+        paymentToken: true,
       },
       orderBy: {
         dueDate: 'asc'

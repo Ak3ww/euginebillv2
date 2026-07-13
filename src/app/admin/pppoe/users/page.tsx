@@ -1445,7 +1445,7 @@ export default function PppoeUsersPage() {
                   </div>
                   {/* Actions */}
                   <div className="flex items-center gap-1 pt-1 border-t border-border/50 flex-wrap">
-                    <a href={`/admin/pppoe/users/${user.id}`} className="compact-action p-1.5 text-green-500 hover:bg-green-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Lihat profil detail" title="Lihat Profil Detail"><Eye className="h-3.5 w-3.5 pointer-events-none" /></a>
+                    <a href={`/admin/pppoe/users/${user.customerId || user.id}`} className="compact-action p-1.5 text-green-500 hover:bg-green-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Lihat profil detail" title="Lihat Profil Detail"><Eye className="h-3.5 w-3.5 pointer-events-none" /></a>
                     <button onClick={() => handleEdit(user)} className="compact-action p-1.5 text-[#00f7ff] hover:bg-[#00f7ff]/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Edit" title="Edit"><Pencil className="h-3.5 w-3.5 pointer-events-none" /></button>
                     <button onClick={() => handleSyncToRadius(user)} className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Sync RADIUS" title="Sync RADIUS"><RefreshCw className="h-3.5 w-3.5 pointer-events-none" /></button>
                     <button
