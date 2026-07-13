@@ -1597,7 +1597,7 @@ export default function PppoeUsersPage() {
 
                           {/* Profil Detail */}
                           <a
-                            href={`/admin/pppoe/users/${user.id}`}
+                            href={`/admin/pppoe/users/${user.customerId || user.id}`}
                             className="compact-action p-1.5 text-green-500 hover:bg-green-500/10 rounded cursor-pointer focus:outline-none"
                             aria-label="Lihat Profil Detail"
                             title="Lihat Profil Detail"
