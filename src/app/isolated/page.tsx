@@ -4,25 +4,19 @@ import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import {
+  AlertCircle,
+  CheckCircle2,
   Clock,
-  CreditCard,
-  Phone,
-  Mail,
-  RefreshCw,
-  User,
-  Shield,
-  Calendar,
-  DollarSign,
-  ExternalLink,
-  CheckCircle,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
   Wifi,
-  X,
-  FileText,
-  ArrowRight,
-  Zap,
+  WifiOff,
+  User,
+  MapPin,
+  Calendar,
+  CreditCard,
+  ShieldCheck,
+  ChevronRight,
+  RefreshCw,
+  FileText
 } from 'lucide-react';
 import { formatWIB } from '@/lib/timezone';
 
@@ -50,30 +44,14 @@ interface UserInfo {
     invoiceNumber: string;
     amount: number;
     dueDate: string;
-    paymentLink: string | null;
+    paymentToken: string | null;
   }>;
 }
 
-interface Gateway {
-  provider: string;
-  name: string;
-}
-
-// ─── PG metadata ──────────────────────────────────────────────────────────────
-
-const PG_META: Record<string, { label: string; color: string; border: string; tag: string }> = {
-  midtrans: { label: 'Midtrans', color: 'from-[#003d71] to-[#0066cc]', border: 'border-[#0066cc]/50', tag: 'VA / QRIS / Gopay' },
-  xendit:   { label: 'Xendit',   color: 'from-[#0d47a1] to-[#1565c0]', border: 'border-[#1565c0]/50', tag: 'VA / QRIS / OVO' },
-  duitku:   { label: 'Duitku',   color: 'from-[#1b5e20] to-[#2e7d32]', border: 'border-[#2e7d32]/50', tag: 'VA / QRIS' },
-  tripay:   { label: 'Tripay',   color: 'from-[#4a148c] to-[#6a1b9a]', border: 'border-[#6a1b9a]/50', tag: 'VA / QRIS / Alfamart' },
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const fmtCurrency = (n: number) =>
+const formatCurrency = (n: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
 
-const fmtDate = (s: string) => formatWIB(s, 'd MMMM yyyy');
+const formatDate = (s: string) => formatWIB(s, 'd MMMM yyyy');
 
 function IsolatedContent() {
   const searchParams = useSearchParams();
@@ -83,38 +61,29 @@ function IsolatedContent() {
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<CompanyInfo | null>(null);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  // true = user isolation has been lifted (payment processed)
   const [alreadyActive, setAlreadyActive] = useState(false);
-  const [gateways,      setGateways]      = useState<Gateway[]>([]);
-  // per-invoice state
-  const [openInvoiceId, setOpenInvoiceId] = useState<string | null>(null);
-  const [payingState,   setPayingState]   = useState<Record<string, boolean>>({});
-  const [paidNotice,    setPaidNotice]    = useState<Record<string, string | null>>({});
-  const [showSteps,     setShowSteps]     = useState(false);
-  const [showAllInfo,   setShowAllInfo]   = useState(false);
 
-  // ── fetch data ─────────────────────────────────────────────────────────────
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const companyRes  = await fetch('/api/company/info');
+      const companyRes = await fetch('/api/company/info');
       const companyData = await companyRes.json();
       if (companyData.success) setCompany(companyData.data);
 
       if (username || ip) {
         const params = new URLSearchParams();
         if (username) params.set('username', username);
-        if (ip)       params.set('ip', ip);
-        const userRes  = await fetch(`/api/pppoe/users/check-isolation?${params.toString()}`);
+        if (ip) params.set('ip', ip);
+        const userRes = await fetch(`/api/pppoe/users/check-isolation?${params.toString()}`);
         const userData = await userRes.json();
+        
         if (userData.success) {
           if (userData.isolated === false) {
             setAlreadyActive(true);
             setTimeout(() => { window.location.href = '/'; }, 3000);
             return;
           }
-          if (userData.data)                     setUserInfo(userData.data);
-          if (userData.availableGateways?.length) setGateways(userData.availableGateways);
+          if (userData.data) setUserInfo(userData.data);
         }
       }
     } catch (err) {
@@ -126,7 +95,7 @@ function IsolatedContent() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // ── auto-poll every 30 s ───────────────────────────────────────────────────
+  // Poll every 30 seconds to check if isolation has been lifted (e.g., they paid on another device)
   useEffect(() => {
     if (alreadyActive) return;
     const interval = setInterval(async () => {
@@ -134,8 +103,8 @@ function IsolatedContent() {
       try {
         const params = new URLSearchParams();
         if (username) params.set('username', username);
-        if (ip)       params.set('ip', ip);
-        const res  = await fetch(`/api/pppoe/users/check-isolation?${params.toString()}`);
+        if (ip) params.set('ip', ip);
+        const res = await fetch(`/api/pppoe/users/check-isolation?${params.toString()}`);
         const data = await res.json();
         if (data.success && data.isolated === false) {
           setAlreadyActive(true);
@@ -149,334 +118,225 @@ function IsolatedContent() {
     return () => clearInterval(interval);
   }, [username, ip, alreadyActive]);
 
-  // ── pay handler ─────────────────────────────────────────────────────────────
-  const handlePay = async (invoice: { id: string; invoiceNumber: string }, provider: string) => {
-    const key = `${invoice.id}:${provider}`;
-    setPayingState(prev => ({ ...prev, [key]: true }));
-    try {
-      const res  = await fetch('/api/payment/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId: invoice.id, gateway: provider }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.paymentUrl) {
-        setPaidNotice(prev => ({ ...prev, [invoice.id]: `Gagal: ${data.error || 'Coba lagi'}` }));
-        return;
-      }
-      window.open(data.paymentUrl, '_blank', 'noopener,noreferrer');
-      const label = PG_META[provider]?.label ?? provider;
-      setPaidNotice(prev => ({
-        ...prev,
-        [invoice.id]: `✓ Halaman ${label} dibuka di tab baru. Halaman ini otomatis aktif setelah pembayaran dikonfirmasi.`,
-      }));
-      setOpenInvoiceId(null);
-    } catch {
-      setPaidNotice(prev => ({ ...prev, [invoice.id]: 'Gagal terhubung ke server.' }));
-    } finally {
-      setPayingState(prev => ({ ...prev, [key]: false }));
-    }
-  };
-
-  /* ─── loading ─────────────────────────────────────────────────────────────── */
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)' }}>
-        <div className="text-center">
-          <div style={{ width: 64, height: 64, borderRadius: '50%', border: '3px solid rgba(99,102,241,0.3)', borderTopColor: '#6366f1', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: '#e2e8f0', fontWeight: 600, marginBottom: 4 }}>Memuat data...</p>
-          <p style={{ color: '#64748b', fontSize: 13 }}>Harap tunggu sebentar</p>
+      <div className="min-h-screen bg-neutral-50 flex flex-col items-center justify-center">
+        <div className="w-16 h-16 relative flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full border-4 border-neutral-200"></div>
+          <div className="absolute inset-0 rounded-full border-4 border-red-600 border-t-transparent animate-spin"></div>
+          <ShieldCheck className="w-6 h-6 text-red-600 absolute" />
         </div>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <p className="mt-4 font-medium text-neutral-500">Mempersiapkan Portal Tagihan...</p>
       </div>
     );
   }
 
-  /* ─── isolation lifted ─────────────────────────────────────────────────────── */
   if (alreadyActive) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #0f2818 0%, #064e3b 100%)' }}>
-        <div className="text-center max-w-sm w-full">
-          {company?.logo && (
-            <div style={{ background: '#fff', borderRadius: 16, padding: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80, marginBottom: 24, overflow: 'hidden' }}>
-              <Image unoptimized src={company.logo} alt={company.name} width={220} height={110} style={{ maxHeight: '100%', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain' }} />
-            </div>
-          )}
-          <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(16,185,129,0.15)', border: '2px solid rgba(16,185,129,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-            <CheckCircle className="w-10 h-10" style={{ color: '#10b981' }} />
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl border border-neutral-100 p-8 max-w-sm w-full shadow-xl shadow-green-900/5 text-center">
+          <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-5">
+            <CheckCircle2 className="w-10 h-10 text-green-600" />
           </div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#10b981', marginBottom: 8 }}>Layanan Aktif!</h1>
-          <p style={{ color: '#a7f3d0', marginBottom: 6, fontSize: 14 }}>Isolasi telah dicabut.</p>
-          <p style={{ color: '#6ee7b7', fontSize: 13, marginBottom: 24 }}>Mengalihkan ke halaman utama dalam 3 detik...</p>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 12, padding: '10px 18px' }}>
-            <RefreshCw className="w-4 h-4 animate-spin" style={{ color: '#10b981' }} />
-            <span style={{ color: '#10b981', fontSize: 13, fontWeight: 600 }}>Mengalihkan...</span>
+          <h2 className="text-2xl font-bold text-neutral-900 mb-2">Layanan Aktif!</h2>
+          <p className="text-sm text-neutral-500 mb-8">Isolir telah dicabut. Anda dapat menggunakan layanan internet kembali.</p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium border border-green-100">
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            Mengalihkan ke beranda...
           </div>
         </div>
       </div>
     );
   }
 
-  /* ─── main page ────────────────────────────────────────────────────────────── */
-  // Build user info rows — primary (always shown) and secondary (show more)
-  const primaryInfoItems = userInfo ? ([
-    userInfo.customerId   ? { label: 'ID Pelanggan', value: userInfo.customerId, mono: true } : null,
-    { label: 'Nama',         value: userInfo.name                              },
-    userInfo.profileName  ? { label: 'Paket',       value: userInfo.profileName                } : null,
-    { label: 'Expired',      value: fmtDate(userInfo.expiredAt),    warn: true },
-    { label: 'Telepon',      value: userInfo.phone || '—'                     },
-  ] as Array<{ label: string; value: string; mono?: boolean; warn?: boolean; full?: boolean } | null>).filter(Boolean) : [];
-
-  const secondaryInfoItems = userInfo ? ([
-    userInfo.profilePrice ? { label: 'Harga Paket', value: fmtCurrency(userInfo.profilePrice) } : null,
-    userInfo.email        ? { label: 'Email',        value: userInfo.email                     } : null,
-    userInfo.area         ? { label: 'Area',          value: userInfo.area                      } : null,
-    userInfo.address      ? { label: 'Alamat',        value: userInfo.address,    full: true    } : null,
-  ] as Array<{ label: string; value: string; mono?: boolean; warn?: boolean; full?: boolean } | null>).filter(Boolean) : [];
-
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #0f172a 0%, #1e1b4b 60%, #0f172a 100%)' }}>
-      <div style={{ maxWidth: 540, margin: '0 auto', padding: '10px 12px 20px' }}>
-
-        {/* ── Header ────────────────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
+    <div className="min-h-screen bg-neutral-50 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-red-50/50 via-neutral-50 to-white py-8 px-4 font-sans pb-24">
+      <div className="max-w-xl mx-auto space-y-6">
+        
+        {/* Secure Header */}
+        <div className="flex flex-col items-center text-center mb-2">
+          <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-bold border border-red-100 mb-4">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span className="tracking-wide">LAYANAN TERISOLIR</span>
+          </div>
+          
           {company?.logo ? (
-            <div style={{ background: '#fff', borderRadius: 10, padding: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 52, height: 52, boxShadow: '0 2px 10px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
-              <Image unoptimized src={company.logo} alt={company?.name || 'Logo'} width={220} height={110} style={{ maxHeight: '100%', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain' }} />
+            <div className="bg-white p-3 rounded-2xl shadow-sm border border-neutral-100 mb-4 flex items-center justify-center">
+              <Image 
+                unoptimized 
+                src={company.logo} 
+                alt={company.name || 'Logo'} 
+                width={120} 
+                height={60} 
+                className="h-10 w-auto object-contain" 
+              />
             </div>
           ) : (
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(239,68,68,0.15)', border: '2px solid rgba(239,68,68,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Wifi className="w-5 h-5" style={{ color: '#f87171' }} />
+            <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-neutral-100 flex items-center justify-center mb-4 text-red-600">
+              <WifiOff className="w-8 h-8" />
             </div>
           )}
-          {company?.name && (
-            <p style={{ color: '#64748b', fontSize: 12, fontWeight: 500, margin: 0 }}>{company.name}</p>
-          )}
-        </div>
-
-        {/* ── Warning Banner ────────────────────────────────────────────────── */}
-        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.35)', borderRadius: 12, padding: '10px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(239,68,68,0.2)', border: '1.5px solid rgba(239,68,68,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Shield className="w-5 h-5" style={{ color: '#f87171' }} />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 15, fontWeight: 800, color: '#fff', margin: 0, lineHeight: 1.2 }}>Akun Anda Diisolir</p>
-            <p style={{ fontSize: 11, color: '#fca5a5', margin: 0, marginTop: 1, lineHeight: 1.4 }}>
-              {company?.isolationMessage || 'Masa berlangganan habis. Lakukan pembayaran untuk mengaktifkan kembali.'}
-            </p>
-          </div>
-        </div>
-
-        {/* ── User Info ────────────────────────────────────────────────────── */}
-        {userInfo && (
-          <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 12px', marginBottom: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <User className="w-3.5 h-3.5" style={{ color: '#818cf8' }} />
-                <span style={{ fontWeight: 700, color: '#e2e8f0', fontSize: 12 }}>Informasi Akun</span>
-              </div>
-              {secondaryInfoItems.length > 0 && (
-                <button onClick={() => setShowAllInfo(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366f1', fontSize: 11, display: 'flex', alignItems: 'center', gap: 3, padding: 0, fontWeight: 600 }}>
-                  {showAllInfo ? <><ChevronUp className="w-3 h-3" /> Sembunyikan</> : <><ChevronDown className="w-3 h-3" /> Selengkapnya</>}
-                </button>
-              )}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              {([...primaryInfoItems, ...(showAllInfo ? secondaryInfoItems : [])] as Array<{ label: string; value: string; mono?: boolean; warn?: boolean; full?: boolean } | null>)
-                .filter(Boolean)
-                .map(item => item && (
-                  <div key={item.label} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '7px 10px', gridColumn: item.full ? 'span 2' : undefined }}>
-                    <p style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#475569', marginBottom: 2 }}>{item.label}</p>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: item.warn ? '#fbbf24' : '#f1f5f9', fontFamily: item.mono ? 'monospace' : undefined, margin: 0, wordBreak: 'break-word' }}>{item.value}</p>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Unpaid Invoices ───────────────────────────────────────────────── */}
-        {userInfo && userInfo.unpaidInvoices.length > 0 && (
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <FileText className="w-3.5 h-3.5" style={{ color: '#fb923c' }} />
-                <span style={{ fontWeight: 700, color: '#e2e8f0', fontSize: 12 }}>Tagihan Belum Dibayar</span>
-              </div>
-              <span style={{ background: 'rgba(239,68,68,0.15)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 999, padding: '1px 8px', fontSize: 10, fontWeight: 700 }}>
-                {userInfo.unpaidInvoices.length} tagihan
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {userInfo.unpaidInvoices.map((invoice) => {
-                const isOpen    = openInvoiceId === invoice.id;
-                const notice    = paidNotice[invoice.id];
-                const anyPaying = Object.values(payingState).some(Boolean);
-
-                return (
-                  <div key={invoice.id} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, overflow: 'hidden' }}>
-                    <div style={{ padding: '10px 12px' }}>
-                      {/* Invoice number + amount row */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <div>
-                          <p style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#475569', margin: '0 0 2px' }}>No. Invoice</p>
-                          <p style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', fontFamily: 'monospace', margin: 0 }}>{invoice.invoiceNumber}</p>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <p style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#475569', margin: '0 0 2px' }}>Total Tagihan</p>
-                          <p style={{ fontSize: 20, fontWeight: 800, color: '#f87171', margin: 0, lineHeight: 1.1 }}>{fmtCurrency(invoice.amount)}</p>
-                        </div>
-                      </div>
-
-                      {/* Due date inline */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.2)', borderRadius: 7, padding: '5px 10px', marginBottom: 8 }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#64748b', fontSize: 11 }}>
-                          <Calendar className="w-3 h-3" /> Jatuh Tempo
-                        </span>
-                        <span style={{ color: '#fbbf24', fontSize: 12, fontWeight: 600 }}>{fmtDate(invoice.dueDate)}</span>
-                      </div>
-
-                      {/* Notice */}
-                      {notice && (
-                        <div style={{ marginBottom: 8, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#10b981', marginTop: 1 }} />
-                          <p style={{ color: '#a7f3d0', fontSize: 11, flex: 1, lineHeight: 1.5, margin: 0 }}>{notice}</p>
-                          <button onClick={() => setPaidNotice(prev => ({ ...prev, [invoice.id]: null }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 0, display: 'flex' }}>
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Pay button */}
-                      <button
-                        onClick={() => setOpenInvoiceId(isOpen ? null : invoice.id)}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, width: '100%', background: isOpen ? 'rgba(99,102,241,0.2)' : 'linear-gradient(90deg, #6366f1, #8b5cf6)', color: isOpen ? '#a5b4fc' : '#ffffff', fontWeight: 700, padding: '11px 14px', borderRadius: 10, border: isOpen ? '1px solid rgba(99,102,241,0.4)' : 'none', cursor: 'pointer', fontSize: 13, transition: 'all .2s' }}
-                      >
-                        {isOpen ? (
-                          <><ChevronUp className="w-4 h-4" /> Tutup Pilihan Pembayaran</>
-                        ) : (
-                          <><DollarSign className="w-4 h-4" /> Bayar Sekarang <ArrowRight className="w-4 h-4" style={{ marginLeft: 'auto' }} /></>
-                        )}
-                      </button>
-                    </div>
-
-                    {/* PG Accordion */}
-                    {isOpen && (
-                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.25)', padding: '12px 12px' }}>
-                        {gateways.length === 0 ? (
-                          <p style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', margin: 0 }}>Tidak ada metode pembayaran aktif. Hubungi CS.</p>
-                        ) : (
-                          <>
-                            <p style={{ color: '#64748b', fontSize: 11, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <CreditCard className="w-3 h-3" style={{ color: '#6366f1' }} /> Pilih metode pembayaran:
-                            </p>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                              {gateways.map((gw) => {
-                                const PG_BG: Record<string, string> = {
-                                  midtrans: 'linear-gradient(135deg, #003d71, #0369a1)',
-                                  xendit:   'linear-gradient(135deg, #1e3a8a, #1d4ed8)',
-                                  duitku:   'linear-gradient(135deg, #14532d, #15803d)',
-                                  tripay:   'linear-gradient(135deg, #4c1d95, #7c3aed)',
-                                };
-                                const meta     = PG_META[gw.provider] ?? { label: gw.name, tag: '' };
-                                const payKey   = `${invoice.id}:${gw.provider}`;
-                                const isPaying = payingState[payKey] ?? false;
-
-                                return (
-                                  <button
-                                    key={gw.provider}
-                                    disabled={isPaying || anyPaying}
-                                    onClick={() => handlePay(invoice, gw.provider)}
-                                    style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, background: PG_BG[gw.provider] ?? '#1e293b', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 8px', cursor: isPaying || anyPaying ? 'not-allowed' : 'pointer', opacity: isPaying || anyPaying ? 0.5 : 1, transition: 'transform .15s, opacity .15s' }}
-                                    onMouseEnter={e => { if (!isPaying && !anyPaying) e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
-                                  >
-                                    {isPaying
-                                      ? <Loader2 className="w-4 h-4 animate-spin text-white" />
-                                      : <CreditCard className="w-4 h-4 text-white" style={{ opacity: 0.85 }} />}
-                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>{meta.label || gw.name}</span>
-                                    <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 1.3 }}>{meta.tag}</span>
-                                    <ExternalLink style={{ position: 'absolute', top: 6, right: 6, width: 9, height: 9, color: 'rgba(255,255,255,0.3)' }} />
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <p style={{ fontSize: 10, color: '#475569', textAlign: 'center', marginTop: 8 }}>Pembayaran dibuka di tab baru</p>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ── No invoices ───────────────────────────────────────────────────── */}
-        {userInfo && userInfo.unpaidInvoices.length === 0 && (
-          <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '14px 16px', textAlign: 'center', marginBottom: 8 }}>
-            <CreditCard className="w-6 h-6 mx-auto mb-2" style={{ color: '#475569' }} />
-            <p style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>Tidak ada tagihan ditemukan.</p>
-            <p style={{ color: '#64748b', fontSize: 11, marginTop: 4 }}>Hubungi customer service.</p>
-          </div>
-        )}
-
-        {/* ── Steps (collapsible) ───────────────────────────────────────────── */}
-        <div style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.18)', borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
-          <button
-            onClick={() => setShowSteps(v => !v)}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', background: 'none', border: 'none', cursor: 'pointer' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Zap className="w-3.5 h-3.5" style={{ color: '#818cf8' }} />
-              <span style={{ fontWeight: 700, color: '#a5b4fc', fontSize: 12 }}>Cara mengaktifkan kembali</span>
-            </div>
-            {showSteps ? <ChevronUp className="w-3.5 h-3.5" style={{ color: '#6366f1' }} /> : <ChevronDown className="w-3.5 h-3.5" style={{ color: '#6366f1' }} />}
-          </button>
-          {showSteps && (
-            <ol style={{ listStyle: 'none', padding: '0 12px 10px', margin: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-              {[
-                'Klik "Bayar Sekarang" pada tagihan di atas',
-                'Pilih metode pembayaran yang diinginkan',
-                'Selesaikan pembayaran di halaman yang terbuka di tab baru',
-                'Layanan akan aktif otomatis (router akan reconnect dengan sendirinya)',
-              ].map((step, i) => (
-                <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  <span style={{ width: 18, height: 18, minWidth: 18, background: 'rgba(99,102,241,0.25)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8', fontWeight: 800, fontSize: 9 }}>{i + 1}</span>
-                  <span style={{ color: '#94a3b8', fontSize: 12, paddingTop: 2, lineHeight: 1.4 }}>{step}</span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-
-        {/* ── Footer row: contact + clock ───────────────────────────────────── */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {company?.phone && (
-              <a
-                href={`https://wa.me/${company.phone.replace(/\D/g, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.3)', color: '#4ade80', fontWeight: 600, padding: '5px 10px', borderRadius: 8, textDecoration: 'none', fontSize: 11 }}
-              >
-                <Phone className="w-3 h-3" /> WA CS
-              </a>
-            )}
-            {company?.email && (
-              <a
-                href={`mailto:${company.email}`}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', color: '#818cf8', fontWeight: 600, padding: '5px 10px', borderRadius: 8, textDecoration: 'none', fontSize: 11 }}
-              >
-                <Mail className="w-3 h-3" /> Email
-              </a>
-            )}
-          </div>
-          <p style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#334155', fontSize: 10, margin: 0 }}>
-            <Clock className="w-3 h-3" /> Auto-refresh 30s
+          
+          <h1 className="text-2xl font-black text-neutral-900 mb-2">Akses Internet Ditangguhkan</h1>
+          <p className="text-sm text-neutral-500 max-w-sm leading-relaxed">
+            {company?.isolationMessage || 'Layanan Anda sedang dialihkan. Harap selesaikan pembayaran tagihan untuk mengaktifkan kembali layanan internet.'}
           </p>
         </div>
+
+        {!userInfo ? (
+          <div className="bg-white rounded-3xl border border-neutral-200 p-8 text-center shadow-sm">
+            <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-neutral-900 mb-2">Data Tidak Ditemukan</h2>
+            <p className="text-sm text-neutral-500">Tidak dapat memuat rincian tagihan untuk perangkat/akun ini.</p>
+            <div className="mt-6 flex justify-center">
+              <button 
+                onClick={() => fetchData()}
+                className="flex items-center gap-2 px-6 py-2.5 bg-neutral-100 text-neutral-700 rounded-xl text-sm font-bold hover:bg-neutral-200 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" /> Coba Lagi
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* User Info Card */}
+            <div className="bg-white rounded-3xl border border-neutral-200 overflow-hidden shadow-sm">
+              <div className="p-6">
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-neutral-100">
+                  <div className="w-12 h-12 bg-neutral-100 rounded-full flex items-center justify-center text-neutral-600 shrink-0">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-lg font-bold text-neutral-900 truncate">{userInfo.name}</h2>
+                    <p className="text-sm text-neutral-500 font-mono">{userInfo.username}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  {userInfo.customerId && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-neutral-50 flex items-center justify-center shrink-0">
+                        <User className="w-4 h-4 text-neutral-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] text-neutral-400 uppercase font-semibold tracking-wider">ID Pelanggan</p>
+                        <p className="text-sm font-medium text-neutral-800 font-mono">{userInfo.customerId}</p>
+                      </div>
+                    </div>
+                  )}
+                  {userInfo.profileName && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-neutral-50 flex items-center justify-center shrink-0">
+                        <Wifi className="w-4 h-4 text-neutral-400" />
+                      </div>
+                      <div className="flex-1 min-w-0 flex items-center justify-between">
+                        <div>
+                          <p className="text-[11px] text-neutral-400 uppercase font-semibold tracking-wider">Paket Layanan</p>
+                          <p className="text-sm font-medium text-neutral-800">{userInfo.profileName}</p>
+                        </div>
+                        {userInfo.profilePrice && (
+                          <div className="text-right">
+                            <p className="text-[11px] text-neutral-400 uppercase font-semibold tracking-wider">Tarif</p>
+                            <p className="text-sm font-bold text-neutral-900">{formatCurrency(userInfo.profilePrice)}<span className="text-[10px] text-neutral-400 font-normal">/bln</span></p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {userInfo.phone && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-neutral-50 flex items-center justify-center shrink-0">
+                        <Phone className="w-4 h-4 text-neutral-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] text-neutral-400 uppercase font-semibold tracking-wider">Telepon</p>
+                        <p className="text-sm font-medium text-neutral-800">{userInfo.phone}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="bg-red-50/50 p-4 border-t border-red-100 flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+                <p className="text-xs text-red-700 font-medium leading-relaxed">
+                  Layanan terisolir sejak {formatDate(userInfo.expiredAt)}. Akses akan otomatis terbuka setelah tagihan lunas.
+                </p>
+              </div>
+            </div>
+
+            {/* Unpaid Invoices */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-red-600" />
+                Tagihan Tertunda
+                <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs ml-auto">
+                  {userInfo.unpaidInvoices.length} Tagihan
+                </span>
+              </h3>
+              
+              {userInfo.unpaidInvoices.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-neutral-200 p-6 text-center">
+                  <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-3" />
+                  <p className="text-sm text-neutral-600 font-medium">Tidak ada tagihan tertunda ditemukan.</p>
+                  <p className="text-xs text-neutral-400 mt-1">Sistem sedang memverifikasi status Anda...</p>
+                </div>
+              ) : (
+                userInfo.unpaidInvoices.map((inv) => (
+                  <div key={inv.id} className="bg-white rounded-3xl border-2 border-red-100 p-1 relative overflow-hidden group hover:border-red-200 transition-colors">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                    <div className="p-5 relative z-10">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <p className="text-xs text-neutral-500 font-medium mb-1 flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5" /> Jatuh Tempo
+                          </p>
+                          <p className="text-sm font-bold text-red-600">{formatDate(inv.dueDate)}</p>
+                        </div>
+                        <div className="bg-red-50 text-red-700 px-2.5 py-1 rounded text-[10px] font-bold tracking-wider uppercase">
+                          Belum Bayar
+                        </div>
+                      </div>
+                      
+                      <div className="bg-neutral-50 rounded-2xl p-4 mb-4 border border-neutral-100">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-xs text-neutral-500">No. Tagihan</span>
+                          <span className="text-xs font-mono font-medium text-neutral-700">{inv.invoiceNumber}</span>
+                        </div>
+                        <div className="flex justify-between items-end mt-3 pt-3 border-t border-neutral-200/60">
+                          <span className="text-sm font-medium text-neutral-900">Total Pembayaran</span>
+                          <span className="text-xl font-black text-neutral-900">{formatCurrency(inv.amount)}</span>
+                        </div>
+                      </div>
+
+                      <a 
+                        href={`/pay/${inv.paymentToken}`}
+                        className="flex w-full items-center justify-center gap-2 bg-red-600 text-white rounded-xl py-3.5 text-sm font-bold hover:bg-red-700 transition-all active:scale-[0.98] shadow-lg shadow-red-600/20"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        Bayar Sekarang
+                        <ChevronRight className="w-4 h-4 opacity-50" />
+                      </a>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            {/* Support info */}
+            <div className="bg-neutral-200/50 rounded-2xl p-4 text-center">
+              <p className="text-xs text-neutral-500 mb-2">Butuh bantuan atau sudah melakukan pembayaran?</p>
+              <div className="flex justify-center gap-4 text-sm font-medium text-neutral-700">
+                {company?.phone && (
+                  <a href={`https://wa.me/${company.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-green-600">
+                    <Phone className="w-3.5 h-3.5" /> WhatsApp
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -485,12 +345,11 @@ function IsolatedContent() {
 export default function IsolatedPage() {
   return (
     <Suspense fallback={
-      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 56, height: 56, borderRadius: '50%', border: '3px solid rgba(99,102,241,0.3)', borderTopColor: '#6366f1', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: '#e2e8f0', fontWeight: 600 }}>Memuat...</p>
+      <div className="min-h-screen bg-neutral-50 flex flex-col items-center justify-center">
+        <div className="w-16 h-16 relative flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full border-4 border-neutral-200"></div>
+          <div className="absolute inset-0 rounded-full border-4 border-red-600 border-t-transparent animate-spin"></div>
         </div>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     }>
       <IsolatedContent />

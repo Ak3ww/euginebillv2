@@ -1,4 +1,4 @@
-﻿import { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { ok, created, badRequest, unauthorized, notFound, conflict, serverError } from '@/lib/api-response';
@@ -9,6 +9,8 @@ import {
   updatePppoeUser,
   deletePppoeUser,
 } from '@/server/services/pppoe.service';
+
+export const dynamic = 'force-dynamic';
 
 // GET - List all PPPoE users
 export async function GET(request: NextRequest) {
