@@ -225,6 +225,7 @@ ${names}
     await prisma.acsTask.create({
       data: {
         name: 'GetParameterValues',
+        command: 'GetParameterValues',
         payload: JSON.stringify({ parameterNames: paramNames }),
         status: 'pending',
         deviceId: device.id
