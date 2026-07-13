@@ -1,5 +1,5 @@
 import { prisma } from '@/server/db/client';
-import { Router as RouterIcon, Wifi, Search } from 'lucide-react';
+import { Router as RouterIcon, Wifi, Search, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { ZteParamMap } from '@/server/services/acs/cwmp.service';
 
@@ -160,7 +160,10 @@ export default async function AcsDashboardPage({ searchParams }: { searchParams:
                       <td className="px-4 py-3">
                         {device.pppoeUser ? (
                           <div className="flex flex-col">
-                            <span className="font-medium text-primary">{device.pppoeUser.name}</span>
+                            <Link href={`/admin/pppoe/users/${device.pppoeUserId}`} className="font-medium text-primary hover:underline flex items-center gap-1">
+                              {device.pppoeUser.name}
+                              <ExternalLink className="w-3 h-3" />
+                            </Link>
                             <span className="text-[11px] text-muted-foreground mt-0.5">{device.pppoeUser.username}</span>
                           </div>
                         ) : (
