@@ -112,8 +112,9 @@ export async function POST(req: NextRequest) {
       return res;
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('CWMP Error:', error);
+    require('fs').appendFileSync('cwmp-debug.log', 'ERROR: ' + error.message + '\n' + (error.stack || '') + '\n\n');
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
