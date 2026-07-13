@@ -12,8 +12,15 @@ export async function GET(
     const limit = parseInt(searchParams.get('limit') || '20');
 
     // Get user to verify and get username
-    const user = await prisma.pppoeUser.findUnique({
-      where: { id },
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const user = await prisma.pppoeUser.findFirst({
+      where: {
+        OR: [
+          ...(isUuid ? [{ id: id }] : []),
+          { customerId: id },
+          { username: id }
+        ]
+      },
       select: { username: true },
     });
 
