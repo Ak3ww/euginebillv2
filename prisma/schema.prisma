@@ -2463,6 +2463,8 @@ model acsDevice {
   hardwareVersion      String?
   softwareVersion      String?
   connectionRequestUrl String?
+  ipAddress            String?
+  status               String    @default("online")
   lastInform           DateTime?
   parameters           Json?
   createdAt            DateTime  @default(now())
