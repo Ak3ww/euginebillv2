@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { ok, notFound, serverError } from '@/lib/api-response';
 import { getPppoeUserById } from '@/server/services/pppoe.service';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Get single user with active session info
 export async function GET(
   request: NextRequest,
