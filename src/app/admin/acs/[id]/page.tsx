@@ -2,6 +2,8 @@ import { prisma } from '@/server/db/client';
 import { notFound } from 'next/navigation';
 import { Activity, Cpu, Globe, Power, RotateCcw, Settings, Wifi } from 'lucide-react';
 import AcsDeviceActions from './DeviceActions';
+import MapDeviceForm from './MapDeviceForm';
+import AcsDeviceSettings from './AcsDeviceSettings';
 
 export default async function AcsDeviceDetailPage({ params }: { params: { id: string } }) {
   const device = await prisma.acsDevice.findUnique({
@@ -11,8 +13,12 @@ export default async function AcsDeviceDetailPage({ params }: { params: { id: st
 
   if (!device) notFound();
 
-  // Parse cached parameters if we had them (in a real implementation we'd store params in DB as well)
-  // For this simple version, we'll just show the basic info.
+  const users = await prisma.pppoeUser.findMany({
+    select: { id: true, name: true, username: true },
+    orderBy: { name: 'asc' }
+  });
+
+  const parameters = (device.parameters as Record<string, string>) || {};
 
   return (
     <div className="space-y-6 p-6">
@@ -67,7 +73,7 @@ export default async function AcsDeviceDetailPage({ params }: { params: { id: st
             Pelanggan Terkait (PPPoE)
           </h3>
           {device.pppoeUser ? (
-            <div className="space-y-3 text-sm">
+            <div className="space-y-3 text-sm flex-1">
               <div>
                 <div className="text-muted-foreground text-xs">Nama Pelanggan</div>
                 <div className="font-medium text-primary">{device.pppoeUser.name}</div>
@@ -82,10 +88,14 @@ export default async function AcsDeviceDetailPage({ params }: { params: { id: st
               </div>
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground italic h-full flex items-center justify-center py-8">
+            <div className="text-sm text-muted-foreground italic flex-1 flex items-center justify-center py-4">
               Perangkat ini belum dihubungkan dengan data pelanggan manapun.
             </div>
           )}
+
+          <div className="pt-4 border-t border-border mt-auto">
+            <MapDeviceForm deviceId={device.id} currentUserId={device.pppoeUserId} users={users} />
+          </div>
         </div>
 
         {/* Action Center */}
@@ -98,6 +108,15 @@ export default async function AcsDeviceDetailPage({ params }: { params: { id: st
           <AcsDeviceActions serialNumber={device.serialNumber} />
           
         </div>
+      </div>
+
+      {/* Device Settings (Wifi & PPPoE) */}
+      <div className="pt-6 border-t border-border">
+        <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
+          <Settings className="w-5 h-5 text-primary" />
+          Konfigurasi Perangkat (TR-069)
+        </h2>
+        <AcsDeviceSettings serialNumber={device.serialNumber} parameters={parameters} />
       </div>
     </div>
   );

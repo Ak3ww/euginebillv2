@@ -10,7 +10,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { serialNumber, action, payload } = await request.json();
+    const { serialNumber, action, ...payload } = await request.json();
 
     if (!serialNumber || !action) {
       return NextResponse.json({ error: 'Serial Number and Action are required' }, { status: 400 });
@@ -21,13 +21,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
 
+    if (action === 'RefreshData') {
+      const { CwmpService } = await import('@/server/services/acs/cwmp.service');
+      await CwmpService.queueRefreshTask(device.id);
+      return NextResponse.json({ success: true });
+    }
+
     // Queue the task
     await prisma.acsTask.create({
       data: {
         deviceId: device.id,
         command: action,
         name: action,
-        payload: payload ? JSON.stringify(payload) : null,
+        payload: Object.keys(payload).length > 0 ? JSON.stringify(payload) : null,
         status: 'pending'
       }
     });

@@ -76,26 +76,7 @@ export default function AcsDeviceActions({ serialNumber }: { serialNumber: strin
           <span className="text-sm font-medium">Add WAN Connection (TR-069)</span>
         </button>
 
-        <button 
-          onClick={() => {
-            const ssidNode = prompt('Parameter SSID (contoh: InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID):');
-            const passNode = prompt('Parameter Password (contoh: InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey):');
-            const ssid = prompt('SSID Baru:');
-            const password = prompt('Password Baru:');
-            if (ssidNode && passNode && ssid && password) {
-              handleAction('SetParameterValues', { 
-                parameterValues: [
-                  { name: ssidNode, value: ssid, type: 'xsd:string' },
-                  { name: passNode, value: password, type: 'xsd:string' }
-                ] 
-              });
-            }
-          }}
-          disabled={!!loading}
-          className="w-full flex items-center justify-between p-3 border border-border rounded-md hover:bg-muted/50 transition-colors disabled:opacity-50"
-        >
-          <span className="text-sm font-medium">Ubah SSID & Password WiFi</span>
-        </button>
+
 
         <button 
           onClick={() => {

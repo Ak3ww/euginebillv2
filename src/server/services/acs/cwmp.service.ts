@@ -6,6 +6,14 @@ const XSD_NS  = 'http://www.w3.org/2001/XMLSchema';
 const XSI_NS  = 'http://www.w3.org/2001/XMLSchema-instance';
 const SOAP_ENC_NS = 'http://schemas.xmlsoap.org/soap/encoding/';
 
+export const ZteParamMap = {
+  ssid: 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID',
+  wifiPassword: 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey',
+  pppoeUsername: 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username',
+  pppoePassword: 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password',
+  rxPower: 'InternetGatewayDevice.WANDevice.1.X_ZTE-COM_PONInterfaceConfig.RxPower',
+};
+
 export class CwmpService {
   /**
    * Extract the text content of a simple XML element.
@@ -192,9 +200,35 @@ ${names}
   }
 
   static async markTaskDoneWithResult(taskId: string, status: string = 'success', result: any) {
+    const task = await prisma.acsTask.findUnique({ where: { id: taskId }, include: { device: true } });
+    if (task && task.name === 'GetParameterValues' && result) {
+      // Merge new parameters into existing device parameters
+      const existingParams = (task.device.parameters as Record<string, any>) || {};
+      const newParams = { ...existingParams, ...result };
+      await prisma.acsDevice.update({
+        where: { id: task.deviceId },
+        data: { parameters: newParams }
+      });
+    }
+
     await prisma.acsTask.update({
       where: { id: taskId },
       data: { status, result }
+    });
+  }
+
+  static async queueRefreshTask(deviceId: string) {
+    const device = await prisma.acsDevice.findUnique({ where: { id: deviceId } });
+    if (!device) throw new Error('Device not found');
+
+    const paramNames = Object.values(ZteParamMap);
+    await prisma.acsTask.create({
+      data: {
+        name: 'GetParameterValues',
+        payload: JSON.stringify({ parameterNames: paramNames }),
+        status: 'pending',
+        deviceId: device.id
+      }
     });
   }
 
