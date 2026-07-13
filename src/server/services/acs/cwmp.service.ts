@@ -160,14 +160,18 @@ ${names}
         }
       });
     } else {
+      const company = await prisma.company.findFirst();
+      if (!company) throw new Error('No company found');
       return await prisma.acsDevice.create({
         data: {
           serialNumber: deviceId,
           oui: deviceInfo.OUI || '',
           productClass: deviceInfo.ProductClass || '',
+          manufacturer: deviceInfo.Manufacturer || '',
           ipAddress,
           lastInform: new Date(),
-          status: 'online'
+          status: 'online',
+          companyId: company.id
         }
       });
     }
