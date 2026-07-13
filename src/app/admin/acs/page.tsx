@@ -68,7 +68,7 @@ export default async function AcsDashboardPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link 
-                        href={`/admin/acs/${device.serialNumber}`}
+                        href={`/admin/acs/${device.id}`}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors text-xs font-medium"
                       >
                         <RouterIcon className="w-3.5 h-3.5" />

@@ -4,9 +4,8 @@ import { Activity, Cpu, Globe, Power, RotateCcw, Settings, Wifi } from 'lucide-r
 import AcsDeviceActions from './DeviceActions';
 
 export default async function AcsDeviceDetailPage({ params }: { params: { id: string } }) {
-  const serialNumber = decodeURIComponent(params.id);
   const device = await prisma.acsDevice.findUnique({
-    where: { serialNumber },
+    where: { id: params.id },
     include: { pppoeUser: true }
   });
 
