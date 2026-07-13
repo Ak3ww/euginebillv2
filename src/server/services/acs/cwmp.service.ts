@@ -12,6 +12,8 @@ export const ZteParamMap = {
   pppoeUsername: 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username',
   pppoePassword: 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password',
   rxPower: 'InternetGatewayDevice.WANDevice.1.X_ZTE-COM_PONInterfaceConfig.RxPower',
+  rxPowerAlt: 'InternetGatewayDevice.WANDevice.1.WANDSLDiagnostics.ReceiveAttenuation',
+  rxPowerAlt2: 'InternetGatewayDevice.WANDevice.1.WANDSLInterfaceConfig.OpticalSignalLevel'
 };
 
 export class CwmpService {

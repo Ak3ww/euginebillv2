@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     await prisma.acsDevice.update({
-      where: { id: params.id },
+      where: { id },
       data: { pppoeUserId: pppoeUserId || null },
     });
 

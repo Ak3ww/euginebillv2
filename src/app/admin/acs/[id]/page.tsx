@@ -5,6 +5,8 @@ import AcsDeviceActions from './DeviceActions';
 import MapDeviceForm from './MapDeviceForm';
 import AcsDeviceSettings from './AcsDeviceSettings';
 
+import Link from 'next/link';
+
 export default async function AcsDeviceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const device = await prisma.acsDevice.findUnique({
@@ -23,6 +25,9 @@ export default async function AcsDeviceDetailPage({ params }: { params: Promise<
 
   return (
     <div className="space-y-6 p-6">
+      <Link href="/admin/acs" className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-2">
+        &larr; Kembali ke Daftar Perangkat
+      </Link>
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">

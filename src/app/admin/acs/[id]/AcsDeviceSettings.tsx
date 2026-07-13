@@ -49,7 +49,6 @@ export default function AcsDeviceSettings({
 
   const handleSaveWifi = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!confirm('Ubah SSID / Password WiFi ONT?')) return;
     setLoadingWifi(true);
     try {
       await executeAction('SetParameterValues', {
@@ -68,7 +67,6 @@ export default function AcsDeviceSettings({
 
   const handleSavePppoe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!confirm('Ubah pengaturan koneksi PPPoE ONT?')) return;
     setLoadingPppoe(true);
     try {
       await executeAction('SetParameterValues', {

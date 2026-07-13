@@ -27,6 +27,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'SetParameterValues' && payload.parameterValues) {
+      const existingParams = (device.parameters as Record<string, any>) || {};
+      const newParams = { ...existingParams };
+      payload.parameterValues.forEach((pv: {name: string, value: string}) => {
+        newParams[pv.name] = pv.value;
+      });
+      await prisma.acsDevice.update({
+        where: { id: device.id },
+        data: { parameters: newParams }
+      });
+    }
+
     // Queue the task
     await prisma.acsTask.create({
       data: {

@@ -129,10 +129,10 @@ export default async function AcsDashboardPage({ searchParams }: { searchParams:
                 </tr>
               ) : (
                 devices.map((device) => {
-                  const params = (device.parameters as any) || {};
+                  const params = (device.parameters as Record<string, string>) || {};
                   const ssid = params[ZteParamMap.ssid];
                   const wifiPassword = params[ZteParamMap.wifiPassword];
-                  const rxPowerStr = params[ZteParamMap.rxPower];
+                  const rxPowerStr = params[ZteParamMap.rxPower] || params[ZteParamMap.rxPowerAlt] || params[ZteParamMap.rxPowerAlt2];
 
                   let rxPowerVal: number | null = null;
                   if (rxPowerStr) {
