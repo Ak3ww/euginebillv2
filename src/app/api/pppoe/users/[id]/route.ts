@@ -13,7 +13,10 @@ export async function GET(
     const { id } = await params;
     const result = await getPppoeUserById(id);
     if (!result) return notFound('User');
-    return ok(result);
+    
+    // The frontend UI expects { user: { ... }, activeSession: { ... } }
+    const { activeSession, unpaidInvoicesCount, ...userData } = result;
+    return ok({ user: userData, activeSession });
   } catch (error) {
     console.error('Get user error:', error);
     return serverError();
