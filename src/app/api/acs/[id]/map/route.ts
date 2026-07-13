@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -11,8 +11,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     const { pppoeUserId } = await request.json();
+    const { id } = await params;
 
-    const device = await prisma.acsDevice.findUnique({ where: { id: params.id } });
+    const device = await prisma.acsDevice.findUnique({ where: { id } });
     if (!device) {
       return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }

@@ -5,9 +5,10 @@ import AcsDeviceActions from './DeviceActions';
 import MapDeviceForm from './MapDeviceForm';
 import AcsDeviceSettings from './AcsDeviceSettings';
 
-export default async function AcsDeviceDetailPage({ params }: { params: { id: string } }) {
+export default async function AcsDeviceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const device = await prisma.acsDevice.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { pppoeUser: true }
   });
 
