@@ -176,8 +176,8 @@ export async function getPppoeUserById(id: string) {
         framedipaddress: ms.ipAddress,
         nasipaddress: ms.routerId,
         callingstationid: ms.macAddress,
-        acctinputoctets: ms.rxBytes,
-        acctoutputoctets: ms.txBytes,
+        acctinputoctets: Number(ms.rxBytes || 0),
+        acctoutputoctets: Number(ms.txBytes || 0),
         acctsessiontime: 0, // Fallback since mikrotikSession stores uptime as string or null
       };
     }
