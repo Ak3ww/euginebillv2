@@ -217,8 +217,8 @@ export async function POST(request: Request) {
           .update(`${gatewayConfig.duitkuMerchantCode}${payload.amount}${orderId}${gatewayConfig.duitkuApiKey}`)
           .digest('hex');
 
-        if (receivedSignature !== expectedSignature) {
-          console.error('[Duitku] Invalid signature');
+        if (receivedSignature?.toLowerCase() !== expectedSignature.toLowerCase()) {
+          console.error('[Duitku] Invalid signature', { received: receivedSignature, expected: expectedSignature });
           return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
       }
@@ -474,6 +474,10 @@ export async function POST(request: Request) {
           response: JSON.stringify({ success: true, gateway, status, orderId })
         }
       });
+    }
+
+    if (gateway === 'duitku') {
+      return new NextResponse('SUCCESS', { status: 200, headers: { 'Content-Type': 'text/plain' } });
     }
 
     return NextResponse.json({

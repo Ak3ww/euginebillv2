@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import crypto from 'crypto';
 
@@ -31,7 +31,8 @@ export async function GET(request: Request) {
       : 'https://passport.duitku.com/webapi/api/merchant';
 
     // Duitku getPaymentMethod requires: md5(merchantCode + amount + datetime + apiKey)
-    const datetime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const { formatInTimeZone } = await import('date-fns-tz');
+    const datetime = formatInTimeZone(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
     const signature = crypto
       .createHash('md5')
       .update(`${merchantCode}${amount}${datetime}${apiKey}`)
