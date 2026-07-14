@@ -63,8 +63,55 @@ export default function PaymentPage() {
   const [qrString, setQrString] = useState<string | null>(null);
   const [vaNumber, setVaNumber] = useState<string | null>(null);
   const [vaBank, setVaBank] = useState<string | null>(null);
+  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   useEffect(() => { loadInvoice(); }, [token]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const orderIdParam = params.get('merchantOrderId') || params.get('orderId');
+      if (orderIdParam) {
+        setCurrentOrderId(orderIdParam);
+        checkOrderPaidStatus(orderIdParam);
+      }
+    }
+  }, []);
+
+  const checkOrderPaidStatus = async (orderId: string) => {
+    try {
+      const res = await fetch(`/api/payment/check-order?orderId=${orderId}`);
+      const data = await res.json();
+      if (res.ok && data.status === 'settlement') {
+        window.location.reload();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCheckPaymentStatus = async () => {
+    // If we have no active order ID, fallback to simple page reload
+    if (!currentOrderId) {
+      window.location.reload();
+      return;
+    }
+    setCheckingStatus(true);
+    try {
+      const res = await fetch(`/api/payment/check-order?orderId=${currentOrderId}`);
+      const data = await res.json();
+      if (res.ok && data.status === 'settlement') {
+        window.location.reload();
+      } else {
+        alert('Pembayaran belum terdeteksi. Harap selesaikan pembayaran di aplikasi Anda terlebih dahulu, kemudian coba kembali.');
+      }
+    } catch {
+      window.location.reload();
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
 
   const loadInvoice = async () => {
     try {
@@ -137,6 +184,9 @@ export default function PaymentPage() {
       const res = await fetch('/api/payment/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Transaksi gagal diproses'); return; }
+      if (data.orderId) {
+        setCurrentOrderId(data.orderId);
+      }
       if (data.vaNumber) {
         setVaNumber(data.vaNumber);
         setVaBank(data.vaBank || 'Virtual Account');
@@ -634,9 +684,11 @@ export default function PaymentPage() {
                 <ImageIcon className="w-4 h-4" /> Simpan
               </button>
               <button 
-                onClick={() => window.location.reload()}
-                className="flex-[2] bg-black hover:bg-neutral-900 text-white font-bold py-3 px-4 rounded-xl transition-all text-sm"
+                onClick={handleCheckPaymentStatus}
+                disabled={checkingStatus}
+                className="flex-[2] bg-black hover:bg-neutral-900 text-white font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
               >
+                {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Saya Sudah Bayar
               </button>
             </div>
@@ -687,9 +739,11 @@ export default function PaymentPage() {
             </div>
 
             <button 
-              onClick={() => window.location.reload()}
-              className="w-full bg-black hover:bg-neutral-900 text-white font-bold py-3.5 px-4 rounded-xl transition-all"
+              onClick={handleCheckPaymentStatus}
+              disabled={checkingStatus}
+              className="w-full bg-black hover:bg-neutral-900 text-white font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
+              {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Saya Sudah Bayar
             </button>
           </div>

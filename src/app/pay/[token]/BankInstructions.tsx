@@ -1,11 +1,43 @@
 import React from 'react';
 
 export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaNumber: string }) {
-  const bank = (bankName || '').toLowerCase();
-  
+  const rawBank = (bankName || '').toLowerCase();
+  let bank = rawBank;
+  if (rawBank === 'bc' || rawBank === 'bca') bank = 'bca';
+  if (rawBank === 'm2' || rawBank === 'mandiri') bank = 'mandiri';
+  if (rawBank === 'i1' || rawBank === 'bni') bank = 'bni';
+  if (rawBank === 'bv' || rawBank === 'bsi') bank = 'bsi';
+  if (rawBank === 'br' || rawBank === 'briv' || rawBank === 'briva' || rawBank === 'bri') bank = 'bri';
+
   let content = null;
 
-  if (bank.includes('bri')) {
+  if (bank.includes('bca')) {
+    content = (
+      <div className="text-left text-sm text-neutral-600 space-y-4">
+        <div>
+          <p className="font-bold text-neutral-800">ATM BCA</p>
+          <ol className="list-decimal pl-4 mt-1 space-y-1">
+            <li>Masukkan kartu ATM dan PIN Anda</li>
+            <li>Pilih menu <b>Transaksi Lainnya</b></li>
+            <li>Pilih <b>Transfer</b> &gt; <b>ke Rekening BCA Virtual Account</b></li>
+            <li>Masukkan Nomor Pembayaran <b>({vaNumber})</b></li>
+            <li>Masukkan jumlah pembayaran sesuai tagihan</li>
+            <li>Konfirmasi pembayaran dan simpan struk</li>
+          </ol>
+        </div>
+        <div>
+          <p className="font-bold text-neutral-800">m-BCA (BCA Mobile)</p>
+          <ol className="list-decimal pl-4 mt-1 space-y-1">
+            <li>Buka aplikasi BCA Mobile dan login</li>
+            <li>Pilih menu <b>m-Transfer</b></li>
+            <li>Pilih <b>BCA Virtual Account</b></li>
+            <li>Masukkan Nomor Pembayaran <b>({vaNumber})</b></li>
+            <li>Masukkan jumlah pembayaran dan konfirmasi dengan PIN</li>
+          </ol>
+        </div>
+      </div>
+    );
+  } else if (bank.includes('bri')) {
     content = (
       <div className="text-left text-sm text-neutral-600 space-y-4">
         <div>
