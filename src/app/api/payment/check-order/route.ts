@@ -77,6 +77,52 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    if (invoice && (invoice.status === 'PENDING' || invoice.status === 'OVERDUE')) {
+      const gatewayConfig = await prisma.paymentGateway.findUnique({
+        where: { provider: 'duitku' }
+      });
+      if (gatewayConfig && gatewayConfig.isActive) {
+        try {
+          const { createDuitkuClient } = await import('@/server/services/payment/duitku.service');
+          const duitku = createDuitkuClient(
+            gatewayConfig.duitkuMerchantCode || '',
+            gatewayConfig.duitkuApiKey || '',
+            '',
+            '',
+            gatewayConfig.duitkuEnvironment === 'sandbox'
+          );
+          
+          const statusResult = await duitku.checkTransactionStatus(orderId);
+          console.log('[Check Order] Duitku status check response:', statusResult);
+          
+          if (statusResult && (statusResult.statusCode === '00' || statusResult.statusMessage === 'SUCCESS')) {
+            console.log('[Check Order] Duitku transaction is PAID. Updating invoice...');
+            const { handleInvoicePayment } = await import('@/app/api/payment/webhook/route');
+            const paidAt = statusResult.created_date ? new Date(statusResult.created_date) : new Date();
+            const amountVal = statusResult.amount ? parseInt(statusResult.amount.toString()) : invoice.amount;
+            
+            await handleInvoicePayment(
+              orderId,
+              'settlement',
+              'duitku',
+              statusResult.paymentCode || 'duitku',
+              paidAt,
+              statusResult.reference || '',
+              amountVal
+            );
+            
+            // Re-fetch invoice
+            invoice = await prisma.invoice.findFirst({
+              where: { invoiceNumber },
+              include: { user: true },
+            }) || invoice;
+          }
+        } catch (duitkuErr) {
+          console.error('[Check Order] Failed to verify Duitku status:', duitkuErr);
+        }
+      }
+    }
+
     if (invoice) {
       return NextResponse.json({
         success: true,
