@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCronHistory, recordAgentSales, generateInvoices, sendInvoiceReminders, disconnectExpiredVoucherSessions, reconcileVoucherTransactions } from '@/server/jobs/voucher-sync'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/auth/config'
@@ -52,6 +52,19 @@ export async function POST(request: NextRequest) {
     const jobType = body.type || 'voucher_sync'
     
     console.log('[CRON API] Received job type:', jobType, 'Body:', body)
+
+    const { prisma: dbPrisma } = await import('@/server/db/client')
+    const company = await dbPrisma.company.findFirst({ select: { radiusEnabled: true } })
+    const radiusEnabled = company?.radiusEnabled ?? true
+
+    const radiusOnlyJobs = ['hotspot_sync', 'voucher_sync', 'freeradius_health', 'session_recovery']
+    if (!radiusEnabled && radiusOnlyJobs.includes(jobType)) {
+      console.log(`[CRON API] Skipping job '${jobType}' because RADIUS is disabled.`)
+      return NextResponse.json({
+        success: true,
+        message: `Job '${jobType}' skipped because RADIUS is disabled.`
+      })
+    }
     
     let result: any
     
