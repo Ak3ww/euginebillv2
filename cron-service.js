@@ -55,6 +55,7 @@ async function runCronJob(jobType, description, options = {}) {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'EugineBill-CRON-SERVICE',
+          ...(process.env.CRON_SECRET ? { 'x-cron-secret': process.env.CRON_SECRET } : {}),
         },
         body: JSON.stringify({ type: jobType }),
         signal: controller.signal,
