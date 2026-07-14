@@ -243,8 +243,10 @@ export async function POST(request: NextRequest) {
         transactionId = result.reference;
         paymentUrl = result.paymentUrl;
         qrString = result.qrString || ''; // Store QR string for frontend
+        vaNumber = result.vaNumber || '';
+        vaBank = paymentMethod || 'Virtual Account';
         
-        console.log('[Duitku] Payment created:', result.reference);
+        console.log('[Duitku] Payment created:', result.reference, { vaNumber, vaBank });
       } catch (error) {
         console.error('[Duitku] Payment creation error:', error);
         const errMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -542,7 +544,9 @@ async function createVoucherPayment(order: any, gateway: string) {
 
       paymentUrl = result.paymentUrl;
       qrString = result.qrString || '';
-      console.log('[Duitku Voucher] Payment created:', result.reference);
+      vaNumber = result.vaNumber || '';
+      vaBank = 'Virtual Account';
+      console.log('[Duitku Voucher] Payment created:', result.reference, { vaNumber, vaBank });
     } catch (error) {
       console.error('[Duitku] Payment creation error:', error);
       return NextResponse.json(

@@ -137,13 +137,13 @@ export default function PaymentPage() {
       const res = await fetch('/api/payment/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Transaksi gagal diproses'); return; }
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
-      } else if (data.qrString) {
-        setQrString(data.qrString);
-      } else if (data.vaNumber) {
+      if (data.vaNumber) {
         setVaNumber(data.vaNumber);
         setVaBank(data.vaBank || 'Virtual Account');
+      } else if (data.qrString) {
+        setQrString(data.qrString);
+      } else if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
       } else {
         setError('Link pembayaran tidak tersedia');
       }
