@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 
 /**
@@ -113,7 +113,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, phone, email } = body;
+    const { name, phone, email, password } = body;
 
     // Validate
     if (name !== undefined && (typeof name !== 'string' || name.trim().length < 2)) {
@@ -125,11 +125,15 @@ export async function PATCH(request: NextRequest) {
     if (email !== undefined && email !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ success: false, message: 'Format email tidak valid' }, { status: 400 });
     }
+    if (password !== undefined && password !== '' && password.length < 6) {
+      return NextResponse.json({ success: false, message: 'Password minimal 6 karakter' }, { status: 400 });
+    }
 
     const updateData: Record<string, string> = {};
     if (name !== undefined) updateData.name = name.trim();
     if (phone !== undefined) updateData.phone = phone.trim();
     if (email !== undefined) updateData.email = email.trim();
+    if (password !== undefined && password !== '') updateData.portalPassword = password;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ success: false, message: 'Tidak ada perubahan' }, { status: 400 });

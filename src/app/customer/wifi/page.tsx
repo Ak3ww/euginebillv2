@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -525,6 +525,25 @@ export default function CustomerWiFiPage() {
           <p className="text-xs text-slate-400">
             Perubahan dikirim langsung ke perangkat via TR-069. Setelah disimpan, tunggu <strong className="text-slate-300">30–60 detik</strong> lalu sambungkan kembali ke WiFi dengan nama/password baru.
           </p>
+        </div>
+      </CyberCard>
+
+      {/* nPerf Speedtest Widget */}
+      <CyberCard className="p-4 sm:p-5 border-cyan-500/20 bg-card/85">
+        <h2 className="text-sm font-bold text-cyan-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <Radio className="w-5 h-5 text-cyan-400" />
+          Uji Kecepatan Internet (nPerf)
+        </h2>
+        <div className="w-full overflow-hidden rounded-xl bg-slate-950 border border-slate-800">
+          <iframe
+            src="https://speedtest.nperf.com/iframe?lang=id"
+            width="100%"
+            height="550px"
+            frameBorder="0"
+            scrolling="no"
+            style={{ border: 'none' }}
+            allow="geolocation"
+          />
         </div>
       </CyberCard>
 

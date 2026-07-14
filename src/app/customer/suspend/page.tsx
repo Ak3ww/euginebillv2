@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -138,9 +138,9 @@ export default function CustomerSuspendPage() {
       <div className="bg-[#1a1135]/80 border border-[#bc13fe]/30 rounded-xl p-4 text-sm text-[#e0d0ff]/70 space-y-1">
         <p className="flex items-start gap-2"><AlertCircle className="w-4 h-4 text-[#bc13fe] shrink-0 mt-0.5" />
           <span>Suspend sementara menghentikan layanan internet untuk periode tertentu (maks. 90 hari).</span></p>
-        <p className="pl-6">? Tagihan tetap berjalan selama suspend.</p>
-        <p className="pl-6">? Permintaan perlu disetujui oleh admin terlebih dahulu.</p>
-        <p className="pl-6">? Layanan otomatis aktif kembali setelah periode berakhir.</p>
+        <p className="pl-6">• Tagihan tetap berjalan selama suspend.</p>
+        <p className="pl-6">• Permintaan perlu disetujui oleh admin terlebih dahulu.</p>
+        <p className="pl-6">• Layanan otomatis aktif kembali setelah periode berakhir.</p>
       </div>
 
       {/* Alert Message */}

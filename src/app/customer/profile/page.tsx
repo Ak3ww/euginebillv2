@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -43,6 +43,49 @@ export default function CustomerProfilePage() {
   const [editName, setEditName]   = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editEmail, setEditEmail] = useState('');
+
+  // Password change state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword.trim()) {
+      toast('error', 'Validasi', 'Password baru tidak boleh kosong');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast('error', 'Validasi', 'Password minimal 6 karakter');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast('error', 'Validasi', 'Konfirmasi password tidak cocok');
+      return;
+    }
+    
+    setChangingPassword(true);
+    const token = localStorage.getItem('customer_token');
+    try {
+      const res = await fetch('/api/customer/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        toast('error', 'Gagal', data.message || 'Gagal mengubah password');
+        return;
+      }
+      toast('success', 'Berhasil', 'Password portal berhasil diperbarui');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch {
+      toast('error', 'Error', 'Terjadi kesalahan sistem');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   const toast = (type: 'success' | 'error' | 'info', title: string, desc?: string) =>
     addToast({ type, title, description: desc, duration: type === 'error' ? 8000 : 5000 });
@@ -116,10 +159,6 @@ export default function CustomerProfilePage() {
   const handleSave = async () => {
     const token = localStorage.getItem('customer_token');
     if (!token) return;
-    if (!editName.trim() || editName.trim().length < 2) {
-      toast('error', 'Validasi', 'Nama minimal 2 karakter');
-      return;
-    }
     if (editPhone && !/^[0-9+\-\s]{8,20}$/.test(editPhone)) {
       toast('error', 'Validasi', 'Format nomor telepon tidak valid');
       return;
@@ -133,7 +172,7 @@ export default function CustomerProfilePage() {
       const res = await fetch('/api/customer/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: editName.trim(), phone: editPhone.trim() || null, email: editEmail.trim() || null }),
+        body: JSON.stringify({ phone: editPhone.trim() || null, email: editEmail.trim() || null }),
       });
       const data = await res.json();
       if (!data.success) {
@@ -238,17 +277,7 @@ export default function CustomerProfilePage() {
             <User size={16} className="text-accent mt-0.5 flex-shrink-0" />
             <div className="flex-1">
               <p className="text-xs text-accent font-bold uppercase tracking-wide mb-1">Nama Lengkap</p>
-              {editing ? (
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  className="w-full bg-background dark:bg-slate-800/60 border border-border dark:border-slate-600/50 focus:border-cyan-500/60 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors"
-                  placeholder="Nama lengkap"
-                />
-              ) : (
-                <p className="text-sm text-foreground">{customer.name || '-'}</p>
-              )}
+              <p className="text-sm text-foreground">{customer.name || '-'}</p>
             </div>
           </div>
           {/* Email */}
@@ -357,6 +386,45 @@ export default function CustomerProfilePage() {
         </div>
       </CyberCard>
       </div>{/* end desktop 2-col grid */}
+
+      {/* Change Password Card */}
+      <CyberCard className="p-4 bg-card/80 backdrop-blur-xl border-2 border-accent/30 dark:shadow-[0_0_30px_rgba(0,247,255,0.15)] shadow-sm">
+        <h2 className="text-sm font-bold text-accent mb-3 flex items-center gap-2 uppercase tracking-wider drop-shadow-[0_0_5px_rgba(0,247,255,0.5)]">
+          <Shield size={16} className="drop-shadow-[0_0_5px_rgba(0,247,255,0.8)]" />
+          Ubah Password Portal
+        </h2>
+        <form onSubmit={handleUpdatePassword} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs text-accent font-bold uppercase tracking-wide mb-1">Password Baru</p>
+              <input
+                type="password"
+                required
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                className="w-full bg-background dark:bg-slate-800/60 border border-border dark:border-slate-600/50 focus:border-cyan-500/60 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors"
+                placeholder="Minimal 6 karakter"
+              />
+            </div>
+            <div>
+              <p className="text-xs text-accent font-bold uppercase tracking-wide mb-1">Konfirmasi Password</p>
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                className="w-full bg-background dark:bg-slate-800/60 border border-border dark:border-slate-600/50 focus:border-cyan-500/60 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors"
+                placeholder="Ulangi password baru"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end pt-2">
+            <CyberButton type="submit" disabled={changingPassword} variant="cyan" size="sm" className="text-xs px-4 py-2">
+              {changingPassword ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Ubah Password'}
+            </CyberButton>
+          </div>
+        </form>
+      </CyberCard>
 
       {/* Actions */}
       <div className="space-y-2">

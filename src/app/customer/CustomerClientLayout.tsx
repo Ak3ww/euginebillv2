@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -45,6 +45,7 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [companyName, setCompanyName] = useState('');
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [referralEnabled, setReferralEnabled] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const { isDark, toggleTheme } = useTheme();
@@ -197,6 +198,9 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
       } else {
         try { localStorage.removeItem('_co_logo'); } catch { /* ignore */ }
       }
+      if (data.company?.referralEnabled !== undefined) {
+        setReferralEnabled(data.company.referralEnabled);
+      }
     } catch {
       // ignore
     }
@@ -288,7 +292,10 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
 
         {/* Navigation */}
         <nav className="p-3 space-y-1 flex-1 min-h-0 overflow-y-auto">
-          {menuItems.map((item) => {
+          {menuItems.filter(item => {
+            if (item.href === '/customer/referral') return referralEnabled;
+            return true;
+          }).map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             return (

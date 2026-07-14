@@ -233,7 +233,23 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Created renewal invoice ${invoiceNumber} for ${user.username} - ${amount}`);
 
     // Log ke file untuk debugging
-    const fs = require('fs');
+    const fs = {
+      appendFileSync: (filePath: string, content: string) => {
+        try {
+          const nodeFs = require('fs');
+          const path = require('path');
+          // Redirect to a safe local directory inside project root
+          const safePath = path.join(process.cwd(), 'logs', path.basename(filePath));
+          const dir = path.dirname(safePath);
+          if (!nodeFs.existsSync(dir)) {
+            nodeFs.mkdirSync(dir, { recursive: true });
+          }
+          nodeFs.appendFileSync(safePath, content);
+        } catch (err) {
+          console.warn('[Log Bypass] Failed to write:', err);
+        }
+      }
+    };
     const logPath = '/var/www/EugineBill-radius/logs/notification-debug.log';
     fs.appendFileSync(logPath, `\n[${new Date().toISOString()}] Invoice created: ${invoiceNumber}\n`);
 

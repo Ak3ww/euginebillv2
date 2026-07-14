@@ -82,12 +82,7 @@ export default function CustomerInvoicesPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [paying, setPaying]         = useState<string | null>(null);
-  const [manualPayModal, setManualPayModal] = useState<{id: string; invoiceNumber: string; amount: number} | null>(null);
   const [printDialogInvoice, setPrintDialogInvoice] = useState<Invoice | null>(null);
-  const [manualForm, setManualForm] = useState({ bankName: '', accountName: '', notes: '', file: null as File | null });
-  const [submittingManual, setSubmittingManual] = useState(false);
-  const [adminBankAccounts, setAdminBankAccounts] = useState<{bankName: string; accountNumber: string; accountName: string}[]>([]);
-  const [selectedAdminBank, setSelectedAdminBank] = useState<{bankName: string; accountNumber: string; accountName: string} | null>(null);
 
   const pollRef         = useRef<NodeJS.Timeout | null>(null);
   const prevPendingIds  = useRef<Set<string>>(new Set());
@@ -148,11 +143,7 @@ export default function CustomerInvoicesPage() {
     if (!token) { router.push('/customer/login'); return; }
     currentPage.current = 1;
     fetchInvoices(1, statusFilter);
-    // Load admin bank accounts for manual payment
-    fetch('/api/company/info')
-      .then(r => r.json())
-      .then(d => { if (d.success && Array.isArray(d.data?.bankAccounts)) setAdminBankAccounts(d.data.bankAccounts); })
-      .catch(() => {});
+    fetchInvoices(1, statusFilter);
   }, [statusFilter, fetchInvoices, router]);
 
   // Auto-poll every 15s when pending manual payments exist (real-time payment tracking)
@@ -172,6 +163,10 @@ export default function CustomerInvoicesPage() {
   }, [statusFilter, fetchInvoices]);
 
   const handlePayInvoice = async (inv: Invoice) => {
+    if (inv.paymentToken) {
+      router.push(`/pay/${inv.paymentToken}`);
+      return;
+    }
     // Skip localhost links (created before baseUrl was configured)
     if (inv.paymentLink && !inv.paymentLink.includes('localhost')) { window.open(inv.paymentLink, '_blank'); return; }
     setPaying(inv.id);
@@ -192,41 +187,6 @@ export default function CustomerInvoicesPage() {
       toast('error', 'Error', 'Terjadi kesalahan');
     } finally {
       setPaying(null);
-    }
-  };
-
-  const handleSubmitManual = async () => {
-    if (!manualPayModal) return;
-    const token = localStorage.getItem('customer_token');
-    if (!token) { router.push('/customer/login'); return; }
-    setSubmittingManual(true);
-    const finalBankName = selectedAdminBank ? selectedAdminBank.bankName : manualForm.bankName.trim();
-    try {
-      const body = new FormData();
-      body.append('bankName', finalBankName);
-      body.append('accountName', manualForm.accountName.trim());
-      if (manualForm.notes.trim()) body.append('notes', manualForm.notes.trim());
-      if (manualForm.file) body.append('file', manualForm.file);
-
-      const res = await fetch(`/api/customer/invoices/${manualPayModal.id}/manual-payment`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body,
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast('success', 'Bukti Transfer Terkirim', 'Admin akan mengkonfirmasi pembayaran Anda dalam 1×24 jam');
-        setManualPayModal(null);
-        setManualForm({ bankName: '', accountName: '', notes: '', file: null });
-        setSelectedAdminBank(null);
-        fetchInvoices(currentPage.current, statusFilter);
-      } else {
-        toast('error', 'Gagal', data.error || 'Gagal mengirim bukti transfer');
-      }
-    } catch {
-      toast('error', 'Error', 'Terjadi kesalahan. Silakan coba lagi.');
-    } finally {
-      setSubmittingManual(false);
     }
   };
 
@@ -390,12 +350,17 @@ export default function CustomerInvoicesPage() {
                           )}
                         </CyberButton>
                         <CyberButton
-                          onClick={() => setManualPayModal({ id: inv.id, invoiceNumber: inv.invoiceNumber, amount: inv.amount })}
-                          variant="purple"
+                          onClick={() => handlePayInvoice(inv)}
+                          disabled={isPaying}
+                          variant="cyan"
+                          className="w-full justify-center"
                           size="sm"
-                          className="text-xs"
                         >
-                          <Banknote className="w-3.5 h-3.5 mr-1" />Kirim Bukti
+                          {isPaying ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <><ExternalLink className="w-3.5 h-3.5 mr-1" />Bayar Sekarang</>
+                          )}
                         </CyberButton>
                       </div>
                     )}
@@ -479,129 +444,7 @@ export default function CustomerInvoicesPage() {
         </ModalFooter>
       </SimpleModal>
 
-      {/* Manual Payment Proof Modal */}
-      {manualPayModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 pb-20 sm:pb-0 px-4 pt-4">
-          <div className="bg-card dark:bg-slate-900 border border-purple-500/30 rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl">
-            <div className="p-5 border-b border-border/50 dark:border-slate-700/50 sticky top-0 bg-card dark:bg-slate-900 z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    <Banknote className="w-5 h-5 text-purple-400" />
-                    Kirim Bukti Transfer
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {manualPayModal.invoiceNumber} · Rp {manualPayModal.amount.toLocaleString('id-ID')}
-                  </p>
-                </div>
-                <button onClick={() => { setManualPayModal(null); setManualForm({ bankName: '', accountName: '', notes: '', file: null }); setSelectedAdminBank(null); }} className="p-1.5 rounded-lg bg-muted/20 hover:bg-muted/40 border border-border/50">
-                  <AlertCircle className="w-4 h-4 text-muted-foreground hidden" />
-                  <span className="text-muted-foreground text-lg leading-none">&times;</span>
-                </button>
-              </div>
-            </div>
-            <div className="p-5 space-y-4">
-              {/* Transfer destination: admin bank accounts */}
-              <div>
-                <label className="text-xs font-bold text-white block mb-2">
-                  Transfer ke Rekening <span className="text-red-400">*</span>
-                </label>
-                {adminBankAccounts.length > 0 ? (
-                  <div className="space-y-2">
-                    {adminBankAccounts.map((acc, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => {
-                          setSelectedAdminBank(acc === selectedAdminBank ? null : acc);
-                          setManualForm(f => ({ ...f, bankName: acc === selectedAdminBank ? '' : acc.bankName }));
-                        }}
-                        className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${
-                          selectedAdminBank === acc
-                            ? 'border-purple-400 bg-purple-500/10'
-                            : 'border-border/40 bg-muted/10 hover:border-purple-500/40'
-                        }`}
-                      >
-                        <div>
-                          <p className="text-xs font-bold text-white">{acc.bankName}</p>
-                          <p className="font-mono text-sm text-purple-300 tracking-wider mt-0.5">{acc.accountNumber}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">a/n {acc.accountName}</p>
-                        </div>
-                        {selectedAdminBank === acc && <Check className="w-4 h-4 text-purple-400 flex-shrink-0" />}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <input
-                    type="text"
-                    placeholder="cth: BCA, Mandiri, BRI…"
-                    value={manualForm.bankName}
-                    onChange={e => setManualForm(f => ({ ...f, bankName: e.target.value }))}
-                    className="w-full bg-background dark:bg-slate-800 border border-border dark:border-slate-600 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-purple-500/60"
-                  />
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-medium text-foreground dark:text-slate-300 block mb-1.5">
-                  Nama Pengirim <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Nama sesuai rekening pengirim"
-                  value={manualForm.accountName}
-                  onChange={e => setManualForm(f => ({ ...f, accountName: e.target.value }))}
-                  className="w-full bg-background dark:bg-slate-800 border border-border dark:border-slate-600 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-purple-500/60"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-foreground dark:text-slate-300 block mb-1.5">
-                  Bukti Transfer (Opsional)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={e => setManualForm(f => ({ ...f, file: e.target.files?.[0] ?? null }))}
-                  className="w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-purple-500/20 file:text-purple-300 file:text-xs file:font-medium hover:file:bg-purple-500/30 cursor-pointer"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-foreground dark:text-slate-300 block mb-1.5">
-                  Catatan (Opsional)
-                </label>
-                <textarea
-                  placeholder="Informasi tambahan…"
-                  value={manualForm.notes}
-                  onChange={e => setManualForm(f => ({ ...f, notes: e.target.value }))}
-                  rows={2}
-                  className="w-full bg-background dark:bg-slate-800 border border-border dark:border-slate-600 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-purple-500/60 resize-none"
-                />
-              </div>
-            </div>
-            <div className="p-5 flex gap-3 border-t border-border/50 dark:border-slate-700/50">
-              <button
-                onClick={() => { setManualPayModal(null); setManualForm({ bankName: '', accountName: '', notes: '', file: null }); setSelectedAdminBank(null); }}
-                disabled={submittingManual}
-                className="flex-1 py-2.5 rounded-xl border border-border dark:border-slate-600 text-foreground dark:text-slate-300 text-sm font-medium hover:bg-muted/50 transition-colors disabled:opacity-50"
-              >
-                Batal
-              </button>
-              <CyberButton
-                onClick={handleSubmitManual}
-                disabled={submittingManual || !(selectedAdminBank || manualForm.bankName.trim()) || !manualForm.accountName.trim()}
-                variant="purple"
-                className="flex-1 justify-center"
-                size="sm"
-              >
-                {submittingManual ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <><Banknote className="w-4 h-4 mr-1" />Kirim</>
-                )}
-              </CyberButton>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

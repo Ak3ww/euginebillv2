@@ -16,6 +16,7 @@ export async function GET() {
         footerCustomer: true,
         footerTechnician: true,
         footerAgent: true,
+        referralEnabled: true,
       }
     });
 
@@ -30,6 +31,7 @@ export async function GET() {
         footerCustomer: company?.footerCustomer || null,
         footerTechnician: company?.footerTechnician || null,
         footerAgent: company?.footerAgent || null,
+        referralEnabled: company?.referralEnabled ?? false,
       }
     });
   } catch (error: any) {

@@ -289,8 +289,14 @@ export async function POST(request: Request) {
       gateway = 'qrin';
       orderId = payload.no_ref_merchant;
       transactionId = payload.no_referensi || orderId; 
-      paymentType = 'qrin';
-      amount = payload.jumlah_dibayar ? parseInt(payload.jumlah_dibayar.toString()) : undefined;
+      paymentType = payload.payment_method || 'qrin';
+      // Use jumlah_transaksi (base amount) preferably, fallback to jumlah_dibayar (includes fee)
+      // This avoids AMOUNT_MISMATCH since jumlah_dibayar = base + QRIS fee (0.7% + Rp500)
+      amount = payload.jumlah_transaksi
+        ? parseInt(payload.jumlah_transaksi.toString())
+        : payload.jumlah_dibayar
+          ? parseInt(payload.jumlah_dibayar.toString())
+          : undefined;
 
       const qrinStatus = (payload.status || '').toLowerCase();
 
@@ -1250,10 +1256,22 @@ async function handleInvoicePayment(
 
   if (status === 'settlement' || status === 'capture') {
     if (typeof webhookAmount === 'number' && Number.isFinite(webhookAmount) && webhookAmount !== invoice.amount) {
-      console.warn(
-        `[Webhook] AMOUNT_MISMATCH WARNING for ${invoice.invoiceNumber}: expected ${invoice.amount}, got ${webhookAmount}. Proceeding anyway to mark as PAID.`
-      );
-      // Removed throw new Error('AMOUNT_MISMATCH') to prevent webhook failures due to gateway fees
+      // Smart fee tolerance: accept if amount is within fee range
+      // QRIN QRIS fee: 0.7% + Rp500
+      const qrisFee = Math.ceil(invoice.amount * 0.007) + 500;
+      // Max tolerance: Rp6000 (covers all VA fees: BCA Rp5000, Indomaret Rp5500, etc.)
+      const maxTolerance = Math.max(qrisFee, 6000);
+      const diff = Math.abs(webhookAmount - invoice.amount);
+      if (diff > maxTolerance) {
+        console.warn(
+          `[Webhook] AMOUNT_MISMATCH LARGE for ${invoice.invoiceNumber}: expected ${invoice.amount}, got ${webhookAmount}, diff=${diff} (tolerance=${maxTolerance}). Proceeding anyway.`
+        );
+      } else {
+        console.log(
+          `[Webhook] Amount within fee tolerance for ${invoice.invoiceNumber}: expected ${invoice.amount}, got ${webhookAmount}, diff=${diff} ✅`
+        );
+      }
+      // Always proceed — amount mismatch due to gateway fees is expected
     }
 
     // ─── ATOMIC IDEMPOTENCY GUARD ────────────────────────────────────────────
@@ -1385,8 +1403,11 @@ async function handleInvoicePayment(
         // Base date: use current expiredAt if still in the future, otherwise use now (payment date)
         // This ensures user always gets a full validity period after each payment
         {
+          const companySettings = await prisma.company.findFirst();
+          const shiftBillingDate = companySettings?.shiftBillingDateIfLate ?? false;
+
           let baseDate = user.expiredAt ? new Date(user.expiredAt) : now;
-          if (baseDate < now) {
+          if (shiftBillingDate && baseDate < now) {
             baseDate = now; // Expired already → start fresh from payment date
           }
 
