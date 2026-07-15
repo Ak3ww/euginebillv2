@@ -1,9 +1,11 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { createMidtransPayment } from '@/server/services/payment/midtrans.service';
 import { createXenditInvoice } from '@/server/services/payment/xendit.service';
 import { createDuitkuClient } from '@/server/services/payment/duitku.service';
 import { createTripayClient } from '@/server/services/payment/tripay.service';
+
+export const dynamic = 'force-dynamic';
 
 // Helper to verify customer token (same as topup-direct)
 async function verifyCustomerToken(request: NextRequest) {
@@ -33,6 +35,94 @@ async function verifyCustomerToken(request: NextRequest) {
   }
 }
 
+// GET - Calculate proration breakdown
+export async function GET(request: NextRequest) {
+  try {
+    const pppoeUser = await verifyCustomerToken(request);
+    if (!pppoeUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const newProfileId = searchParams.get('newProfileId');
+
+    if (!newProfileId) {
+      return NextResponse.json({ error: 'newProfileId is required' }, { status: 400 });
+    }
+
+    const newProfile = await prisma.pppoeProfile.findUnique({
+      where: { id: newProfileId }
+    });
+
+    if (!newProfile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    // Default calculations
+    let oldPackagePrice = pppoeUser.profile?.price || 0;
+    let newPackagePrice = newProfile.price;
+    let daysActive = 30;
+    let remainingDays = 0;
+    let oldUnusedValue = 0;
+    let newProratedCost = 0;
+    let proratedBaseAmount = newPackagePrice;
+    let isProrated = false;
+
+    // Proration calculation
+    if (pppoeUser.expiredAt && pppoeUser.expiredAt > new Date() && pppoeUser.profile) {
+      const today = new Date();
+      const timeDiff = pppoeUser.expiredAt.getTime() - today.getTime();
+      remainingDays = Math.max(0, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)));
+
+      if (remainingDays > 0 && remainingDays < 32) {
+        isProrated = true;
+        daysActive = remainingDays;
+
+        const oldDailyRate = pppoeUser.profile.proratePricePerDay || (pppoeUser.profile.price / 30);
+        const newDailyRate = newProfile.proratePricePerDay || (newProfile.price / 30);
+
+        oldUnusedValue = Math.round(remainingDays * oldDailyRate);
+        newProratedCost = Math.round(remainingDays * newDailyRate);
+
+        // Clamp to 0 if negative (free change)
+        proratedBaseAmount = Math.max(0, newProratedCost - oldUnusedValue);
+      }
+    }
+
+    // Apply PPN if active on profile
+    let taxAmount = 0;
+    let taxRate = 0;
+    let totalAmount = proratedBaseAmount;
+
+    if (newProfile.ppnActive && newProfile.ppnRate > 0) {
+      taxRate = newProfile.ppnRate;
+      taxAmount = Math.round(proratedBaseAmount * taxRate / 100);
+      totalAmount = proratedBaseAmount + taxAmount;
+    }
+
+    return NextResponse.json({
+      success: true,
+      calculation: {
+        isProrated,
+        remainingDays,
+        oldPackagePrice,
+        newPackagePrice,
+        oldUnusedValue,
+        newProratedCost,
+        baseAmount: proratedBaseAmount,
+        taxRate,
+        taxAmount,
+        totalAmount
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Upgrade calculation error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// POST - Request/Create package change invoice with proration
 export async function POST(request: NextRequest) {
   try {
     // Verify customer token
@@ -70,6 +160,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment gateway not available' }, { status: 400 });
     }
 
+    // Proration calculations
+    let remainingDays = 0;
+    let oldUnusedValue = 0;
+    let newProratedCost = 0;
+    let upgradeBaseAmount = newProfile.price;
+    let isProrated = false;
+
+    if (pppoeUser.expiredAt && pppoeUser.expiredAt > new Date() && pppoeUser.profile) {
+      const today = new Date();
+      const timeDiff = pppoeUser.expiredAt.getTime() - today.getTime();
+      remainingDays = Math.max(0, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)));
+
+      if (remainingDays > 0 && remainingDays < 32) {
+        isProrated = true;
+        const oldDailyRate = pppoeUser.profile.proratePricePerDay || (pppoeUser.profile.price / 30);
+        const newDailyRate = newProfile.proratePricePerDay || (newProfile.price / 30);
+
+        oldUnusedValue = Math.round(remainingDays * oldDailyRate);
+        newProratedCost = Math.round(remainingDays * newDailyRate);
+        upgradeBaseAmount = Math.max(0, newProratedCost - oldUnusedValue);
+      }
+    }
+
+    let upgradeAmount = upgradeBaseAmount;
+    let upgradeTaxRate: number | null = null;
+    if (newProfile.ppnActive && newProfile.ppnRate > 0) {
+      upgradeTaxRate = newProfile.ppnRate;
+      upgradeAmount = Math.round(upgradeBaseAmount + (upgradeBaseAmount * upgradeTaxRate / 100));
+    }
+
     // Create invoice for upgrade with package metadata
     const invoiceNumber = `INV-UPG-${Date.now()}-${Math.random().toString(36).substring(7).toUpperCase()}`;
     const paymentToken = `PAY-${Date.now()}-${Math.random().toString(36).substring(7).toUpperCase()}`;
@@ -78,27 +198,25 @@ export async function POST(request: NextRequest) {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 7);
 
-    // Calculate PPN if enabled on profile
-    const upgradeBaseAmount = newProfile.price;
-    let upgradeAmount = upgradeBaseAmount;
-    let upgradeTaxRate: number | null = null;
-    if (newProfile.ppnActive && newProfile.ppnRate > 0) {
-      upgradeTaxRate = newProfile.ppnRate;
-      upgradeAmount = Math.round(upgradeBaseAmount + (upgradeBaseAmount * upgradeTaxRate / 100));
-    }
+    // Store package change metadata in additionalFees
+    const isUpgrade = newProfile.price > (pppoeUser.profile?.price || 0);
+    const actionLabel = isUpgrade ? 'Upgrade Paket' : 'Downgrade Paket';
 
-    // Store package upgrade metadata in additionalFees
     const additionalFees = {
       items: [
         {
-          name: `Upgrade ke ${newProfile.name}`,
+          name: `${actionLabel} ke ${newProfile.name}`,
           amount: upgradeAmount,
           metadata: {
             type: 'package_upgrade',
             oldPackageId: pppoeUser.profileId,
             oldPackageName: pppoeUser.profile?.name || 'Unknown',
             newPackageId: newProfileId,
-            newPackageName: newProfile.name
+            newPackageName: newProfile.name,
+            isProrated,
+            remainingDays,
+            oldUnusedValue,
+            newProratedCost
           }
         }
       ]
@@ -126,7 +244,6 @@ export async function POST(request: NextRequest) {
 
     // Create payment based on gateway
     let paymentUrl = null;
-    // Use INV- prefix so webhook can detect it properly
     const orderId = `INV-${invoice.invoiceNumber}-${Date.now()}`;
 
     // Compute base URL with localhost check + request header fallback
@@ -155,8 +272,8 @@ export async function POST(request: NextRequest) {
           baseUrl: appBaseUrl,
           items: [{
             id: newProfile.id,
-            name: `Upgrade ke ${newProfile.name}`,
-            price: newProfile.price,
+            name: `${actionLabel} ke ${newProfile.name}`,
+            price: invoice.amount,
             quantity: 1
           }]
         });
@@ -166,7 +283,7 @@ export async function POST(request: NextRequest) {
           externalId: orderId,
           amount: invoice.amount,
           payerEmail: customerEmail,
-          description: `Upgrade ke ${newProfile.name}`,
+          description: `${actionLabel} ke ${newProfile.name}`,
           customerName: pppoeUser.name,
           customerPhone: pppoeUser.phone,
           invoiceToken: token,
@@ -188,7 +305,7 @@ export async function POST(request: NextRequest) {
           customerName: pppoeUser.name,
           customerEmail: customerEmail,
           customerPhone: pppoeUser.phone,
-          description: `Upgrade ke ${newProfile.name}`,
+          description: `${actionLabel} ke ${newProfile.name}`,
           expiryMinutes: 1440,
           paymentMethod: 'SP', // Default QRIS
         });
@@ -210,8 +327,8 @@ export async function POST(request: NextRequest) {
           customerPhone: pppoeUser.phone,
           orderItems: [
             {
-              name: `Upgrade ke ${newProfile.name}`,
-              price: newProfile.price,
+              name: `${actionLabel} ke ${newProfile.name}`,
+              price: invoice.amount,
               quantity: 1,
             },
           ],
@@ -236,13 +353,11 @@ export async function POST(request: NextRequest) {
 
     } catch (paymentError: any) {
       console.error('Payment creation error:', paymentError);
-      // Don't fail the whole request, just log the error
-      // User can still pay manually
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Permintaan upgrade berhasil dibuat',
+      message: 'Permintaan ganti paket berhasil dibuat',
       invoice: {
         id: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
@@ -255,7 +370,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Upgrade error:', error);
     return NextResponse.json(
-      { error: error.message || 'Gagal memproses permintaan upgrade' },
+      { error: error.message || 'Gagal memproses permintaan ganti paket' },
       { status: 500 }
     );
   }

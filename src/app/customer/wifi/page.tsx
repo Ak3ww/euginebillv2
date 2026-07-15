@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { CyberCard, CyberButton } from '@/components/cyberpunk';
 import { useToast } from '@/components/cyberpunk/CyberToast';
+import { showConfirm } from '@/lib/sweetalert';
 
 interface WLANConfig {
   index: number;
@@ -69,6 +70,7 @@ export default function CustomerWiFiPage() {
   const [editing, setEditing] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
   const [rebooting, setRebooting] = useState(false);
+  const [loadSpeedtest, setLoadSpeedtest] = useState(false);
 
   const toast = (type: 'success' | 'error' | 'info', title: string, desc?: string) =>
     addToast({ type, title, description: desc, duration: type === 'error' ? 8000 : 5000 });
@@ -126,8 +128,11 @@ export default function CustomerWiFiPage() {
   };
 
   const handleReboot = async () => {
-    const confirmed = window.confirm(
-      'Reboot modem/ONT?\n\nPerangkat akan restart dan koneksi internet terputus sementara 1-2 menit.'
+    const confirmed = await showConfirm(
+      'Reboot modem/ONT?',
+      'Koneksi internet akan terputus sementara selama proses reboot berlangsung.',
+      'Ya, Reboot',
+      'Batal'
     );
     if (!confirmed) return;
     setRebooting(true);
@@ -176,8 +181,11 @@ export default function CustomerWiFiPage() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Konfirmasi perubahan WiFi:\nSSID: ${ssid}\nPassword: ${password ? '*'.repeat(password.length) : '(tidak diubah)'}\n\nPerangkat akan restart sebentar setelah perubahan diterapkan.`
+    const confirmed = await showConfirm(
+      'Konfirmasi Perubahan WiFi',
+      `Nama WiFi (SSID): ${ssid}\nPassword: ${password ? '*'.repeat(password.length) : '(tidak diubah)'}\n\nKonfigurasi baru akan dikirimkan ke modem Anda.`,
+      'Ya, Simpan',
+      'Batal'
     );
     if (!confirmed) return;
 
@@ -306,11 +314,11 @@ export default function CustomerWiFiPage() {
             <p className="text-xs text-slate-400">{device.manufacturer || 'Router'}</p>
           </div>
           <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-            device.status === 'Online'
+            device.status?.toLowerCase() === 'online'
               ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/20'
               : 'bg-red-400/10 text-red-400 border border-red-400/20'
           }`}>
-            {device.status}
+            {device.status?.toUpperCase() === 'ONLINE' ? 'ONLINE' : 'OFFLINE'}
           </span>
         </div>
 
@@ -534,18 +542,33 @@ export default function CustomerWiFiPage() {
           <Radio className="w-5 h-5 text-cyan-400" />
           Uji Kecepatan Internet (nPerf)
         </h2>
-        <div className="w-full overflow-hidden rounded-xl bg-slate-950 border border-slate-800">
-          <iframe
-            src="https://speedtest.nperf.com/iframe?lang=id"
-            width="100%"
-            height="550px"
-            frameBorder="0"
-            scrolling="no"
-            style={{ border: 'none' }}
-            allow="geolocation"
-            loading="eager"
-          />
-        </div>
+        {!loadSpeedtest ? (
+          <div className="flex flex-col items-center justify-center p-8 border border-dashed border-slate-800 rounded-xl bg-slate-950/50">
+            <Radio className="w-12 h-12 text-cyan-400/50 animate-pulse mb-3" />
+            <p className="text-sm text-slate-300 font-semibold mb-2">Uji Kecepatan Koneksi Anda</p>
+            <p className="text-xs text-slate-500 text-center max-w-sm mb-4">Mulai pengujian kecepatan internet nPerf secara langsung. Ini akan memakan kuota/bandwidth internet Anda selama proses pengetesan.</p>
+            <CyberButton
+              onClick={() => setLoadSpeedtest(true)}
+              variant="cyan"
+              size="sm"
+            >
+              Mulai Tes Kecepatan
+            </CyberButton>
+          </div>
+        ) : (
+          <div className="w-full overflow-hidden rounded-xl bg-slate-950 border border-slate-800">
+            <iframe
+              src="https://speedtest.nperf.com/iframe?lang=id"
+              width="100%"
+              height="550px"
+              frameBorder="0"
+              scrolling="no"
+              style={{ border: 'none' }}
+              allow="geolocation"
+              loading="eager"
+            />
+          </div>
+        )}
       </CyberCard>
 
     </div>

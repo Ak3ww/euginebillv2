@@ -35,19 +35,19 @@
   --text-theme-xs: 12px;
   --text-theme-xs--line-height: 18px;
 
-  /* Brand palette (#465fff = brand-500, main primary) */
-  --color-brand-25: #f2f7ff;
-  --color-brand-50: #ecf3ff;
-  --color-brand-100: #dde9ff;
-  --color-brand-200: #c2d6ff;
-  --color-brand-300: #9cb9ff;
-  --color-brand-400: #7592ff;
-  --color-brand-500: #465fff;
-  --color-brand-600: #3641f5;
-  --color-brand-700: #2a31d8;
-  --color-brand-800: #252dae;
-  --color-brand-900: #262e89;
-  --color-brand-950: #161950;
+  /* Brand palette (#ff2a4b = brand-500, main primary) */
+  --color-brand-25: #fff5f6;
+  --color-brand-50: #ffebee;
+  --color-brand-100: #ffcdd2;
+  --color-brand-200: #ef9a9a;
+  --color-brand-300: #e57373;
+  --color-brand-400: #ef5350;
+  --color-brand-500: #ff2a4b;
+  --color-brand-600: #e11d48;
+  --color-brand-700: #be123c;
+  --color-brand-800: #9f1239;
+  --color-brand-900: #881337;
+  --color-brand-950: #4c0519;
 
   /* Gray scale (TailAdmin) */
   --color-gray-25: #fcfcfd;

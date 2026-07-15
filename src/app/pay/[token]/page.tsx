@@ -288,80 +288,81 @@ export default function PaymentPage() {
         </div>
         
         <a href="/" className="w-full bg-black text-white rounded-xl py-3.5 px-4 text-sm font-bold hover:bg-neutral-900 transition-colors block">Tutup / Kembali</a>
+        <a href="/" className="w-full bg-red-600 text-white rounded-xl py-3.5 px-4 text-sm font-bold hover:bg-red-700 transition-colors block">Tutup / Kembali</a>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-neutral-50 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-red-50/50 via-neutral-50 to-white py-8 px-4 font-sans pb-24">
+    <div className="min-h-screen bg-neutral-950 text-white py-8 px-4 font-sans pb-24">
       <div className="max-w-xl mx-auto space-y-6">
         
         {/* Secure Header */}
         <div className="flex flex-col items-center text-center mb-2">
-          <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-bold border border-red-100 mb-4">
+          <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-red-500/10 text-red-400 text-xs font-bold border border-red-500/20 mb-4">
             <Lock className="w-3.5 h-3.5" /> Portal Pembayaran Aman SSL
           </div>
-          <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">Checkout</h1>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Checkout</h1>
         </div>
 
         {/* Global Error Banner */}
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4">
+          <div className="bg-red-950/50 border border-red-800 text-red-400 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <p className="text-sm font-semibold">{error}</p>
           </div>
         )}
 
         {/* Primary Invoice Card */}
-        <div className="bg-white rounded-3xl border border-neutral-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-          <div className="bg-black px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-neutral-900 rounded-3xl border border-neutral-800 shadow-xl overflow-hidden">
+          <div className="bg-red-650 bg-gradient-to-r from-red-600 to-red-800 px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <p className="text-neutral-400 text-xs font-medium uppercase tracking-wider mb-1">Total Tagihan</p>
+              <p className="text-red-200 text-xs font-medium uppercase tracking-wider mb-1">Total Tagihan</p>
               <p className="text-3xl font-bold text-white">{formatCurrency(invoice.amount)}</p>
             </div>
             <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2">
               {getStatusBadge(invoice.status)}
-              <span className="text-neutral-400 text-xs font-mono">{invoice.invoiceNumber}</span>
+              <span className="text-red-200 text-xs font-mono">{invoice.invoiceNumber}</span>
             </div>
           </div>
           
           <div className="p-6 sm:p-8 space-y-6">
             {/* Customer Information */}
             <div>
-              <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 border-b border-neutral-100 pb-2">Informasi Pelanggan</h3>
+              <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 border-b border-neutral-800 pb-2">Informasi Pelanggan</h3>
               <div className="grid gap-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <User className="w-4 h-4 text-red-600" />
+                  <div className="w-8 h-8 rounded-full bg-red-950/50 border border-red-900 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <User className="w-4 h-4 text-red-500" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-neutral-900">{invoice.user?.name || invoice.customerName}</p>
-                    <div className="text-xs text-neutral-500 mt-0.5 flex flex-wrap gap-x-4 gap-y-1">
-                      {invoice.user?.customerId && <span className="flex items-center gap-1"><Hash className="w-3 h-3"/> {invoice.user.customerId}</span>}
-                      <span className="flex items-center gap-1"><Phone className="w-3 h-3"/> {invoice.user?.phone || invoice.customerPhone}</span>
-                      {invoice.user?.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3"/> {invoice.user.email}</span>}
+                    <p className="text-sm font-bold text-white">{invoice.user?.name || invoice.customerName}</p>
+                    <div className="text-xs text-neutral-400 mt-0.5 flex flex-wrap gap-x-4 gap-y-1">
+                      {invoice.user?.customerId && <span className="flex items-center gap-1"><Hash className="w-3 h-3 text-red-500"/> {invoice.user.customerId}</span>}
+                      <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-red-500"/> {invoice.user?.phone || invoice.customerPhone}</span>
+                      {invoice.user?.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-red-500"/> {invoice.user.email}</span>}
                     </div>
                   </div>
                 </div>
 
                 {invoice.user?.address && (
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-neutral-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <MapPin className="w-4 h-4 text-neutral-500" />
+                    <div className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <MapPin className="w-4 h-4 text-neutral-400" />
                     </div>
-                    <p className="text-sm text-neutral-600 leading-relaxed pt-1.5">{invoice.user.address}</p>
+                    <p className="text-sm text-neutral-300 leading-relaxed pt-1.5">{invoice.user.address}</p>
                   </div>
                 )}
                 
                 {invoice.user?.profile && (
-                  <div className="flex items-start gap-3 bg-neutral-50 p-3 rounded-xl border border-neutral-100 mt-2">
-                    <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0">
-                      <Package className="w-4 h-4 text-neutral-700" />
+                  <div className="flex items-start gap-3 bg-neutral-950 p-3 rounded-xl border border-neutral-800 mt-2">
+                    <div className="w-8 h-8 rounded-lg bg-neutral-900 flex items-center justify-center flex-shrink-0">
+                      <Package className="w-4 h-4 text-neutral-300" />
                     </div>
                     <div className="flex-1 pt-0.5">
-                      <p className="text-sm font-bold text-neutral-900">{invoice.user.profile.name}</p>
+                      <p className="text-sm font-bold text-white">{invoice.user.profile.name}</p>
                       {(invoice.user.profile.downloadSpeed > 0) && (
-                        <p className="text-xs text-neutral-500 flex items-center gap-1 mt-1"><Zap className="w-3 h-3 text-amber-500" /> {invoice.user.profile.downloadSpeed} Mbps</p>
+                        <p className="text-xs text-neutral-400 flex items-center gap-1 mt-1"><Zap className="w-3 h-3 text-red-500" /> {invoice.user.profile.downloadSpeed} Mbps</p>
                       )}
                     </div>
                   </div>
@@ -370,88 +371,87 @@ export default function PaymentPage() {
             </div>
 
             {/* Dates Grid */}
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-100">
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-800">
               <div>
-                <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Tanggal Terbit</p>
-                <p className="text-sm font-bold text-neutral-700 pl-5">{formatDate(invoice.createdAt)}</p>
+                <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-neutral-400" /> Tanggal Terbit</p>
+                <p className="text-sm font-bold text-neutral-200 pl-5">{formatDate(invoice.createdAt)}</p>
               </div>
               <div>
-                <p className="text-[11px] font-bold text-rose-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Jatuh Tempo</p>
-                <p className="text-sm font-bold text-rose-600 pl-5">{formatDate(invoice.dueDate)}</p>
+                <p className="text-[11px] font-bold text-red-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-red-500" /> Jatuh Tempo</p>
+                <p className="text-sm font-bold text-red-500 pl-5">{formatDate(invoice.dueDate)}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Payment Methods Section */}
-        <div className="bg-white rounded-3xl border border-neutral-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-          <div className="px-6 sm:px-8 py-5 border-b border-neutral-100 bg-neutral-50/50 flex items-center gap-3">
-            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center text-red-700">
+        <div className="bg-neutral-900 rounded-3xl border border-neutral-800 shadow-xl overflow-hidden">
+          <div className="px-6 sm:px-8 py-5 border-b border-neutral-800 bg-neutral-950/50 flex items-center gap-3">
+            <div className="w-8 h-8 bg-red-950/50 border border-red-900 rounded-lg flex items-center justify-center text-red-500">
               <CreditCard className="w-4 h-4" />
             </div>
-            <h2 className="text-lg font-bold text-neutral-900">Pilih Metode Pembayaran</h2>
+            <h2 className="text-lg font-bold text-white">Pilih Metode Pembayaran</h2>
           </div>
           
           <div className="p-6 sm:p-8 space-y-4">
             
             {/* Manual Transfer Option */}
-            <div className="border border-neutral-200 rounded-2xl overflow-hidden transition-all duration-300">
+            <div className="border border-neutral-800 rounded-2xl overflow-hidden bg-neutral-950">
               <button
                 onClick={() => setShowManualForm(!showManualForm)}
-                className={`w-full flex items-center justify-between p-4 bg-white hover:bg-neutral-50 transition-colors ${showManualForm ? 'border-b border-neutral-100 bg-neutral-50' : ''}`}
+                className={`w-full flex items-center justify-between p-4 hover:bg-neutral-900 transition-colors ${showManualForm ? 'border-b border-neutral-800 bg-neutral-900' : 'bg-neutral-950'}`}
               >
                 <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${showManualForm ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : 'bg-neutral-100 text-neutral-600'}`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${showManualForm ? 'bg-red-650 bg-gradient-to-r from-red-600 to-red-800 text-white' : 'bg-neutral-900 text-neutral-400'}`}>
                     <Building2 className="w-5 h-5" />
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-bold text-neutral-900">Transfer Manual Bank</p>
-                    <p className="text-xs text-neutral-500 mt-0.5">Upload bukti transfer</p>
+                    <p className="text-sm font-bold text-white">Transfer Manual Bank</p>
+                    <p className="text-xs text-neutral-400 mt-0.5">Upload bukti transfer</p>
                   </div>
                 </div>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 ${showManualForm ? 'bg-red-100 text-red-600 rotate-90' : 'bg-neutral-100 text-neutral-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 ${showManualForm ? 'bg-red-950 text-red-400 rotate-90' : 'bg-neutral-900 text-neutral-400'}`}>
                   <ChevronRight className="w-4 h-4" />
                 </div>
               </button>
 
               {/* Manual Form Body */}
               {showManualForm && (
-                <div className="p-5 sm:p-6 bg-white animate-in slide-in-from-top-2 duration-300">
+                <div className="p-5 sm:p-6 bg-neutral-900 animate-in slide-in-from-top-2 duration-300">
                   {manualSuccess ? (
                     <div className="text-center py-8">
-                      <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <div className="w-16 h-16 bg-red-950 border border-red-900 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                         <CheckCircle2 className="w-8 h-8" />
                       </div>
-                      <h3 className="text-lg font-bold text-neutral-900 mb-2">Bukti Terkirim!</h3>
-                      <p className="text-sm text-neutral-500">Bukti transfer Anda telah berhasil diunggah dan sedang menunggu konfirmasi Admin.</p>
+                      <h3 className="text-lg font-bold text-white mb-2">Bukti Terkirim!</h3>
+                      <p className="text-sm text-neutral-400">Bukti transfer Anda telah berhasil diunggah dan sedang menunggu konfirmasi Admin.</p>
                     </div>
                   ) : (
                     <div className="space-y-8">
                       {/* Bank Accounts */}
                       <div>
                         <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                          <Building2 className="w-4 h-4" /> Tujuan Transfer
+                          <Building2 className="w-4 h-4 text-red-500" /> Tujuan Transfer
                         </h4>
                         {company?.bankAccounts && Array.isArray(company.bankAccounts) && company.bankAccounts.length > 0 ? (
                           <div className="grid gap-3">
                             {company.bankAccounts.map((acc: any, i: number) => (
-                              <div key={i} className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-red-300 transition-colors">
+                              <div key={i} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-red-800 transition-colors">
                                 <div>
-                                  <p className="text-xs font-bold text-red-600 mb-1 uppercase tracking-wider">{acc.bankName}</p>
-                                  <p className="text-xl font-mono font-bold text-neutral-900 tracking-tight">{acc.accountNumber}</p>
-                                  <p className="text-xs text-neutral-600 mt-1 font-medium">a/n {acc.accountName}</p>
+                                  <p className="text-xs font-bold text-red-500 mb-1 uppercase tracking-wider">{acc.bankName}</p>
+                                  <p className="text-xl font-mono font-bold text-white tracking-tight">{acc.accountNumber}</p>
+                                  <p className="text-xs text-neutral-400 mt-1 font-medium">a/n {acc.accountName}</p>
                                 </div>
                                 <button onClick={() => {
                                   navigator.clipboard.writeText(acc.accountNumber);
-                                  // Simple native tooltip visual feedback could go here
-                                }} className="text-xs font-bold text-neutral-700 bg-white px-4 py-2 rounded-lg border border-neutral-200 hover:bg-neutral-50 hover:text-red-600 transition-all shadow-sm">
+                                }} className="text-xs font-bold text-white bg-neutral-900 px-4 py-2 rounded-lg border border-neutral-800 hover:bg-neutral-800 hover:text-red-500 transition-all">
                                   Salin Rekening
                                 </button>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <div className="bg-rose-50 text-rose-600 p-4 rounded-xl text-sm border border-rose-100 flex items-center gap-2">
+                          <div className="bg-red-950/30 text-red-400 p-4 rounded-xl text-sm border border-red-900/50 flex items-center gap-2">
                             <AlertCircle className="w-4 h-4" /> Belum ada rekening tujuan yang disetting admin.
                           </div>
                         )}
@@ -459,12 +459,12 @@ export default function PaymentPage() {
 
                       {/* Upload Form */}
                       <div>
-                        <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 border-t border-neutral-100 pt-6 flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4" /> Konfirmasi Pembayaran
+                        <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 border-t border-neutral-850 pt-6 flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-red-500" /> Konfirmasi Pembayaran
                         </h4>
                         
                         {manualError && (
-                          <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-xl text-sm flex items-start gap-2">
+                          <div className="mb-4 bg-red-950/50 border border-red-900 text-red-400 p-3 rounded-xl text-sm flex items-start gap-2">
                             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {manualError}
                           </div>
                         )}
@@ -472,41 +472,41 @@ export default function PaymentPage() {
                         <div className="space-y-4">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                              <label className="text-xs font-bold text-neutral-700 block mb-1.5">Bank Pengirim</label>
-                              <input type="text" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-medium text-neutral-900 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none transition-all" placeholder="Contoh: BCA / DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />
+                              <label className="text-xs font-bold text-neutral-300 block mb-1.5">Bank Pengirim</label>
+                              <input type="text" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm font-medium text-white focus:bg-neutral-900 focus:border-red-500 outline-none transition-all" placeholder="Contoh: BCA / DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />
                             </div>
                             <div>
-                              <label className="text-xs font-bold text-neutral-700 block mb-1.5">Atas Nama Pengirim</label>
-                              <input type="text" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-medium text-neutral-900 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none transition-all" placeholder="Nama pemilik rekening" value={manualForm.accountName} onChange={e => setManualForm({...manualForm, accountName: e.target.value})} />
+                              <label className="text-xs font-bold text-neutral-300 block mb-1.5">Atas Nama Pengirim</label>
+                              <input type="text" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm font-medium text-white focus:bg-neutral-900 focus:border-red-500 outline-none transition-all" placeholder="Nama pemilik rekening" value={manualForm.accountName} onChange={e => setManualForm({...manualForm, accountName: e.target.value})} />
                             </div>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                              <label className="text-xs font-bold text-neutral-700 block mb-1.5">No. Rekening (Opsional)</label>
-                              <input type="text" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-medium text-neutral-900 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none transition-all" placeholder="12345678" value={manualForm.accountNumber} onChange={e => setManualForm({...manualForm, accountNumber: e.target.value})} />
+                              <label className="text-xs font-bold text-neutral-300 block mb-1.5">No. Rekening (Opsional)</label>
+                              <input type="text" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm font-medium text-white focus:bg-neutral-900 focus:border-red-500 outline-none transition-all" placeholder="12345678" value={manualForm.accountNumber} onChange={e => setManualForm({...manualForm, accountNumber: e.target.value})} />
                             </div>
                             <div>
-                              <label className="text-xs font-bold text-neutral-700 block mb-1.5">Catatan (Opsional)</label>
-                              <input type="text" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-medium text-neutral-900 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none transition-all" placeholder="Cth: Tagihan bln ini" value={manualForm.notes} onChange={e => setManualForm({...manualForm, notes: e.target.value})} />
+                              <label className="text-xs font-bold text-neutral-300 block mb-1.5">Catatan (Opsional)</label>
+                              <input type="text" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm font-medium text-white focus:bg-neutral-900 focus:border-red-500 outline-none transition-all" placeholder="Cth: Tagihan bln ini" value={manualForm.notes} onChange={e => setManualForm({...manualForm, notes: e.target.value})} />
                             </div>
                           </div>
                           
                           <div>
-                            <label className="text-xs font-bold text-neutral-700 block mb-1.5">Bukti Transfer (Gambar)</label>
+                            <label className="text-xs font-bold text-neutral-300 block mb-1.5">Bukti Transfer (Gambar)</label>
                             <div className="relative">
-                              <input type="file" accept="image/*" className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm font-medium text-neutral-900 focus:bg-white focus:border-red-500 outline-none transition-all file:mr-4 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 cursor-pointer" onChange={e => setManualForm({...manualForm, receiptImage: e.target.files?.[0] || null})} />
+                              <input type="file" accept="image/*" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm font-medium text-white focus:bg-neutral-900 focus:border-red-500 outline-none transition-all file:mr-4 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-red-950 file:text-red-400 hover:file:bg-red-900 cursor-pointer" onChange={e => setManualForm({...manualForm, receiptImage: e.target.files?.[0] || null})} />
                             </div>
                           </div>
                           
-                          <button onClick={handleManualSubmit} disabled={uploading} className="w-full bg-red-600 text-white rounded-xl py-3.5 text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-50 mt-4 flex justify-center items-center shadow-lg shadow-red-600/20">
+                          <button onClick={handleManualSubmit} disabled={uploading} className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl py-3.5 text-sm font-bold transition-colors disabled:opacity-50 mt-4 flex justify-center items-center shadow-lg shadow-red-900/20">
                             {uploading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ImageIcon className="w-5 h-5 mr-2" />}
                             {uploading ? 'Mengunggah...' : 'Kirim Bukti Transfer'}
                           </button>
 
                           {/* WhatsApp Alternative */}
                           {company?.phone && (
-                            <div className="pt-6 mt-6 border-t border-neutral-100 text-center">
-                              <p className="text-xs text-neutral-500 mb-3 font-medium">Bermasalah saat upload? Konfirmasi via WhatsApp:</p>
+                            <div className="pt-6 mt-6 border-t border-neutral-800 text-center">
+                              <p className="text-xs text-neutral-400 mb-3 font-medium">Bermasalah saat upload? Konfirmasi via WhatsApp:</p>
                               <a href={`https://wa.me/${company.phone.replace(/[^0-9]/g, '')}?text=Halo, saya ingin konfirmasi pembayaran untuk tagihan ${invoice.invoiceNumber}.`} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20b958] text-white rounded-xl py-3.5 text-sm font-bold shadow-lg shadow-[#25D366]/20 transition-all">
                                 <Phone className="w-4 h-4" /> Hubungi Admin
                               </a>
@@ -522,30 +522,30 @@ export default function PaymentPage() {
 
             {/* Auto Payment Gateways */}
             {paymentGateways.length > 0 && (
-              <details className="group bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm" open>
-                <summary className="flex items-center justify-between p-4 cursor-pointer list-none outline-none select-none hover:bg-neutral-50 transition-colors">
+              <details className="group bg-neutral-950 border border-neutral-800 rounded-2xl overflow-hidden shadow-sm" open>
+                <summary className="flex items-center justify-between p-4 cursor-pointer list-none outline-none select-none hover:bg-neutral-900 transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center">
+                    <div className="w-10 h-10 bg-red-950 text-red-500 rounded-xl flex items-center justify-center border border-red-900/30">
                       <Zap className="w-5 h-5" />
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-bold text-neutral-900">Pembayaran Otomatis</p>
-                      <p className="text-[11px] text-neutral-500">QRIS, Virtual Account, & Gerai Ritel</p>
+                      <p className="text-sm font-bold text-white">Pembayaran Otomatis</p>
+                      <p className="text-[11px] text-neutral-400">QRIS, Virtual Account, & Gerai Ritel</p>
                     </div>
                   </div>
-                  <span className="transition-transform duration-300 group-open:rotate-180 text-neutral-400">
+                  <span className="transition-transform duration-300 group-open:rotate-180 text-neutral-500">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                   </span>
                 </summary>
                 
-                <div className="p-4 pt-0 border-t border-neutral-100">
+                <div className="p-4 pt-0 border-t border-neutral-800 bg-neutral-950">
                   <div className="mt-4">
                     {paymentGateways.map((gateway) => {
                       if (gateway.provider === 'duitku') {
                         if (loadingDuitkuMethods) return (
-                          <div key={gateway.id} className="flex items-center justify-center py-6 bg-neutral-50 border border-neutral-200 rounded-2xl mb-4">
-                            <Loader2 className="w-5 h-5 animate-spin text-red-600 mr-2" />
-                            <span className="text-sm font-medium text-neutral-500">Memuat kanal pembayaran...</span>
+                          <div key={gateway.id} className="flex items-center justify-center py-6 bg-neutral-900 border border-neutral-800 rounded-2xl mb-4">
+                            <Loader2 className="w-5 h-5 animate-spin text-red-500 mr-2" />
+                            <span className="text-sm font-medium text-neutral-400">Memuat kanal pembayaran...</span>
                           </div>
                         );
                         if (duitkuMethods.length > 0) return (
@@ -555,12 +555,12 @@ export default function PaymentPage() {
                                 key={method.code}
                                 onClick={() => handlePayment(gateway.provider, method.code)}
                                 disabled={processing}
-                                className="w-full flex flex-col items-center text-center p-3 bg-white border border-neutral-200 rounded-xl hover:border-red-400 hover:shadow-lg hover:shadow-red-900/5 transition-all group disabled:opacity-50"
+                                className="w-full flex flex-col items-center text-center p-3 bg-neutral-900 border border-neutral-800 rounded-xl hover:border-red-500 hover:shadow-lg hover:shadow-red-900/10 transition-all group disabled:opacity-50"
                               >
-                                <div className="w-10 h-10 bg-neutral-50 rounded-lg flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 transition-colors border border-neutral-100 group-hover:border-red-100 mb-2">
+                                <div className="w-10 h-10 bg-neutral-950 rounded-lg flex items-center justify-center text-neutral-400 group-hover:bg-red-950 group-hover:text-red-500 transition-colors border border-neutral-850 group-hover:border-red-900 mb-2">
                                   <CreditCard className="w-5 h-5" />
                                 </div>
-                                <span className="text-xs font-bold text-neutral-800 line-clamp-2 leading-tight">{method.name}</span>
+                                <span className="text-xs font-bold text-neutral-300 line-clamp-2 leading-tight">{method.name}</span>
                               </button>
                             ))}
                           </div>
@@ -569,25 +569,25 @@ export default function PaymentPage() {
                       
                       if (gateway.provider === 'qrin') {
                         if (loadingQrinMethods) return (
-                          <div key={gateway.id} className="flex items-center justify-center py-6 bg-neutral-50 border border-neutral-200 rounded-2xl mb-4">
-                            <Loader2 className="w-5 h-5 animate-spin text-red-600 mr-2" />
-                            <span className="text-sm font-medium text-neutral-500">Memuat kanal pembayaran...</span>
+                          <div key={gateway.id} className="flex items-center justify-center py-6 bg-neutral-900 border border-neutral-800 rounded-2xl mb-4">
+                            <Loader2 className="w-5 h-5 animate-spin text-red-500 mr-2" />
+                            <span className="text-sm font-medium text-neutral-400">Memuat kanal pembayaran...</span>
                           </div>
                         );
                         if (qrinMethods.length > 0) {
-                          return (
+                           return (
                             <div key={gateway.id} className="grid grid-cols-2 gap-3 mb-4">
                               {qrinMethods.map((method) => (
                                 <button
                                   key={method.code}
                                   onClick={() => handlePayment(gateway.provider, method.code)}
                                   disabled={processing}
-                                  className="w-full flex flex-col items-center text-center p-3 bg-white border border-neutral-200 rounded-xl hover:border-red-400 hover:shadow-lg hover:shadow-red-900/5 transition-all group disabled:opacity-50"
+                                  className="w-full flex flex-col items-center text-center p-3 bg-neutral-900 border border-neutral-800 rounded-xl hover:border-red-500 hover:shadow-lg hover:shadow-red-900/10 transition-all group disabled:opacity-50"
                                 >
-                                  <div className="w-10 h-10 bg-neutral-50 rounded-lg flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 transition-colors border border-neutral-100 group-hover:border-red-100 p-1.5 overflow-hidden mb-2">
-                                    {method.logo ? <img src={method.logo} alt={method.name} className="max-w-full max-h-full object-contain mix-blend-multiply" /> : <CreditCard className="w-4 h-4" />}
+                                  <div className="w-10 h-10 bg-neutral-950 rounded-lg flex items-center justify-center text-neutral-400 group-hover:bg-red-950 group-hover:text-red-500 transition-colors border border-neutral-850 group-hover:border-red-900 p-1.5 overflow-hidden mb-2">
+                                    {method.logo ? <img src={method.logo} alt={method.name} className="max-w-full max-h-full object-contain filter invert dark:invert-0" /> : <CreditCard className="w-4 h-4" />}
                                   </div>
-                                  <span className="text-xs font-bold text-neutral-800 line-clamp-2 leading-tight">{method.name}</span>
+                                  <span className="text-xs font-bold text-neutral-300 line-clamp-2 leading-tight">{method.name}</span>
                                 </button>
                               ))}
                             </div>
@@ -599,12 +599,12 @@ export default function PaymentPage() {
                             key={gateway.id}
                             onClick={() => handlePayment(gateway.provider, 'qris')}
                             disabled={processing}
-                            className="w-full flex flex-col items-center text-center p-3 bg-white border border-neutral-200 rounded-xl hover:border-red-400 transition-all group disabled:opacity-50 mb-4"
+                            className="w-full flex flex-col items-center text-center p-3 bg-neutral-900 border border-neutral-800 rounded-xl hover:border-red-500 transition-all group disabled:opacity-50 mb-4 text-white"
                           >
-                            <div className="w-10 h-10 bg-neutral-50 rounded-lg flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 mb-2">
+                            <div className="w-10 h-10 bg-neutral-950 rounded-lg flex items-center justify-center text-neutral-400 group-hover:bg-red-950 group-hover:text-red-500 mb-2">
                               <CreditCard className="w-5 h-5" />
                             </div>
-                            <span className="text-xs font-bold text-neutral-800">QRIS / VA (QRIN)</span>
+                            <span className="text-xs font-bold text-neutral-300">QRIS / VA (QRIN)</span>
                           </button>
                         );
                       }
@@ -615,12 +615,12 @@ export default function PaymentPage() {
                           key={gateway.id}
                           onClick={() => handlePayment(gateway.provider)}
                           disabled={processing}
-                          className="w-full flex flex-col items-center text-center p-3 bg-white border border-neutral-200 rounded-xl hover:border-red-400 transition-all group disabled:opacity-50 mb-4"
+                          className="w-full flex flex-col items-center text-center p-3 bg-neutral-900 border border-neutral-800 rounded-xl hover:border-red-500 transition-all group disabled:opacity-50 mb-4"
                         >
-                          <div className="w-10 h-10 bg-neutral-50 rounded-lg flex items-center justify-center text-neutral-700 group-hover:bg-red-50 group-hover:text-red-600 mb-2">
+                          <div className="w-10 h-10 bg-neutral-950 rounded-lg flex items-center justify-center text-neutral-400 group-hover:bg-red-950 group-hover:text-red-500 mb-2">
                             <CreditCard className="w-5 h-5" />
                           </div>
-                          <span className="text-xs font-bold text-neutral-800">{gateway.name}</span>
+                          <span className="text-xs font-bold text-neutral-300">{gateway.name}</span>
                         </button>
                       );
                     })}
@@ -631,7 +631,7 @@ export default function PaymentPage() {
 
             {paymentGateways.length === 0 && (
               <div className="text-center py-8">
-                <p className="text-sm font-medium text-neutral-500">Silakan gunakan fitur transfer manual di atas.</p>
+                <p className="text-sm font-medium text-neutral-400">Silakan gunakan fitur transfer manual di atas.</p>
               </div>
             )}
           </div>
@@ -641,18 +641,18 @@ export default function PaymentPage() {
       {/* QR Code Modal */}
       {qrString && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
             <button 
               onClick={() => setQrString(null)}
-              className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-full p-2 transition-colors"
+              className="absolute top-4 right-4 text-neutral-400 hover:text-white bg-neutral-950 hover:bg-neutral-800 rounded-full p-2 transition-colors border border-neutral-800"
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
+            <div className="w-16 h-16 bg-red-950/50 border border-red-900 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
               <QrCode className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-2">Scan QRIS</h3>
-            <p className="text-sm text-neutral-500 mb-6">Silakan gunakan aplikasi M-Banking atau E-Wallet Anda untuk memindai kode QRIS ini.</p>
+            <h3 className="text-xl font-bold text-white mb-2">Scan QRIS</h3>
+            <p className="text-sm text-neutral-400 mb-6">Silakan gunakan aplikasi M-Banking atau E-Wallet Anda untuk memindai kode QRIS ini.</p>
             <div className="bg-white p-4 rounded-2xl inline-block border-2 border-neutral-100 shadow-sm mb-6 relative group">
               <QRCodeSVG id="qris-svg" value={qrString} size={200} level="H" includeMargin={false} />
             </div>
@@ -680,15 +680,15 @@ export default function PaymentPage() {
                   };
                   img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
                 }}
-                className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2 border border-neutral-700"
               >
                 <ImageIcon className="w-4 h-4" /> Simpan
               </button>
               <button 
                 onClick={handleCheckPaymentStatus}
                 disabled={checkingStatus}
-                style={{ backgroundColor: '#000', color: '#fff' }}
-                className="flex-[2] bg-black hover:bg-neutral-900 text-white font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                style={{ backgroundColor: '#ff2a4b', color: '#fff' }}
+                className="flex-[2] bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : null}
                 <span className="text-white">Saya Sudah Bayar</span>
@@ -701,34 +701,34 @@ export default function PaymentPage() {
       {/* VA Modal */}
       {vaNumber && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
             <button 
               onClick={() => setVaNumber(null)}
-              className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-full p-2 transition-colors"
+              className="absolute top-4 right-4 text-neutral-400 hover:text-white bg-neutral-950 hover:bg-neutral-800 rounded-full p-2 transition-colors border border-neutral-800"
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
+            <div className="w-16 h-16 bg-red-950/50 border border-red-900 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
               <CreditCard className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-2">Instruksi Pembayaran</h3>
-            <p className="text-sm text-neutral-500 mb-6">Silakan lakukan transfer ke nomor Virtual Account atau tunjukkan kode pembayaran berikut.</p>
+            <h3 className="text-xl font-bold text-white mb-2">Instruksi Pembayaran</h3>
+            <p className="text-sm text-neutral-400 mb-6">Silakan lakukan transfer ke nomor Virtual Account atau tunjukkan kode pembayaran berikut.</p>
             
-            <div className="bg-neutral-50 p-5 rounded-2xl border border-neutral-100 text-left space-y-4 mb-6">
+            <div className="bg-neutral-950 p-5 rounded-2xl border border-neutral-850 text-left space-y-4 mb-6">
               <div>
-                <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider mb-1">Metode</p>
-                <p className="text-sm font-bold text-neutral-900">{vaBank}</p>
+                <p className="text-xs text-neutral-400 font-medium uppercase tracking-wider mb-1">Metode</p>
+                <p className="text-sm font-bold text-white">{vaBank}</p>
               </div>
               <div>
-                <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider mb-1">Nomor / Kode</p>
-                <div className="flex items-center justify-between bg-white px-3 py-2 border border-neutral-200 rounded-lg">
-                  <p className="font-mono text-lg font-bold text-red-600">{vaNumber}</p>
+                <p className="text-xs text-neutral-400 font-medium uppercase tracking-wider mb-1">Nomor / Kode</p>
+                <div className="flex items-center justify-between bg-neutral-900 px-3 py-2 border border-neutral-800 rounded-lg">
+                  <p className="font-mono text-lg font-bold text-red-500">{vaNumber}</p>
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(vaNumber);
                       alert('Disalin!');
                     }}
-                    className="text-xs bg-neutral-100 px-2 py-1 rounded text-neutral-600 hover:bg-neutral-200 font-semibold"
+                    className="text-xs bg-neutral-800 px-2 py-1 rounded text-white hover:bg-neutral-700 font-semibold"
                   >
                     Salin
                   </button>
@@ -736,7 +736,7 @@ export default function PaymentPage() {
               </div>
             </div>
             
-            <div className="bg-white border border-neutral-200 p-4 rounded-xl mb-6 shadow-sm">
+            <div className="bg-neutral-950 border border-neutral-850 p-4 rounded-xl mb-6 shadow-sm">
               <BankInstructions bankName={vaBank || ''} vaNumber={vaNumber} />
             </div>
  
@@ -744,8 +744,8 @@ export default function PaymentPage() {
               <button 
                 onClick={handleCheckPaymentStatus}
                 disabled={checkingStatus}
-                style={{ backgroundColor: '#000', color: '#fff' }}
-                className="w-full bg-black hover:bg-neutral-900 text-white font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                style={{ backgroundColor: '#ff2a4b', color: '#fff' }}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : null}
                 <span className="text-white">Saya Sudah Bayar</span>
@@ -753,7 +753,7 @@ export default function PaymentPage() {
               
               <button 
                 onClick={() => setVaNumber(null)}
-                className="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold py-3 px-4 rounded-xl transition-all text-sm"
+                className="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 px-4 rounded-xl transition-all text-sm border border-neutral-750"
               >
                 Tutup / Pilih Metode Lain
               </button>
@@ -764,14 +764,14 @@ export default function PaymentPage() {
       
       {/* Loading Overlay */}
       {processing && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
-          <div className="bg-white rounded-3xl p-8 flex flex-col items-center shadow-2xl max-w-sm w-full mx-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 flex flex-col items-center shadow-2xl max-w-sm w-full mx-4">
             <div className="w-16 h-16 relative flex items-center justify-center mb-4">
-              <div className="absolute inset-0 rounded-full border-4 border-neutral-100"></div>
-              <div className="absolute inset-0 rounded-full border-4 border-red-600 border-t-transparent animate-spin"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-neutral-800"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-red-500 border-t-transparent animate-spin"></div>
             </div>
-            <p className="text-lg font-bold text-neutral-900">Memproses Transaksi...</p>
-            <p className="text-sm text-neutral-500 mt-2 text-center">Mohon tunggu, jangan tutup halaman ini.</p>
+            <p className="text-lg font-bold text-white">Memproses Transaksi...</p>
+            <p className="text-sm text-neutral-400 mt-2 text-center">Mohon tunggu, jangan tutup halaman ini.</p>
           </div>
         </div>
       )}
@@ -779,16 +779,16 @@ export default function PaymentPage() {
       {/* Beautiful custom alert for unpaid status */}
       {statusError && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-950/50 border border-red-900 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-neutral-900 mb-2">Belum Terdeteksi</h3>
-            <p className="text-sm text-neutral-500 mb-6">{statusError}</p>
+            <h3 className="text-lg font-bold text-white mb-2">Belum Terdeteksi</h3>
+            <p className="text-sm text-neutral-400 mb-6">{statusError}</p>
             <button 
               onClick={() => setStatusError(null)}
-              style={{ backgroundColor: '#000', color: '#fff' }}
-              className="w-full bg-black hover:bg-neutral-900 text-white font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
+              style={{ backgroundColor: '#ff2a4b', color: '#fff' }}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
             >
               Tutup
             </button>
@@ -798,4 +798,4 @@ export default function PaymentPage() {
     </div>
   );
 }
-export const dynamic = 'force-dynamic'; 
+export const dynamic = 'force-dynamic';

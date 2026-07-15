@@ -92,11 +92,30 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
     taxAmount: taxAmt
   };
 
+  const parsedFees = (() => {
+    try {
+      if (!rawInvoice.additionalFees) return [];
+      const parsed = typeof rawInvoice.additionalFees === 'string'
+        ? JSON.parse(rawInvoice.additionalFees)
+        : rawInvoice.additionalFees;
+      return Array.isArray(parsed) ? parsed : (parsed.items || []);
+    } catch { return []; }
+  })();
+
   let items = [];
   if (rawInvoice.type === 'INSTALLATION') {
     items.push({ description: 'Biaya Pemasangan', quantity: 1, price: rawInvoice.amount, total: rawInvoice.amount });
   } else if (rawInvoice.type === 'TOPUP') {
     items.push({ description: 'Top Up Saldo', quantity: 1, price: rawInvoice.amount, total: rawInvoice.amount });
+  } else if (rawInvoice.invoiceType === 'ADDON' && parsedFees.length > 0) {
+    parsedFees.forEach((fee: any) => {
+      items.push({
+        description: fee.name || fee.description || 'Biaya Tambahan',
+        quantity: fee.quantity || 1,
+        price: fee.amount || fee.price || rawInvoice.amount,
+        total: fee.amount || fee.price || rawInvoice.amount
+      });
+    });
   } else {
     items.push({ 
       description: 'Langganan Internet (' + new Date(rawInvoice.dueDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) + ') - ' + (rawInvoice.user?.profile?.name || 'Paket Internet'), 
@@ -107,14 +126,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
   }
 
   inv.items = items;
-
-  inv.additionalFees = (() => {
-    try {
-      if (!rawInvoice.additionalFees) return [];
-      const raw = rawInvoice.additionalFees as any;
-      return (Array.isArray(raw) ? raw : JSON.parse(raw));
-    } catch { return []; }
-  })();
+  inv.additionalFees = parsedFees;
 
   inv.amountFormatted = formatCurrency(rawInvoice.amount);
   const fmtCurr = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);

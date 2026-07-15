@@ -13,9 +13,9 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
 
   if (bank.includes('bca')) {
     content = (
-      <div className="text-left text-sm text-neutral-600 space-y-4">
+      <div className="text-left text-sm text-neutral-300 space-y-4">
         <div>
-          <p className="font-bold text-neutral-800">ATM BCA</p>
+          <p className="font-bold text-white">ATM BCA</p>
           <ol className="list-decimal pl-4 mt-1 space-y-1">
             <li>Masukkan kartu ATM dan PIN Anda</li>
             <li>Pilih menu <b>Transaksi Lainnya</b></li>
@@ -26,7 +26,7 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
           </ol>
         </div>
         <div>
-          <p className="font-bold text-neutral-800">m-BCA (BCA Mobile)</p>
+          <p className="font-bold text-white">m-BCA (BCA Mobile)</p>
           <ol className="list-decimal pl-4 mt-1 space-y-1">
             <li>Buka aplikasi BCA Mobile dan login</li>
             <li>Pilih menu <b>m-Transfer</b></li>
@@ -39,9 +39,9 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
     );
   } else if (bank.includes('bri')) {
     content = (
-      <div className="text-left text-sm text-neutral-600 space-y-4">
+      <div className="text-left text-sm text-neutral-300 space-y-4">
         <div>
-          <p className="font-bold text-neutral-800">ATM BRI</p>
+          <p className="font-bold text-white">ATM BRI</p>
           <ol className="list-decimal pl-4 mt-1 space-y-1">
             <li>Masukkan kartu ATM dan PIN Anda</li>
             <li>Pilih menu <b>Transaksi Lain</b> atau menu serupa</li>
@@ -53,7 +53,7 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
           </ol>
         </div>
         <div>
-          <p className="font-bold text-neutral-800">Mobile Banking BRI (BRIMO)</p>
+          <p className="font-bold text-white">Mobile Banking BRI (BRIMO)</p>
           <ol className="list-decimal pl-4 mt-1 space-y-1">
             <li>Buka aplikasi BRImo dan login</li>
             <li>Pilih menu <b>Pembayaran</b></li>
@@ -66,9 +66,9 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
     );
   } else if (bank.includes('bni')) {
     content = (
-      <div className="text-left text-sm text-neutral-600 space-y-4">
+      <div className="text-left text-sm text-neutral-300 space-y-4">
         <div>
-          <p className="font-bold text-neutral-800">ATM BNI</p>
+          <p className="font-bold text-white">ATM BNI</p>
           <ol className="list-decimal pl-4 mt-1 space-y-1">
             <li>Masukkan kartu ATM dan PIN Anda</li>
             <li>Pilih menu <b>Transaksi Lainnya</b></li>
@@ -78,7 +78,7 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
           </ol>
         </div>
         <div>
-          <p className="font-bold text-neutral-800">Mobile Banking BNI</p>
+          <p className="font-bold text-white">Mobile Banking BNI</p>
           <ol className="list-decimal pl-4 mt-1 space-y-1">
             <li>Buka aplikasi BNI Mobile Banking dan login</li>
             <li>Pilih menu <b>Transfer</b> &gt; <b>Virtual Account Billing</b></li>
@@ -91,9 +91,9 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
     );
   } else if (bank.includes('bsi')) {
     content = (
-      <div className="text-left text-sm text-neutral-600 space-y-4">
+      <div className="text-left text-sm text-neutral-300 space-y-4">
         <div>
-          <p className="font-bold text-neutral-800">BSI Mobile</p>
+          <p className="font-bold text-white">BSI Mobile</p>
           <ol className="list-decimal pl-4 mt-1 space-y-1">
             <li>Login ke aplikasi BSI Mobile</li>
             <li>Pilih menu <b>Transfer</b> &gt; <b>Virtual Account Billing</b></li>
@@ -105,9 +105,9 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
     );
   } else if (bank.includes('mandiri')) {
     content = (
-      <div className="text-left text-sm text-neutral-600 space-y-4">
+      <div className="text-left text-sm text-neutral-300 space-y-4">
         <div>
-          <p className="font-bold text-neutral-800">Livin' by Mandiri</p>
+          <p className="font-bold text-white">Livin' by Mandiri</p>
           <ol className="list-decimal pl-4 mt-1 space-y-1">
             <li>Login ke aplikasi Livin' by Mandiri</li>
             <li>Pilih menu <b>Pembayaran Baru</b> dan kemudian <b>Multi Payment</b></li>
@@ -120,9 +120,9 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
     );
   } else if (bank.includes('permata')) {
     content = (
-      <div className="text-left text-sm text-neutral-600 space-y-4">
+      <div className="text-left text-sm text-neutral-300 space-y-4">
         <div>
-          <p className="font-bold text-neutral-800">PermataMobile X</p>
+          <p className="font-bold text-white">PermataMobile X</p>
           <ol className="list-decimal pl-4 mt-1 space-y-1">
             <li>Buka aplikasi PermataMobile X dan login</li>
             <li>Pilih menu <b>Bayar Tagihan</b> &gt; <b>Virtual Account</b></li>
@@ -134,9 +134,9 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
     );
   } else if (bank.includes('maybank')) {
     content = (
-      <div className="text-left text-sm text-neutral-600 space-y-4">
+      <div className="text-left text-sm text-neutral-300 space-y-4">
         <div>
-          <p className="font-bold text-neutral-800">M2U ID (Maybank)</p>
+          <p className="font-bold text-white">M2U ID (Maybank)</p>
           <ol className="list-decimal pl-4 mt-1 space-y-1">
             <li>Buka aplikasi M2U ID dan login</li>
             <li>Pilih menu <b>Pembayaran</b> &gt; <b>Maybank Virtual Account</b></li>
@@ -148,9 +148,9 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
     );
   } else if (bank.includes('alfamart') || bank.includes('indomaret')) {
     content = (
-      <div className="text-left text-sm text-neutral-600 space-y-4">
+      <div className="text-left text-sm text-neutral-300 space-y-4">
         <div>
-          <p className="font-bold text-neutral-800">Pembayaran di Gerai {bank.includes('alfa') ? 'Alfamart' : 'Indomaret'}</p>
+          <p className="font-bold text-white">Pembayaran di Gerai {bank.includes('alfa') ? 'Alfamart' : 'Indomaret'}</p>
           <ol className="list-decimal pl-4 mt-1 space-y-1">
             <li>Pergi ke gerai {bank.includes('alfa') ? 'Alfamart' : 'Indomaret'} terdekat</li>
             <li>Informasikan ke Kasir ingin membayar menggunakan <b>Payment Code Finpay / Pronpay</b></li>
@@ -162,7 +162,7 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
     );
   } else {
     content = (
-      <div className="text-left text-sm text-neutral-600">
+      <div className="text-left text-sm text-neutral-300">
         <p>Gunakan nomor Virtual Account <b>{vaNumber}</b> untuk melakukan transfer dari ATM, Internet Banking, atau Mobile Banking bank terkait.</p>
       </div>
     );
@@ -170,13 +170,13 @@ export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaN
 
   return (
     <details className="group">
-      <summary className="text-sm font-bold text-neutral-800 cursor-pointer list-none flex items-center justify-between outline-none">
+      <summary className="text-sm font-bold text-white cursor-pointer list-none flex items-center justify-between outline-none">
         Lihat Cara Pembayaran
-        <span className="transition group-open:rotate-180">
+        <span className="transition group-open:rotate-180 text-neutral-400">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </span>
       </summary>
-      <div className="mt-4 border-t border-neutral-100 pt-4">
+      <div className="mt-4 border-t border-neutral-800 pt-4">
         {content}
       </div>
     </details>

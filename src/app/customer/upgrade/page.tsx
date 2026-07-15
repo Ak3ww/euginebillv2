@@ -1,28 +1,23 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Package, Loader2, CheckCircle, Zap, AlertCircle, CreditCard, ArrowRight, Calendar, Wifi, Download, Upload } from 'lucide-react';
+import {
+  Package, CheckCircle, AlertCircle, CreditCard,
+  Loader2, ArrowRight, ShieldCheck, HelpCircle, Calendar, Tag
+} from 'lucide-react';
 import { CyberCard, CyberButton } from '@/components/cyberpunk';
-import { showSuccess, showError } from '@/lib/sweetalert';
+import { useToast } from '@/components/cyberpunk/CyberToast';
+import { showSuccess } from '@/lib/sweetalert';
 import { useTranslation } from '@/hooks/useTranslation';
-import { formatWIB } from '@/lib/timezone';
 
-interface InternetPackage {
+interface PPPoEProfile {
   id: string;
   name: string;
+  price: number;
   downloadSpeed: number;
   uploadSpeed: number;
-  price: number;
   description: string | null;
-}
-
-interface CurrentPackage {
-  name: string;
-  downloadSpeed: number;
-  uploadSpeed: number;
-  price: number;
-  expiredAt: string;
 }
 
 interface PaymentGateway {
@@ -32,82 +27,123 @@ interface PaymentGateway {
   isActive: boolean;
 }
 
+interface CustomerInfo {
+  id: string;
+  name: string;
+  expiredAt: string | null;
+  profile: PPPoEProfile | null;
+}
+
+interface ProrationCalc {
+  isProrated: boolean;
+  remainingDays: number;
+  oldPackagePrice: number;
+  newPackagePrice: number;
+  oldUnusedValue: number;
+  newProratedCost: number;
+  baseAmount: number;
+  taxRate: number;
+  taxAmount: number;
+  totalAmount: number;
+}
+
 export default function UpgradePackagePage() {
-  const { t } = useTranslation();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [packages, setPackages] = useState<InternetPackage[]>([]);
-  const [currentPackage, setCurrentPackage] = useState<CurrentPackage | null>(null);
-  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+  const { addToast } = useToast();
+  const { t } = useTranslation();
+
+  const [currentPackage, setCurrentPackage] = useState<PPPoEProfile | null>(null);
+  const [customer, setCustomer] = useState<CustomerInfo | null>(null);
+  const [packages, setPackages] = useState<PPPoEProfile[]>([]);
   const [paymentGateways, setPaymentGateways] = useState<PaymentGateway[]>([]);
+  const [selectedPackage, setSelectedPackage] = useState<string>('');
   const [selectedGateway, setSelectedGateway] = useState<string>('');
+  const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
   const [error, setError] = useState('');
 
+  // Proration states
+  const [calculation, setCalculation] = useState<ProrationCalc | null>(null);
+  const [loadingCalc, setLoadingCalc] = useState(false);
+
   useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (selectedPackage) {
+      fetchCalculation();
+    } else {
+      setCalculation(null);
+    }
+  }, [selectedPackage]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError('');
     const token = localStorage.getItem('customer_token');
     if (!token) {
       router.push('/customer/login');
       return;
     }
-    loadData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
-
-  // Debug logging
-  useEffect(() => {
-    console.log('[Upgrade Page] selectedPackage:', selectedPackage);
-  }, [selectedPackage]);
-
-  useEffect(() => {
-    console.log('[Upgrade Page] selectedGateway:', selectedGateway);
-  }, [selectedGateway]);
-
-  const loadData = async () => {
-    const token = localStorage.getItem('customer_token');
-    if (!token) return;
 
     try {
-      // Load current user info
-      const userRes = await fetch('/api/customer/me', {
+      // 1. Fetch current profile
+      const profileRes = await fetch('/api/customer/profile', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const userData = await userRes.json();
-      if (userData.success && userData.user) {
-        setCurrentPackage({
-          name: userData.user.profile?.name || 'Unknown',
-          downloadSpeed: userData.user.profile?.downloadSpeed || 0,
-          uploadSpeed: userData.user.profile?.uploadSpeed || 0,
-          price: userData.user.profile?.price || 0,
-          expiredAt: userData.user.expiredAt
-        });
+      const profileData = await profileRes.json();
+
+      if (profileRes.ok && profileData.user) {
+        setCustomer(profileData.user);
+        setCurrentPackage(profileData.user.profile);
+      } else {
+        setError(profileData.error || 'Gagal memuat profil');
       }
 
-      // Load available packages
-      const packagesRes = await fetch('/api/public/profiles');
-      const packagesData = await packagesRes.json();
-      if (packagesData.success) {
-        setPackages(packagesData.profiles || []);
+      // 2. Fetch available packages
+      const pkgRes = await fetch('/api/customer/packages', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const pkgData = await pkgRes.json();
+      if (pkgRes.ok) {
+        setPackages(pkgData.packages || []);
       }
 
-      // Load payment gateways
-      const gatewaysRes = await fetch('/api/public/payment-gateways');
-      const gatewaysData = await gatewaysRes.json();
-      if (gatewaysData.success) {
-        const gateways = gatewaysData.gateways || [];
-        console.log('[Upgrade Page] Loaded gateways:', gateways);
-        setPaymentGateways(gateways);
-        // Auto select first gateway
-        if (gateways.length > 0) {
-          console.log('[Upgrade Page] Auto-selecting gateway:', gateways[0].provider);
-          setSelectedGateway(gateways[0].provider);
+      // 3. Fetch payment gateways
+      const gwRes = await fetch('/api/customer/gateways', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const gwData = await gwRes.json();
+      if (gwRes.ok) {
+        setPaymentGateways(gwData.gateways || []);
+        if (gwData.gateways && gwData.gateways.length > 0) {
+          setSelectedGateway(gwData.gateways[0].provider);
         }
       }
-    } catch (error) {
-      console.error('Load data error:', error);
-      setError(t('customer.failedLoadPackages'));
+    } catch (err) {
+      console.error(err);
+      setError('Gagal menghubungi server untuk memuat data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCalculation = async () => {
+    setLoadingCalc(true);
+    const token = localStorage.getItem('customer_token');
+    try {
+      const res = await fetch(`/api/customer/upgrade?newProfileId=${selectedPackage}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCalculation(data.calculation);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingCalc(false);
     }
   };
 
@@ -136,20 +172,18 @@ export default function UpgradePackagePage() {
       const data = await res.json();
 
       if (data.success) {
-        // Show success toast and redirect
         showSuccess(
-          `${t('customer.invoiceNo')}: ${data.invoiceNumber} — ${t('customer.total')}: ${formatCurrency(data.amount)}`,
-          t('customer.invoiceCreated')
+          `${t('customer.invoiceNo')}: ${data.invoice.invoiceNumber} — ${t('customer.total')}: ${formatCurrency(data.invoice.amount)}`,
+          'Pengajuan Berhasil'
         );
 
-        // Redirect to payment or customer page
         if (data.paymentUrl) {
           window.location.href = data.paymentUrl;
         } else {
-          router.push('/customer');
+          router.push(`/pay/${data.invoice.paymentToken}`);
         }
       } else {
-        setError(data.error || 'Gagal membuat invoice upgrade');
+        setError(data.error || 'Gagal memproses permintaan');
       }
     } catch (error) {
       setError('Gagal menghubungi server');
@@ -158,7 +192,6 @@ export default function UpgradePackagePage() {
     }
   };
 
-  // No-gateway flow: same as mobile (creates invoice, pay via manual transfer)
   const handleUpgradeManual = async () => {
     if (!selectedPackage) {
       setError(t('customer.selectPackage'));
@@ -182,8 +215,8 @@ export default function UpgradePackagePage() {
 
       if (data.success) {
         showSuccess(
-          `${t('customer.invoiceNo')}: ${data.invoice?.invoiceNumber} — ${t('customer.total')}: ${formatCurrency(data.invoice?.amount || 0)}. ${t('customer.contactAdminPayment')}`,
-          t('customer.invoiceCreated')
+          `${t('customer.invoiceNo')}: ${data.invoice?.invoiceNumber} — ${t('customer.total')}: ${formatCurrency(data.invoice?.amount || 0)}. Silakan upload bukti bayar di halaman riwayat.`,
+          'Invoice Berhasil Dibuat'
         );
         router.push('/customer/history');
       } else {
@@ -208,19 +241,10 @@ export default function UpgradePackagePage() {
       minimumFractionDigits: 0
     }).format(amount);
 
-  // Debug render
-  console.log('[Upgrade Page] Rendering with:', {
-    selectedPackage,
-    selectedGateway,
-    packagesCount: packages.length,
-    gatewaysCount: paymentGateways.length,
-    shouldShowButton: !!selectedPackage
-  });
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[#00f7ff] drop-shadow-[0_0_20px_rgba(0,247,255,0.6)]" />
+        <Loader2 className="w-8 h-8 animate-spin text-red-500" />
       </div>
     );
   }
@@ -229,13 +253,13 @@ export default function UpgradePackagePage() {
     <div className="p-3 lg:p-6 space-y-5 w-full">
       {/* Page Header */}
       <div>
-        <h1 className="text-lg font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">{t('customer.upgradePackage')}</h1>
-        <p className="text-xs text-muted-foreground dark:text-[#e0d0ff]/60 mt-0.5">{t('customer.selectPackagePaymentMethod')}</p>
+        <h1 className="text-lg font-bold text-white">Ganti Paket Layanan</h1>
+        <p className="text-xs text-neutral-400 mt-0.5">Ubah paket internet Anda secara mandiri dengan perhitungan tarif prorata adil.</p>
       </div>
 
       {/* Error Alert */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-red-500/10 border-2 border-red-500/30 rounded-xl">
+        <div className="flex items-center gap-3 p-4 bg-red-950/40 border border-red-900 rounded-xl">
           <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
           <p className="text-sm text-red-400">{error}</p>
         </div>
@@ -246,141 +270,161 @@ export default function UpgradePackagePage() {
         <div className="lg:col-span-2 space-y-4">
           {/* Current Package Card */}
           {currentPackage && (
-            <CyberCard className="bg-card/80 backdrop-blur-xl border-2 border-[#bc13fe]/30 overflow-hidden">
-              <div className="h-1 w-full bg-gradient-to-r from-[#bc13fe] via-[#ff44cc] to-[#00f7ff]" />
+            <CyberCard className="bg-neutral-900/80 border-neutral-850 overflow-hidden relative">
+              <div className="h-1.5 w-full bg-gradient-to-r from-red-600 to-red-800" />
               <div className="p-5">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 bg-[#bc13fe]/20 rounded-xl border border-[#bc13fe]/30 shadow-[0_0_15px_rgba(188,19,254,0.3)] flex items-center justify-center">
-                    <Package className="w-5 h-5 text-[#bc13fe]" />
+                  <div className="p-2.5 bg-red-950/50 rounded-xl border border-red-900 flex items-center justify-center">
+                    <Package className="w-5 h-5 text-red-500" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-[#e0d0ff]/50 uppercase tracking-wider font-bold">{t('customer.currentPackage')}</p>
-                    <h3 className="font-bold text-lg text-white leading-tight">{currentPackage.name}</h3>
+                    <span className="text-[10px] text-neutral-400 uppercase tracking-wider block font-bold">Paket Saat Ini</span>
+                    <h2 className="text-base font-bold text-white">{currentPackage.name}</h2>
                   </div>
                 </div>
 
-                {/* Expiry */}
-                <div className="flex items-center gap-2 p-2.5 bg-muted/20 rounded-lg border border-border/50">
-                  <Calendar className="w-4 h-4 text-accent flex-shrink-0" />
+                <div className="grid grid-cols-2 gap-4 bg-neutral-950 p-4 rounded-xl border border-neutral-850">
                   <div>
-                    <p className="text-[10px] text-muted-foreground">Expired</p>
-                    <p className="text-xs font-semibold text-white">
-                      {formatWIB(currentPackage.expiredAt, 'd MMMM yyyy')}
-                    </p>
+                    <span className="text-[10px] text-neutral-400 uppercase tracking-wider block font-bold">Kecepatan</span>
+                    <p className="text-sm font-bold text-white mt-0.5">{formatSpeed(currentPackage.downloadSpeed)}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-neutral-400 uppercase tracking-wider block font-bold">Harga Bulanan</span>
+                    <p className="text-sm font-bold text-red-400 mt-0.5">{formatCurrency(currentPackage.price)}</p>
                   </div>
                 </div>
+
+                {customer?.expiredAt && (
+                  <div className="mt-4 flex items-center gap-2 text-xs text-neutral-300">
+                    <Calendar className="w-4 h-4 text-red-500" />
+                    <span>Aktif s/d {new Date(customer.expiredAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  </div>
+                )}
               </div>
             </CyberCard>
           )}
 
-          {/* Info Box */}
-          <CyberCard className="p-4 bg-card/80 backdrop-blur-xl border-2 border-cyan-500/20">
-            <div className="flex items-start gap-3">
-              <div className="p-1.5 bg-cyan-500/20 rounded-lg border border-cyan-500/30 flex-shrink-0 mt-0.5 flex items-center justify-center">
-                <Wifi className="w-4 h-4 text-cyan-400" />
-              </div>
-              <div className="space-y-1.5">
-                <p className="text-xs font-bold text-cyan-400">Cara Kerja Ganti Paket</p>
-                <ul className="space-y-1">
-                  {[
-                    'Pilih paket baru dari daftar di sebelah kanan',
-                    'Pilih metode pembayaran yang tersedia',
-                    'Invoice akan dibuat dan dikirim ke akun Anda',
-                    'Paket aktif setelah pembayaran dikonfirmasi',
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-1.5 text-[10px] text-muted-foreground dark:text-[#e0d0ff]/60">
-                      <span className="w-3.5 h-3.5 flex-shrink-0 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-[8px] font-bold text-cyan-400 mt-0.5">{i + 1}</span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+          {/* Guidelines / Help Card */}
+          <CyberCard className="p-5 bg-neutral-900/80 border-neutral-850">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-red-500" /> Aturan Ganti Paket
+            </h3>
+            <ul className="text-xs text-neutral-400 space-y-2 list-disc pl-4">
+              <li>Biaya dihitung secara <b>prorata (sisa hari aktif)</b> agar adil bagi pelanggan.</li>
+              <li>Perpindahan paket baru akan langsung aktif setelah tagihan baru lunas dibayarkan.</li>
+              <li>Tanggal jatuh tempo bulanan Anda berikutnya <b>tetap sama</b> seperti paket lama.</li>
+              <li>Downgrade paket ke harga lebih rendah adalah gratis (Rp 0) di portal ini.</li>
+            </ul>
           </CyberCard>
         </div>
 
-        {/* -- RIGHT COLUMN: Package selection + payment (3/5) -- */}
+        {/* -- RIGHT COLUMN: Package list & calculations (3/5) -- */}
         <div className="lg:col-span-3 space-y-4">
-          {/* Available Packages */}
-          <CyberCard className="bg-card/80 backdrop-blur-xl border-2 border-[#00f7ff]/30">
-            <div className="px-5 pt-5 pb-3 border-b border-[#00f7ff]/10 flex items-center gap-3">
-              <div className="p-2 bg-amber-500/20 rounded-lg border border-amber-500/30 flex items-center justify-center">
-                <Zap className="w-4 h-4 text-amber-400" />
+          <CyberCard className="bg-neutral-900/80 border-neutral-850">
+            <div className="px-5 pt-5 pb-3 border-b border-neutral-850 flex items-center gap-3">
+              <div className="p-2 bg-red-950/50 rounded-lg border border-red-900 flex items-center justify-center">
+                <Tag className="w-4 h-4 text-red-500" />
               </div>
-              <h2 className="text-sm font-bold text-amber-400 uppercase tracking-wider">{t('customer.selectNewPackage')}</h2>
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Pilih Paket Baru</h2>
             </div>
 
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
               {packages
-                .filter((pkg) => pkg.price >= (currentPackage?.price ?? 0))
+                .filter((pkg) => pkg.id !== currentPackage?.id) // Do not show current package
                 .map((pkg) => {
-                const isCurrentPackage = currentPackage?.name === pkg.name;
-                const isSelected = selectedPackage === pkg.id;
+                  const isSelected = selectedPackage === pkg.id;
 
-                return (
-                  <button
-                    key={pkg.id}
-                    onClick={() => !isCurrentPackage && setSelectedPackage(pkg.id)}
-                    disabled={isCurrentPackage}
-                    className={`relative text-left p-4 rounded-xl border-2 transition-all duration-200 overflow-hidden ${
-                      isCurrentPackage
-                      ? 'border-slate-600/30 bg-muted/30 dark:bg-slate-800/30 opacity-50 cursor-not-allowed'
-                          : isSelected
-                            ? 'border-[#00f7ff] bg-[#00f7ff]/10 shadow-[0_0_20px_rgba(0,247,255,0.25)]'
-                            : 'border-[#bc13fe]/30 bg-background/50 dark:bg-slate-900/50 hover:border-[#00f7ff]/60 hover:bg-[#00f7ff]/5 hover:shadow-[0_0_15px_rgba(0,247,255,0.15)]'
-                    }`}
-                  >
-                    {isSelected && !isCurrentPackage && (
-                      <div className="absolute top-2 right-2">
-                        <CheckCircle className="w-5 h-5 text-[#00f7ff] drop-shadow-[0_0_8px_rgba(0,247,255,0.8)]" />
-                      </div>
-                    )}
-                    <div className="flex items-start justify-between mb-2 pr-6">
-                      <h3 className="font-bold text-sm text-white leading-tight">{pkg.name}</h3>
-                      {isCurrentPackage && (
-                        <span className="text-[9px] px-1.5 py-0.5 bg-slate-700/50 text-slate-400 rounded-full border border-slate-600/50 absolute top-2 right-2">Aktif</span>
+                  return (
+                    <button
+                      key={pkg.id}
+                      onClick={() => setSelectedPackage(pkg.id)}
+                      className={`relative text-left p-4 rounded-xl border-2 transition-all duration-200 overflow-hidden ${
+                        isSelected
+                          ? 'border-red-500 bg-red-500/10 shadow-lg shadow-red-950/20'
+                          : 'border-neutral-800 bg-neutral-950 hover:border-red-900 hover:bg-neutral-900'
+                      }`}
+                    >
+                      {isSelected && (
+                        <div className="absolute top-2 right-2">
+                          <CheckCircle className="w-5 h-5 text-red-500" />
+                        </div>
                       )}
-                    </div>
-                    <p className="text-xs text-muted-foreground dark:text-[#e0d0ff]/60 mb-3">
-                      {pkg.description || pkg.name}
-                    </p>
-                    <p className="text-lg font-bold text-[#00f7ff] drop-shadow-[0_0_8px_rgba(0,247,255,0.4)]">
-                      {formatCurrency(pkg.price)}<span className="text-[10px] font-normal text-muted-foreground dark:text-[#e0d0ff]/40">/{t('common.month')}</span>
-                    </p>
-                    {pkg.description && (
-                      <p className="text-[10px] text-muted-foreground dark:text-[#e0d0ff]/40 mt-1.5 leading-tight">{pkg.description}</p>
-                    )}
-                  </button>
-                );
-              })}
+                      <div className="flex items-start justify-between mb-1 pr-6">
+                        <h3 className="font-bold text-sm text-white leading-tight">{pkg.name}</h3>
+                      </div>
+                      <p className="text-xs text-neutral-400 mb-3">
+                        {pkg.description || `${formatSpeed(pkg.downloadSpeed)} Unlimited`}
+                      </p>
+                      <p className="text-lg font-bold text-red-400">
+                        {formatCurrency(pkg.price)}<span className="text-[10px] font-normal text-neutral-500">/bulan</span>
+                      </p>
+                    </button>
+                  );
+                })}
             </div>
           </CyberCard>
 
-          {/* Selected package summary */}
-          {selectedPackage && (() => {
-            const pkg = packages.find(p => p.id === selectedPackage);
-            if (!pkg) return null;
-            return (
-              <div className="flex items-center gap-3 p-3 bg-[#00f7ff]/5 border border-[#00f7ff]/20 rounded-xl">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="text-[10px] text-muted-foreground dark:text-[#e0d0ff]/50">Dipilih:</span>
-                  <span className="text-xs font-bold text-white truncate">{pkg.name}</span>
-                  <span className="text-[10px] text-muted-foreground dark:text-[#e0d0ff]/50 hidden sm:inline">({formatSpeed(pkg.downloadSpeed)}/{formatSpeed(pkg.uploadSpeed)})</span>
-                </div>
-                <ArrowRight className="w-4 h-4 text-[#00f7ff] flex-shrink-0" />
-                <span className="text-sm font-bold text-[#00f7ff] flex-shrink-0">{formatCurrency(pkg.price)}</span>
-              </div>
-            );
-          })()}
+          {/* Calculation Breakdown Preview */}
+          {selectedPackage && (
+            <CyberCard className="p-5 bg-neutral-900/80 border-neutral-850 space-y-4">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-neutral-850 pb-2">
+                Simulasi Rincian Biaya Prorata
+              </h3>
 
-          {/* Payment Gateway Selection */}
-          {selectedPackage && paymentGateways.length > 0 && (
-            <CyberCard className="bg-card/80 backdrop-blur-xl border-2 border-[#ff44cc]/30">
-              <div className="px-5 pt-5 pb-3 border-b border-[#ff44cc]/10 flex items-center gap-3">
-                <div className="p-2 bg-[#ff44cc]/20 rounded-lg border border-[#ff44cc]/30 flex items-center justify-center">
-                  <CreditCard className="w-4 h-4 text-[#ff44cc]" />
+              {loadingCalc ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-6 h-6 animate-spin text-red-500 mr-2" />
+                  <span className="text-xs text-neutral-400">Menghitung rincian biaya...</span>
                 </div>
-                <h2 className="text-sm font-bold text-[#ff44cc] uppercase tracking-wider">{t('customer.paymentMethod')}</h2>
+              ) : calculation ? (
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center text-xs text-neutral-400">
+                    <span>Sisa Masa Aktif Paket Lama:</span>
+                    <span className="font-bold text-white">{calculation.remainingDays} Hari</span>
+                  </div>
+
+                  {calculation.isProrated && (
+                    <>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-neutral-400">Kredit Sisa Paket Lama (Potongan):</span>
+                        <span className="font-semibold text-emerald-400">-{formatCurrency(calculation.oldUnusedValue)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-neutral-400">Nilai Prorata Paket Baru ({calculation.remainingDays} Hari):</span>
+                        <span className="font-semibold text-white">{formatCurrency(calculation.newProratedCost)}</span>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex justify-between items-center text-xs border-t border-neutral-850 pt-2">
+                    <span className="text-neutral-400">Harga Dasar Penyesuaian:</span>
+                    <span className="font-bold text-white">{formatCurrency(calculation.baseAmount)}</span>
+                  </div>
+
+                  {calculation.taxAmount > 0 && (
+                    <div className="flex justify-between items-center text-xs text-neutral-400">
+                      <span>PPN ({calculation.taxRate}%):</span>
+                      <span className="font-semibold text-white">{formatCurrency(calculation.taxAmount)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center font-bold text-white border-t border-red-900/30 pt-3 text-base">
+                    <span>Total Tagihan Baru:</span>
+                    <span className="text-red-400">{formatCurrency(calculation.totalAmount)}</span>
+                  </div>
+                </div>
+              ) : null}
+            </CyberCard>
+          )}
+
+          {/* Payment Gateways */}
+          {selectedPackage && calculation && paymentGateways.length > 0 && (
+            <CyberCard className="bg-neutral-900/80 border-neutral-850">
+              <div className="px-5 pt-5 pb-3 border-b border-neutral-850 flex items-center gap-3">
+                <div className="p-2 bg-red-950/50 rounded-lg border border-red-900 flex items-center justify-center">
+                  <CreditCard className="w-4 h-4 text-red-500" />
+                </div>
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Pilih Metode Pembayaran</h2>
               </div>
 
               <div className="p-4 space-y-2">
@@ -390,22 +434,22 @@ export default function UpgradePackagePage() {
                     onClick={() => setSelectedGateway(gateway.provider)}
                     className={`w-full text-left p-3.5 rounded-xl border-2 transition-all ${
                       selectedGateway === gateway.provider
-                        ? 'border-[#00f7ff] bg-[#00f7ff]/10 shadow-[0_0_15px_rgba(0,247,255,0.2)]'
-                        : 'border-[#bc13fe]/20 bg-background/50 dark:bg-slate-900/50 hover:border-[#00f7ff]/40'
+                        ? 'border-red-500 bg-red-500/10'
+                        : 'border-neutral-800 bg-neutral-950 hover:border-red-900'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-muted dark:bg-slate-800 border border-[#bc13fe]/20 rounded-lg flex items-center justify-center">
-                          <CreditCard className="w-4 h-4 text-[#00f7ff]" />
+                        <div className="p-2 bg-neutral-900 border border-neutral-850 rounded-lg flex items-center justify-center">
+                          <CreditCard className="w-4 h-4 text-red-500" />
                         </div>
                         <div>
                           <p className="font-bold text-sm text-white">{gateway.name}</p>
-                          <p className="text-[10px] text-muted-foreground dark:text-[#e0d0ff]/50 capitalize">{gateway.provider}</p>
+                          <p className="text-[10px] text-neutral-400 capitalize">{gateway.provider}</p>
                         </div>
                       </div>
                       {selectedGateway === gateway.provider && (
-                        <CheckCircle className="w-5 h-5 text-[#00f7ff] drop-shadow-[0_0_8px_rgba(0,247,255,0.8)]" />
+                        <CheckCircle className="w-5 h-5 text-red-500" />
                       )}
                     </div>
                   </button>
@@ -416,41 +460,41 @@ export default function UpgradePackagePage() {
                     <CyberButton
                       onClick={handleUpgrade}
                       disabled={upgrading}
-                      className="w-full mt-3"
+                      className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg shadow-red-900/20"
                       variant="cyan"
                       size="lg"
                     >
                       {upgrading ? (
-                        <><Loader2 className="w-5 h-5 animate-spin" />{t('common.processing')}</>
+                        <><Loader2 className="w-5 h-5 animate-spin mr-2" />Memproses...</>
                       ) : (
-                        <><CreditCard className="w-5 h-5" />{t('customer.payNow')}</>
+                        <><CreditCard className="w-5 h-5 mr-2" />Bayar & Ajukan Sekarang</>
                       )}
                     </CyberButton>
-                    <p className="text-[10px] text-muted-foreground dark:text-[#e0d0ff]/40 text-center">{t('customer.paymentRedirectInfo')}</p>
+                    <p className="text-[10px] text-neutral-400 text-center mt-2">Anda akan dialihkan ke gerbang pembayaran aman untuk menyelesaikan transaksi.</p>
                   </>
                 )}
               </div>
             </CyberCard>
           )}
 
-          {/* No-gateway fallback */}
+          {/* Fallback no gateways */}
           {selectedPackage && paymentGateways.length === 0 && (
-            <CyberCard className="p-5 bg-card/80 backdrop-blur-xl border-2 border-[#00f7ff]/30">
+            <CyberCard className="p-5 bg-neutral-900/80 border-neutral-850">
               <div className="flex items-start gap-3 mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                 <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-yellow-400">{t('customer.contactAdminPayment')}</p>
+                <p className="text-sm text-yellow-400">Metode pembayaran online tidak tersedia. Hubungi admin atau klik tombol di bawah untuk membuat invoice tagihan manual.</p>
               </div>
               <CyberButton
                 onClick={handleUpgradeManual}
                 disabled={upgrading}
-                className="w-full"
+                className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl"
                 variant="cyan"
                 size="lg"
               >
                 {upgrading ? (
-                  <><Loader2 className="w-5 h-5 animate-spin" />{t('common.processing')}</>
+                  <><Loader2 className="w-5 h-5 animate-spin mr-2" />Memproses...</>
                 ) : (
-                  <><Package className="w-5 h-5" />{t('customer.createInvoice')}</>
+                  <><Package className="w-5 h-5 mr-2" />Buat Invoice Manual</>
                 )}
               </CyberButton>
             </CyberCard>
@@ -460,5 +504,3 @@ export default function UpgradePackagePage() {
     </div>
   );
 }
-
-
