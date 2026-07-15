@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 
 export async function GET(request: NextRequest) {
@@ -120,18 +120,30 @@ export async function GET(request: NextRequest) {
             paymentSource = 'admin';
           }
 
-          return {
-            id: inv.id,
-            invoiceNumber: inv.invoiceNumber,
-            amount: Number(inv.amount),
-            status: inv.status,
-            dueDate: inv.dueDate.toISOString(),
-            paidAt: inv.paidAt?.toISOString() || null,
-            paymentToken: inv.paymentToken,
-            paymentLink: inv.paymentLink,
-            createdAt: inv.createdAt.toISOString(),
-            invoiceType: inv.invoiceType || 'MONTHLY',
-            profileName: inv.user?.profile?.name || null,
+            let profileName = inv.user?.profile?.name || null;
+            if (inv.invoiceType === 'ADDON' && inv.additionalFees) {
+              try {
+                const fees = typeof inv.additionalFees === 'string' ? JSON.parse(inv.additionalFees) : inv.additionalFees;
+                if (fees && fees.items && fees.items.length > 0) {
+                  profileName = fees.items[0].name;
+                }
+              } catch (e) {
+                // fallback
+              }
+            }
+
+            return {
+              id: inv.id,
+              invoiceNumber: inv.invoiceNumber,
+              amount: Number(inv.amount),
+              status: inv.status,
+              dueDate: inv.dueDate.toISOString(),
+              paidAt: inv.paidAt?.toISOString() || null,
+              paymentToken: inv.paymentToken,
+              paymentLink: inv.paymentLink,
+              createdAt: inv.createdAt.toISOString(),
+              invoiceType: inv.invoiceType || 'MONTHLY',
+              profileName,
             paymentSource,
             manualPaymentStatus: manualPayment?.status?.toLowerCase() || null,
             manualPaymentBank: manualPayment?.bankName || null,

@@ -74,6 +74,62 @@ export async function notifyAdminsViaWhatsApp(message: string): Promise<void> {
 }
 
 /**
+ * Send package upgrade approval notification
+ */
+export async function sendPackageUpgradeApproval(data: {
+  customerName: string;
+  customerPhone: string;
+  customerId?: string;
+  username?: string;
+  oldProfileName: string;
+  newProfileName: string;
+  invoiceNumber: string;
+  amount: number;
+  dueDate: Date;
+  paymentLink: string;
+}) {
+  try {
+    const company = await prisma.company.findFirst();
+    const companyName = company?.name || 'EugineBill RADIUS';
+    
+    // We can fallback to the generic invoice-reminder if a specialized one doesn't exist,
+    // but we will hardcode a clear message directly so it's guaranteed to be correct.
+    const dueDateStr = data.dueDate.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Asia/Jakarta',
+    });
+
+    const message = `Halo *${data.customerName}*,
+
+Pengajuan ganti paket Anda dari *${data.oldProfileName}* ke *${data.newProfileName}* telah *DISETUJUI* oleh Admin! 🎉
+
+Untuk mengaktifkan paket baru Anda, silakan lakukan pembayaran invoice prorata berikut:
+No Tagihan: ${data.invoiceNumber}
+Total Tagihan: *Rp ${data.amount.toLocaleString('id-ID')}*
+Jatuh Tempo: ${dueDateStr}
+
+Link Pembayaran: ${data.paymentLink}
+
+Paket baru akan otomatis aktif segera setelah tagihan ini lunas dibayarkan.
+Abaikan pesan ini jika Anda sudah melakukan pembayaran.
+
+Terima kasih,
+*${companyName}*`;
+
+    await WhatsAppService.sendMessage({
+      phone: data.customerPhone,
+      message,
+    });
+
+    console.log(`[WA] ✅ Upgrade approval sent to ${data.customerPhone}`);
+  } catch (error) {
+    console.error(`[WA] ❌ Failed to send upgrade approval:`, error);
+  }
+}
+
+/**
  * Get template from database by type
  */
 async function getTemplate(type: string): Promise<string | null> {

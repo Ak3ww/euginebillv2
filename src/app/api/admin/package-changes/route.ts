@@ -4,7 +4,7 @@ import { createMidtransPayment } from '@/server/services/payment/midtrans.servic
 import { createXenditInvoice } from '@/server/services/payment/xendit.service';
 import { createDuitkuClient } from '@/server/services/payment/duitku.service';
 import { createTripayClient } from '@/server/services/payment/tripay.service';
-import { sendInvoiceReminder } from '@/server/services/notifications/whatsapp-templates.service';
+import { sendPackageUpgradeApproval } from '@/server/services/notifications/whatsapp-templates.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     const additionalFees = {
       items: [
         {
-          name: `${actionLabel} ke ${newProfile.name}`,
+          name: `Biaya Prorata ${actionLabel} ke ${newProfile.name} (${remainingDays} Hari)`,
           amount: finalAmount,
           metadata: {
             type: 'package_upgrade',
@@ -272,18 +272,17 @@ export async function POST(request: NextRequest) {
 
     // Send WhatsApp notification
     try {
-      await sendInvoiceReminder({
-        phone: user.phone,
+      await sendPackageUpgradeApproval({
+        customerPhone: user.phone,
         customerName: user.name,
         customerId: user.customerId || '',
-        customerUsername: user.username,
-        profileName: newProfile.name,
+        username: user.username,
+        oldProfileName: oldProfile.name,
+        newProfileName: newProfile.name,
         invoiceNumber: invoice.invoiceNumber,
         amount: invoice.amount,
         dueDate: invoice.dueDate,
-        paymentLink: checkoutUrl,
-        companyName: company?.name || 'EugineBill',
-        companyPhone: company?.phone || ''
+        paymentLink: checkoutUrl
       });
       
       // Update invoice notification status

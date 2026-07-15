@@ -159,6 +159,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Profile ID is required' }, { status: 400 });
     }
 
+    // Check if there are any unpaid invoices
+    const unpaidInvoices = await prisma.invoice.count({
+      where: {
+        userId: pppoeUser.id,
+        status: { in: ['PENDING', 'OVERDUE'] }
+      }
+    });
+
+    if (unpaidInvoices > 0) {
+      return NextResponse.json({ 
+        error: 'Anda memiliki tagihan yang belum dibayar. Harap lunasi tagihan Anda terlebih dahulu sebelum mengajukan perubahan paket.' 
+      }, { status: 400 });
+    }
+
     // Get new profile
     const newProfile = await prisma.pppoeProfile.findUnique({
       where: { id: newProfileId }
