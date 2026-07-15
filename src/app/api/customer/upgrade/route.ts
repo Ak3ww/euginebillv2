@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
-import { createMidtransPayment } from '@/server/services/payment/midtrans.service';
-import { createXenditInvoice } from '@/server/services/payment/xendit.service';
-import { createDuitkuClient } from '@/server/services/payment/duitku.service';
-import { createTripayClient } from '@/server/services/payment/tripay.service';
 
 export const dynamic = 'force-dynamic';
 
-// Helper to verify customer token (same as topup-direct)
+// Helper to verify customer token
 async function verifyCustomerToken(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
@@ -35,7 +31,7 @@ async function verifyCustomerToken(request: NextRequest) {
   }
 }
 
-// GET - Calculate proration breakdown
+// GET - Calculate proration breakdown and check for pending requests
 export async function GET(request: NextRequest) {
   try {
     const pppoeUser = await verifyCustomerToken(request);
@@ -43,11 +39,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check if there is already a pending change request
+    const pendingRequest = await prisma.packageChangeRequest.findFirst({
+      where: {
+        userId: pppoeUser.id,
+        status: 'PENDING'
+      },
+      include: {
+        newProfile: true,
+        oldProfile: true
+      }
+    });
+
     const { searchParams } = new URL(request.url);
     const newProfileId = searchParams.get('newProfileId');
 
     if (!newProfileId) {
-      return NextResponse.json({ error: 'newProfileId is required' }, { status: 400 });
+      return NextResponse.json({
+        success: true,
+        pendingRequest: pendingRequest ? {
+          id: pendingRequest.id,
+          newProfileName: pendingRequest.newProfile.name,
+          newProfilePrice: pendingRequest.newProfile.price,
+          createdAt: pendingRequest.createdAt
+        } : null
+      });
     }
 
     const newProfile = await prisma.pppoeProfile.findUnique({
@@ -102,6 +118,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      pendingRequest: pendingRequest ? {
+        id: pendingRequest.id,
+        newProfileName: pendingRequest.newProfile.name,
+        newProfilePrice: pendingRequest.newProfile.price,
+        createdAt: pendingRequest.createdAt
+      } : null,
       calculation: {
         isProrated,
         remainingDays,
@@ -122,7 +144,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Request/Create package change invoice with proration
+// POST - Submit package change request (upgrade/downgrade) for admin approval
 export async function POST(request: NextRequest) {
   try {
     // Verify customer token
@@ -131,10 +153,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { newProfileId, gateway } = await request.json();
+    const { newProfileId } = await request.json();
 
-    if (!newProfileId || !gateway) {
-      return NextResponse.json({ error: 'Profile ID and gateway are required' }, { status: 400 });
+    if (!newProfileId) {
+      return NextResponse.json({ error: 'Profile ID is required' }, { status: 400 });
     }
 
     // Get new profile
@@ -151,226 +173,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Paket yang dipilih sama dengan paket saat ini' }, { status: 400 });
     }
 
-    // Check payment gateway
-    const gatewayConfig = await prisma.paymentGateway.findUnique({
-      where: { provider: gateway }
-    });
-
-    if (!gatewayConfig || !gatewayConfig.isActive) {
-      return NextResponse.json({ error: 'Payment gateway not available' }, { status: 400 });
-    }
-
-    // Proration calculations
-    let remainingDays = 0;
-    let oldUnusedValue = 0;
-    let newProratedCost = 0;
-    let upgradeBaseAmount = newProfile.price;
-    let isProrated = false;
-
-    if (pppoeUser.expiredAt && pppoeUser.expiredAt > new Date() && pppoeUser.profile) {
-      const today = new Date();
-      const timeDiff = pppoeUser.expiredAt.getTime() - today.getTime();
-      remainingDays = Math.max(0, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)));
-
-      if (remainingDays > 0 && remainingDays < 32) {
-        isProrated = true;
-        const oldDailyRate = pppoeUser.profile.proratePricePerDay || (pppoeUser.profile.price / 30);
-        const newDailyRate = newProfile.proratePricePerDay || (newProfile.price / 30);
-
-        oldUnusedValue = Math.round(remainingDays * oldDailyRate);
-        newProratedCost = Math.round(remainingDays * newDailyRate);
-        upgradeBaseAmount = Math.max(0, newProratedCost - oldUnusedValue);
-      }
-    }
-
-    let upgradeAmount = upgradeBaseAmount;
-    let upgradeTaxRate: number | null = null;
-    if (newProfile.ppnActive && newProfile.ppnRate > 0) {
-      upgradeTaxRate = newProfile.ppnRate;
-      upgradeAmount = Math.round(upgradeBaseAmount + (upgradeBaseAmount * upgradeTaxRate / 100));
-    }
-
-    // Create invoice for upgrade with package metadata
-    const invoiceNumber = `INV-UPG-${Date.now()}-${Math.random().toString(36).substring(7).toUpperCase()}`;
-    const paymentToken = `PAY-${Date.now()}-${Math.random().toString(36).substring(7).toUpperCase()}`;
-
-    // Calculate due date (7 days from now)
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 7);
-
-    // Store package change metadata in additionalFees
-    const isUpgrade = newProfile.price > (pppoeUser.profile?.price || 0);
-    const actionLabel = isUpgrade ? 'Upgrade Paket' : 'Downgrade Paket';
-
-    const additionalFees = {
-      items: [
-        {
-          name: `${actionLabel} ke ${newProfile.name}`,
-          amount: upgradeAmount,
-          metadata: {
-            type: 'package_upgrade',
-            oldPackageId: pppoeUser.profileId,
-            oldPackageName: pppoeUser.profile?.name || 'Unknown',
-            newPackageId: newProfileId,
-            newPackageName: newProfile.name,
-            isProrated,
-            remainingDays,
-            oldUnusedValue,
-            newProratedCost
-          }
-        }
-      ]
-    };
-
-    const invoice = await prisma.invoice.create({
-      data: {
-        id: `inv-${Date.now()}`,
+    // Check if there is already a pending request
+    const existingRequest = await prisma.packageChangeRequest.findFirst({
+      where: {
         userId: pppoeUser.id,
-        invoiceNumber: invoiceNumber,
-        amount: upgradeAmount,
-        dueDate: dueDate,
-        status: 'PENDING',
-        paymentToken: paymentToken,
-        customerName: pppoeUser.name,
-        customerPhone: pppoeUser.phone,
-        customerEmail: pppoeUser.email || `${pppoeUser.username}@customer.com`,
-        customerUsername: pppoeUser.username,
-        invoiceType: 'ADDON',
-        baseAmount: upgradeBaseAmount,
-        ...(upgradeTaxRate !== null && { taxRate: upgradeTaxRate }),
-        additionalFees: additionalFees
+        status: 'PENDING'
       }
     });
 
-    // Create payment based on gateway
-    let paymentUrl = null;
-    const orderId = `INV-${invoice.invoiceNumber}-${Date.now()}`;
-
-    // Compute base URL with localhost check + request header fallback
-    const companyForBase = await prisma.company.findFirst({ select: { baseUrl: true } });
-    const _proto = request.headers.get('x-forwarded-proto') || 'http';
-    const _host = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
-    const _inferred = _host ? `${_proto}://${_host}` : '';
-    const appBaseUrl = (companyForBase?.baseUrl && !companyForBase.baseUrl.includes('localhost'))
-      ? companyForBase.baseUrl
-      : (_inferred && !_inferred.includes('localhost'))
-        ? _inferred
-        : companyForBase?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
-    try {
-      const customerEmail = pppoeUser.email || `${pppoeUser.username}@customer.com`;
-      const token = invoice.paymentToken || '';
-
-      if (gateway === 'midtrans') {
-        const midtransResult = await createMidtransPayment({
-          orderId,
-          amount: invoice.amount,
-          customerName: pppoeUser.name,
-          customerEmail: customerEmail,
-          customerPhone: pppoeUser.phone,
-          invoiceToken: token,
-          baseUrl: appBaseUrl,
-          items: [{
-            id: newProfile.id,
-            name: `${actionLabel} ke ${newProfile.name}`,
-            price: invoice.amount,
-            quantity: 1
-          }]
-        });
-        paymentUrl = midtransResult.redirect_url;
-      } else if (gateway === 'xendit') {
-        const xenditResult = await createXenditInvoice({
-          externalId: orderId,
-          amount: invoice.amount,
-          payerEmail: customerEmail,
-          description: `${actionLabel} ke ${newProfile.name}`,
-          customerName: pppoeUser.name,
-          customerPhone: pppoeUser.phone,
-          invoiceToken: token,
-          baseUrl: appBaseUrl,
-        });
-        paymentUrl = xenditResult.invoiceUrl;
-      } else if (gateway === 'duitku') {
-        const duitku = createDuitkuClient(
-          gatewayConfig.duitkuMerchantCode || '',
-          gatewayConfig.duitkuApiKey || '',
-          `${appBaseUrl}/api/payment/webhook`,
-          `${appBaseUrl}/customer`,
-          gatewayConfig.duitkuEnvironment === 'sandbox'
-        );
-
-        const result = await duitku.createInvoice({
-          invoiceId: orderId,
-          amount: invoice.amount,
-          customerName: pppoeUser.name,
-          customerEmail: customerEmail,
-          customerPhone: pppoeUser.phone,
-          description: `${actionLabel} ke ${newProfile.name}`,
-          expiryMinutes: 1440,
-          paymentMethod: 'SP', // Default QRIS
-        });
-        paymentUrl = result.paymentUrl;
-      } else if (gateway === 'tripay') {
-        const tripay = createTripayClient(
-          gatewayConfig.tripayMerchantCode || '',
-          gatewayConfig.tripayApiKey || '',
-          gatewayConfig.tripayPrivateKey || '',
-          gatewayConfig.tripayEnvironment === 'sandbox'
-        );
-
-        const result = await tripay.createTransaction({
-          method: 'QRIS',
-          merchantRef: orderId,
-          amount: invoice.amount,
-          customerName: pppoeUser.name,
-          customerEmail: customerEmail,
-          customerPhone: pppoeUser.phone,
-          orderItems: [
-            {
-              name: `${actionLabel} ke ${newProfile.name}`,
-              price: invoice.amount,
-              quantity: 1,
-            },
-          ],
-          returnUrl: `${appBaseUrl}/customer`,
-          expiredTime: 86400,
-        });
-
-        if (result.success && result.data) {
-          paymentUrl = result.data.checkout_url || result.data.pay_url || '';
-        } else {
-          throw new Error(result.message || 'Failed to create Tripay payment');
-        }
-      }
-
-      // Update invoice with payment URL
-      if (paymentUrl) {
-        await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: { paymentLink: paymentUrl }
-        });
-      }
-
-    } catch (paymentError: any) {
-      console.error('Payment creation error:', paymentError);
+    if (existingRequest) {
+      return NextResponse.json({ error: 'Anda sudah memiliki pengajuan perubahan paket yang sedang diproses' }, { status: 400 });
     }
+
+    // Create the package change request record
+    const changeRequest = await prisma.packageChangeRequest.create({
+      data: {
+        userId: pppoeUser.id,
+        oldProfileId: pppoeUser.profileId,
+        newProfileId: newProfileId,
+        status: 'PENDING'
+      },
+      include: {
+        newProfile: true
+      }
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Permintaan ganti paket berhasil dibuat',
-      invoice: {
-        id: invoice.id,
-        invoiceNumber: invoice.invoiceNumber,
-        amount: invoice.amount,
-        paymentToken: invoice.paymentToken
-      },
-      paymentUrl: paymentUrl
+      message: `Pengajuan ganti paket ke ${changeRequest.newProfile.name} berhasil dikirim dan menunggu persetujuan admin`,
+      request: {
+        id: changeRequest.id,
+        status: changeRequest.status,
+        newPackageName: changeRequest.newProfile.name
+      }
     });
 
   } catch (error: any) {
-    console.error('Upgrade error:', error);
+    console.error('Upgrade request error:', error);
     return NextResponse.json(
-      { error: error.message || 'Gagal memproses permintaan ganti paket' },
+      { error: error.message || 'Gagal mengirim pengajuan ganti paket' },
       { status: 500 }
     );
   }

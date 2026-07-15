@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Package, CheckCircle, AlertCircle, CreditCard,
-  Loader2, ArrowRight, ShieldCheck, HelpCircle, Calendar, Tag
+  Loader2, ArrowRight, ShieldCheck, HelpCircle, Calendar, Tag, Clock
 } from 'lucide-react';
 import { CyberCard, CyberButton } from '@/components/cyberpunk';
 import { useToast } from '@/components/cyberpunk/CyberToast';
@@ -65,6 +65,7 @@ export default function UpgradePackagePage() {
   // Proration states
   const [calculation, setCalculation] = useState<ProrationCalc | null>(null);
   const [loadingCalc, setLoadingCalc] = useState(false);
+  const [pendingRequest, setPendingRequest] = useState<any | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -101,7 +102,15 @@ export default function UpgradePackagePage() {
         setError(profileData.error || 'Gagal memuat profil');
       }
 
-      // 2. Fetch available packages
+      // 2. Fetch available packages and pending request
+      const pkgReqRes = await fetch('/api/customer/upgrade', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const pkgReqData = await pkgReqRes.json();
+      if (pkgReqRes.ok && pkgReqData.success) {
+        setPendingRequest(pkgReqData.pendingRequest);
+      }
+
       const pkgRes = await fetch('/api/customer/packages', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -139,6 +148,7 @@ export default function UpgradePackagePage() {
       const data = await res.json();
       if (data.success) {
         setCalculation(data.calculation);
+        setPendingRequest(data.pendingRequest);
       }
     } catch (e) {
       console.error(e);
@@ -265,6 +275,17 @@ export default function UpgradePackagePage() {
         </div>
       )}
 
+      {/* Pending Request Alert */}
+      {pendingRequest && (
+        <div className="flex items-center gap-3 p-4 bg-amber-950/40 border border-amber-900 rounded-xl text-amber-400">
+          <Clock className="w-5 h-5 flex-shrink-0 text-amber-500 animate-pulse" />
+          <div>
+            <p className="text-sm font-bold">Pengajuan Ganti Paket Sedang Menunggu Persetujuan</p>
+            <p className="text-xs text-amber-500/80 mt-0.5">Pengajuan ganti paket Anda ke <b>{pendingRequest.newProfileName}</b> sedang diproses oleh Admin. Kami akan mengirimkan rincian invoice ke nomor WhatsApp Anda segera setelah disetujui.</p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
         {/* -- LEFT COLUMN: Current package info (2/5) -- */}
         <div className="lg:col-span-2 space-y-4">
@@ -337,11 +358,14 @@ export default function UpgradePackagePage() {
                   return (
                     <button
                       key={pkg.id}
-                      onClick={() => setSelectedPackage(pkg.id)}
+                      onClick={() => !pendingRequest && setSelectedPackage(pkg.id)}
+                      disabled={!!pendingRequest}
                       className={`relative text-left p-4 rounded-xl border-2 transition-all duration-200 overflow-hidden ${
                         isSelected
                           ? 'border-red-500 bg-red-500/10 shadow-lg shadow-red-950/20'
-                          : 'border-neutral-800 bg-neutral-950 hover:border-red-900 hover:bg-neutral-900'
+                          : pendingRequest
+                            ? 'border-neutral-900 bg-neutral-950/40 opacity-40 cursor-not-allowed'
+                            : 'border-neutral-800 bg-neutral-950 hover:border-red-900 hover:bg-neutral-900'
                       }`}
                     >
                       {isSelected && (

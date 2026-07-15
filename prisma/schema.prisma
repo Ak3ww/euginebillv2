@@ -488,6 +488,8 @@ model pppoeProfile {
   sharedUser     Boolean                     @default(true) // Only one device per username
   users          pppoeUser[]
   registrations  registrationRequest[]
+  oldPackageChangeRequests packageChangeRequest[] @relation("OldProfile")
+  newPackageChangeRequests packageChangeRequest[] @relation("NewProfile")
 
   @@index([groupName])
   @@map("pppoe_profiles")
@@ -568,6 +570,7 @@ model pppoeUser {
   referredBy       pppoeUser?     @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
   referrals        pppoeUser[]    @relation("Referrals") // Users referred by this customer
   referralRewardsGiven    referralReward[] @relation("ReferrerRewards")
+  packageChangeRequests packageChangeRequest[]
   referralRewardsReceived referralReward[] @relation("ReferredRewards")
   pushSubscriptions pushSubscription[]
   oltOnuStatuses    oltOnuStatus[]
@@ -2505,4 +2508,26 @@ model mikrotikSession {
   
   @@index([routerId, username])
   @@index([stopTime])
+}
+
+model packageChangeRequest {
+  id            String               @id @default(uuid())
+  userId        String
+  oldProfileId  String
+  newProfileId  String
+  status        RequestStatus        @default(PENDING) // PENDING, APPROVED, REJECTED
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  
+  user          pppoeUser            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  oldProfile    pppoeProfile         @relation("OldProfile", fields: [oldProfileId], references: [id])
+  newProfile    pppoeProfile         @relation("NewProfile", fields: [newProfileId], references: [id])
+
+  @@index([userId])
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
