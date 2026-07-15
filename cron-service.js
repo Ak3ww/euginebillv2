@@ -88,142 +88,123 @@ async function runCronJob(jobType, description, options = {}) {
 
 // ==================== CRON SCHEDULES ====================
 
-// Startup: run FreeRADIUS health check immediately so radgroupreply (isolir) and
-// pool-isolir VPS route are initialized before the first scheduled run (5 min).
-setTimeout(async () => {
-  console.log('[CRON SERVICE] Startup: running freeradius_health to seed isolir radgroupreply...');
-  await runCronJob('freeradius_health', 'FreeRADIUS Health Check (startup)');
-}, 10000); // 10s delay so Next.js app is fully up before we call the API
+async function start() {
+  console.log('[CRON SERVICE] Loading schedule configs from database...');
+  const { PrismaClient } = require('@prisma/client');
+  const prisma = new PrismaClient();
 
-// Startup: run PPPoE Auto Isolir immediately after restart to catch any
-// expired users that were missed during the restart window.
-setTimeout(async () => {
-  console.log('[CRON SERVICE] Startup: running pppoe_auto_isolir to catch missed expirations...');
-  await runCronJob('pppoe_auto_isolir', 'PPPoE Auto Isolir (startup)', { lockTtl: 300 });
-}, 20000); // 20s delay — after freeradius_health completes
+  let overrideMap = {};
+  try {
+    const overrides = await prisma.cronScheduleConfig.findMany();
+    overrides.forEach(o => {
+      overrideMap[o.jobType] = { schedule: o.schedule, enabled: o.enabled };
+    });
+    console.log(`[CRON SERVICE] Successfully loaded ${overrides.length} schedule configurations from DB.`);
+  } catch (err) {
+    console.warn('[CRON SERVICE] Could not load schedules from DB (using defaults):', err.message);
+  } finally {
+    await prisma.$disconnect();
+  }
 
-// Startup: recover PPPoE/Hotspot sessions that were incorrectly closed during the
-// update window. pppoe_session_sync (old threshold: 30 min) may have run just before
-// or during the app restart and closed sessions that were still genuinely active on
-// MikroTik. This reopens those sessions so they appear active again without requiring
-// manual reconnection from MikroTik.
-// Safe: only undoes sessions closed with 'Lost-Carrier' (set by our code, NOT by MikroTik).
-// FreeRADIUS keeps writing Accounting-Interim-Update to radacct even when acctstoptime
-// is set, so recovered sessions will have fresh acctupdatetime and won't be re-closed.
-setTimeout(async () => {
-  console.log('[CRON SERVICE] Startup: running session_recovery to restore sessions closed during update...');
-  await runCronJob('session_recovery', 'Session Recovery (startup)');
-}, 35000); // 35s delay — after pppoe_auto_isolir completes
+  // Helper to get configuration for a job (merged with DB overrides)
+  const getJobConfig = (jobType, defaultSchedule, defaultEnabled = true) => {
+    const override = overrideMap[jobType];
+    return {
+      schedule: override ? override.schedule : defaultSchedule,
+      enabled: override ? override.enabled : defaultEnabled
+    };
+  };
 
-// 1. Hotspot Voucher Sync - Every minute
-cron.schedule('* * * * *', async () => {
-  await runCronJob('hotspot_sync', 'Hotspot Voucher Sync');
+  // Helper to schedule a job
+  const scheduleJob = (jobType, defaultSchedule, description, handlerOpts = {}, defaultEnabled = true) => {
+    const conf = getJobConfig(jobType, defaultSchedule, defaultEnabled);
+    if (!conf.enabled) {
+      console.log(`  - [DISABLED] ${description} (${jobType})`);
+      return;
+    }
+    if (conf.schedule === 'dynamic') {
+      console.log(`  - [DYNAMIC]  ${description} (${jobType}) - Managed externally`);
+      return;
+    }
+    cron.schedule(conf.schedule, async () => {
+      await runCronJob(jobType, description, handlerOpts);
+    });
+    console.log(`  - [ACTIVE]   ${description} (${jobType}) → ${conf.schedule}`);
+  };
+
+  // 1. Startup: run FreeRADIUS health check immediately
+  const radiusHealthConf = getJobConfig('freeradius_health', '*/5 * * * *');
+  if (radiusHealthConf.enabled) {
+    setTimeout(async () => {
+      console.log('[CRON SERVICE] Startup: running freeradius_health to seed isolir radgroupreply...');
+      await runCronJob('freeradius_health', 'FreeRADIUS Health Check (startup)');
+    }, 10000); // 10s delay so Next.js app is fully up before we call the API
+  }
+
+  // 2. Startup: run PPPoE Auto Isolir immediately
+  const pppoeIsolirConf = getJobConfig('pppoe_auto_isolir', '0 * * * *');
+  if (pppoeIsolirConf.enabled) {
+    setTimeout(async () => {
+      console.log('[CRON SERVICE] Startup: running pppoe_auto_isolir to catch missed expirations...');
+      await runCronJob('pppoe_auto_isolir', 'PPPoE Auto Isolir (startup)', { lockTtl: 300 });
+    }, 20000); // 20s delay
+  }
+
+  // 3. Startup: run Session Recovery immediately
+  const sessionRecoveryConf = getJobConfig('session_recovery', 'dynamic'); // Startup fallback only
+  if (sessionRecoveryConf.enabled) {
+    setTimeout(async () => {
+      console.log('[CRON SERVICE] Startup: running session_recovery to restore sessions closed during update...');
+      await runCronJob('session_recovery', 'Session Recovery (startup)');
+    }, 35000); // 35s delay
+  }
+
+  console.log('[CRON SERVICE] Initializing scheduled jobs:');
+
+  // Job registrations
+  scheduleJob('hotspot_sync', '* * * * *', 'Hotspot Voucher Sync');
+  scheduleJob('pppoe_auto_isolir', '0 * * * *', 'PPPoE Auto Isolir', { lockTtl: 300 });
+  scheduleJob('agent_sales', '*/5 * * * *', 'Agent Sales Recording');
+  scheduleJob('invoice_generate', '0 7 * * *', 'Invoice Generation', { lockTtl: 600 });
+  scheduleJob('invoice_reminder', '0 * * * *', 'Invoice Reminder');
+  scheduleJob('invoice_status_update', '0 * * * *', 'Invoice Status Update');
+  scheduleJob('notification_check', '0 */6 * * *', 'Notification Check');
+  scheduleJob('session_monitor', '*/15 * * * *', 'Session Security Monitoring');
+  scheduleJob('disconnect_sessions', '*/5 * * * *', 'Disconnect Expired Sessions');
+  scheduleJob('activity_log_cleanup', '0 2 * * *', 'Activity Log Cleanup', { lockTtl: 300 });
+  scheduleJob('auto_renewal', '0 8 * * *', 'Auto Renewal', { lockTtl: 600 });
+  scheduleJob('webhook_log_cleanup', '0 3 * * *', 'Webhook Log Cleanup', { lockTtl: 300 });
+  scheduleJob('freeradius_health', '*/5 * * * *', 'FreeRADIUS Health Check');
+  scheduleJob('pppoe_session_sync', '*/5 * * * *', 'PPPoE Session Sync', { lockTtl: 120 });
+  scheduleJob('suspend_check', '0 * * * *', 'Suspend Check');
+  scheduleJob('cron_history_cleanup', '0 4 * * *', 'Cron History Cleanup', { lockTtl: 120 });
+  scheduleJob('mikrotik_session_sync', '*/5 * * * *', 'MikroTik Session Sync', { lockTtl: 120 });
+  scheduleJob('mikrotik_session_cleanup', '0 3 * * *', 'MikroTik Session Cleanup', { lockTtl: 120 });
+
+  // Telegram crons integration (dynamic settings)
+  setTimeout(async () => {
+    try {
+      const backupConf = getJobConfig('telegram_backup', 'dynamic');
+      const healthConf = getJobConfig('telegram_health', 'dynamic');
+      
+      if (backupConf.enabled) {
+        console.log('  - [ACTIVE]   Telegram Backup (telegram_backup) -> Managed dynamically');
+      }
+      if (healthConf.enabled) {
+        console.log('  - [ACTIVE]   Telegram Health Check (telegram_health) -> Managed dynamically');
+      }
+    } catch (err) {
+      console.warn('[CRON SERVICE] Telegram settings loading skipped:', err.message);
+    }
+  }, 40000);
+
+  console.log('[CRON SERVICE] All cron jobs initialized successfully!');
+}
+
+start().catch(err => {
+  console.error('[CRON SERVICE] Fatal initialization error:', err);
+  process.exit(1);
 });
-
-// 2. PPPoE Auto Isolir - Every hour (with lock, max 5 min run time)
-cron.schedule('0 * * * *', async () => {
-  await runCronJob('pppoe_auto_isolir', 'PPPoE Auto Isolir', { lockTtl: 300 });
-});
-
-// 3. Agent Sales Recording - Every 5 minutes
-cron.schedule('*/5 * * * *', async () => {
-  await runCronJob('agent_sales', 'Agent Sales Recording');
-});
-
-// 4. Invoice Generation - Daily at 7 AM (with lock — KRITIS: jangan double billing)
-// PREPAID: uses H+invoiceGenerateDays to H+30 expiredAt window.
-// POSTPAID (tagihan tetap): generates only when today == user.billingDay (default: 1st of month).
-cron.schedule('0 7 * * *', async () => {
-  await runCronJob('invoice_generate', 'Invoice Generation', { lockTtl: 600 });
-});
-
-// 5. Invoice Reminder - Every hour
-cron.schedule('0 * * * *', async () => {
-  await runCronJob('invoice_reminder', 'Invoice Reminder');
-});
-
-// 6. Invoice Status Update - Every hour
-cron.schedule('0 * * * *', async () => {
-  await runCronJob('invoice_status_update', 'Invoice Status Update');
-});
-
-// 7. Notification Check - Every 6 hours
-cron.schedule('0 */6 * * *', async () => {
-  await runCronJob('notification_check', 'Notification Check');
-});
-
-// 8. Session Monitoring - Every 15 minutes
-cron.schedule('*/15 * * * *', async () => {
-  await runCronJob('session_monitor', 'Session Security Monitoring');
-});
-
-// 9. Disconnect Expired Sessions - Every 5 minutes
-cron.schedule('*/5 * * * *', async () => {
-  await runCronJob('disconnect_sessions', 'Disconnect Expired Sessions');
-});
-
-// 10. Activity Log Cleanup - Daily at 2 AM (with lock)
-cron.schedule('0 2 * * *', async () => {
-  await runCronJob('activity_log_cleanup', 'Activity Log Cleanup', { lockTtl: 300 });
-});
-
-// 11. Auto Renewal - Daily at 8 AM (with lock — KRITIS: jangan double charge)
-cron.schedule('0 8 * * *', async () => {
-  await runCronJob('auto_renewal', 'Auto Renewal', { lockTtl: 600 });
-});
-
-// 12. Webhook Log Cleanup - Daily at 3 AM (with lock)
-cron.schedule('0 3 * * *', async () => {
-  await runCronJob('webhook_log_cleanup', 'Webhook Log Cleanup', { lockTtl: 300 });
-});
-
-// 13. FreeRADIUS Health Check - Every 5 minutes
-cron.schedule('*/5 * * * *', async () => {
-  await runCronJob('freeradius_health', 'FreeRADIUS Health Check');
-});
-
-// 16. PPPoE Session Sync - Every 5 minutes (sync MikroTik ↔ radacct)
-cron.schedule('*/5 * * * *', async () => {
-  await runCronJob('pppoe_session_sync', 'PPPoE Session Sync', { lockTtl: 120 });
-});
-
-// 15. Suspend Check - Every hour (activate/restore suspended users)
-cron.schedule('0 * * * *', async () => {
-  await runCronJob('suspend_check', 'Suspend Check');
-});
-
-// 16. Cron History Cleanup - Daily at 4 AM (keep table size small)
-cron.schedule('0 4 * * *', async () => {
-  await runCronJob('cron_history_cleanup', 'Cron History Cleanup', { lockTtl: 120 });
-});
-
-// 17. MikroTik Session Sync - Every 5 minutes
-cron.schedule('*/5 * * * *', async () => {
-  await runCronJob('mikrotik_session_sync', 'MikroTik Session Sync', { lockTtl: 120 });
-});
-
-// 18. MikroTik Session Cleanup - Daily at 3 AM
-cron.schedule('0 3 * * *', async () => {
-  await runCronJob('mikrotik_session_cleanup', 'MikroTik Session Cleanup', { lockTtl: 120 });
-});
-
-console.log('[CRON SERVICE] All cron jobs initialized successfully!');
-console.log('[CRON SERVICE] Schedules:');
-console.log('  - Hotspot Sync: Every minute');
-console.log('  - PPPoE Auto Isolir: Every hour [LOCKED]');
-console.log('  - Agent Sales: Every 5 minutes');
-console.log('  - Invoice Generation: Daily at 7 AM [LOCKED]');
-console.log('  - Invoice Reminder: Every hour');
-console.log('  - Invoice Status Update: Every hour');
-console.log('  - Notification Check: Every 6 hours');
-console.log('  - Session Monitoring: Every 15 minutes');
-console.log('  - Disconnect Sessions: Every 5 minutes');
-console.log('  - Activity Log Cleanup: Daily at 2 AM [LOCKED]');
-console.log('  - Auto Renewal: Daily at 8 AM [LOCKED]');
-console.log('  - Webhook Log Cleanup: Daily at 3 AM [LOCKED]');
-console.log('  - FreeRADIUS Health Check: Every 5 minutes')
-console.log('  - PPPoE Session Sync: Every 5 minutes [LOCKED]');
-console.log('  - Suspend Check: Every hour');
 
 // Keep the process running
 process.on('SIGINT', () => {
