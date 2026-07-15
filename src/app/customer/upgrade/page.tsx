@@ -51,6 +51,7 @@ export default function UpgradePackagePage() {
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
   const [error, setError] = useState('');
+  const [companyPhone, setCompanyPhone] = useState<string>('');
 
   // Proration states
   const [calculation, setCalculation] = useState<ProrationCalc | null>(null);
@@ -107,6 +108,13 @@ export default function UpgradePackagePage() {
       const pkgData = await pkgRes.json();
       if (pkgRes.ok) {
         setPackages(pkgData.profiles || []);
+      }
+
+      // 4. Fetch company info for WhatsApp link
+      const compRes = await fetch('/api/public/company');
+      const compData = await compRes.json();
+      if (compRes.ok && compData.company?.phone) {
+        setCompanyPhone(compData.company.phone);
       }
 
     } catch (err) {
@@ -210,9 +218,21 @@ export default function UpgradePackagePage() {
 
       {/* Error Alert */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-red-50 border-l-4 border-red-600 rounded-r-xl">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-          <p className="text-sm font-medium text-red-800">{error}</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-red-50 border-l-4 border-red-600 rounded-r-xl">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm font-medium text-red-800 leading-relaxed">{error}</p>
+          </div>
+          {error.includes('tagihan yang belum dibayar') && companyPhone && (
+            <a
+              href={`https://wa.me/${companyPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Halo Admin, saya ${customer?.name || ''} ingin mengajukan Ganti Paket, tapi di portal tertulis ada tagihan yang belum dibayar. Mohon bantuannya untuk mengecek dan membatalkan tagihan bulan depan saya agar bisa Ganti Paket.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-shrink-0 inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm shadow-emerald-900/20"
+            >
+              Hubungi Admin via WA
+            </a>
+          )}
         </div>
       )}
 
