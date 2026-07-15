@@ -258,38 +258,56 @@ export async function PATCH(
       }
 
       // ============================================
-      // SYNC RADIUS - Update group + CoA disconnect
+      // SYNC - RADIUS OR MIKROTIK (Update profile + Disconnect)
       // ============================================
       try {
-        const activeProfile = newProfileData;
-        if (activeProfile && 'groupName' in activeProfile) {
-          // Update password in radcheck
-          await prisma.$executeRaw`
-            INSERT INTO radcheck (username, attribute, op, value)
-            VALUES (${manualPayment.user.username}, 'Cleartext-Password', ':=', ${manualPayment.user.password})
-            ON DUPLICATE KEY UPDATE value = ${manualPayment.user.password}
-          `;
-          // Update radusergroup to new profile
-          await prisma.$executeRaw`
-            DELETE FROM radusergroup WHERE username = ${manualPayment.user.username}
-          `;
-          await prisma.$executeRaw`
-            INSERT INTO radusergroup (username, groupname, priority)
-            VALUES (${manualPayment.user.username}, ${(activeProfile as any).groupName}, 1)
-          `;
-          // Remove isolation entries
-          await prisma.radcheck.deleteMany({
-            where: { username: manualPayment.user.username, attribute: 'Auth-Type' }
-          });
-          await prisma.radreply.deleteMany({
-            where: { username: manualPayment.user.username, attribute: 'Reply-Message' }
-          });
-          // CoA disconnect to force re-auth
-          const coaResult = await disconnectPPPoEUser(manualPayment.user.username);
-          console.log(`[Manual Payment APPROVE] CoA: ${coaResult.success ? 'disconnected for re-auth' : coaResult.error}`);
+        const company = await prisma.company.findFirst();
+        
+        if (company?.radiusEnabled) {
+          const activeProfile = newProfileData;
+          if (activeProfile && 'groupName' in activeProfile) {
+            // Update password in radcheck
+            await prisma.$executeRaw`
+              INSERT INTO radcheck (username, attribute, op, value)
+              VALUES (${manualPayment.user.username}, 'Cleartext-Password', ':=', ${manualPayment.user.password})
+              ON DUPLICATE KEY UPDATE value = ${manualPayment.user.password}
+            `;
+            // Update radusergroup to new profile
+            await prisma.$executeRaw`
+              DELETE FROM radusergroup WHERE username = ${manualPayment.user.username}
+            `;
+            await prisma.$executeRaw`
+              INSERT INTO radusergroup (username, groupname, priority)
+              VALUES (${manualPayment.user.username}, ${(activeProfile as any).groupName}, 1)
+            `;
+            // Remove isolation entries
+            await prisma.radcheck.deleteMany({
+              where: { username: manualPayment.user.username, attribute: 'Auth-Type' }
+            });
+            await prisma.radreply.deleteMany({
+              where: { username: manualPayment.user.username, attribute: 'Reply-Message' }
+            });
+            // CoA disconnect to force re-auth
+            const coaResult = await disconnectPPPoEUser(manualPayment.user.username);
+            console.log(`[Manual Payment APPROVE] CoA: ${coaResult.success ? 'disconnected for re-auth' : coaResult.error}`);
+          }
+        } else {
+          // MikroTik API Sync
+          if (manualPayment.user.routerId) {
+            const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+            const syncResult = await PPPSecretService.syncSecret(manualPayment.userId);
+            console.log(`[Manual Payment APPROVE] Mikrotik Sync Secret:`, syncResult);
+            
+            const activeProfile = newProfileData;
+            if (activeProfile && 'name' in activeProfile) {
+              const mkProfileName = (activeProfile as any).mikrotikProfileName || (activeProfile as any).name;
+              await PPPSecretService.setProfileAndDisconnect(manualPayment.user.routerId, manualPayment.user.username, mkProfileName);
+              console.log(`[Manual Payment APPROVE] Mikrotik user disconnected to apply new profile: ${mkProfileName}`);
+            }
+          }
         }
-      } catch (radiusErr) {
-        console.error('[Manual Payment APPROVE] RADIUS sync error:', radiusErr);
+      } catch (syncErr) {
+        console.error('[Manual Payment APPROVE] Sync error:', syncErr);
       }
 
       // ============================================

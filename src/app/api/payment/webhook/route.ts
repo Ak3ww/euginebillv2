@@ -1440,6 +1440,8 @@ export async function handleInvoicePayment(
         // Check if this is a package upgrade invoice
         let newProfileId = user.profileId;
         let isPackageChange = false;
+        let activeProfile = profile; // default to old profile
+
         if (invoice.additionalFees && typeof invoice.additionalFees === 'object') {
           const additionalFeesObj = invoice.additionalFees as any;
           if (additionalFeesObj.items && Array.isArray(additionalFeesObj.items)) {
@@ -1450,6 +1452,13 @@ export async function handleInvoicePayment(
               newProfileId = upgradeItem.metadata.newPackageId;
               isPackageChange = true;
               console.log(`📦 Package change detected: ${upgradeItem.metadata.oldPackageName} → ${upgradeItem.metadata.newPackageName} (expiry PRESERVED)`);
+              
+              const fetchedNewProfile = await prisma.pppoeProfile.findUnique({
+                where: { id: newProfileId }
+              });
+              if (fetchedNewProfile) {
+                activeProfile = fetchedNewProfile;
+              }
             }
           }
         }
@@ -1639,96 +1648,111 @@ export async function handleInvoicePayment(
           console.error('Referral bonus error:', referralError);
         }
 
-        if (wasDisabled) {
+        if (wasDisabled || isPackageChange) {
           console.log(`   - Status: ${user.status} → ${newStatus}`);
+          if (isPackageChange) console.log(`   - Applying Package Change Sync: ${activeProfile.name}`);
 
           // ============================================
-          // RADIUS SYNC FOR REACTIVATION
+          // SYNC - RADIUS OR MIKROTIK FOR REACTIVATION / PACKAGE CHANGE
           // ============================================
 
           try {
-            // Remove forced reject (if any) from previous SUSPENDED state
-            await prisma.radcheck.deleteMany({
-              where: {
-                username: user.username,
-                attribute: 'Auth-Type',
-              },
-            });
-
-            // Remove NAS-IP-Address restriction (can prevent login if NAS-IP differs)
-            await prisma.radcheck.deleteMany({
-              where: {
-                username: user.username,
-                attribute: 'NAS-IP-Address',
-              },
-            });
-
-            // 1. Restore radcheck (username + password)
-            await prisma.$executeRaw`
-                INSERT INTO radcheck (username, attribute, op, value)
-                VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
-                ON DUPLICATE KEY UPDATE value = ${user.password}
-              `;
-
-            // 2. Restore radusergroup — DELETE first to remove 'isolir' row, then insert real group
-            await prisma.$executeRaw`
-                DELETE FROM radusergroup WHERE username = ${user.username}
-              `;
-            await prisma.$executeRaw`
-                INSERT INTO radusergroup (username, groupname, priority)
-                VALUES (${user.username}, ${profile.groupName}, 0)
-                ON DUPLICATE KEY UPDATE groupname = ${profile.groupName}
-              `;
-
-            // 3. Remove isolated message from radreply
-            await prisma.radreply.deleteMany({
-              where: {
-                username: user.username,
-                attribute: 'Reply-Message'
-              }
-            });
-            console.log(`✅ Removed isolated message from radreply for ${user.username}`);
-
-            // 4. Restore radreply (if static IP)
-            if (user.ipAddress) {
-              await prisma.$executeRaw`
-                  INSERT INTO radreply (username, attribute, op, value)
-                  VALUES (${user.username}, 'Framed-IP-Address', ':=', ${user.ipAddress})
-                  ON DUPLICATE KEY UPDATE value = ${user.ipAddress}
-                `;
-            }
-
-            console.log(`✅ RADIUS entries restored for ${user.username}`);
-
-            // Update registration status to ACTIVE if this is installation invoice
-            const registration = await prisma.registrationRequest.findFirst({
-              where: {
-                pppoeUserId: user.id,
-                status: 'INSTALLED'
-              }
-            });
-
-            if (registration) {
-              await prisma.registrationRequest.update({
-                where: { id: registration.id },
-                data: { status: 'ACTIVE' }
+            const company = await prisma.company.findFirst();
+            if (company?.radiusEnabled) {
+              // Remove forced reject (if any) from previous SUSPENDED state
+              await prisma.radcheck.deleteMany({
+                where: {
+                  username: user.username,
+                  attribute: 'Auth-Type',
+                },
               });
-              console.log(`✅ Registration ${registration.id} status updated to ACTIVE`);
-            }
 
-            // 5. Send CoA Disconnect to force re-authentication
-            try {
-              const coaResult = await disconnectPPPoEUser(user.username);
-              if (coaResult.success) {
-                console.log(`✅ CoA disconnect sent for ${user.username}`);
-              } else {
-                console.log(`⚠️ CoA disconnect: ${coaResult.error || 'No active session'}`);
+              // Remove NAS-IP-Address restriction (can prevent login if NAS-IP differs)
+              await prisma.radcheck.deleteMany({
+                where: {
+                  username: user.username,
+                  attribute: 'NAS-IP-Address',
+                },
+              });
+
+              // 1. Restore radcheck (username + password)
+              await prisma.$executeRaw`
+                  INSERT INTO radcheck (username, attribute, op, value)
+                  VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
+                  ON DUPLICATE KEY UPDATE value = ${user.password}
+                `;
+
+              // 2. Restore radusergroup — DELETE first to remove 'isolir' row, then insert real group
+              await prisma.$executeRaw`
+                  DELETE FROM radusergroup WHERE username = ${user.username}
+                `;
+              await prisma.$executeRaw`
+                  INSERT INTO radusergroup (username, groupname, priority)
+                  VALUES (${user.username}, ${activeProfile.groupName}, 0)
+                  ON DUPLICATE KEY UPDATE groupname = ${activeProfile.groupName}
+                `;
+
+              // 3. Remove isolated message from radreply
+              await prisma.radreply.deleteMany({
+                where: {
+                  username: user.username,
+                  attribute: 'Reply-Message'
+                }
+              });
+              console.log(`✅ Removed isolated message from radreply for ${user.username}`);
+
+              // 4. Restore radreply (if static IP)
+              if (user.ipAddress) {
+                await prisma.$executeRaw`
+                    INSERT INTO radreply (username, attribute, op, value)
+                    VALUES (${user.username}, 'Framed-IP-Address', ':=', ${user.ipAddress})
+                    ON DUPLICATE KEY UPDATE value = ${user.ipAddress}
+                  `;
               }
-            } catch (coaError) {
-              console.error('CoA disconnect failed:', coaError);
+
+              console.log(`✅ RADIUS entries restored for ${user.username}`);
+
+              // Update registration status to ACTIVE if this is installation invoice
+              const registration = await prisma.registrationRequest.findFirst({
+                where: {
+                  pppoeUserId: user.id,
+                  status: 'INSTALLED'
+                }
+              });
+
+              if (registration) {
+                await prisma.registrationRequest.update({
+                  where: { id: registration.id },
+                  data: { status: 'ACTIVE' }
+                });
+                console.log(`✅ Registration ${registration.id} status updated to ACTIVE`);
+              }
+
+              // 5. Send CoA Disconnect to force re-authentication
+              try {
+                const coaResult = await disconnectPPPoEUser(user.username);
+                if (coaResult.success) {
+                  console.log(`✅ CoA disconnect sent for ${user.username}`);
+                } else {
+                  console.log(`⚠️ CoA disconnect: ${coaResult.error || 'No active session'}`);
+                }
+              } catch (coaError) {
+                console.error('CoA disconnect failed:', coaError);
+              }
+            } else {
+              // MIKROTIK SYNC FALLBACK
+              if (user.routerId) {
+                const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+                const syncResult = await PPPSecretService.syncSecret(user.id);
+                console.log(`✅ Mikrotik Sync Secret for reactivation:`, syncResult);
+                
+                const mkProfileName = activeProfile.mikrotikProfileName || activeProfile.name;
+                await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, mkProfileName);
+                console.log(`✅ Mikrotik user disconnected to apply active profile: ${mkProfileName}`);
+              }
             }
-          } catch (radiusError) {
-            console.error('RADIUS sync error:', radiusError);
+          } catch (syncError) {
+            console.error('Sync error:', syncError);
           }
         }
       }
