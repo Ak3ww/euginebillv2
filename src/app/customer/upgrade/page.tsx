@@ -225,7 +225,7 @@ export default function UpgradePackagePage() {
           </div>
           {error.includes('tagihan yang belum dibayar') && companyPhone && (
             <a
-              href={`https://wa.me/${companyPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Halo Admin, saya ${customer?.name || ''} ingin mengajukan Ganti Paket, tapi di portal tertulis ada tagihan yang belum dibayar. Mohon bantuannya untuk mengecek dan membatalkan tagihan bulan depan saya agar bisa Ganti Paket.`)}`}
+              href={`https://wa.me/${companyPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Halo Admin, saya ${customer?.name || ''} (${customer?.customerId || '-'}) ingin mengajukan Ganti Paket, tapi di portal tertulis ada tagihan yang belum dibayar. Mohon bantuannya untuk mengecek dan membatalkan tagihan bulan depan saya agar bisa Ganti Paket.`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-shrink-0 inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm shadow-emerald-900/20"
