@@ -3,13 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Package, CheckCircle, AlertCircle, CreditCard,
-  Loader2, ArrowRight, ShieldCheck, HelpCircle, Calendar, Tag, Clock
+  Package, CheckCircle, AlertCircle, Loader2, Calendar, Tag, Clock, Send, Info
 } from 'lucide-react';
-import { CyberCard, CyberButton } from '@/components/cyberpunk';
 import { useToast } from '@/components/cyberpunk/CyberToast';
-import { showSuccess } from '@/lib/sweetalert';
-import { useTranslation } from '@/hooks/useTranslation';
+import { showSuccess, showError } from '@/lib/sweetalert';
 
 interface PPPoEProfile {
   id: string;
@@ -20,18 +17,15 @@ interface PPPoEProfile {
   description: string | null;
 }
 
-interface PaymentGateway {
-  id: string;
-  name: string;
-  provider: string;
-  isActive: boolean;
-}
-
 interface CustomerInfo {
   id: string;
   name: string;
   expiredAt: string | null;
-  profile: PPPoEProfile | null;
+  profileName: string;
+  profileId: string;
+  price: number;
+  downloadSpeed: number;
+  uploadSpeed: number;
 }
 
 interface ProrationCalc {
@@ -50,14 +44,10 @@ interface ProrationCalc {
 export default function UpgradePackagePage() {
   const router = useRouter();
   const { addToast } = useToast();
-  const { t } = useTranslation();
 
-  const [currentPackage, setCurrentPackage] = useState<PPPoEProfile | null>(null);
   const [customer, setCustomer] = useState<CustomerInfo | null>(null);
   const [packages, setPackages] = useState<PPPoEProfile[]>([]);
-  const [paymentGateways, setPaymentGateways] = useState<PaymentGateway[]>([]);
   const [selectedPackage, setSelectedPackage] = useState<string>('');
-  const [selectedGateway, setSelectedGateway] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
   const [error, setError] = useState('');
@@ -97,12 +87,11 @@ export default function UpgradePackagePage() {
 
       if (profileRes.ok && profileData.user) {
         setCustomer(profileData.user);
-        setCurrentPackage(profileData.user.profile);
       } else {
         setError(profileData.error || 'Gagal memuat profil');
       }
 
-      // 2. Fetch available packages and pending request
+      // 2. Fetch pending request
       const pkgReqRes = await fetch('/api/customer/upgrade', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -111,6 +100,7 @@ export default function UpgradePackagePage() {
         setPendingRequest(pkgReqData.pendingRequest);
       }
 
+      // 3. Fetch all packages
       const pkgRes = await fetch('/api/public/profiles', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -119,17 +109,6 @@ export default function UpgradePackagePage() {
         setPackages(pkgData.profiles || []);
       }
 
-      // 3. Fetch payment gateways
-      const gwRes = await fetch('/api/public/payment-gateways', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const gwData = await gwRes.json();
-      if (gwRes.ok) {
-        setPaymentGateways(gwData.gateways || []);
-        if (gwData.gateways && gwData.gateways.length > 0) {
-          setSelectedGateway(gwData.gateways[0].provider);
-        }
-      }
     } catch (err) {
       console.error(err);
       setError('Gagal menghubungi server untuk memuat data');
@@ -148,7 +127,9 @@ export default function UpgradePackagePage() {
       const data = await res.json();
       if (data.success) {
         setCalculation(data.calculation);
-        setPendingRequest(data.pendingRequest);
+        if (data.pendingRequest) {
+           setPendingRequest(data.pendingRequest);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -158,8 +139,8 @@ export default function UpgradePackagePage() {
   };
 
   const handleUpgrade = async () => {
-    if (!selectedPackage || !selectedGateway) {
-      setError(t('customer.selectPackageAndPayment'));
+    if (!selectedPackage) {
+      setError('Pilih paket yang ingin diajukan.');
       return;
     }
 
@@ -175,64 +156,24 @@ export default function UpgradePackagePage() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          newProfileId: selectedPackage,
-          gateway: selectedGateway
+          newProfileId: selectedPackage
         })
       });
       const data = await res.json();
 
       if (data.success) {
         showSuccess(
-          `${t('customer.invoiceNo')}: ${data.invoice.invoiceNumber} — ${t('customer.total')}: ${formatCurrency(data.invoice.amount)}`,
-          'Pengajuan Berhasil'
+          data.message || 'Pengajuan berhasil dikirim.',
+          'Pengajuan Terkirim'
         );
-
-        if (data.paymentUrl) {
-          window.location.href = data.paymentUrl;
-        } else {
-          router.push(`/pay/${data.invoice.paymentToken}`);
-        }
+        fetchData(); // Reload to show pending state
+        setSelectedPackage('');
       } else {
+        showError(data.error || 'Gagal memproses pengajuan', 'Error');
         setError(data.error || 'Gagal memproses permintaan');
       }
     } catch (error) {
-      setError('Gagal menghubungi server');
-    } finally {
-      setUpgrading(false);
-    }
-  };
-
-  const handleUpgradeManual = async () => {
-    if (!selectedPackage) {
-      setError(t('customer.selectPackage'));
-      return;
-    }
-
-    setUpgrading(true);
-    setError('');
-    const token = localStorage.getItem('customer_token');
-
-    try {
-      const res = await fetch('/api/customer/upgrade-package', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ packageId: selectedPackage })
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        showSuccess(
-          `${t('customer.invoiceNo')}: ${data.invoice?.invoiceNumber} — ${t('customer.total')}: ${formatCurrency(data.invoice?.amount || 0)}. Silakan upload bukti bayar di halaman riwayat.`,
-          'Invoice Berhasil Dibuat'
-        );
-        router.push('/customer/history');
-      } else {
-        setError(data.error || 'Gagal membuat invoice');
-      }
-    } catch (error) {
+      showError('Gagal menghubungi server', 'Error Jaringan');
       setError('Gagal menghubungi server');
     } finally {
       setUpgrading(false);
@@ -254,274 +195,223 @@ export default function UpgradePackagePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+        <Loader2 className="w-10 h-10 animate-spin text-red-600" />
       </div>
     );
   }
 
   return (
-    <div className="p-3 lg:p-6 space-y-5 w-full">
+    <div className="p-4 lg:p-8 w-full max-w-6xl mx-auto space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-lg font-bold text-white">Ganti Paket Layanan</h1>
-        <p className="text-xs text-neutral-400 mt-0.5">Ubah paket internet Anda secara mandiri dengan perhitungan tarif prorata adil.</p>
+      <div className="border-b border-neutral-200 pb-4">
+        <h1 className="text-2xl font-black text-neutral-900 tracking-tight">Pengajuan Ganti Paket</h1>
+        <p className="text-sm text-neutral-500 mt-1">Ubah paket internet Anda secara mandiri. Invoice akan turun setelah disetujui Admin.</p>
       </div>
 
       {/* Error Alert */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-red-950/40 border border-red-900 rounded-xl">
-          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-          <p className="text-sm text-red-400">{error}</p>
+        <div className="flex items-center gap-3 p-4 bg-red-50 border-l-4 border-red-600 rounded-r-xl">
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <p className="text-sm font-medium text-red-800">{error}</p>
         </div>
       )}
 
       {/* Pending Request Alert */}
       {pendingRequest && (
-        <div className="flex items-center gap-3 p-4 bg-amber-950/40 border border-amber-900 rounded-xl text-amber-400">
-          <Clock className="w-5 h-5 flex-shrink-0 text-amber-500 animate-pulse" />
+        <div className="flex items-start gap-4 p-5 bg-amber-50 border border-amber-200 rounded-xl shadow-sm">
+          <Clock className="w-6 h-6 flex-shrink-0 text-amber-600 animate-pulse mt-0.5" />
           <div>
-            <p className="text-sm font-bold">Pengajuan Ganti Paket Sedang Menunggu Persetujuan</p>
-            <p className="text-xs text-amber-500/80 mt-0.5">Pengajuan ganti paket Anda ke <b>{pendingRequest.newProfileName}</b> sedang diproses oleh Admin. Kami akan mengirimkan rincian invoice ke nomor WhatsApp Anda segera setelah disetujui.</p>
+            <p className="text-base font-bold text-amber-900">Pengajuan Sedang Diproses</p>
+            <p className="text-sm text-amber-800 mt-1 leading-relaxed">
+              Pengajuan pindah ke paket <strong className="text-amber-900">{pendingRequest.newProfileName}</strong> sedang menunggu persetujuan dari Admin. 
+              Invoice penyesuaian akan dikirim otomatis via WhatsApp setelah pengajuan disetujui.
+            </p>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
-        {/* -- LEFT COLUMN: Current package info (2/5) -- */}
-        <div className="lg:col-span-2 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* -- LEFT COLUMN: Current package info (4/12) -- */}
+        <div className="lg:col-span-4 space-y-6">
           {/* Current Package Card */}
-          {currentPackage && (
-            <CyberCard className="bg-neutral-900/80 border-neutral-850 overflow-hidden relative">
-              <div className="h-1.5 w-full bg-gradient-to-r from-red-600 to-red-800" />
-              <div className="p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 bg-red-950/50 rounded-xl border border-red-900 flex items-center justify-center">
-                    <Package className="w-5 h-5 text-red-500" />
-                  </div>
+          {customer && (
+            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
+              <div className="bg-neutral-900 px-5 py-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] text-neutral-400 uppercase tracking-wider block font-bold">Paket Saat Ini</span>
-                    <h2 className="text-base font-bold text-white">{currentPackage.name}</h2>
+                    <span className="text-[10px] text-neutral-400 font-bold tracking-widest uppercase mb-1 block">Paket Saat Ini</span>
+                    <h2 className="text-lg font-black text-white">{customer.profileName}</h2>
                   </div>
+                  <Package className="w-8 h-8 text-neutral-700" />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4 bg-neutral-950 p-4 rounded-xl border border-neutral-850">
-                  <div>
-                    <span className="text-[10px] text-neutral-400 uppercase tracking-wider block font-bold">Kecepatan</span>
-                    <p className="text-sm font-bold text-white mt-0.5">{formatSpeed(currentPackage.downloadSpeed)}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-neutral-400 uppercase tracking-wider block font-bold">Harga Bulanan</span>
-                    <p className="text-sm font-bold text-red-400 mt-0.5">{formatCurrency(currentPackage.price)}</p>
-                  </div>
-                </div>
-
-                {customer?.expiredAt && (
-                  <div className="mt-4 flex items-center gap-2 text-xs text-neutral-300">
-                    <Calendar className="w-4 h-4 text-red-500" />
-                    <span>Aktif s/d {new Date(customer.expiredAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                  </div>
-                )}
               </div>
-            </CyberCard>
+              
+              <div className="p-5">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center border-b border-neutral-100 pb-3">
+                    <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Kecepatan</span>
+                    <span className="text-sm font-black text-neutral-900">{formatSpeed(customer.downloadSpeed)}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-neutral-100 pb-3">
+                    <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Harga Bulanan</span>
+                    <span className="text-sm font-black text-red-600">{formatCurrency(customer.price)}</span>
+                  </div>
+                  {customer.expiredAt && (
+                    <div className="flex justify-between items-center pt-1">
+                      <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Masa Aktif</span>
+                      <span className="text-xs font-bold text-neutral-700 bg-neutral-100 px-2.5 py-1 rounded-md">
+                        {new Date(customer.expiredAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
 
-          {/* Guidelines / Help Card */}
-          <CyberCard className="p-5 bg-neutral-900/80 border-neutral-850">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-red-500" /> Aturan Ganti Paket
+          {/* Guidelines Card */}
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5">
+            <h3 className="text-xs font-black text-neutral-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Info className="w-4 h-4 text-blue-500" /> Informasi Ganti Paket
             </h3>
-            <ul className="text-xs text-neutral-400 space-y-2 list-disc pl-4">
-              <li>Biaya dihitung secara <b>prorata (sisa hari aktif)</b> agar adil bagi pelanggan.</li>
-              <li>Perpindahan paket baru akan langsung aktif setelah tagihan baru lunas dibayarkan.</li>
-              <li>Tanggal jatuh tempo bulanan Anda berikutnya <b>tetap sama</b> seperti paket lama.</li>
-              <li>Downgrade paket ke harga lebih rendah adalah gratis (Rp 0) di portal ini.</li>
+            <ul className="text-sm text-neutral-600 space-y-3">
+              <li className="flex gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
+                <span>Pengajuan ganti paket akan <b>direview oleh Admin</b> terlebih dahulu.</span>
+              </li>
+              <li className="flex gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
+                <span>Setelah disetujui, sistem akan membuatkan invoice <b>Prorata (disesuaikan dengan sisa hari aktif)</b>.</span>
+              </li>
+              <li className="flex gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
+                <span>Paket baru Anda <b>otomatis aktif</b> segera setelah invoice lunas dibayarkan.</span>
+              </li>
             </ul>
-          </CyberCard>
+          </div>
         </div>
 
-        {/* -- RIGHT COLUMN: Package list & calculations (3/5) -- */}
-        <div className="lg:col-span-3 space-y-4">
-          <CyberCard className="bg-neutral-900/80 border-neutral-850">
-            <div className="px-5 pt-5 pb-3 border-b border-neutral-850 flex items-center gap-3">
-              <div className="p-2 bg-red-950/50 rounded-lg border border-red-900 flex items-center justify-center">
-                <Tag className="w-4 h-4 text-red-500" />
+        {/* -- RIGHT COLUMN: Package list & calculations (8/12) -- */}
+        <div className="lg:col-span-8 space-y-6">
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-5 border-b border-neutral-100 bg-neutral-50/50 flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg text-red-600">
+                <Tag className="w-4 h-4" />
               </div>
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Pilih Paket Baru</h2>
+              <h2 className="text-sm font-black text-neutral-900 uppercase tracking-wider">Pilih Paket Baru</h2>
             </div>
 
-            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {packages
-                .filter((pkg) => pkg.id !== currentPackage?.id) // Do not show current package
-                .map((pkg) => {
-                  const isSelected = selectedPackage === pkg.id;
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {packages
+                  .filter((pkg) => pkg.id !== customer?.profileId)
+                  .map((pkg) => {
+                    const isSelected = selectedPackage === pkg.id;
+                    const isDisabled = !!pendingRequest;
 
-                  return (
-                    <button
-                      key={pkg.id}
-                      onClick={() => !pendingRequest && setSelectedPackage(pkg.id)}
-                      disabled={!!pendingRequest}
-                      className={`relative text-left p-4 rounded-xl border-2 transition-all duration-200 overflow-hidden ${
-                        isSelected
-                          ? 'border-red-500 bg-red-500/10 shadow-lg shadow-red-950/20'
-                          : pendingRequest
-                            ? 'border-neutral-900 bg-neutral-950/40 opacity-40 cursor-not-allowed'
-                            : 'border-neutral-800 bg-neutral-950 hover:border-red-900 hover:bg-neutral-900'
-                      }`}
-                    >
-                      {isSelected && (
-                        <div className="absolute top-2 right-2">
-                          <CheckCircle className="w-5 h-5 text-red-500" />
-                        </div>
-                      )}
-                      <div className="flex items-start justify-between mb-1 pr-6">
-                        <h3 className="font-bold text-sm text-white leading-tight">{pkg.name}</h3>
-                      </div>
-                      <p className="text-xs text-neutral-400 mb-3">
-                        {pkg.description || `${formatSpeed(pkg.downloadSpeed)} Unlimited`}
-                      </p>
-                      <p className="text-lg font-bold text-red-400">
-                        {formatCurrency(pkg.price)}<span className="text-[10px] font-normal text-neutral-500">/bulan</span>
-                      </p>
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={pkg.id}
+                        onClick={() => !isDisabled && setSelectedPackage(pkg.id)}
+                        disabled={isDisabled}
+                        className={`relative text-left p-5 rounded-2xl border-2 transition-all duration-200 ${
+                          isSelected
+                            ? 'border-red-600 bg-red-50 shadow-md shadow-red-100'
+                            : isDisabled
+                              ? 'border-neutral-100 bg-neutral-50 opacity-60 cursor-not-allowed'
+                              : 'border-neutral-200 bg-white hover:border-red-300 hover:shadow-sm'
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="absolute top-4 right-4 text-red-600 bg-white rounded-full">
+                            <CheckCircle className="w-6 h-6" />
+                          </div>
+                        )}
+                        <h3 className={`font-black text-base mb-1 ${isSelected ? 'text-red-900' : 'text-neutral-900'}`}>{pkg.name}</h3>
+                        <p className="text-xs font-medium text-neutral-500 mb-4">
+                          {pkg.description || `${formatSpeed(pkg.downloadSpeed)} Unlimited`}
+                        </p>
+                        <p className="text-lg font-black text-red-600">
+                          {formatCurrency(pkg.price)}<span className="text-xs font-semibold text-neutral-500">/bln</span>
+                        </p>
+                      </button>
+                    );
+                  })}
+              </div>
             </div>
-          </CyberCard>
+          </div>
 
           {/* Calculation Breakdown Preview */}
           {selectedPackage && (
-            <CyberCard className="p-5 bg-neutral-900/80 border-neutral-850 space-y-4">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-neutral-850 pb-2">
-                Simulasi Rincian Biaya Prorata
-              </h3>
-
-              {loadingCalc ? (
-                <div className="flex items-center justify-center py-6">
-                  <Loader2 className="w-6 h-6 animate-spin text-red-500 mr-2" />
-                  <span className="text-xs text-neutral-400">Menghitung rincian biaya...</span>
-                </div>
-              ) : calculation ? (
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between items-center text-xs text-neutral-400">
-                    <span>Sisa Masa Aktif Paket Lama:</span>
-                    <span className="font-bold text-white">{calculation.remainingDays} Hari</span>
-                  </div>
-
-                  {calculation.isProrated && (
-                    <>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-neutral-400">Kredit Sisa Paket Lama (Potongan):</span>
-                        <span className="font-semibold text-emerald-400">-{formatCurrency(calculation.oldUnusedValue)}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-neutral-400">Nilai Prorata Paket Baru ({calculation.remainingDays} Hari):</span>
-                        <span className="font-semibold text-white">{formatCurrency(calculation.newProratedCost)}</span>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="flex justify-between items-center text-xs border-t border-neutral-850 pt-2">
-                    <span className="text-neutral-400">Harga Dasar Penyesuaian:</span>
-                    <span className="font-bold text-white">{formatCurrency(calculation.baseAmount)}</span>
-                  </div>
-
-                  {calculation.taxAmount > 0 && (
-                    <div className="flex justify-between items-center text-xs text-neutral-400">
-                      <span>PPN ({calculation.taxRate}%):</span>
-                      <span className="font-semibold text-white">{formatCurrency(calculation.taxAmount)}</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-center font-bold text-white border-t border-red-900/30 pt-3 text-base">
-                    <span>Total Tagihan Baru:</span>
-                    <span className="text-red-400">{formatCurrency(calculation.totalAmount)}</span>
-                  </div>
-                </div>
-              ) : null}
-            </CyberCard>
-          )}
-
-          {/* Payment Gateways */}
-          {selectedPackage && calculation && paymentGateways.length > 0 && (
-            <CyberCard className="bg-neutral-900/80 border-neutral-850">
-              <div className="px-5 pt-5 pb-3 border-b border-neutral-850 flex items-center gap-3">
-                <div className="p-2 bg-red-950/50 rounded-lg border border-red-900 flex items-center justify-center">
-                  <CreditCard className="w-4 h-4 text-red-500" />
-                </div>
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Pilih Metode Pembayaran</h2>
+            <div className="bg-neutral-900 rounded-2xl shadow-xl overflow-hidden text-white border border-neutral-800">
+              <div className="px-6 py-4 border-b border-neutral-800 flex items-center justify-between">
+                <h3 className="text-xs font-black uppercase tracking-widest text-neutral-400">
+                  Estimasi Biaya Prorata
+                </h3>
               </div>
 
-              <div className="p-4 space-y-2">
-                {paymentGateways.map((gateway) => (
-                  <button
-                    key={gateway.id}
-                    onClick={() => setSelectedGateway(gateway.provider)}
-                    className={`w-full text-left p-3.5 rounded-xl border-2 transition-all ${
-                      selectedGateway === gateway.provider
-                        ? 'border-red-500 bg-red-500/10'
-                        : 'border-neutral-800 bg-neutral-950 hover:border-red-900'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-neutral-900 border border-neutral-850 rounded-lg flex items-center justify-center">
-                          <CreditCard className="w-4 h-4 text-red-500" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm text-white">{gateway.name}</p>
-                          <p className="text-[10px] text-neutral-400 capitalize">{gateway.provider}</p>
-                        </div>
-                      </div>
-                      {selectedGateway === gateway.provider && (
-                        <CheckCircle className="w-5 h-5 text-red-500" />
-                      )}
+              <div className="p-6">
+                {loadingCalc ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-neutral-400">
+                    <Loader2 className="w-8 h-8 animate-spin text-red-500 mb-3" />
+                    <span className="text-sm font-medium">Menghitung rincian biaya...</span>
+                  </div>
+                ) : calculation ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-neutral-400">Sisa Masa Aktif Paket Lama</span>
+                      <span className="font-bold">{calculation.remainingDays} Hari</span>
                     </div>
-                  </button>
-                ))}
 
-                {selectedGateway && (
-                  <>
-                    <CyberButton
+                    {calculation.isProrated && (
+                      <>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-neutral-400">Sisa Saldo Paket Lama (Potongan)</span>
+                          <span className="font-bold text-emerald-400">-{formatCurrency(calculation.oldUnusedValue)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-neutral-400">Biaya Paket Baru ({calculation.remainingDays} Hari)</span>
+                          <span className="font-bold">{formatCurrency(calculation.newProratedCost)}</span>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="flex justify-between items-center text-sm border-t border-neutral-800 pt-4">
+                      <span className="text-neutral-400">Harga Dasar Penyesuaian</span>
+                      <span className="font-bold">{formatCurrency(calculation.baseAmount)}</span>
+                    </div>
+
+                    {calculation.taxAmount > 0 && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-neutral-400">PPN ({calculation.taxRate}%)</span>
+                        <span className="font-bold">{formatCurrency(calculation.taxAmount)}</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center font-black text-xl border-t border-neutral-800 pt-4 mt-2">
+                      <span>Estimasi Tagihan Baru</span>
+                      <span className="text-red-500">{formatCurrency(calculation.totalAmount)}</span>
+                    </div>
+                    
+                    <p className="text-[10px] text-neutral-500 text-center pt-2">
+                      *Ini hanya estimasi. Tagihan akhir akan dibuat setelah Admin menyetujui pengajuan Anda.
+                    </p>
+
+                    <button
                       onClick={handleUpgrade}
-                      disabled={upgrading}
-                      className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg shadow-red-900/20"
-                      variant="cyan"
-                      size="lg"
+                      disabled={upgrading || !!pendingRequest}
+                      className="w-full mt-6 bg-red-600 hover:bg-red-700 disabled:bg-neutral-800 disabled:text-neutral-500 text-white font-black py-4 rounded-xl flex items-center justify-center transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] hover:shadow-[0_0_30px_rgba(220,38,38,0.5)] disabled:shadow-none"
                     >
                       {upgrading ? (
-                        <><Loader2 className="w-5 h-5 animate-spin mr-2" />Memproses...</>
+                        <><Loader2 className="w-5 h-5 animate-spin mr-2" />Memproses Pengajuan...</>
                       ) : (
-                        <><CreditCard className="w-5 h-5 mr-2" />Bayar & Ajukan Sekarang</>
+                        <><Send className="w-5 h-5 mr-2" />AJUKAN GANTI PAKET</>
                       )}
-                    </CyberButton>
-                    <p className="text-[10px] text-neutral-400 text-center mt-2">Anda akan dialihkan ke gerbang pembayaran aman untuk menyelesaikan transaksi.</p>
-                  </>
-                )}
+                    </button>
+                  </div>
+                ) : null}
               </div>
-            </CyberCard>
-          )}
-
-          {/* Fallback no gateways */}
-          {selectedPackage && paymentGateways.length === 0 && (
-            <CyberCard className="p-5 bg-neutral-900/80 border-neutral-850">
-              <div className="flex items-start gap-3 mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-yellow-400">Metode pembayaran online tidak tersedia. Hubungi admin atau klik tombol di bawah untuk membuat invoice tagihan manual.</p>
-              </div>
-              <CyberButton
-                onClick={handleUpgradeManual}
-                disabled={upgrading}
-                className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl"
-                variant="cyan"
-                size="lg"
-              >
-                {upgrading ? (
-                  <><Loader2 className="w-5 h-5 animate-spin mr-2" />Memproses...</>
-                ) : (
-                  <><Package className="w-5 h-5 mr-2" />Buat Invoice Manual</>
-                )}
-              </CyberButton>
-            </CyberCard>
+            </div>
           )}
         </div>
       </div>
