@@ -635,13 +635,6 @@ export default function PaymentHistoryPage() {
 
                     {/* Actions */}
                     <div className="flex gap-2 mt-1">
-                      <button
-                        onClick={() => setSelectedDetail(payment)}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg text-xs font-bold text-primary transition-colors flex-shrink-0"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        Detail
-                      </button>
                       {canPay && (
                         <button
                           onClick={() => hasLink ? handlePayLink(payment) : handlePayInvoice(payment)}

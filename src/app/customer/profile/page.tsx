@@ -44,6 +44,38 @@ export default function CustomerProfilePage() {
   const [editPhone, setEditPhone] = useState('');
   const [editEmail, setEditEmail] = useState('');
 
+  // OTP change phone state
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+
+  const handleSendOtp = async () => {
+    if (!editPhone.trim()) {
+      toast('error', 'Validasi', 'Nomor WhatsApp baru wajib diisi');
+      return;
+    }
+    setSendingOtp(true);
+    const token = localStorage.getItem('customer_token');
+    try {
+      const res = await fetch('/api/customer/profile/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ newPhone: editPhone.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setOtpRequested(true);
+        toast('success', 'OTP Terkirim', data.message || 'OTP berhasil dikirim ke nomor baru Anda');
+      } else {
+        toast('error', 'Gagal mengirim OTP', data.error || 'Terjadi kesalahan');
+      }
+    } catch {
+      toast('error', 'Error', 'Gagal mengirim OTP. Periksa koneksi internet Anda.');
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
   // Password change state
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -167,12 +199,24 @@ export default function CustomerProfilePage() {
       toast('error', 'Validasi', 'Format email tidak valid');
       return;
     }
+
+    const payload: any = { email: editEmail.trim() || null };
+    const isPhoneChanged = editPhone.trim() !== (customer?.phone || '');
+    if (isPhoneChanged) {
+      if (!otpCode.trim()) {
+        toast('error', 'Validasi', 'Masukkan kode OTP yang dikirim ke nomor WhatsApp baru Anda');
+        return;
+      }
+      payload.phone = editPhone.trim();
+      payload.phoneOtp = otpCode.trim();
+    }
+
     setSaving(true);
     try {
       const res = await fetch('/api/customer/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ phone: editPhone.trim() || null, email: editEmail.trim() || null }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!data.success) {
@@ -182,6 +226,8 @@ export default function CustomerProfilePage() {
       const u = data.user;
       setCustomer(prev => prev ? { ...prev, name: u.name, phone: u.phone, email: u.email } : prev);
       setEditing(false);
+      setOtpRequested(false);
+      setOtpCode('');
       toast('success', 'Profil diperbarui', 'Data berhasil disimpan');
     } catch {
       toast('error', 'Error', 'Terjadi kesalahan saat menyimpan');
@@ -196,6 +242,8 @@ export default function CustomerProfilePage() {
     setEditPhone(customer.phone || '');
     setEditEmail(customer.email || '');
     setEditing(false);
+    setOtpRequested(false);
+    setOtpCode('');
   };
 
   const getStatusBadge = (status: string) => {
@@ -304,13 +352,45 @@ export default function CustomerProfilePage() {
             <div className="flex-1">
               <p className="text-xs text-accent font-bold uppercase tracking-wide mb-1">{t('profile.phone')}</p>
               {editing ? (
-                <input
-                  type="tel"
-                  value={editPhone}
-                  onChange={e => setEditPhone(e.target.value)}
-                  className="w-full bg-background dark:bg-slate-800/60 border border-border dark:border-slate-600/50 focus:border-cyan-500/60 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors"
-                  placeholder="0812-3456-7890"
-                />
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="tel"
+                      value={editPhone}
+                      onChange={e => {
+                        setEditPhone(e.target.value);
+                        setOtpRequested(false);
+                        setOtpCode('');
+                      }}
+                      className="flex-1 bg-background dark:bg-slate-800/60 border border-border dark:border-slate-600/50 focus:border-cyan-500/60 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors"
+                      placeholder="0812-3456-7890"
+                    />
+                    {editPhone.trim() !== (customer?.phone || '') && (
+                      <button
+                        type="button"
+                        onClick={handleSendOtp}
+                        disabled={sendingOtp}
+                        style={{ backgroundColor: '#00f7ff', color: '#000' }}
+                        className="px-3 py-2 bg-cyan-400 hover:bg-cyan-500 text-black text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+                      >
+                        {sendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Kirim OTP'}
+                      </button>
+                    )}
+                  </div>
+                  {otpRequested && (
+                    <div>
+                      <p className="text-[10px] text-yellow-400 font-bold uppercase tracking-wide mb-1">Kode OTP WhatsApp</p>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={otpCode}
+                        onChange={e => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                        className="w-full bg-background dark:bg-slate-800/60 border border-yellow-500/50 focus:border-yellow-400 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors font-mono text-center tracking-widest font-bold"
+                        placeholder="123456"
+                      />
+                    </div>
+                  )}
+                </div>
               ) : (
                 <p className="text-sm text-foreground">{customer.phone || <span className="text-slate-500 italic text-xs">Belum diisi</span>}</p>
               )}
@@ -318,8 +398,8 @@ export default function CustomerProfilePage() {
           </div>
         </div>
       </CyberCard>
-
-      {/* Package Information + Account Information â€” 2-col on desktop */}
+ 
+      {/* Package Information + Account Information — 2-col on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
       {/* Package Information */}
       {customer.profile && (
@@ -341,7 +421,7 @@ export default function CustomerProfilePage() {
               <div className="flex-1">
                 <p className="text-xs text-accent font-bold uppercase tracking-wide">Kecepatan</p>
                 <p className="text-sm font-medium text-foreground">
-                  â†“ {customer.profile.downloadSpeed} Mbps / â†‘ {customer.profile.uploadSpeed} Mbps
+                  ↓ {customer.profile.downloadSpeed} Mbps / ↑ {customer.profile.uploadSpeed} Mbps
                 </p>
               </div>
             </div>
@@ -359,7 +439,7 @@ export default function CustomerProfilePage() {
           </div>
         </CyberCard>
       )}
-
+ 
       {/* Account Information */}
       <CyberCard className="p-4 bg-card/80 backdrop-blur-xl border-2 border-primary/30 dark:shadow-[0_0_30px_rgba(188,19,254,0.15)] shadow-sm">
         <h2 className="text-sm font-bold text-primary mb-3 flex items-center gap-2 uppercase tracking-wider drop-shadow-[0_0_5px_rgba(188,19,254,0.5)]">
@@ -367,13 +447,6 @@ export default function CustomerProfilePage() {
           {t('profile.accountInfo')}
         </h2>
         <div className="space-y-3">
-          <div className="flex items-start gap-3">
-            <User size={16} className="text-primary mt-0.5" />
-            <div className="flex-1">
-              <p className="text-xs text-accent font-bold uppercase tracking-wide">{t('profile.username')}</p>
-              <p className="text-sm font-mono text-foreground">{customer.username}</p>
-            </div>
-          </div>
           {customer.customerId && (
             <div className="flex items-start gap-3">
               <Shield size={16} className="text-primary mt-0.5" />
@@ -385,7 +458,7 @@ export default function CustomerProfilePage() {
           )}
         </div>
       </CyberCard>
-      </div>{/* end desktop 2-col grid */}
+      </div>
 
       {/* Change Password Card */}
       <CyberCard className="p-4 bg-card/80 backdrop-blur-xl border-2 border-accent/30 dark:shadow-[0_0_30px_rgba(0,247,255,0.15)] shadow-sm">

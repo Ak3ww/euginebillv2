@@ -543,6 +543,7 @@ export default function CustomerWiFiPage() {
             scrolling="no"
             style={{ border: 'none' }}
             allow="geolocation"
+            loading="eager"
           />
         </div>
       </CyberCard>

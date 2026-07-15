@@ -38,9 +38,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the device linked to this PPPoE user
-    const device = await prisma.acsDevice.findFirst({
+    let device = await prisma.acsDevice.findFirst({
       where: { pppoeUserId: user.id }
     });
+
+    // Fallback: search for any device where parameters contain the user's PPPoE username
+    if (!device) {
+      const allDevices = await prisma.acsDevice.findMany();
+      device = allDevices.find(d => {
+        const params = (d.parameters as Record<string, any>) || {};
+        const pppUser = params['InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username'] || '';
+        return pppUser.toLowerCase() === user.username.toLowerCase();
+      }) || null;
+    }
 
     if (!device) {
       return NextResponse.json(

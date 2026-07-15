@@ -113,7 +113,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, phone, email, password } = body;
+    const { name, phone, email, password, phoneOtp } = body;
 
     // Validate
     if (name !== undefined && (typeof name !== 'string' || name.trim().length < 2)) {
@@ -131,9 +131,46 @@ export async function PATCH(request: NextRequest) {
 
     const updateData: Record<string, string> = {};
     if (name !== undefined) updateData.name = name.trim();
-    if (phone !== undefined) updateData.phone = phone.trim();
     if (email !== undefined) updateData.email = email.trim();
     if (password !== undefined && password !== '') updateData.portalPassword = password;
+
+    const user = await prisma.pppoeUser.findUnique({ where: { id: session.userId } });
+    if (!user) {
+      return NextResponse.json({ success: false, message: 'User tidak ditemukan' }, { status: 404 });
+    }
+
+    if (phone !== undefined && phone.trim() !== '') {
+      const cleanNewPhone = phone.replace(/[^0-9]/g, '');
+      const cleanNewPhoneWithCountry = cleanNewPhone.startsWith('0') ? '62' + cleanNewPhone.substring(1) : cleanNewPhone;
+
+      if (cleanNewPhoneWithCountry !== user.phone) {
+        if (!phoneOtp) {
+          return NextResponse.json({ success: false, message: 'Verifikasi OTP diperlukan untuk mengubah nomor HP' }, { status: 400 });
+        }
+
+        const otpRecord = await prisma.customerSession.findFirst({
+          where: {
+            userId: session.userId,
+            phone: cleanNewPhoneWithCountry,
+            otpCode: phoneOtp,
+            otpExpiry: { gte: new Date() },
+            verified: false
+          }
+        });
+
+        if (!otpRecord) {
+          return NextResponse.json({ success: false, message: 'Kode OTP salah atau kadaluarsa' }, { status: 400 });
+        }
+
+        // Mark OTP as verified
+        await prisma.customerSession.update({
+          where: { id: otpRecord.id },
+          data: { verified: true }
+        });
+
+        updateData.phone = cleanNewPhoneWithCountry;
+      }
+    }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ success: false, message: 'Tidak ada perubahan' }, { status: 400 });

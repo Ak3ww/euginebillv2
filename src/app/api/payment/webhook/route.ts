@@ -955,7 +955,7 @@ async function handleAgentDeposit(
 // ============================================
 // HANDLE CUSTOMER TOP-UP (BALANCE)
 // ============================================
-async function handleCustomerTopUp(
+export async function handleCustomerTopUp(
   orderId: string,
   status: string,
   gateway: string,
@@ -1210,7 +1210,7 @@ async function handleCustomerTopUp(
 // ============================================
 // HANDLE INVOICE PAYMENT (PPPOE)
 // ============================================
-async function handleInvoicePayment(
+export async function handleInvoicePayment(
   orderId: string,
   status: string,
   gateway: string,

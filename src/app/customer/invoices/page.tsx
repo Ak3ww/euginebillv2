@@ -340,20 +340,7 @@ export default function CustomerInvoicesPage() {
                           onClick={() => handlePayInvoice(inv)}
                           disabled={isPaying}
                           variant="cyan"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          {isPaying ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <><ExternalLink className="w-3.5 h-3.5 mr-1" />Bayar Online</>
-                          )}
-                        </CyberButton>
-                        <CyberButton
-                          onClick={() => handlePayInvoice(inv)}
-                          disabled={isPaying}
-                          variant="cyan"
-                          className="w-full justify-center"
+                          className="w-full justify-center text-xs"
                           size="sm"
                         >
                           {isPaying ? (
