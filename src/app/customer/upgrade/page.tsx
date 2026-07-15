@@ -111,16 +111,16 @@ export default function UpgradePackagePage() {
         setPendingRequest(pkgReqData.pendingRequest);
       }
 
-      const pkgRes = await fetch('/api/customer/packages', {
+      const pkgRes = await fetch('/api/public/profiles', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const pkgData = await pkgRes.json();
       if (pkgRes.ok) {
-        setPackages(pkgData.packages || []);
+        setPackages(pkgData.profiles || []);
       }
 
       // 3. Fetch payment gateways
-      const gwRes = await fetch('/api/customer/gateways', {
+      const gwRes = await fetch('/api/public/payment-gateways', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const gwData = await gwRes.json();
