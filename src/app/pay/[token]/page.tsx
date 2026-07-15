@@ -65,6 +65,7 @@ export default function PaymentPage() {
   const [vaBank, setVaBank] = useState<string | null>(null);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => { loadInvoice(); }, [token]);
 
@@ -104,7 +105,7 @@ export default function PaymentPage() {
       if (res.ok && data.status === 'settlement') {
         window.location.reload();
       } else {
-        alert('Pembayaran belum terdeteksi. Harap selesaikan pembayaran di aplikasi Anda terlebih dahulu, kemudian coba kembali.');
+        setStatusError('Pembayaran belum terdeteksi. Harap selesaikan pembayaran di aplikasi Anda terlebih dahulu, kemudian coba kembali.');
       }
     } catch {
       window.location.reload();
@@ -686,16 +687,17 @@ export default function PaymentPage() {
               <button 
                 onClick={handleCheckPaymentStatus}
                 disabled={checkingStatus}
+                style={{ backgroundColor: '#000', color: '#fff' }}
                 className="flex-[2] bg-black hover:bg-neutral-900 text-white font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Saya Sudah Bayar
+                {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : null}
+                <span className="text-white">Saya Sudah Bayar</span>
               </button>
             </div>
           </div>
         </div>
       )}
-
+ 
       {/* VA Modal */}
       {vaNumber && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -737,15 +739,25 @@ export default function PaymentPage() {
             <div className="bg-white border border-neutral-200 p-4 rounded-xl mb-6 shadow-sm">
               <BankInstructions bankName={vaBank || ''} vaNumber={vaNumber} />
             </div>
-
-            <button 
-              onClick={handleCheckPaymentStatus}
-              disabled={checkingStatus}
-              className="w-full bg-black hover:bg-neutral-900 text-white font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              Saya Sudah Bayar
-            </button>
+ 
+            <div className="space-y-3">
+              <button 
+                onClick={handleCheckPaymentStatus}
+                disabled={checkingStatus}
+                style={{ backgroundColor: '#000', color: '#fff' }}
+                className="w-full bg-black hover:bg-neutral-900 text-white font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : null}
+                <span className="text-white">Saya Sudah Bayar</span>
+              </button>
+              
+              <button 
+                onClick={() => setVaNumber(null)}
+                className="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold py-3 px-4 rounded-xl transition-all text-sm"
+              >
+                Tutup / Pilih Metode Lain
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -760,6 +772,26 @@ export default function PaymentPage() {
             </div>
             <p className="text-lg font-bold text-neutral-900">Memproses Transaksi...</p>
             <p className="text-sm text-neutral-500 mt-2 text-center">Mohon tunggu, jangan tutup halaman ini.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Beautiful custom alert for unpaid status */}
+      {statusError && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-bold text-neutral-900 mb-2">Belum Terdeteksi</h3>
+            <p className="text-sm text-neutral-500 mb-6">{statusError}</p>
+            <button 
+              onClick={() => setStatusError(null)}
+              style={{ backgroundColor: '#000', color: '#fff' }}
+              className="w-full bg-black hover:bg-neutral-900 text-white font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+              Tutup
+            </button>
           </div>
         </div>
       )}
