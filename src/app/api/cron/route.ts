@@ -57,7 +57,15 @@ export async function POST(request: NextRequest) {
     const company = await dbPrisma.company.findFirst({ select: { radiusEnabled: true } })
     const radiusEnabled = company?.radiusEnabled ?? true
 
-    const radiusOnlyJobs = ['hotspot_sync', 'voucher_sync', 'freeradius_health', 'session_recovery']
+    const radiusOnlyJobs = [
+      'hotspot_sync', 
+      'voucher_sync', 
+      'freeradius_health', 
+      'session_recovery',
+      'pppoe_session_sync',
+      'disconnect_sessions',
+      'auto_isolir_users'
+    ]
     if (!radiusEnabled && radiusOnlyJobs.includes(jobType)) {
       console.log(`[CRON API] Skipping job '${jobType}' because RADIUS is disabled.`)
       return NextResponse.json({
