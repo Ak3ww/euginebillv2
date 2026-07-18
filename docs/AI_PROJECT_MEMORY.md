@@ -12,9 +12,33 @@
 - **Version**: 2.21.0
 - **Status**: Production-ready, deployed di VPS
 - **Last Updated**: April 22, 2026
-- **Latest Commit**: `62b0c88` — fix: PATCH WG updates wg0.conf Address and info.subnet when gatewayIp changes
+- **Latest Commit**: `02f4909` — UI Redesign Customer Portal Cobalt Theme
 - **GitHub**: https://github.com/s4lfanet/EugineBill-radius (public)
 - **Live URL**: https://radius.hotspotapp.net
+
+### Recent Patch Log (July 2026 — Non-RADIUS, ACS, Billing & UI Overhaul)
+
+- **Feat: Customer Portal UI Overhaul (Cobalt Theme)**
+  - Mengubah seluruh antarmuka `/customer/*` menjadi standar *enterprise* (Bento Grid, Hairline tables, Monospace typography).
+  - Melepas komponen terang Cyberpunk, digantikan skema *paper*, *ink*, *cobalt*, dan *rule*.
+  - **Files**: `src/app/customer/page.tsx`, `invoices/page.tsx`, `history/page.tsx`, `profile/page.tsx`, `tickets/page.tsx` dll.
+
+- **Feat: Cetak Invoice (Thermal & A4)**
+  - Menambahkan halaman cetak A4 via `/invoice/[id]/print` dan menyatukan view detail invoice web dengan gaya cetak profesional.
+  - Membatasi fitur cetak hanya untuk invoice lunas dan disembunyikan dari menu pelanggan biasa (hanya via Admin/WebView).
+
+- **Feat: Transfer Manual via "Bank Tujuan"**
+  - Halaman `pay/[token]` kini mendukung pemilihan bank tujuan saat upload bukti bayar.
+  - Memperbaiki bug "Payment Gateway" tumpang tindih dengan mencatat tipe pembayaran manual secara spesifik.
+
+- **Feat: Integrasi TR-069 (GenieACS) di Panel Admin**
+  - Menambahkan antarmuka `/admin/acs` untuk melihat CPE/ONT.
+  - Parsing data parameter Mikrotik/ZTE (`ZteParamMap`) untuk Redaman, SSID, Password WiFi, & PPPoE Credentials.
+  - Memungkinkan pemetaan (mapping) device ACS langsung ke akun PPPoE user.
+
+- **Feat: Migrasi Non-RADIUS (MikroTik Session)**
+  - Menambahkan kapabilitas bagi ISP yang menonaktifkan RADIUS untuk tetap menarik data sesi, *traffic*, dan riwayat (uptime, bytes) via API MikroTik (`mikrotikSession` table).
+  - Mem-bypass *cron jobs* dan endpoint *dashboard stats* yang dulunya bergantung penuh pada `radacct`.
 
 ### Recent Patch Log (April 22, 2026 — VPS Built-in VPN Pool IP Config)
 
