@@ -302,12 +302,8 @@ export default function PaymentHistoryPage() {
   };
 
   const handlePayLink = (payment: PaymentHistory) => {
-    // Gunakan router.push agar tetap dalam app (APK WebView tidak buka browser)
-    if (payment.paymentToken) {
-      router.push(`/pay/${payment.paymentToken}`);
-    } else {
-      router.push('/customer/invoices');
-    }
+    // Gunakan router.push agar tetap dalam app, selalu ke invoice dulu
+    router.push(`/invoice/${payment.invoiceNumber}`);
   };
 
   const handlePrintStandard = async (payment: PaymentHistory) => {

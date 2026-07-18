@@ -164,11 +164,7 @@ export default function CustomerInvoicesPage() {
 
   const handlePayInvoice = async (inv: Invoice) => {
     // Arahkan ke halaman detail invoice (sama tab, agar APK WebView tidak buka browser)
-    if (inv.paymentToken) {
-      router.push(`/pay/${inv.paymentToken}`);
-    } else {
-      router.push(`/invoice/${inv.invoiceNumber}`);
-    }
+    router.push(`/invoice/${inv.invoiceNumber}`);
   };
 
   const handlePage = (p: number) => {

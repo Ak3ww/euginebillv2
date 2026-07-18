@@ -1,5 +1,5 @@
 import { prisma } from '@/server/db/client';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import Link from 'next/link';
 import { Printer, CreditCard } from 'lucide-react';
@@ -27,6 +27,11 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   });
 
   if (!rawInvoice) notFound();
+
+  // Jika invoice sudah lunas, langsung arahkan ke tampilan cetak (agar seragam dengan cetak admin)
+  if (rawInvoice.status === 'PAID' || rawInvoice.paidAt) {
+    redirect(`/invoice/${rawInvoice.invoiceNumber}/print`);
+  }
 
   const companyRaw = await prisma.company.findFirst();
 
