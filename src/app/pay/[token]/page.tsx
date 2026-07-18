@@ -288,8 +288,13 @@ export default function PaymentPage() {
           )}
         </div>
         
-        <a href="/" className="w-full bg-black text-white rounded-xl py-3.5 px-4 text-sm font-bold hover:bg-neutral-900 transition-colors block">Tutup / Kembali</a>
-        <a href="/" className="w-full bg-red-600 text-white rounded-xl py-3.5 px-4 text-sm font-bold hover:bg-red-700 transition-colors block">Tutup / Kembali</a>
+        <a href={`/invoice/${invoice.invoiceNumber}/print`} className="w-full bg-black text-white rounded-xl py-3.5 px-4 text-sm font-bold hover:bg-neutral-900 transition-colors block mb-3 text-center flex items-center justify-center gap-2">
+          <FileText className="w-4 h-4" />
+          Lihat & Unduh Struk
+        </a>
+        <a href="/customer" className="w-full bg-neutral-100 text-neutral-700 rounded-xl py-3.5 px-4 text-sm font-bold hover:bg-neutral-200 transition-colors block text-center">
+          Kembali ke Beranda
+        </a>
       </div>
     </div>
   );
