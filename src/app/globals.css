@@ -15,14 +15,14 @@
   --font-mono: 'JetBrains Mono', monospace;
   --font-body: 'Inter', sans-serif;
 
-  /* Hallmark Cobalt Tokens */
-  --color-paper: oklch(98.5% 0.004 250);
-  --color-ink: oklch(24% 0.02 258);
-  --color-cobalt: oklch(58% 0.20 256);
-  --color-cobalt-hover: oklch(52% 0.20 256);
-  --color-rule: oklch(92% 0.004 250);
-  --color-graphite: oklch(22% 0.016 260);
-  --color-muted: oklch(45% 0.02 258);
+  /* Hallmark Custom Tokens (Enterprise Red/Black/White) */
+  --color-paper: oklch(99% 0 0);
+  --color-ink: oklch(15% 0 0);
+  --color-accent: oklch(55% 0.22 20);
+  --color-accent-hover: oklch(48% 0.22 20);
+  --color-rule: oklch(90% 0 0);
+  --color-graphite: oklch(25% 0 0);
+  --color-muted: oklch(55% 0 0);
 
   /* Extended Breakpoints */
   --breakpoint-2xsm: 375px;

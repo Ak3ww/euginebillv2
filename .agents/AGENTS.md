@@ -1,11 +1,9 @@
 # Workspace Rules
 
-## Strict Cobalt Theme Enforcement
-For ALL UI development, redesigns, or component updates in this workspace (EugineBill), you MUST strictly apply the **Cobalt Theme** using the local `hallmark` skill guidelines.
+## Hallmark Enterprise Standard
+For ALL UI development, redesigns, or component updates in this workspace (EugineBill), you MUST generate a **fresh design** by strictly following the local `hallmark` skill.
 
-**Cobalt Theme Specs to strictly follow:**
-- **Aesthetic**: Formal, clean, enterprise, professional, minimalist.
-- **Colors**: Rely heavily on `paper` (background), `ink` (primary text), `muted` (secondary text), `cobalt` (accents/buttons), and `rule` (borders). Avoid generic bright tailwind colors unless specified.
-- **Typography**: Use sans-serif (`font-display`) for headings and strict monospace (`font-mono`) for data points, IDs, dates, and labels. Heavily utilize uppercase text with wide tracking (`tracking-wider`, `tracking-widest`) for labels.
-- **Layouts**: Use Bento Grids for dashboards and Hairline Tables (borders only, no shadows) for lists.
-- **Components**: Use rounded-corners (e.g., `rounded-[6px]`, `rounded-[10px]`), flat buttons (no heavy shadows), and border-based grouping (`border-rule`) instead of shadow-based cards. No cyberpunk or neon elements.
+**Rules to strictly follow:**
+1. **No Fake Jargon**: Never use fake terminal/hacker text (e.g., `EXEC_PAY`, `TX_LOGS`, `[sys.process]`). Use normal, professional, human-readable Indonesian text for all customer-facing labels (e.g., "Bayar Sekarang", "Riwayat Transaksi").
+2. **Fresh Hallmark Colors**: Do NOT rely on the legacy EugineBill brand colors (Red `#ff2a4b`). Use the `hallmark` skill to pick a fresh theme from its 20-theme catalog (e.g., `editorial`, `modern-minimal`, `specimen`) or generate a completely fresh Custom OKLCH palette that is clean, bold, and elegant.
+3. **Professional Aesthetic**: Focus on hairline borders, proper typography (sans-serif for display, mono for data), and structured layouts (Bento Grids, simple tables) without any cyberpunk gradients or heavy shadows.

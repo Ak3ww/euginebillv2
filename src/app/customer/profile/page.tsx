@@ -284,7 +284,7 @@ export default function CustomerProfilePage() {
       
       {/* Profile Header */}
       <div className="p-6 bg-paper border border-rule rounded-[10px] shadow-sm relative overflow-hidden group">
-        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cobalt/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-accent/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
         <div className="flex items-center gap-5">
           <div className="w-16 h-16 rounded bg-muted/10 border border-rule flex items-center justify-center flex-shrink-0">
             <User size={28} className="text-ink" />
@@ -312,7 +312,7 @@ export default function CustomerProfilePage() {
             </button>
           ) : (
             <div className="flex gap-2">
-              <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 bg-cobalt hover:bg-cobalt-hover text-paper text-[10px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50">
+              <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover text-paper text-[10px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Save className="w-3.5 h-3.5" /> Save</>}
               </button>
               <button onClick={handleCancelEdit} disabled={saving} className="p-1.5 text-muted hover:text-ink transition-colors disabled:opacity-50">
@@ -336,7 +336,7 @@ export default function CustomerProfilePage() {
                   type="email"
                   value={editEmail}
                   onChange={e => setEditEmail(e.target.value)}
-                  className="w-full bg-paper border border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono"
+                  className="w-full bg-paper border border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono"
                   placeholder="name@domain.com"
                 />
               ) : (
@@ -359,7 +359,7 @@ export default function CustomerProfilePage() {
                         setOtpRequested(false);
                         setOtpCode('');
                       }}
-                      className="flex-1 bg-paper border border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono"
+                      className="flex-1 bg-paper border border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono"
                       placeholder="+62..."
                     />
                     {editPhone.trim() !== (customer?.phone || '') && (
@@ -367,9 +367,9 @@ export default function CustomerProfilePage() {
                         type="button"
                         onClick={handleSendOtp}
                         disabled={sendingOtp}
-                        className="px-3 py-2 bg-paper border border-rule hover:border-cobalt/50 text-ink text-[10px] font-mono font-bold rounded-[6px] transition-colors flex items-center gap-1.5 disabled:opacity-50 uppercase"
+                        className="px-3 py-2 bg-paper border border-rule hover:border-accent/50 text-ink text-[10px] font-mono font-bold rounded-[6px] transition-colors flex items-center gap-1.5 disabled:opacity-50 uppercase"
                       >
-                        {sendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'REQ_OTP'}
+                        {sendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Kirim OTP'}
                       </button>
                     )}
                   </div>
@@ -381,7 +381,7 @@ export default function CustomerProfilePage() {
                         maxLength={6}
                         value={otpCode}
                         onChange={e => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
-                        className="w-full bg-paper border border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono text-center tracking-[0.5em] font-bold"
+                        className="w-full bg-paper border border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono text-center tracking-[0.5em] font-bold"
                         placeholder="000000"
                       />
                     </div>
@@ -458,8 +458,8 @@ export default function CustomerProfilePage() {
                 required
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
-                className="w-full bg-paper border border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono"
-                placeholder="MIN_6_CHARS"
+                className="w-full bg-paper border border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono"
+                placeholder="Minimal 6 karakter"
               />
             </div>
             <div>
@@ -469,14 +469,14 @@ export default function CustomerProfilePage() {
                 required
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
-                className="w-full bg-paper border border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono"
-                placeholder="REPEAT_PASSWORD"
+                className="w-full bg-paper border border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono"
+                placeholder="Ulangi password"
               />
             </div>
           </div>
           <div className="flex justify-end pt-2">
-            <button type="submit" disabled={changingPassword} className="flex items-center gap-2 px-4 py-2 bg-paper border border-rule hover:border-cobalt/50 text-ink text-[11px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50 uppercase">
-              {changingPassword ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'UPDATE_KEY'}
+            <button type="submit" disabled={changingPassword} className="flex items-center gap-2 px-4 py-2 bg-paper border border-rule hover:border-accent/50 text-ink text-[11px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50 uppercase">
+              {changingPassword ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Ubah Password'}
             </button>
           </div>
         </form>

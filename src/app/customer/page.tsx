@@ -202,19 +202,19 @@ export default function CustomerDashboard() {
         
         {/* GRAPHITE BAND (Signature 8) */}
         <div className="md:col-span-2 bg-graphite p-6 lg:p-8 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cobalt/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-accent/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
           <div className="flex flex-col h-full justify-between gap-6">
             <div>
-              <p className="text-[10px] font-mono text-cobalt tracking-widest uppercase mb-2">STATUS: {user.status === 'active' ? '200 OK' : '403 FORBIDDEN'}</p>
+              <p className="text-[10px] font-mono text-accent tracking-widest uppercase mb-2">STATUS: {user.status === 'active' ? 'Aktif' : 'Terisolir'}</p>
               <h1 className="text-2xl lg:text-3xl font-display font-medium text-paper tracking-tight">{user.name}</h1>
-              <p className="text-xs font-mono text-paper/60 mt-2">ID: {user.customerId || 'SYS_GEN_ID'}</p>
+              <p className="text-xs font-mono text-paper/60 mt-2">ID: {user.customerId || 'Belum diatur'}</p>
             </div>
             
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-[10px] font-mono text-paper/40 uppercase mb-1">SUBSCRIPTION_TIER</p>
+                <p className="text-[10px] font-mono text-paper/40 uppercase mb-1">Paket Langganan</p>
                 <div className="flex items-center gap-2 text-paper">
-                  <Zap className="w-4 h-4 text-cobalt" />
+                  <Zap className="w-4 h-4 text-accent" />
                   <span className="font-medium text-sm">{user.profile.name}</span>
                   <span className="text-xs font-mono text-paper/60">({user.profile.downloadSpeed}Mbps)</span>
                 </div>
@@ -226,16 +226,16 @@ export default function CustomerDashboard() {
         {/* LIGHT BAND (Status) */}
         <div className="bg-paper p-6 lg:p-8 flex flex-col justify-between border-t md:border-t-0 md:border-l border-rule">
           <div>
-            <p className="text-[10px] font-mono text-muted uppercase mb-1">TTL_REMAINING</p>
+            <p className="text-[10px] font-mono text-muted uppercase mb-1">Berlaku Hingga</p>
             <p className="text-sm font-display font-medium text-ink">{formatWIB(user.expiredAt, 'd MMM yyyy')}</p>
           </div>
           <div className="mt-4">
             <div className={`px-2 py-1 inline-flex rounded text-[10px] font-mono font-bold uppercase tracking-wider border ${
               isExpired ? 'border-red-500/20 text-red-600 bg-red-500/5' :
               daysLeft <= 7 ? 'border-yellow-500/20 text-yellow-600 bg-yellow-500/5' :
-              'border-cobalt/20 text-cobalt bg-cobalt/5'
+              'border-accent/20 text-accent bg-accent/5'
             }`}>
-              {isExpired ? 'ISOLATED' : daysLeft <= 0 ? 'EXPIRES_TODAY' : `${daysLeft} DAYS_LEFT`}
+              {isExpired ? 'Terisolir' : daysLeft <= 0 ? 'Kedaluwarsa Hari Ini' : `Tersisa ${daysLeft} Hari`}
             </div>
           </div>
         </div>
@@ -243,16 +243,16 @@ export default function CustomerDashboard() {
 
       {/* ── QUICK ACTIONS (Bento Grid Bottom) ── */}
       <div>
-        <p className="text-[10px] font-mono font-bold text-muted uppercase tracking-widest mb-3">COMMAND_PALETTE</p>
+        <p className="text-[10px] font-mono font-bold text-muted uppercase tracking-widest mb-3">Menu Utama</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-rule border border-rule rounded-[10px] overflow-hidden shadow-sm">
           {[
-            { label: 'PAY_BILLS', icon: Receipt, href: '/customer/invoices' },
-            { label: 'WIFI_CONFIG', icon: Wifi, href: '/customer/wifi' },
-            { label: 'SUPPORT_TKT', icon: MessageSquare, href: '/customer/tickets' },
-            { label: 'AUTH_CREDS', icon: Key, href: '/customer/profile' },
+            { label: 'Tagihan', icon: Receipt, href: '/customer/invoices' },
+            { label: 'Pengaturan Wi-Fi', icon: Wifi, href: '/customer/wifi' },
+            { label: 'Pusat Bantuan', icon: MessageSquare, href: '/customer/tickets' },
+            { label: 'Profil Akun', icon: Key, href: '/customer/profile' },
           ].map(({ label, icon: Icon, href }) => (
             <button key={href} onClick={() => router.push(href)} className="bg-paper p-5 flex flex-col items-start gap-4 hover:bg-muted/5 transition-colors group">
-              <Icon className="w-5 h-5 text-muted group-hover:text-cobalt transition-colors" />
+              <Icon className="w-5 h-5 text-muted group-hover:text-accent transition-colors" />
               <span className="text-[11px] font-mono font-bold text-ink tracking-wide">{label}</span>
             </button>
           ))}
@@ -265,28 +265,28 @@ export default function CustomerDashboard() {
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              <p className="text-[10px] font-mono font-bold text-red-600 uppercase tracking-widest">PENDING_PAYMENTS</p>
+              <p className="text-[10px] font-mono font-bold text-red-600 uppercase tracking-widest">Menunggu Pembayaran</p>
             </div>
             <div className="space-y-px bg-rule border border-rule rounded-[10px] overflow-hidden shadow-sm">
               {activeUnpaidInvoices.map(invoice => (
                 <div key={invoice.id} className="bg-paper p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <p className="text-[11px] font-mono font-medium text-ink mb-1">{invoice.invoiceNumber}</p>
-                    <p className="text-[10px] font-mono text-muted uppercase">DUE: {formatWIB(invoice.dueDate, 'dd MMM yyyy')}</p>
+                    <p className="text-[10px] font-mono text-muted uppercase">Batas Waktu: {formatWIB(invoice.dueDate, 'dd MMM yyyy')}</p>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="font-display font-semibold text-sm text-ink">{formatCurrency(invoice.amount)}</span>
                     {invoice.paymentToken ? (
                       <button onClick={() => router.push(`/pay/${invoice.paymentToken}`)}
-                        className="px-4 py-2 bg-cobalt hover:bg-cobalt-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors flex items-center gap-1.5">
-                        EXEC_PAY <ExternalLink className="w-3 h-3" />
+                        className="px-4 py-2 bg-accent hover:bg-accent-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors flex items-center gap-1.5">
+                        Bayar Sekarang <ExternalLink className="w-3 h-3" />
                       </button>
                     ) : (
                       <button onClick={() => handleRegeneratePayment(invoice.id, invoice.invoiceNumber)}
                         disabled={generatingPayment === invoice.id}
-                        className="px-4 py-2 bg-paper text-ink border border-rule hover:border-cobalt/50 hover:text-cobalt text-[11px] font-mono font-bold rounded-[6px] transition-colors flex items-center gap-1.5 disabled:opacity-50">
+                        className="px-4 py-2 bg-paper text-ink border border-rule hover:border-accent/50 hover:text-accent text-[11px] font-mono font-bold rounded-[6px] transition-colors flex items-center gap-1.5 disabled:opacity-50">
                         {generatingPayment === invoice.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                        GEN_LINK
+                        Buat Link
                       </button>
                     )}
                   </div>
@@ -298,10 +298,10 @@ export default function CustomerDashboard() {
 
         {/* ── RECENT INVOICES ── */}
         <div>
-          <p className="text-[10px] font-mono font-bold text-muted uppercase tracking-widest mb-3">TX_LOGS</p>
+          <p className="text-[10px] font-mono font-bold text-muted uppercase tracking-widest mb-3">Riwayat Tagihan</p>
           <div className="bg-paper border border-rule rounded-[10px] shadow-sm overflow-hidden">
             {invoices.length === 0 ? (
-              <p className="text-[11px] font-mono text-muted text-center py-8 uppercase">NO_RECORDS_FOUND</p>
+              <p className="text-[11px] font-mono text-muted text-center py-8 uppercase">Belum ada tagihan</p>
             ) : (
               <div className="divide-y divide-rule">
                 {invoices.slice(0, 5).map((invoice) => {

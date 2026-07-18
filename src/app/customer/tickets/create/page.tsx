@@ -210,7 +210,7 @@ export default function CreateTicketPage() {
           <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-6">
             {t('ticket.whatsappNotificationSent')}
           </p>
-          <p className="text-xs font-mono font-bold text-cobalt animate-pulse">
+          <p className="text-xs font-mono font-bold text-accent animate-pulse">
             {t('ticket.redirectingToTicket')}...
           </p>
         </div>
@@ -250,7 +250,7 @@ export default function CreateTicketPage() {
               value={formData.customerName}
               onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
               className={`w-full bg-paper border rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono ${
-                errors.customerName ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20'
+                errors.customerName ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20'
               }`}
               placeholder={t('ticket.enterYourName')}
             />
@@ -269,7 +269,7 @@ export default function CreateTicketPage() {
               value={formData.customerPhone}
               onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
               className={`w-full bg-paper border rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono ${
-                errors.customerPhone ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20'
+                errors.customerPhone ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20'
               }`}
               placeholder="+62..."
             />
@@ -287,7 +287,7 @@ export default function CreateTicketPage() {
               type="email"
               value={formData.customerEmail}
               onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20"
+              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono focus:border-accent/50 focus:ring-1 focus:ring-accent/20"
               placeholder="name@domain.com"
             />
           </div>
@@ -302,7 +302,7 @@ export default function CreateTicketPage() {
               value={formData.subject}
               onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
               className={`w-full bg-paper border rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono ${
-                errors.subject ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20'
+                errors.subject ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20'
               }`}
               placeholder={t('ticket.subjectPlaceholder')}
             />
@@ -319,7 +319,7 @@ export default function CreateTicketPage() {
             <select
               value={formData.categoryId}
               onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-2.5 text-sm font-mono text-ink outline-none transition-all focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 uppercase"
+              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-2.5 text-sm font-mono text-ink outline-none transition-all focus:border-accent/50 focus:ring-1 focus:ring-accent/20 uppercase"
             >
               <option value="">{t('ticket.selectCategory')}</option>
               {categories.map((cat) => (
@@ -340,7 +340,7 @@ export default function CreateTicketPage() {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={6}
               className={`w-full bg-paper border rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono resize-none ${
-                errors.description ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20'
+                errors.description ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20'
               }`}
               placeholder={t('ticket.descriptionPlaceholder')}
             />
@@ -362,7 +362,7 @@ export default function CreateTicketPage() {
               type="text"
               value={formData.locationTag}
               onChange={(e) => setFormData({ ...formData, locationTag: e.target.value })}
-              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20"
+              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono focus:border-accent/50 focus:ring-1 focus:ring-accent/20"
               placeholder="Contoh: Jl. Merdeka No. 10..."
             />
             <div className="flex items-center gap-3 mt-3">
@@ -370,7 +370,7 @@ export default function CreateTicketPage() {
                 type="button"
                 onClick={handleGetGPS}
                 disabled={gpsLoading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-paper border border-rule hover:border-cobalt/50 text-[10px] font-mono font-bold text-ink rounded-[6px] transition-colors disabled:opacity-50 uppercase tracking-wider"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-paper border border-rule hover:border-accent/50 text-[10px] font-mono font-bold text-ink rounded-[6px] transition-colors disabled:opacity-50 uppercase tracking-wider"
               >
                 {gpsLoading ? (
                   <><Loader2 size={12} className="animate-spin" /> MENDAPATKAN LOKASI…</>
@@ -399,7 +399,7 @@ export default function CreateTicketPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-2 bg-cobalt hover:bg-cobalt-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50 uppercase tracking-wider"
+              className="flex items-center gap-2 px-6 py-2 bg-accent hover:bg-accent-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50 uppercase tracking-wider"
             >
               {loading ? (
                 <>

@@ -501,7 +501,7 @@ export default function PaymentHistoryPage() {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'PAID': return { icon: CheckCircle, text: 'PAID', bgColor: 'bg-green-500/10', textColor: 'text-green-600', borderColor: 'border-green-500/20' };
-      case 'PENDING': return { icon: Clock, text: 'PENDING', bgColor: 'bg-cobalt/10', textColor: 'text-cobalt', borderColor: 'border-cobalt/20' };
+      case 'PENDING': return { icon: Clock, text: 'MENUNGGU', bgColor: 'bg-accent/10', textColor: 'text-accent', borderColor: 'border-accent/20' };
       case 'OVERDUE': return { icon: AlertCircle, text: 'OVERDUE', bgColor: 'bg-red-500/10', textColor: 'text-red-600', borderColor: 'border-red-500/20' };
       default: return { icon: Clock, text: status, bgColor: 'bg-muted/10', textColor: 'text-muted', borderColor: 'border-rule' };
     }
@@ -636,16 +636,16 @@ export default function PaymentHistoryPage() {
                       {canPay && (
                         <button
                           onClick={() => hasLink ? handlePayLink(payment) : handlePayInvoice(payment)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-cobalt hover:bg-cobalt-hover rounded-[6px] text-[11px] font-mono font-bold text-paper transition-colors"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-accent hover:bg-accent-hover rounded-[6px] text-[11px] font-mono font-bold text-paper transition-colors"
                         >
                           <CreditCard className="w-3.5 h-3.5" />
-                          EXEC_PAY
+                          Bayar Sekarang
                           {hasLink && <ExternalLink className="w-3 h-3 ml-auto" />}
                         </button>
                       )}
                       {!canPay && !payment.manualPaymentStatus && (
                         <button onClick={() => handlePayInvoice(payment)} className="flex-1 py-2.5 bg-paper border border-rule hover:bg-muted/5 rounded-[6px] text-[11px] font-mono font-bold text-ink transition-colors">
-                          EXEC_PAY
+                          Bayar Sekarang
                         </button>
                       )}
                     </div>
@@ -662,7 +662,7 @@ export default function PaymentHistoryPage() {
         <div className="flex items-center gap-2 mb-2">
           <div className="w-2 h-2 rounded-full bg-green-500" />
           <h2 className="text-[10px] font-mono font-bold text-green-600 uppercase tracking-widest">
-            TX_LOGS_PAID
+            Riwayat Pembayaran Lunas
             <span className="ml-2 px-1.5 py-0.5 bg-green-500/10 text-green-600 rounded border border-green-500/20">{paidPayments.length}</span>
           </h2>
         </div>
@@ -670,7 +670,7 @@ export default function PaymentHistoryPage() {
         {paidPayments.length === 0 ? (
           <div className="p-10 text-center bg-paper border border-rule rounded-[10px] shadow-sm">
             <Banknote className="w-10 h-10 mx-auto mb-2 text-muted/40" />
-            <p className="text-[10px] font-mono text-muted uppercase">NO_PAID_RECORDS</p>
+            <p className="text-[10px] font-mono text-muted uppercase">Belum ada riwayat lunas</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -694,7 +694,7 @@ export default function PaymentHistoryPage() {
                               <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase rounded bg-muted/10 text-muted border border-rule">{invoiceLabel}</span>
                             )}
                           </div>
-                          <p className="text-[9px] font-mono text-muted uppercase mt-0.5">PAID: {formatDate(payment.paidAt || payment.createdAt)}</p>
+                          <p className="text-[9px] font-mono text-muted uppercase mt-0.5">Lunas: {formatDate(payment.paidAt || payment.createdAt)}</p>
                         </div>
                       </div>
                       <button onClick={() => setSelectedDetail(payment)} className="p-1.5 hover:bg-muted/10 rounded text-muted hover:text-ink transition-colors" title="Lihat Detail">

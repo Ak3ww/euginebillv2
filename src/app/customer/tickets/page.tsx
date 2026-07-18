@@ -88,7 +88,7 @@ export default function CustomerTicketsPage() {
 
   const getStatusColor = (status: TicketStatus) => {
     const colors = {
-      OPEN: 'bg-cobalt/10 text-cobalt border border-cobalt/20',
+      OPEN: 'bg-accent/10 text-accent border border-accent/20',
       IN_PROGRESS: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
       WAITING_CUSTOMER: 'bg-purple-500/10 text-purple-600 border border-purple-500/20',
       RESOLVED: 'bg-green-500/10 text-green-600 border border-green-500/20',
@@ -100,7 +100,7 @@ export default function CustomerTicketsPage() {
   const getPriorityColor = (priority: TicketPriority) => {
     const colors = {
       LOW: 'bg-muted/10 text-muted border border-rule',
-      MEDIUM: 'bg-cobalt/10 text-cobalt border border-cobalt/20',
+      MEDIUM: 'bg-accent/10 text-accent border border-accent/20',
       HIGH: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
       URGENT: 'bg-red-500/10 text-red-600 border border-red-500/20',
     };
@@ -121,7 +121,7 @@ export default function CustomerTicketsPage() {
         </div>
         <button
           onClick={() => router.push('/customer/tickets/create')}
-          className="flex items-center gap-1.5 px-3 py-2 bg-cobalt hover:bg-cobalt-hover text-paper text-[10px] font-mono font-bold rounded-[6px] transition-colors uppercase tracking-wider"
+          className="flex items-center gap-1.5 px-3 py-2 bg-accent hover:bg-accent-hover text-paper text-[10px] font-mono font-bold rounded-[6px] transition-colors uppercase tracking-wider"
         >
           <Plus size={14} />
           <span className="hidden sm:inline">{t('common.create')}</span>
@@ -135,7 +135,7 @@ export default function CustomerTicketsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="flex-1 max-w-[200px] border border-rule bg-paper rounded-[6px] px-3 py-1.5 text-xs font-mono text-ink focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 outline-none transition-all uppercase"
+            className="flex-1 max-w-[200px] border border-rule bg-paper rounded-[6px] px-3 py-1.5 text-xs font-mono text-ink focus:border-accent/50 focus:ring-1 focus:ring-accent/20 outline-none transition-all uppercase"
           >
             <option value="all">{t('ticket.allStatus')}</option>
             <option value="OPEN">{t('ticket.status_OPEN')}</option>
@@ -149,7 +149,7 @@ export default function CustomerTicketsPage() {
         {/* Tickets List */}
         {loading ? (
           <div className="text-center py-12 flex justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cobalt"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
           </div>
         ) : tickets.length === 0 ? (
           <div className="p-12 text-center bg-paper border border-rule rounded-[10px] shadow-sm">
@@ -162,7 +162,7 @@ export default function CustomerTicketsPage() {
             </p>
             <button
               onClick={() => router.push('/customer/tickets/create')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-paper border border-rule hover:border-cobalt/50 text-ink text-[10px] font-mono font-bold rounded-[6px] transition-colors uppercase tracking-wider"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-paper border border-rule hover:border-accent/50 text-ink text-[10px] font-mono font-bold rounded-[6px] transition-colors uppercase tracking-wider"
             >
               <Plus size={14} />
               {t('ticket.createFirstTicket')}
@@ -197,7 +197,7 @@ export default function CustomerTicketsPage() {
                         </span>
                       )}
                     </div>
-                    <h3 className="text-base font-display font-medium text-ink mb-3 group-hover:text-cobalt transition-colors truncate">
+                    <h3 className="text-base font-display font-medium text-ink mb-3 group-hover:text-accent transition-colors truncate">
                       {ticket.subject}
                     </h3>
                     <div className="flex items-center gap-4 text-[10px] font-mono text-muted uppercase tracking-wider">

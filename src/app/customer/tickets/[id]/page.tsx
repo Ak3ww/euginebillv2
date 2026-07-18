@@ -144,7 +144,7 @@ export default function TicketDetailPage() {
 
   const getStatusColor = (status: TicketStatus) => {
     const colors = {
-      OPEN: 'bg-cobalt/10 text-cobalt border border-cobalt/20',
+      OPEN: 'bg-accent/10 text-accent border border-accent/20',
       IN_PROGRESS: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
       WAITING_CUSTOMER: 'bg-purple-500/10 text-purple-600 border border-purple-500/20',
       RESOLVED: 'bg-green-500/10 text-green-600 border border-green-500/20',
@@ -156,7 +156,7 @@ export default function TicketDetailPage() {
   const getPriorityColor = (priority: TicketPriority) => {
     const colors = {
       LOW: 'bg-muted/10 text-muted border border-rule',
-      MEDIUM: 'bg-cobalt/10 text-cobalt border border-cobalt/20',
+      MEDIUM: 'bg-accent/10 text-accent border border-accent/20',
       HIGH: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
       URGENT: 'bg-red-500/10 text-red-600 border border-red-500/20',
     };
@@ -165,7 +165,7 @@ export default function TicketDetailPage() {
 
   const getSenderBadgeColor = (senderType: SenderType) => {
     const colors = {
-      CUSTOMER: 'bg-cobalt/10 text-cobalt border border-cobalt/20',
+      CUSTOMER: 'bg-accent/10 text-accent border border-accent/20',
       ADMIN: 'bg-green-500/10 text-green-600 border border-green-500/20',
       TECHNICIAN: 'bg-purple-500/10 text-purple-600 border border-purple-500/20',
       SYSTEM: 'bg-muted/10 text-muted border border-rule',
@@ -176,7 +176,7 @@ export default function TicketDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cobalt"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
       </div>
     );
   }
@@ -190,7 +190,7 @@ export default function TicketDetailPage() {
           </h2>
           <Link
             href="/customer/tickets"
-            className="text-[10px] font-mono font-bold text-cobalt hover:text-cobalt-hover uppercase tracking-wider"
+            className="text-[10px] font-mono font-bold text-accent hover:text-accent-hover uppercase tracking-wider"
           >
             {t('ticket.backToTickets')}
           </Link>
@@ -266,7 +266,7 @@ export default function TicketDetailPage() {
             <div className={`p-4 ${msg.senderType === 'SYSTEM' ? 'bg-muted/5' : ''}`}>
               <div className="flex items-start gap-4">
                 <div className={`flex-shrink-0 w-8 h-8 rounded border flex items-center justify-center ${
-                  msg.senderType === 'CUSTOMER' ? 'bg-cobalt/10 border-cobalt/20 text-cobalt' : 
+                  msg.senderType === 'CUSTOMER' ? 'bg-accent/10 border-accent/20 text-accent' : 
                   msg.senderType === 'ADMIN' ? 'bg-green-500/10 border-green-500/20 text-green-600' :
                   msg.senderType === 'TECHNICIAN' ? 'bg-purple-500/10 border-purple-500/20 text-purple-600' :
                   'bg-muted/10 border-rule text-muted'
@@ -309,7 +309,7 @@ export default function TicketDetailPage() {
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               rows={4}
-              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-3 text-sm font-mono text-ink focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 outline-none transition-all resize-y mb-4"
+              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-3 text-sm font-mono text-ink focus:border-accent/50 focus:ring-1 focus:ring-accent/20 outline-none transition-all resize-y mb-4"
               placeholder={t('ticket.replyPlaceholder')}
               disabled={sending}
             />
@@ -317,7 +317,7 @@ export default function TicketDetailPage() {
               <button
                 type="submit"
                 disabled={sending || !replyText.trim()}
-                className="flex items-center gap-2 px-6 py-2 bg-cobalt hover:bg-cobalt-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50 uppercase tracking-wider"
+                className="flex items-center gap-2 px-6 py-2 bg-accent hover:bg-accent-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50 uppercase tracking-wider"
               >
                 {sending ? (
                   <>

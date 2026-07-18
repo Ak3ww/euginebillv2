@@ -57,14 +57,14 @@ const STATUS_TABS: { key: StatusFilter; label: string; icon: React.ElementType }
 const getStatusBadge = (inv: Invoice) => {
   if (inv.status === 'PAID')    return { label: 'PAID',       cls: 'bg-green-500/10 text-green-600 border-green-500/20' };
   if (inv.status === 'OVERDUE') return { label: 'OVERDUE',    cls: 'bg-red-500/10 text-red-600 border-red-500/20' };
-  if (inv.manualPaymentStatus === 'pending')  return { label: 'VERIFYING', cls: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' };
-  if (inv.manualPaymentStatus === 'rejected') return { label: 'REJECTED',  cls: 'bg-red-500/10 text-red-600 border-red-500/20' };
-  return { label: 'PENDING', cls: 'bg-cobalt/10 text-cobalt border-cobalt/20' };
+  if (inv.manualPaymentStatus === 'pending')  return { label: 'VERIFIKASI', cls: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' };
+  if (inv.manualPaymentStatus === 'rejected') return { label: 'DITOLAK',  cls: 'bg-red-500/10 text-red-600 border-red-500/20' };
+  return { label: 'MENUNGGU', cls: 'bg-accent/10 text-accent border-accent/20' };
 };
 
 const getPaymentSourceBadge = (src: string | null) => {
   switch (src) {
-    case 'gateway': return { label: 'GATEWAY',    Icon: CreditCard,   cls: 'text-cobalt' };
+    case 'gateway': return { label: 'GATEWAY',    Icon: CreditCard,   cls: 'text-accent' };
     case 'manual':  return { label: 'MANUAL',     Icon: Banknote,     cls: 'text-muted' };
     case 'admin':   return { label: 'ADMIN',      Icon: ShieldCheck,  cls: 'text-green-600' };
     default: return null;
@@ -313,10 +313,10 @@ export default function CustomerInvoicesPage() {
                       <button
                         onClick={() => handlePayInvoice(inv)}
                         disabled={isPaying}
-                        className="flex items-center justify-center gap-2 px-4 py-2 bg-cobalt hover:bg-cobalt-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors w-full sm:w-auto"
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors w-full sm:w-auto"
                       >
                         {isPaying ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                        EXEC_PAY
+                        Bayar Sekarang
                       </button>
                     )}
                   </div>
