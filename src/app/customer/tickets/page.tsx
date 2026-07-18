@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -88,134 +88,130 @@ export default function CustomerTicketsPage() {
 
   const getStatusColor = (status: TicketStatus) => {
     const colors = {
-      OPEN: 'bg-accent/20 text-accent border border-accent/40 shadow-[0_0_5px_rgba(0,247,255,0.3)]',
-      IN_PROGRESS: 'bg-primary/20 text-primary border border-primary/40 shadow-[0_0_5px_rgba(188,19,254,0.3)]',
-      WAITING_CUSTOMER: 'bg-warning/20 text-warning border border-warning/40 shadow-[0_0_5px_rgba(255,170,0,0.3)]',
-      RESOLVED: 'bg-success/20 text-success border border-success/40 shadow-[0_0_5px_rgba(0,255,136,0.3)]',
-      CLOSED: 'bg-muted text-muted-foreground border border-border',
+      OPEN: 'bg-cobalt/10 text-cobalt border border-cobalt/20',
+      IN_PROGRESS: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
+      WAITING_CUSTOMER: 'bg-purple-500/10 text-purple-600 border border-purple-500/20',
+      RESOLVED: 'bg-green-500/10 text-green-600 border border-green-500/20',
+      CLOSED: 'bg-muted/10 text-muted border border-rule',
     };
     return colors[status] || colors.OPEN;
   };
 
   const getPriorityColor = (priority: TicketPriority) => {
     const colors = {
-      LOW: 'bg-muted text-muted-foreground border border-border',
-      MEDIUM: 'bg-primary/20 text-primary border border-primary/40',
-      HIGH: 'bg-warning/20 text-warning border border-warning/40',
-      URGENT: 'bg-destructive/20 text-destructive border border-destructive/40 shadow-[0_0_5px_rgba(255,51,102,0.3)]',
+      LOW: 'bg-muted/10 text-muted border border-rule',
+      MEDIUM: 'bg-cobalt/10 text-cobalt border border-cobalt/20',
+      HIGH: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
+      URGENT: 'bg-red-500/10 text-red-600 border border-red-500/20',
     };
     return colors[priority] || colors.MEDIUM;
   };
 
   return (
-    <div className="p-3 lg:p-5 space-y-3 w-full">
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-6 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center pb-4 border-b border-rule">
         <div>
-          <h1 className="text-xl font-bold text-primary uppercase tracking-wider drop-shadow-[0_0_8px_rgba(188,19,254,0.6)]">
+          <h1 className="text-xl lg:text-2xl font-display font-medium text-ink">
             {t('ticket.myTickets')}
           </h1>
-          <p className="text-sm text-accent/70 mt-0.5">
+          <p className="text-[10px] font-mono text-muted uppercase mt-1">
             {t('ticket.manageYourTickets')}
           </p>
         </div>
-        <CyberButton
+        <button
           onClick={() => router.push('/customer/tickets/create')}
-          size="sm"
-          className="flex items-center gap-1.5"
+          className="flex items-center gap-1.5 px-3 py-2 bg-cobalt hover:bg-cobalt-hover text-paper text-[10px] font-mono font-bold rounded-[6px] transition-colors uppercase tracking-wider"
         >
-          <Plus size={18} />
+          <Plus size={14} />
           <span className="hidden sm:inline">{t('common.create')}</span>
-        </CyberButton>
+        </button>
       </div>
 
       <div>
         {/* Filters */}
-        <CyberCard className="p-4 mb-6 bg-card/80 backdrop-blur-xl border-2 border-primary/30">
-          <div className="flex items-center gap-4">
-            <Filter size={20} className="text-accent drop-shadow-[0_0_5px_rgba(0,247,255,0.5)]" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="border-2 border-primary/30 bg-input rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-            >
-              <option value="all">{t('ticket.allStatus')}</option>
-              <option value="OPEN">{t('ticket.status_OPEN')}</option>
-              <option value="IN_PROGRESS">{t('ticket.status_IN_PROGRESS')}</option>
-              <option value="WAITING_CUSTOMER">{t('ticket.status_WAITING_CUSTOMER')}</option>
-              <option value="RESOLVED">{t('ticket.status_RESOLVED')}</option>
-              <option value="CLOSED">{t('ticket.status_CLOSED')}</option>
-            </select>
-          </div>
-        </CyberCard>
+        <div className="p-4 mb-6 bg-paper border border-rule rounded-[10px] shadow-sm flex items-center gap-4">
+          <Filter size={16} className="text-muted" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="flex-1 max-w-[200px] border border-rule bg-paper rounded-[6px] px-3 py-1.5 text-xs font-mono text-ink focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 outline-none transition-all uppercase"
+          >
+            <option value="all">{t('ticket.allStatus')}</option>
+            <option value="OPEN">{t('ticket.status_OPEN')}</option>
+            <option value="IN_PROGRESS">{t('ticket.status_IN_PROGRESS')}</option>
+            <option value="WAITING_CUSTOMER">{t('ticket.status_WAITING_CUSTOMER')}</option>
+            <option value="RESOLVED">{t('ticket.status_RESOLVED')}</option>
+            <option value="CLOSED">{t('ticket.status_CLOSED')}</option>
+          </select>
+        </div>
 
         {/* Tickets List */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto shadow-[0_0_15px_rgba(188,19,254,0.5)]"></div>
-            <p className="text-accent mt-4">{t('ticket.loading')}</p>
+          <div className="text-center py-12 flex justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cobalt"></div>
           </div>
         ) : tickets.length === 0 ? (
-          <CyberCard className="p-12 text-center bg-card/80 backdrop-blur-xl border-2 border-primary/30">
-            <Ticket size={48} className="text-primary mx-auto mb-4 drop-shadow-[0_0_10px_rgba(188,19,254,0.5)]" />
-            <h3 className="text-lg font-bold text-primary mb-2 uppercase tracking-wider">
+          <div className="p-12 text-center bg-paper border border-rule rounded-[10px] shadow-sm">
+            <Ticket size={32} className="text-muted/40 mx-auto mb-4" />
+            <h3 className="text-sm font-display font-medium text-ink mb-1 uppercase tracking-widest">
               {t('ticket.noTickets')}
             </h3>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-[10px] font-mono text-muted uppercase mb-6 tracking-wider">
               {t('ticket.noTicketsDescription')}
             </p>
-            <CyberButton
+            <button
               onClick={() => router.push('/customer/tickets/create')}
-              className="inline-flex items-center gap-2"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-paper border border-rule hover:border-cobalt/50 text-ink text-[10px] font-mono font-bold rounded-[6px] transition-colors uppercase tracking-wider"
             >
-              <Plus size={20} />
+              <Plus size={14} />
               {t('ticket.createFirstTicket')}
-            </CyberButton>
-          </CyberCard>
+            </button>
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {tickets.map((ticket) => (
-              <CyberCard
+              <div
                 key={ticket.id}
                 onClick={() => router.push(`/customer/tickets/${ticket.id}`)}
-                className="p-6 cursor-pointer bg-card/80 backdrop-blur-xl border-2 border-primary/30 hover:border-accent/50 hover:shadow-[0_0_30px_rgba(0,247,255,0.2)] transition-all"
+                className="p-5 cursor-pointer bg-paper border border-rule hover:bg-muted/5 rounded-[10px] shadow-sm transition-colors group"
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <span className="text-sm font-mono text-accent font-bold">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-3 flex-wrap">
+                      <span className="text-[11px] font-mono text-ink font-bold tracking-wide">
                         #{ticket.ticketNumber}
                       </span>
-                      <span className={`px-3 py-1 rounded-lg text-xs font-bold ${getStatusColor(ticket.status)}`}>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${getStatusColor(ticket.status)}`}>
                         {t(`ticket.status_${ticket.status}`)}
                       </span>
-                      <span className={`px-3 py-1 rounded-lg text-xs font-bold ${getPriorityColor(ticket.priority)}`}>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${getPriorityColor(ticket.priority)}`}>
                         {t(`ticket.priority_${ticket.priority}`)}
                       </span>
                       {ticket.category && (
                         <span
-                          className="px-3 py-1 rounded-lg text-xs font-bold text-white border"
-                          style={{ backgroundColor: ticket.category.color, borderColor: ticket.category.color }}
+                          className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-muted/10 border"
+                          style={{ color: ticket.category.color, borderColor: ticket.category.color + '40' }}
                         >
                           {ticket.category.name}
                         </span>
                       )}
                     </div>
-                    <h3 className="text-lg font-bold text-white mb-2">
+                    <h3 className="text-base font-display font-medium text-ink mb-3 group-hover:text-cobalt transition-colors truncate">
                       {ticket.subject}
                     </h3>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <MessageSquare size={16} className="text-accent" />
+                    <div className="flex items-center gap-4 text-[10px] font-mono text-muted uppercase tracking-wider">
+                      <div className="flex items-center gap-1.5">
+                        <MessageSquare size={12} />
                         <span>{ticket._count.messages} {t('ticket.messages')}</span>
                       </div>
-                      <span>
-                        {t('ticket.created')}: {formatWIB(ticket.createdAt, 'd MMM yyyy HH:mm')}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span>{formatWIB(ticket.createdAt, 'dd MMM yyyy HH:mm')}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </CyberCard>
+              </div>
             ))}
           </div>
         )}

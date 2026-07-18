@@ -55,18 +55,18 @@ const STATUS_TABS: { key: StatusFilter; label: string; icon: React.ElementType }
 ];
 
 const getStatusBadge = (inv: Invoice) => {
-  if (inv.status === 'PAID')    return { label: 'Lunas',       cls: 'bg-green-500/20 text-green-400 border-green-500/30' };
-  if (inv.status === 'OVERDUE') return { label: 'Jatuh Tempo', cls: 'bg-red-500/20 text-red-400 border-red-500/30' };
-  if (inv.manualPaymentStatus === 'pending')  return { label: 'Menunggu Konfirmasi', cls: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' };
-  if (inv.manualPaymentStatus === 'rejected') return { label: 'Ditolak',            cls: 'bg-red-500/20 text-red-400 border-red-500/30' };
-  return { label: 'Belum Bayar', cls: 'bg-orange-500/20 text-orange-400 border-orange-500/30' };
+  if (inv.status === 'PAID')    return { label: 'PAID',       cls: 'bg-green-500/10 text-green-600 border-green-500/20' };
+  if (inv.status === 'OVERDUE') return { label: 'OVERDUE',    cls: 'bg-red-500/10 text-red-600 border-red-500/20' };
+  if (inv.manualPaymentStatus === 'pending')  return { label: 'VERIFYING', cls: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' };
+  if (inv.manualPaymentStatus === 'rejected') return { label: 'REJECTED',  cls: 'bg-red-500/10 text-red-600 border-red-500/20' };
+  return { label: 'PENDING', cls: 'bg-cobalt/10 text-cobalt border-cobalt/20' };
 };
 
 const getPaymentSourceBadge = (src: string | null) => {
   switch (src) {
-    case 'gateway': return { label: 'Payment Gateway',    Icon: CreditCard,   cls: 'text-cyan-400' };
-    case 'manual':  return { label: 'Transfer Bank',      Icon: Banknote,     cls: 'text-purple-400' };
-    case 'admin':   return { label: 'Dikonfirmasi Admin', Icon: ShieldCheck,  cls: 'text-green-400' };
+    case 'gateway': return { label: 'GATEWAY',    Icon: CreditCard,   cls: 'text-cobalt' };
+    case 'manual':  return { label: 'MANUAL',     Icon: Banknote,     cls: 'text-muted' };
+    case 'admin':   return { label: 'ADMIN',      Icon: ShieldCheck,  cls: 'text-green-600' };
     default: return null;
   }
 };
@@ -186,22 +186,22 @@ export default function CustomerInvoicesPage() {
 
   // --- Render --------------------------------------------------------------
   return (
-    <div className="p-4 lg:p-6 space-y-4 w-full">
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-6 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pb-4 border-b border-rule">
         <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-cyan-400" />
-            Tagihan
+          <h1 className="text-xl lg:text-2xl font-display font-medium text-ink flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-cobalt" />
+            Billing Records
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">{pagination.total} tagihan ditemukan</p>
+          <p className="text-[10px] font-mono text-muted uppercase mt-1">FOUND {pagination.total} ENTRIES</p>
         </div>
         <button
           onClick={() => { setRefreshing(true); fetchInvoices(currentPage.current, statusFilter); }}
           disabled={refreshing || loading}
-          className="p-2 rounded-xl border border-cyan-500/30 hover:bg-cyan-500/10 transition-all disabled:opacity-50"
+          className="p-2 rounded border border-rule hover:bg-muted/10 transition-colors disabled:opacity-50"
         >
-          <RefreshCw className={`w-4 h-4 text-cyan-400 ${refreshing ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 text-ink ${refreshing ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
@@ -214,10 +214,10 @@ export default function CustomerInvoicesPage() {
             <button
               key={tab.key}
               onClick={() => setStatusFilter(tab.key)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider whitespace-nowrap transition-colors border ${
                 active
-                  ? 'bg-cyan-500/15 text-cyan-400 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.15)]'
-                  : 'text-slate-400 border-slate-700/50 hover:border-slate-600 hover:text-slate-300'
+                  ? 'bg-cobalt/5 text-cobalt border-cobalt/20'
+                  : 'bg-paper text-muted border-rule hover:bg-muted/5 hover:text-ink'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -228,149 +228,141 @@ export default function CustomerInvoicesPage() {
       </div>
 
       {/* Invoice List */}
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="animate-spin w-10 h-10 border-2 border-cyan-400 border-t-transparent rounded-full mx-auto" />
-            <p className="mt-3 text-slate-400 text-sm">Memuat tagihan…</p>
+      <div className="bg-paper border border-rule rounded-[10px] overflow-hidden shadow-sm min-h-[400px]">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-24 text-muted">
+            <Loader2 className="w-6 h-6 animate-spin mb-4" />
+            <p className="text-[10px] font-mono uppercase tracking-widest">Fetching records...</p>
           </div>
-        </div>
-      ) : invoices.length === 0 ? (
-        <CyberCard className="text-center py-16">
-          <Receipt className="w-14 h-14 mx-auto text-slate-600 mb-4" />
-          <p className="text-slate-400 font-medium">Tidak ada tagihan</p>
-          <p className="text-slate-500 text-sm mt-1">
-            {statusFilter !== 'all' ? 'Coba pilih filter lain' : 'Belum ada tagihan tercatat'}
-          </p>
-        </CyberCard>
-      ) : (
-        <div className="space-y-3">
-          {invoices.map(inv => {
-            const statusBadge = getStatusBadge(inv);
-            const srcBadge    = getPaymentSourceBadge(inv.paymentSource);
-            const payable     = isPayable(inv);
-            const isPaying    = paying === inv.id;
+        ) : invoices.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-muted">
+            <Receipt className="w-10 h-10 mb-4 opacity-50" />
+            <p className="text-xs font-medium text-ink">NO_RECORDS_FOUND</p>
+            <p className="text-[10px] font-mono uppercase mt-1">
+              {statusFilter !== 'all' ? 'Try adjusting filters' : 'System log is empty'}
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-rule">
+            {invoices.map(inv => {
+              const statusBadge = getStatusBadge(inv);
+              const srcBadge    = getPaymentSourceBadge(inv.paymentSource);
+              const payable     = isPayable(inv);
+              const isPaying    = paying === inv.id;
 
-            return (
-              <CyberCard key={inv.id} className="hover:border-cyan-500/30 transition-colors">
-                <div className="p-4 sm:p-5 flex items-start justify-between gap-3">
+              return (
+                <div key={inv.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-muted/5 transition-colors">
                   <div className="flex-1 min-w-0">
                     {/* Invoice number + type */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-cyan-400 font-mono">{inv.invoiceNumber}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-700/50 text-slate-400 border border-slate-600/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[11px] font-bold text-ink font-mono tracking-wide">{inv.invoiceNumber}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded font-mono uppercase tracking-wider bg-muted/10 text-muted border border-rule">
                         {INVOICE_TYPE_LABEL[inv.invoiceType] || inv.invoiceType}
                       </span>
                     </div>
 
                     {inv.profileName && (
-                      <p className="text-xs text-slate-400 mt-1">Paket: {inv.profileName}</p>
+                      <p className="text-[10px] font-mono text-muted uppercase">Plan: {inv.profileName}</p>
                     )}
 
                     {/* Amount */}
-                    <p className="text-lg font-bold text-white mt-1">
+                    <p className="text-lg font-display font-semibold text-ink mt-2">
                       Rp {inv.amount.toLocaleString('id-ID')}
                     </p>
 
                     {/* Dates */}
                     <div className="flex items-center gap-4 mt-2 flex-wrap">
-                      <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                        <CalendarClock className="w-3 h-3" />
-                        Jatuh tempo: {formatWIB(inv.dueDate, 'd MMM yyyy')}
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted uppercase">
+                        <CalendarClock className="w-3.5 h-3.5" />
+                        DUE: {formatWIB(inv.dueDate, 'dd MMM yyyy')}
                       </div>
                       {inv.paidAt && (
-                        <div className="flex items-center gap-1 text-[11px] text-green-500">
-                          <CheckCircle className="w-3 h-3" />
-                          Lunas: {formatWIB(inv.paidAt, 'd MMM yyyy')}
+                        <div className="flex items-center gap-1.5 text-[10px] font-mono text-green-600 uppercase">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          PAID: {formatWIB(inv.paidAt, 'dd MMM yyyy')}
                         </div>
                       )}
                     </div>
 
                     {/* Payment source + manual status */}
-                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                    <div className="flex items-center gap-3 mt-3 flex-wrap">
                       {srcBadge && (
-                        <div className={`flex items-center gap-1 text-[10px] font-medium ${srcBadge.cls}`}>
+                        <div className={`flex items-center gap-1 text-[9px] font-mono font-bold uppercase ${srcBadge.cls}`}>
                           <srcBadge.Icon className="w-3 h-3" />
                           {srcBadge.label}
                         </div>
                       )}
                       {inv.manualPaymentStatus === 'pending' && (
-                        <span className="flex items-center gap-1 text-[10px] text-yellow-400 animate-pulse font-medium">
+                        <span className="flex items-center gap-1 text-[9px] font-mono font-bold uppercase text-yellow-600 animate-pulse">
                           <Clock className="w-3 h-3" />
-                          Menunggu konfirmasi admin…
+                          VERIFYING_PAYMENT...
                         </span>
                       )}
                       {inv.manualPaymentBank && (
-                        <span className="text-[10px] text-slate-500">via {inv.manualPaymentBank}</span>
+                        <span className="text-[9px] font-mono text-muted uppercase">VIA: {inv.manualPaymentBank}</span>
                       )}
                     </div>
                   </div>
 
                   {/* Right: status badge + pay button */}
-                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap ${statusBadge.cls}`}>
+                  <div className="flex flex-col sm:items-end gap-3 flex-shrink-0 mt-4 sm:mt-0">
+                    <span className={`text-[9px] font-mono font-bold px-2 py-1 rounded uppercase tracking-wider border ${statusBadge.cls}`}>
                       {statusBadge.label}
                     </span>
                     {payable && (
-                      <div className="flex flex-col gap-1.5">
-                        <button
-                          onClick={() => handlePayInvoice(inv)}
-                          disabled={paying === inv.id}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-lg transition-colors"
-                        >
-                          {paying === inv.id ? (
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <CreditCard className="w-3.5 h-3.5" />
-                          )}
-                          Lihat Tagihan
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handlePayInvoice(inv)}
+                        disabled={isPaying}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-cobalt hover:bg-cobalt-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors w-full sm:w-auto"
+                      >
+                        {isPaying ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                        EXEC_PAY
+                      </button>
                     )}
                   </div>
                 </div>
-              </CyberCard>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Pagination */}
       {!loading && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3 pt-2">
+        <div className="flex items-center justify-center gap-4 pt-2">
           <button
             onClick={() => handlePage(pagination.page - 1)}
             disabled={pagination.page <= 1}
-            className="p-2 rounded-xl border border-slate-700 hover:border-cyan-500/40 hover:bg-cyan-500/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2 rounded border border-rule bg-paper hover:bg-muted/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <ChevronLeft className="w-4 h-4 text-slate-300" />
+            <ChevronLeft className="w-4 h-4 text-ink" />
           </button>
-          <span className="text-sm text-slate-400">
-            Halaman <span className="font-bold text-white">{pagination.page}</span> / {pagination.totalPages}
+          <span className="text-[11px] font-mono text-muted uppercase">
+            PAGE <span className="font-bold text-ink">{pagination.page}</span> OF {pagination.totalPages}
           </span>
           <button
             onClick={() => handlePage(pagination.page + 1)}
             disabled={pagination.page >= pagination.totalPages}
-            className="p-2 rounded-xl border border-slate-700 hover:border-cyan-500/40 hover:bg-cyan-500/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2 rounded border border-rule bg-paper hover:bg-muted/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <ChevronRight className="w-4 h-4 text-slate-300" />
+            <ChevronRight className="w-4 h-4 text-ink" />
           </button>
         </div>
       )}
 
       <SimpleModal isOpen={printDialogInvoice !== null} onClose={() => setPrintDialogInvoice(null)} size="sm">
         <ModalHeader>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-full bg-primary/15 border border-primary/30">
-              <Printer className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded bg-muted/10 border border-rule">
+              <Printer className="w-4 h-4 text-ink" />
             </div>
             <div>
-              <ModalTitle>Pilih Jenis Printer</ModalTitle>
-              <ModalDescription className="font-mono">{printDialogInvoice?.invoiceNumber}</ModalDescription>
+              <ModalTitle>Print Output Target</ModalTitle>
+              <ModalDescription className="font-mono text-[10px] mt-1">{printDialogInvoice?.invoiceNumber}</ModalDescription>
             </div>
           </div>
         </ModalHeader>
-        <ModalBody className="space-y-2 pb-2">
+        <ModalBody className="space-y-2 pb-4">
           <button
             onClick={() => {
               if (!printDialogInvoice) return;
@@ -378,12 +370,12 @@ export default function CustomerInvoicesPage() {
               setPrintDialogInvoice(null);
               void handlePrintStandard(invoiceId);
             }}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+            className="flex items-center gap-3 w-full px-4 py-3 rounded border border-rule hover:bg-muted/5 text-ink transition-colors"
           >
-            <FileText className="w-5 h-5 flex-shrink-0" />
+            <FileText className="w-5 h-5 text-muted flex-shrink-0" />
             <div className="text-left">
-              <div className="text-sm font-bold">Standar Printer</div>
-              <div className="text-[11px] opacity-80">A4 / Letter - invoice lengkap</div>
+              <div className="text-sm font-display font-medium">Standard A4</div>
+              <div className="text-[10px] font-mono text-muted mt-0.5">FULL_DOCUMENT</div>
             </div>
           </button>
           <button
@@ -393,20 +385,16 @@ export default function CustomerInvoicesPage() {
               setPrintDialogInvoice(null);
               void handlePrintThermal(invoiceId);
             }}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+            className="flex items-center gap-3 w-full px-4 py-3 rounded border border-rule hover:bg-muted/5 text-ink transition-colors"
           >
-            <Printer className="w-5 h-5 flex-shrink-0" />
+            <Printer className="w-5 h-5 text-muted flex-shrink-0" />
             <div className="text-left">
-              <div className="text-sm font-bold">Thermal Printer</div>
-              <div className="text-[11px] opacity-80">58mm / 80mm - struk kasir</div>
+              <div className="text-sm font-display font-medium">Thermal Receipt</div>
+              <div className="text-[10px] font-mono text-muted mt-0.5">58mm_POS_FORMAT</div>
             </div>
           </button>
         </ModalBody>
-        <ModalFooter>
-          <ModalButton variant="secondary" onClick={() => setPrintDialogInvoice(null)}>Batal</ModalButton>
-        </ModalFooter>
       </SimpleModal>
-
 
     </div>
   );

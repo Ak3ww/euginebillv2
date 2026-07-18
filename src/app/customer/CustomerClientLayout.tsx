@@ -235,64 +235,56 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background relative">
-      {/* Background Effects */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0" style={{ willChange: 'transform' }}>
-        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[80px]" style={{ transform: 'translateZ(0)' }} />
-        <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-blue-500/10 rounded-full blur-[80px]" style={{ transform: 'translateZ(0)' }} />
-        <div className="absolute top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] w-[50%] h-[50%] bg-sky-400/10 rounded-full blur-[100px]" />
-        <div className="hidden dark:block absolute inset-0 bg-[linear-gradient(rgba(70,95,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(70,95,255,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
-      </div>
-
+    <div className="min-h-screen bg-paper text-ink font-body relative flex">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* â”€â”€ DESKTOP SIDEBAR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── N3 SIDE-RAIL DESKTOP ── */}
       <aside
         className={cn(
-          'fixed top-0 left-0 h-full z-50 transition-all duration-300 ease-in-out',
-          'w-64 bg-sidebar backdrop-blur-xl border-r border-sidebar-border',
-          'shadow-lg flex flex-col',
+          'fixed top-0 left-0 h-full z-50 transition-transform duration-300 ease-out',
+          'w-64 bg-paper border-r border-rule',
+          'flex flex-col',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
           'lg:translate-x-0'
         )}
       >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-sidebar-border">
+        <div className="p-5 border-b border-rule">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {companyLogo ? (
-                <div className="w-9 h-9 rounded-lg bg-sidebar-accent p-1 border border-sidebar-border flex items-center justify-center overflow-hidden shadow-sm">
-                  <Image unoptimized src={companyLogo} alt={companyName} width={36} height={36} className="w-full h-full object-contain" decoding="async" />
+                <div className="w-8 h-8 rounded bg-paper border border-rule p-1 flex flex-shrink-0 items-center justify-center overflow-hidden">
+                  <Image unoptimized src={companyLogo} alt={companyName} width={32} height={32} className="w-full h-full object-contain" decoding="async" />
                 </div>
               ) : (
-                <div className="w-9 h-9 rounded-lg bg-sidebar-accent p-1 border border-sidebar-border flex items-center justify-center shadow-sm">
-                  <Shield className="w-5 h-5 text-sidebar-primary" />
+                <div className="w-8 h-8 rounded bg-paper border border-rule p-1 flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-4 h-4 text-ink" />
                 </div>
               )}
-              <div>
-                <h1 className="text-sm font-bold text-sidebar-primary">
-                  {companyName}
+              <div className="min-w-0">
+                <h1 className="text-sm font-display font-semibold text-ink truncate">
+                  {companyName || 'EugineBill'}
                 </h1>
-                <p className="text-[10px] text-brand-600 dark:text-brand-400/60 tracking-widest font-bold uppercase">Customer Portal</p>
+                <p className="text-[10px] font-mono text-muted tracking-widest uppercase truncate">Customer Portal</p>
               </div>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="p-1.5 hover:bg-sidebar-accent rounded-lg lg:hidden"
+              className="p-1 hover:bg-muted/10 rounded lg:hidden"
             >
-              <X className="w-4 h-4 text-sidebar-foreground" />
+              <X className="w-4 h-4 text-ink" />
             </button>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="p-3 space-y-1 flex-1 min-h-0 overflow-y-auto">
+        <nav className="p-3 space-y-0.5 flex-1 min-h-0 overflow-y-auto">
           {menuItems.filter(item => {
             if (item.href === '/customer/referral') return referralEnabled;
             return true;
@@ -307,22 +299,13 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
                   if (typeof window !== 'undefined' && window.innerWidth < 1024) setSidebarOpen(false);
                 }}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 text-xs font-bold rounded-xl transition-all duration-300 group',
+                  'w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded transition-colors group',
                   active
-                      ? 'text-brand-500 bg-brand-50 dark:text-brand-400 dark:bg-brand-500/[0.12] border border-brand-200 dark:border-brand-500/30'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-brand-500 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-brand-400 border border-transparent hover:border-gray-200 dark:hover:border-white/10'
+                      ? 'text-cobalt bg-cobalt/5 border border-cobalt/20'
+                      : 'text-ink hover:bg-muted/10 border border-transparent'
                 )}
               >
-                <span
-                  className={cn(
-                    'p-1.5 rounded-lg transition-all duration-300',
-                    active
-                    ? 'text-brand-500 dark:text-brand-400 bg-brand-100 dark:bg-brand-500/20'
-                    : 'text-gray-500 group-hover:text-brand-500 dark:text-gray-400 dark:group-hover:text-brand-400'
-                  )}
-                >
-                  <Icon className="w-4 h-4" />
-                </span>
+                <Icon className={cn("w-4 h-4", active ? "text-cobalt" : "text-muted group-hover:text-ink")} />
                 <span className="tracking-wide">{item.name}</span>
               </button>
             );
@@ -330,11 +313,11 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-sidebar-border">
+        <div className="p-4 border-t border-rule">
           <PushNotificationToggle compact />
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl transition-all duration-300"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 border border-transparent rounded transition-colors mt-2"
           >
             <LogOut className="w-4 h-4" />
             <span>Keluar</span>
@@ -342,30 +325,30 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* â”€â”€ MAIN CONTENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="lg:ml-64 flex flex-col min-h-screen">
+      {/* ── MAIN CONTENT ── */}
+      <div className="lg:ml-64 flex-1 flex flex-col min-h-screen">
         {/* Desktop Header */}
-        <header className="hidden lg:flex sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border items-center justify-between px-6 py-3">
+        <header className="hidden lg:flex sticky top-0 z-20 bg-paper border-b border-rule items-center justify-between px-6 py-4">
           <div>
-            <h2 className="text-sm font-bold text-foreground">Customer Portal</h2>
-            <p className="text-xs text-muted-foreground">{companyName}</p>
+            <h2 className="text-sm font-display font-medium text-ink">Customer Portal</h2>
+            <p className="text-[10px] font-mono text-muted tracking-widest uppercase">{companyName}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Clock className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">
-              {now
-                ? formatInTimeZone(now, 'Asia/Jakarta', 'EEEE, d MMMM yyyy  HH:mm:ss', { locale: localeId })
-                : ''}
-            </span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-muted">
+              <Clock className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-mono">
+                {now ? formatInTimeZone(now, 'Asia/Jakarta', 'EEEE, d MMM yyyy  HH:mm:ss', { locale: localeId }) : ''}
+              </span>
+            </div>
             {/* Bell */}
             <div className="relative">
               <button
                 onClick={() => { setBellOpen(v => !v); setUnreadCount(0); }}
-                className="relative p-2 flex items-center justify-center rounded-xl hover:bg-primary/10 border border-transparent hover:border-border transition-all"
+                className="relative p-1.5 flex items-center justify-center rounded hover:bg-muted/10 transition-colors"
               >
-                <Bell className="w-4 h-4 text-primary" />
+                <Bell className="w-4 h-4 text-ink" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-1 bg-cobalt text-paper text-[8px] font-mono font-bold rounded-full flex items-center justify-center">
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
@@ -373,48 +356,40 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
               {bellOpen && (
                 <>
                   <div className="fixed inset-0 z-40 touch-none" onClick={() => setBellOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-80 bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-lg z-50 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                      <span className="text-xs font-bold text-primary uppercase tracking-wider">Notifikasi</span>
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-paper border border-rule rounded shadow-sm z-50 overflow-hidden">
+                    <div className="px-4 py-2 border-b border-rule flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-ink uppercase tracking-wider">Notifikasi</span>
                       <div className="flex items-center gap-1">
                         {notifHistory.length > 0 && (
-                          <button onClick={handleClearAllNotifications} title="Hapus semua" className="p-1 hover:bg-red-500/20 rounded-lg transition-colors">
-                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                          <button onClick={handleClearAllNotifications} title="Hapus semua" className="p-1 hover:bg-muted/10 rounded transition-colors">
+                            <Trash2 className="w-3.5 h-3.5 text-muted hover:text-red-500" />
                           </button>
                         )}
-                        <button onClick={() => setBellOpen(false)} className="p-1 hover:bg-primary/10 rounded-lg"><X className="w-3.5 h-3.5 text-primary" /></button>
+                        <button onClick={() => setBellOpen(false)} className="p-1 hover:bg-muted/10 rounded"><X className="w-3.5 h-3.5 text-ink" /></button>
                       </div>
                     </div>
-                    <div className="max-h-72 overflow-y-auto divide-y divide-border">
+                    <div className="max-h-72 overflow-y-auto divide-y divide-rule">
                       {notifHistory.length === 0 ? (
-                        <p className="text-xs text-muted-foreground text-center py-6">Belum ada notifikasi</p>
+                        <p className="text-xs font-mono text-muted text-center py-6">EMPTY</p>
                       ) : notifHistory.map(n => (
-                        <div key={n.id} className="px-4 py-3 hover:bg-primary/5 transition-colors group">
-                            <div className="flex items-start gap-2">
-                              <div className={`mt-0.5 p-1 rounded-lg flex-shrink-0 ${
-                                n.type === 'payment_success' ? 'bg-green-500/20' :
-                                n.type === 'payment_rejected' ? 'bg-red-500/20' :
-                                n.type === 'package_changed' ? 'bg-blue-500/20' : 'bg-primary/10'
-                              }`}>
-                                {n.type === 'payment_success' && <CheckCircle2 className="w-3 h-3 text-green-400" />}
-                                {n.type === 'payment_rejected' && <XCircle className="w-3 h-3 text-red-400" />}
-                                {n.type === 'package_changed' && <Package className="w-3 h-3 text-blue-400" />}
-                                {n.type !== 'payment_success' && n.type !== 'payment_rejected' && n.type !== 'package_changed' && <Bell className="w-3 h-3 text-primary" />}
+                        <div key={n.id} className="px-4 py-3 hover:bg-muted/5 transition-colors group">
+                            <div className="flex items-start gap-3">
+                              <div className="mt-0.5">
+                                {n.type === 'payment_success' ? <CheckCircle2 className="w-4 h-4 text-green-500" /> :
+                                 n.type === 'payment_rejected' ? <XCircle className="w-4 h-4 text-red-500" /> :
+                                 n.type === 'package_changed' ? <Package className="w-4 h-4 text-cobalt" /> :
+                                 <Bell className="w-4 h-4 text-ink" />}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className={`text-xs font-bold mb-0.5 ${
-                                  n.type === 'payment_success' ? 'text-green-400' :
-                                  n.type === 'payment_rejected' ? 'text-red-400' :
-                                  n.type === 'package_changed' ? 'text-blue-400' : 'text-primary'
-                                }`}>{n.title}</p>
-                                <p className="text-[11px] text-muted-foreground leading-tight">{n.message}</p>
-                                <p className="text-[10px] text-muted-foreground/50 mt-1">{formatWIB(n.timestamp, 'dd MMM yyyy HH:mm')}</p>
+                                <p className="text-xs font-medium text-ink mb-0.5">{n.title}</p>
+                                <p className="text-[11px] text-muted leading-tight">{n.message}</p>
+                                <p className="text-[9px] font-mono text-muted/60 mt-1.5">{formatWIB(n.timestamp, 'dd MMM yyyy HH:mm')}</p>
                               </div>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDeleteNotification(n.id); }}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded-lg transition-all flex-shrink-0"
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted/10 rounded transition-all flex-shrink-0"
                               >
-                                <X className="w-3 h-3 text-red-400" />
+                                <X className="w-3 h-3 text-muted" />
                               </button>
                             </div>
                         </div>
@@ -427,12 +402,12 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
             {/* Theme Toggle â€” Desktop */}
             <button
               onClick={toggleTheme}
-              className="p-2 flex items-center justify-center rounded-xl hover:bg-primary/10 border border-transparent hover:border-border transition-all"
+              className="p-1.5 flex items-center justify-center rounded hover:bg-muted/10 transition-colors"
               title={isDark ? 'Mode Terang' : 'Mode Gelap'}
             >
               {isDark
-                ? <Sun className="w-4 h-4 text-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.7)]" />
-                : <Moon className="w-4 h-4 text-slate-400" />
+                ? <Sun className="w-4 h-4 text-muted hover:text-ink" />
+                : <Moon className="w-4 h-4 text-muted hover:text-ink" />
               }
             </button>
 
@@ -440,30 +415,29 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border shadow-sm">
-          <div className="px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+        <header className="lg:hidden sticky top-0 z-20 bg-paper border-b border-rule">
+          <div className="px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
               {/* Menu button (left side) */}
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="p-2 flex items-center justify-center hover:bg-primary/10 rounded-xl transition-all border border-border"
+                className="p-1 flex items-center justify-center hover:bg-muted/10 rounded transition-colors"
               >
-                <Menu className="w-5 h-5 text-primary" />
+                <Menu className="w-5 h-5 text-ink" />
               </button>
               {companyLogo ? (
-                <div className="w-8 h-8 rounded-lg bg-card p-1 border border-border flex items-center justify-center overflow-hidden">
-                  <Image unoptimized src={companyLogo} alt={companyName} width={32} height={32} className="w-full h-full object-contain" decoding="async" />
+                <div className="w-7 h-7 rounded border border-rule flex items-center justify-center overflow-hidden">
+                  <Image unoptimized src={companyLogo} alt={companyName} width={28} height={28} className="w-full h-full object-contain" decoding="async" />
                 </div>
               ) : (
-                <div className="w-8 h-8 rounded-lg bg-card p-1 border border-border flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-primary" />
+                <div className="w-7 h-7 rounded border border-rule flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-ink" />
                 </div>
               )}
               <div>
-                <h1 className="text-sm font-bold text-primary">
+                <h1 className="text-sm font-display font-medium text-ink">
                   {companyName}
                 </h1>
-                <p className="text-[10px] text-primary/60 tracking-widest font-bold uppercase">Customer Portal</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -471,11 +445,11 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
               <div className="relative">
                 <button
                   onClick={() => { setBellOpen(v => !v); setUnreadCount(0); }}
-                  className="relative p-2 flex items-center justify-center hover:bg-primary/10 rounded-xl transition-all border border-border"
+                  className="relative p-1.5 flex items-center justify-center hover:bg-muted/10 rounded transition-colors"
                 >
-                  <Bell className="w-4 h-4 text-primary" />
+                  <Bell className="w-4 h-4 text-ink" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-1 bg-cobalt text-paper text-[8px] font-mono font-bold rounded-full flex items-center justify-center">
                       {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                   )}
@@ -483,48 +457,40 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
                 {bellOpen && (
                   <>
                     <div className="fixed inset-0 z-40 touch-none" onClick={() => setBellOpen(false)} />
-                    <div className="absolute right-0 top-full mt-2 w-72 bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-lg z-50 overflow-hidden">
-                      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Notifikasi</span>
+                    <div className="absolute right-0 top-full mt-2 w-72 bg-paper border border-rule rounded shadow-sm z-50 overflow-hidden">
+                      <div className="px-4 py-2 border-b border-rule flex items-center justify-between">
+                        <span className="text-[10px] font-mono font-bold text-ink uppercase tracking-wider">Notifikasi</span>
                         <div className="flex items-center gap-1">
                           {notifHistory.length > 0 && (
-                            <button onClick={handleClearAllNotifications} title="Hapus semua" className="p-1 hover:bg-red-500/20 rounded-lg transition-colors">
-                              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                            <button onClick={handleClearAllNotifications} title="Hapus semua" className="p-1 hover:bg-muted/10 rounded transition-colors">
+                              <Trash2 className="w-3.5 h-3.5 text-muted hover:text-red-500" />
                             </button>
                           )}
-                          <button onClick={() => setBellOpen(false)} className="p-1 hover:bg-primary/10 rounded-lg"><X className="w-3.5 h-3.5 text-primary" /></button>
+                          <button onClick={() => setBellOpen(false)} className="p-1 hover:bg-muted/10 rounded"><X className="w-3.5 h-3.5 text-ink" /></button>
                         </div>
                       </div>
-                      <div className="max-h-60 overflow-y-auto divide-y divide-border">
+                      <div className="max-h-60 overflow-y-auto divide-y divide-rule">
                         {notifHistory.length === 0 ? (
-                          <p className="text-xs text-muted-foreground text-center py-6">Belum ada notifikasi</p>
+                          <p className="text-xs font-mono text-muted text-center py-6">EMPTY</p>
                         ) : notifHistory.map(n => (
-                          <div key={n.id} className="px-4 py-3 hover:bg-primary/5 transition-colors group">
-                            <div className="flex items-start gap-2">
-                              <div className={`mt-0.5 p-1 rounded-lg flex-shrink-0 ${
-                                n.type === 'payment_success' ? 'bg-green-500/20' :
-                                n.type === 'payment_rejected' ? 'bg-red-500/20' :
-                                n.type === 'package_changed' ? 'bg-blue-500/20' : 'bg-primary/10'
-                              }`}>
-                                {n.type === 'payment_success' && <CheckCircle2 className="w-3 h-3 text-green-400" />}
-                                {n.type === 'payment_rejected' && <XCircle className="w-3 h-3 text-red-400" />}
-                                {n.type === 'package_changed' && <Package className="w-3 h-3 text-blue-400" />}
-                                {n.type !== 'payment_success' && n.type !== 'payment_rejected' && n.type !== 'package_changed' && <Bell className="w-3 h-3 text-primary" />}
+                          <div key={n.id} className="px-4 py-3 hover:bg-muted/5 transition-colors group">
+                            <div className="flex items-start gap-3">
+                              <div className="mt-0.5">
+                                {n.type === 'payment_success' ? <CheckCircle2 className="w-4 h-4 text-green-500" /> :
+                                 n.type === 'payment_rejected' ? <XCircle className="w-4 h-4 text-red-500" /> :
+                                 n.type === 'package_changed' ? <Package className="w-4 h-4 text-cobalt" /> :
+                                 <Bell className="w-4 h-4 text-ink" />}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className={`text-xs font-bold mb-0.5 ${
-                                  n.type === 'payment_success' ? 'text-green-400' :
-                                  n.type === 'payment_rejected' ? 'text-red-400' :
-                                  n.type === 'package_changed' ? 'text-blue-400' : 'text-primary'
-                                }`}>{n.title}</p>
-                                <p className="text-[11px] text-muted-foreground leading-tight">{n.message}</p>
-                                <p className="text-[10px] text-muted-foreground/50 mt-1">{formatWIB(n.timestamp, 'dd MMM yyyy HH:mm')}</p>
+                                <p className="text-xs font-medium text-ink mb-0.5">{n.title}</p>
+                                <p className="text-[11px] text-muted leading-tight">{n.message}</p>
+                                <p className="text-[9px] font-mono text-muted/60 mt-1.5">{formatWIB(n.timestamp, 'dd MMM yyyy HH:mm')}</p>
                               </div>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDeleteNotification(n.id); }}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded-lg transition-all flex-shrink-0"
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted/10 rounded transition-all flex-shrink-0"
                               >
-                                <X className="w-3 h-3 text-red-400" />
+                                <X className="w-3 h-3 text-muted" />
                               </button>
                             </div>
                           </div>
@@ -537,12 +503,12 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
               {/* Theme Toggle â€” Mobile */}
               <button
                 onClick={toggleTheme}
-                className="p-2 flex items-center justify-center hover:bg-primary/10 rounded-xl transition-all border border-border"
+                className="p-1.5 flex items-center justify-center hover:bg-muted/10 rounded transition-colors"
                 title={isDark ? 'Mode Terang' : 'Mode Gelap'}
               >
                 {isDark
-                  ? <Sun className="w-4 h-4 text-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.7)]" />
-                  : <Moon className="w-4 h-4 text-slate-400" />
+                  ? <Sun className="w-4 h-4 text-muted hover:text-ink" />
+                  : <Moon className="w-4 h-4 text-muted hover:text-ink" />
                 }
               </button>
 
@@ -551,13 +517,13 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 pb-20 lg:pb-6">
+        <main className="flex-1 pb-20 lg:pb-0 bg-paper">
           {children}
         </main>
 
-        {/* ── MOBILE BOTTOM NAV ─────────────────────────────────── */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-xl border-t border-border shadow-sm">
-          <div className="flex items-center justify-around px-1 py-1.5 safe-area-pb">
+        {/* ── MOBILE BOTTOM NAV ── */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-paper border-t border-rule">
+          <div className="flex items-center justify-around px-1 py-1 safe-area-pb">
             {[
               { href: '/customer',          icon: Home,        label: 'Beranda' },
               { href: '/customer/invoices', icon: FileText,    label: 'Tagihan' },
@@ -571,17 +537,12 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
                   key={href}
                   onClick={() => router.push(href)}
                   className={cn(
-                    'flex flex-col items-center justify-center gap-1 py-1.5 px-2 min-w-[56px] min-h-[52px] rounded-xl transition-all',
-                    active ? 'text-primary' : 'text-muted-foreground/60'
+                    'flex flex-col items-center justify-center gap-1 py-1.5 px-2 min-w-[56px] min-h-[52px] rounded transition-colors',
+                    active ? 'text-cobalt' : 'text-muted hover:text-ink'
                   )}
                 >
-                  <span className={cn(
-                    'flex items-center justify-center p-1.5 rounded-xl transition-all',
-                    active ? 'bg-primary/10' : ''
-                  )}>
-                    <Icon className="w-5 h-5" />
-                  </span>
-                  <span className="text-[10px] font-bold tracking-wide leading-none text-center">{label}</span>
+                  <Icon className="w-5 h-5" />
+                  <span className="text-[9px] font-mono tracking-wide leading-none text-center">{label}</span>
                 </button>
               );
             })}

@@ -500,10 +500,10 @@ export default function PaymentHistoryPage() {
 
   const getStatusConfig = (status: string) => {
     switch (status) {
-      case 'PAID': return { icon: CheckCircle, text: 'Lunas', bgColor: 'bg-success/20', textColor: 'text-success', borderColor: 'border-success/40 shadow-[0_0_5px_rgba(0,255,136,0.3)]' };
-      case 'PENDING': return { icon: Clock, text: 'Menunggu', bgColor: 'bg-warning/20', textColor: 'text-warning', borderColor: 'border-warning/40 shadow-[0_0_5px_rgba(255,170,0,0.3)]' };
-      case 'OVERDUE': return { icon: AlertCircle, text: 'Terlambat', bgColor: 'bg-destructive/20', textColor: 'text-destructive', borderColor: 'border-destructive/40 shadow-[0_0_5px_rgba(255,51,102,0.3)]' };
-      default: return { icon: Clock, text: status, bgColor: 'bg-muted/20', textColor: 'text-muted-foreground', borderColor: 'border-muted/40' };
+      case 'PAID': return { icon: CheckCircle, text: 'PAID', bgColor: 'bg-green-500/10', textColor: 'text-green-600', borderColor: 'border-green-500/20' };
+      case 'PENDING': return { icon: Clock, text: 'PENDING', bgColor: 'bg-cobalt/10', textColor: 'text-cobalt', borderColor: 'border-cobalt/20' };
+      case 'OVERDUE': return { icon: AlertCircle, text: 'OVERDUE', bgColor: 'bg-red-500/10', textColor: 'text-red-600', borderColor: 'border-red-500/20' };
+      default: return { icon: Clock, text: status, bgColor: 'bg-muted/10', textColor: 'text-muted', borderColor: 'border-rule' };
     }
   };
 
@@ -521,17 +521,17 @@ export default function PaymentHistoryPage() {
   const totalPendingAmount = pendingPayments.reduce((s, p) => s + p.amount, 0);
 
   return (
-    <div className="p-4 lg:p-6 space-y-5 w-full">
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pb-4 border-b border-rule">
         <div>
-          <h1 className="text-xl font-bold text-primary drop-shadow-[0_0_5px_rgba(188,19,254,0.5)]">Riwayat Pembayaran</h1>
-          <p className="text-xs text-accent mt-1">Lihat status invoice Anda</p>
+          <h1 className="text-xl lg:text-2xl font-display font-medium text-ink">Payment History</h1>
+          <p className="text-[10px] font-mono text-muted uppercase mt-1">Review your billing log</p>
         </div>
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="flex items-center gap-2 px-3 py-2.5 bg-primary/20 rounded-xl hover:bg-primary/30 transition-colors disabled:opacity-50 border border-primary/30 text-xs font-bold text-primary"
+          className="flex items-center gap-2 px-3 py-2 bg-paper rounded border border-rule hover:bg-muted/10 transition-colors disabled:opacity-50 text-[10px] font-mono font-bold text-ink uppercase tracking-wider"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
           <span className="hidden sm:inline">Refresh</span>
@@ -539,21 +539,21 @@ export default function PaymentHistoryPage() {
       </div>
 
       {payments.length === 0 && (
-        <CyberCard className="p-10 text-center bg-card/80 backdrop-blur-xl border-2 border-primary/30">
-          <Receipt className="w-14 h-14 mx-auto mb-3 text-primary/40" />
-          <h3 className="text-sm font-bold text-white mb-1">Tidak Ada Tagihan</h3>
-          <p className="text-xs text-muted-foreground">Belum ada tagihan yang dicatat</p>
-        </CyberCard>
+        <div className="p-10 text-center bg-paper rounded-[10px] border border-rule shadow-sm">
+          <Receipt className="w-14 h-14 mx-auto mb-3 text-muted/40" />
+          <h3 className="text-sm font-display font-medium text-ink mb-1">NO_RECORDS_FOUND</h3>
+          <p className="text-[10px] font-mono text-muted uppercase tracking-widest">History log is empty</p>
+        </div>
       )}
 
       {/* Pending / Overdue Section */}
       {pendingPayments.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-warning/20 rounded-lg border border-warning/30 flex items-center justify-center"><Clock className="w-4 h-4 text-warning" /></div>
-            <h2 className="text-sm font-bold text-warning drop-shadow-[0_0_5px_rgba(255,170,0,0.5)]">
-              Belum Bayar
-              <span className="ml-2 px-2 py-0.5 bg-warning/20 text-warning text-[10px] rounded-full border border-warning/30">{pendingPayments.length}</span>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <h2 className="text-[10px] font-mono font-bold text-red-600 uppercase tracking-widest">
+              PENDING_PAYMENTS
+              <span className="ml-2 px-1.5 py-0.5 bg-red-500/10 text-red-600 rounded border border-red-500/20">{pendingPayments.length}</span>
             </h2>
           </div>
 
@@ -566,55 +566,48 @@ export default function PaymentHistoryPage() {
               const invoiceLabel = payment.isPackageChange ? 'Ganti Paket' : (payment.invoiceType ? (INVOICE_TYPE_LABEL[payment.invoiceType] || payment.invoiceType) : null);
 
               return (
-                <CyberCard key={payment.id} className={`bg-card/80 backdrop-blur-xl border-2 ${config.borderColor} overflow-hidden`}>
-                  <div className={`h-1 w-full ${payment.status === 'OVERDUE' ? 'bg-destructive' : 'bg-warning'}`} />
-                  <div className="p-4">
+                <div key={payment.id} className={`bg-paper rounded-[10px] border ${config.borderColor} shadow-sm overflow-hidden`}>
+                  <div className="p-5">
                     {/* Header row */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-lg flex items-center justify-center ${config.bgColor} border ${config.borderColor}`}>
-                          <StatusIcon className={`w-3.5 h-3.5 ${config.textColor}`} />
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg flex items-center justify-center ${config.bgColor} border ${config.borderColor}`}>
+                          <StatusIcon className={`w-4 h-4 ${config.textColor}`} />
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="font-mono text-xs font-bold text-white tracking-wide">{payment.invoiceNumber}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-mono text-[11px] font-bold text-ink tracking-wide">{payment.invoiceNumber}</p>
                             {invoiceLabel && (
-                              <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-md border ${
-                                payment.isPackageChange
-                                  ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
-                                  : 'bg-primary/20 text-primary border-primary/30'
-                              }`}>{invoiceLabel}</span>
+                              <span className="px-1.5 py-0.5 text-[9px] font-mono uppercase font-bold rounded bg-muted/10 text-muted border border-rule">{invoiceLabel}</span>
                             )}
                           </div>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">Dibuat: {formatDate(payment.createdAt)}</p>
+                          <p className="text-[9px] font-mono text-muted uppercase mt-0.5">GEN: {formatDate(payment.createdAt)}</p>
                         </div>
                       </div>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-lg border ${config.bgColor} ${config.textColor} ${config.borderColor}`}>
-                        <StatusIcon className="w-2.5 h-2.5" />
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-1 text-[9px] font-mono font-bold rounded border uppercase tracking-wider ${config.bgColor} ${config.textColor} ${config.borderColor}`}>
                         {config.text}
                       </span>
                     </div>
 
                     {/* Package change description */}
                     {payment.isPackageChange && payment.packageChangeDescription && (
-                      <div className="mb-3 flex items-center gap-2 px-2.5 py-1.5 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                        <Package className="w-3 h-3 text-purple-400 flex-shrink-0" />
-                        <span className="text-[10px] text-purple-300">{payment.packageChangeDescription}</span>
+                      <div className="mb-4 flex items-center gap-2 px-3 py-2 bg-muted/5 rounded border border-rule">
+                        <Package className="w-3.5 h-3.5 text-muted flex-shrink-0" />
+                        <span className="text-[10px] font-mono text-muted uppercase">{payment.packageChangeDescription}</span>
                       </div>
                     )}
 
-                    {/* Info grid */}
-                    <div className="grid grid-cols-2 gap-2 mb-3 p-3 bg-muted/20 rounded-lg border border-border/50">
-                      <div>
-                        <p className="text-[10px] text-muted-foreground">Jatuh Tempo</p>
-                        <p className="text-xs font-semibold text-white flex items-center gap-1.5 mt-1">
-                          <Calendar className="w-3 h-3 text-accent" />
+                    <div className="grid grid-cols-2 gap-px mb-4 bg-rule border border-rule rounded overflow-hidden">
+                      <div className="bg-paper p-3">
+                        <p className="text-[9px] font-mono text-muted uppercase mb-1">DUE_DATE</p>
+                        <p className="text-xs font-display font-medium text-ink flex items-center gap-1.5">
+                          <Calendar className="w-3 h-3 text-muted" />
                           {formatDate(payment.dueDate)}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-[10px] text-muted-foreground">Jumlah Tagihan</p>
-                        <p className="text-sm font-bold text-white mt-0.5">{formatCurrency(payment.amount)}</p>
+                      <div className="bg-paper p-3">
+                        <p className="text-[9px] font-mono text-muted uppercase mb-1">AMOUNT</p>
+                        <p className="text-sm font-display font-semibold text-ink">{formatCurrency(payment.amount)}</p>
                       </div>
                     </div>
 
@@ -639,27 +632,25 @@ export default function PaymentHistoryPage() {
                       </div>
                     )}
 
-                    {/* Actions */}
-                    <div className="flex gap-2 mt-1">
+                    <div className="flex gap-2 mt-2">
                       {canPay && (
                         <button
                           onClick={() => hasLink ? handlePayLink(payment) : handlePayInvoice(payment)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 rounded-lg text-xs font-bold text-cyan-300 transition-colors"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-cobalt hover:bg-cobalt-hover rounded-[6px] text-[11px] font-mono font-bold text-paper transition-colors"
                         >
                           <CreditCard className="w-3.5 h-3.5" />
-                          Bayar Sekarang
+                          EXEC_PAY
                           {hasLink && <ExternalLink className="w-3 h-3 ml-auto" />}
                         </button>
                       )}
                       {!canPay && !payment.manualPaymentStatus && (
-                        <CyberButton onClick={() => handlePayInvoice(payment)} variant="cyan" size="sm" className="flex-1">
-                          <CreditCard className="w-3.5 h-3.5" />
-                          Bayar Sekarang
-                        </CyberButton>
+                        <button onClick={() => handlePayInvoice(payment)} className="flex-1 py-2.5 bg-paper border border-rule hover:bg-muted/5 rounded-[6px] text-[11px] font-mono font-bold text-ink transition-colors">
+                          EXEC_PAY
+                        </button>
                       )}
                     </div>
                   </div>
-                </CyberCard>
+                </div>
               );
             })}
           </div>
@@ -667,20 +658,20 @@ export default function PaymentHistoryPage() {
       )}
 
       {/* Paid Section */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-success/20 rounded-lg border border-success/30 flex items-center justify-center"><CheckCircle className="w-4 h-4 text-success" /></div>
-          <h2 className="text-sm font-bold text-success drop-shadow-[0_0_5px_rgba(0,255,136,0.5)]">
-            Lunas
-            <span className="ml-2 px-2 py-0.5 bg-success/20 text-success text-[10px] rounded-full border border-success/30">{paidPayments.length}</span>
+      <div className="space-y-4 pt-4 border-t border-rule">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-2 h-2 rounded-full bg-green-500" />
+          <h2 className="text-[10px] font-mono font-bold text-green-600 uppercase tracking-widest">
+            TX_LOGS_PAID
+            <span className="ml-2 px-1.5 py-0.5 bg-green-500/10 text-green-600 rounded border border-green-500/20">{paidPayments.length}</span>
           </h2>
         </div>
 
         {paidPayments.length === 0 ? (
-          <CyberCard className="p-6 text-center bg-card/80 backdrop-blur-xl border-2 border-muted/30">
-            <Banknote className="w-10 h-10 mx-auto mb-2 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">Belum ada riwayat pembayaran</p>
-          </CyberCard>
+          <div className="p-10 text-center bg-paper border border-rule rounded-[10px] shadow-sm">
+            <Banknote className="w-10 h-10 mx-auto mb-2 text-muted/40" />
+            <p className="text-[10px] font-mono text-muted uppercase">NO_PAID_RECORDS</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
             {paidPayments.map((payment) => {
@@ -688,77 +679,46 @@ export default function PaymentHistoryPage() {
               const sourceConfig = payment.paymentSource ? PAYMENT_SOURCE_CONFIG[payment.paymentSource] : null;
 
               return (
-                <CyberCard key={payment.id} className="bg-card/80 backdrop-blur-xl border-2 border-success/20 shadow-[0_0_15px_rgba(0,255,136,0.05)] overflow-hidden">
-                  <div className="h-1 w-full bg-gradient-to-r from-success/50 to-success/10" />
-                  <div className="p-4 pt-4">
+                <div key={payment.id} className="bg-paper border border-rule rounded-[10px] shadow-sm overflow-hidden hover:bg-muted/5 transition-colors">
+                  <div className="p-4">
                     {/* Header */}
                     <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-2 rounded-lg bg-success/10 border border-success/20">
-                          {payment.isPackageChange ? <Package className="w-4 h-4 text-purple-400" /> : <Receipt className="w-4 h-4 text-success" />}
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded bg-green-500/10 border border-green-500/20">
+                          {payment.isPackageChange ? <Package className="w-4 h-4 text-purple-600" /> : <Receipt className="w-4 h-4 text-green-600" />}
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-mono text-xs font-bold text-white tracking-wide">{payment.invoiceNumber}</p>
+                            <p className="font-mono text-[11px] font-bold text-ink tracking-wide">{payment.invoiceNumber}</p>
                             {invoiceLabel && (
-                              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md border ${
-                                payment.isPackageChange
-                                  ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
-                                  : 'bg-success/15 text-success border-success/30'
-                              }`}>{invoiceLabel}</span>
+                              <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase rounded bg-muted/10 text-muted border border-rule">{invoiceLabel}</span>
                             )}
                           </div>
-                          <p className="text-[10px] text-muted-foreground mt-1">Dibuat: {formatDate(payment.createdAt)}</p>
+                          <p className="text-[9px] font-mono text-muted uppercase mt-0.5">PAID: {formatDate(payment.paidAt || payment.createdAt)}</p>
                         </div>
                       </div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold rounded-lg border bg-success/15 text-success border-success/30">
-                        <CheckCircle className="w-3 h-3" />
-                        Lunas
-                      </span>
-                    </div>
-
-                    {/* Detail */}
-                    <div className="space-y-2 p-3 bg-success/5 rounded-lg border border-success/10">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-muted-foreground">Jumlah</span>
-                        <span className="text-sm font-bold text-white">{formatCurrency(payment.amount)}</span>
-                      </div>
-                      {payment.paidAt && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground">Dibayar</span>
-                          <span className="text-[10px] text-success font-semibold flex items-center gap-1">
-                            <CheckCircle className="w-2.5 h-2.5" />
-                            {formatDateTime(payment.paidAt)}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-muted-foreground">Jatuh Tempo</span>
-                        <span className="text-[10px] text-muted-foreground">{formatDate(payment.dueDate)}</span>
-                      </div>
-                      {sourceConfig && (
-                        <div className="flex items-center justify-between pt-1 border-t border-success/10">
-                          <span className="text-[10px] text-muted-foreground">Via</span>
-                          <span className={`text-[10px] font-semibold ${sourceConfig.color}`}>
-                            {sourceConfig.label}
-                            {payment.manualPaymentBank ? ` (${payment.manualPaymentBank})` : ''}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Detail + Print Buttons */}
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        onClick={() => setSelectedDetail(payment)}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-success/10 hover:bg-success/20 border border-success/30 rounded-lg text-xs font-bold text-success transition-colors"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        Lihat Detail
+                      <button onClick={() => setSelectedDetail(payment)} className="p-1.5 hover:bg-muted/10 rounded text-muted hover:text-ink transition-colors" title="Lihat Detail">
+                        <Eye className="w-4 h-4" />
                       </button>
                     </div>
+
+                    {/* Amount & Source */}
+                    <div className="flex items-end justify-between mt-4 pt-4 border-t border-rule">
+                      <div>
+                        <p className="text-[9px] font-mono text-muted uppercase mb-1">TOTAL_AMOUNT</p>
+                        <p className="text-sm font-display font-semibold text-ink">{formatCurrency(payment.amount)}</p>
+                      </div>
+                      {sourceConfig && (
+                        <div className="flex flex-col items-end">
+                          <span className="text-[8px] font-mono text-muted uppercase mb-0.5">SOURCE</span>
+                          <span className={`text-[10px] font-mono font-bold uppercase tracking-wider ${sourceConfig.color}`}>
+                            {sourceConfig.label}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </CyberCard>
+                </div>
               );
             })}
           </div>

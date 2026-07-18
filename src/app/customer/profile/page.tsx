@@ -249,20 +249,20 @@ export default function CustomerProfilePage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ACTIVE':
-        return 'bg-success/20 text-success border border-success/40 shadow-[0_0_5px_rgba(0,255,136,0.3)]';
+        return 'bg-green-500/10 text-green-600 border border-green-500/20';
       case 'SUSPENDED':
-        return 'bg-destructive/20 text-destructive border border-destructive/40 shadow-[0_0_5px_rgba(255,51,102,0.3)]';
+        return 'bg-red-500/10 text-red-600 border border-red-500/20';
       case 'EXPIRED':
-        return 'bg-warning/20 text-warning border border-warning/40 shadow-[0_0_5px_rgba(255,170,0,0.3)]';
+        return 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20';
       default:
-        return 'bg-muted text-muted-foreground border border-border';
+        return 'bg-muted/10 text-muted border border-rule';
     }
   };
 
   if (loading) {
     return (
-      <div className="p-3 flex justify-center items-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary shadow-[0_0_15px_rgba(188,19,254,0.5)]"></div>
+      <div className="flex items-center justify-center min-h-[50vh] text-muted">
+        <Loader2 className="w-6 h-6 animate-spin mb-4" />
       </div>
     );
   }
@@ -280,79 +280,76 @@ export default function CustomerProfilePage() {
   }
 
   return (
-    <div className="p-3 lg:p-6 space-y-3 w-full">
+    <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-6 animate-in fade-in duration-700">
+      
       {/* Profile Header */}
-      <CyberCard className="p-6 bg-gradient-to-r from-primary/20 to-accent/20 backdrop-blur-xl border-2 border-primary/40 dark:shadow-[0_0_30px_rgba(188,19,254,0.3)] shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-primary/30 border-2 border-primary flex items-center justify-center shadow-[0_0_20px_rgba(188,19,254,0.5)]">
-            <User size={32} className="text-primary drop-shadow-[0_0_10px_rgba(188,19,254,0.8)]" />
+      <div className="p-6 bg-paper border border-rule rounded-[10px] shadow-sm relative overflow-hidden group">
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cobalt/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+        <div className="flex items-center gap-5">
+          <div className="w-16 h-16 rounded bg-muted/10 border border-rule flex items-center justify-center flex-shrink-0">
+            <User size={28} className="text-ink" />
           </div>
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-foreground">{customer.name}</h1>
-            <p className="text-accent text-sm font-mono">@{customer.username}</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-display font-medium text-ink truncate">{customer.name}</h1>
+            <p className="text-[11px] font-mono text-muted uppercase mt-1 tracking-widest">@{customer.username}</p>
           </div>
-          <span className={`px-3 py-1 rounded-lg text-xs font-bold ${getStatusBadge(customer.status)}`}>
+          <span className={`px-2 py-1 rounded text-[10px] font-mono font-bold uppercase tracking-wider ${getStatusBadge(customer.status)} flex-shrink-0`}>
             {customer.status}
           </span>
         </div>
-      </CyberCard>
+      </div>
 
       {/* Contact Information */}
-      <CyberCard className="p-4 bg-card/80 backdrop-blur-xl border-2 border-accent/30 dark:shadow-[0_0_30px_rgba(0,247,255,0.15)] shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-accent flex items-center gap-2 uppercase tracking-wider drop-shadow-[0_0_5px_rgba(0,247,255,0.5)]">
-            <Mail size={16} className="drop-shadow-[0_0_5px_rgba(0,247,255,0.8)]" />
+      <div className="bg-paper border border-rule rounded-[10px] shadow-sm p-6">
+        <div className="flex items-center justify-between mb-5 border-b border-rule pb-3">
+          <h2 className="text-xs font-mono font-bold text-ink flex items-center gap-2 uppercase tracking-widest">
+            <Mail size={14} className="text-muted" />
             {t('profile.contactInfo')}
           </h2>
           {!editing ? (
-            <CyberButton onClick={() => setEditing(true)} variant="outline" size="sm" className="text-xs px-2 py-1">
-              <Edit3 className="w-3.5 h-3.5 mr-1" />Edit
-            </CyberButton>
+            <button onClick={() => setEditing(true)} className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase text-muted hover:text-ink transition-colors">
+              <Edit3 className="w-3.5 h-3.5" /> Edit
+            </button>
           ) : (
             <div className="flex gap-2">
-              <CyberButton onClick={handleSave} disabled={saving} variant="cyan" size="sm" className="text-xs px-2 py-1">
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Save className="w-3.5 h-3.5 mr-1" />Simpan</>}
-              </CyberButton>
-              <CyberButton onClick={handleCancelEdit} disabled={saving} variant="outline" size="sm" className="text-xs px-2 py-1">
-                <X className="w-3.5 h-3.5" />
-              </CyberButton>
+              <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 bg-cobalt hover:bg-cobalt-hover text-paper text-[10px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50">
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Save className="w-3.5 h-3.5" /> Save</>}
+              </button>
+              <button onClick={handleCancelEdit} disabled={saving} className="p-1.5 text-muted hover:text-ink transition-colors disabled:opacity-50">
+                <X className="w-4 h-4" />
+              </button>
             </div>
           )}
         </div>
-        <div className="space-y-3">
-          {/* Name */}
-          <div className="flex items-start gap-3">
-            <User size={16} className="text-accent mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-xs text-accent font-bold uppercase tracking-wide mb-1">Nama Lengkap</p>
-              <p className="text-sm text-foreground">{customer.name || '-'}</p>
-            </div>
+        
+        <div className="space-y-4">
+          <div className="grid grid-cols-[100px_1fr] gap-4 items-center">
+            <p className="text-[10px] font-mono text-muted uppercase tracking-wider">FULL_NAME</p>
+            <p className="text-sm font-display font-medium text-ink">{customer.name || '-'}</p>
           </div>
-          {/* Email */}
-          <div className="flex items-start gap-3">
-            <Mail size={16} className="text-accent mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-xs text-accent font-bold uppercase tracking-wide mb-1">{t('profile.email')}</p>
+          
+          <div className="grid grid-cols-[100px_1fr] gap-4 items-start">
+            <p className="text-[10px] font-mono text-muted uppercase tracking-wider mt-2.5">EMAIL_ADDR</p>
+            <div>
               {editing ? (
                 <input
                   type="email"
                   value={editEmail}
                   onChange={e => setEditEmail(e.target.value)}
-                  className="w-full bg-background dark:bg-slate-800/60 border border-border dark:border-slate-600/50 focus:border-cyan-500/60 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors"
-                  placeholder="email@contoh.com"
+                  className="w-full bg-paper border border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono"
+                  placeholder="name@domain.com"
                 />
               ) : (
-                <p className="text-sm text-foreground">{customer.email || <span className="text-slate-500 italic text-xs">Belum diisi</span>}</p>
+                <p className="text-sm font-mono text-ink mt-1.5">{customer.email || <span className="text-muted italic text-[11px]">NOT_SET</span>}</p>
               )}
             </div>
           </div>
-          {/* Phone */}
-          <div className="flex items-start gap-3">
-            <Phone size={16} className="text-accent mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-xs text-accent font-bold uppercase tracking-wide mb-1">{t('profile.phone')}</p>
+          
+          <div className="grid grid-cols-[100px_1fr] gap-4 items-start">
+            <p className="text-[10px] font-mono text-muted uppercase tracking-wider mt-2.5">PHONE_NUM</p>
+            <div>
               {editing ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex gap-2">
                     <input
                       type="tel"
@@ -362,158 +359,143 @@ export default function CustomerProfilePage() {
                         setOtpRequested(false);
                         setOtpCode('');
                       }}
-                      className="flex-1 bg-background dark:bg-slate-800/60 border border-border dark:border-slate-600/50 focus:border-cyan-500/60 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors"
-                      placeholder="0812-3456-7890"
+                      className="flex-1 bg-paper border border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono"
+                      placeholder="+62..."
                     />
                     {editPhone.trim() !== (customer?.phone || '') && (
                       <button
                         type="button"
                         onClick={handleSendOtp}
                         disabled={sendingOtp}
-                        style={{ backgroundColor: '#00f7ff', color: '#000' }}
-                        className="px-3 py-2 bg-cyan-400 hover:bg-cyan-500 text-black text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+                        className="px-3 py-2 bg-paper border border-rule hover:border-cobalt/50 text-ink text-[10px] font-mono font-bold rounded-[6px] transition-colors flex items-center gap-1.5 disabled:opacity-50 uppercase"
                       >
-                        {sendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Kirim OTP'}
+                        {sendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'REQ_OTP'}
                       </button>
                     )}
                   </div>
                   {otpRequested && (
-                    <div>
-                      <p className="text-[10px] text-yellow-400 font-bold uppercase tracking-wide mb-1">Kode OTP WhatsApp</p>
+                    <div className="p-3 bg-muted/5 border border-rule rounded-[6px]">
+                      <p className="text-[9px] text-muted font-mono uppercase tracking-widest mb-1.5">VERIFICATION_CODE (OTP)</p>
                       <input
                         type="text"
                         maxLength={6}
                         value={otpCode}
                         onChange={e => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
-                        className="w-full bg-background dark:bg-slate-800/60 border border-yellow-500/50 focus:border-yellow-400 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors font-mono text-center tracking-widest font-bold"
-                        placeholder="123456"
+                        className="w-full bg-paper border border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono text-center tracking-[0.5em] font-bold"
+                        placeholder="000000"
                       />
                     </div>
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-foreground">{customer.phone || <span className="text-slate-500 italic text-xs">Belum diisi</span>}</p>
+                <p className="text-sm font-mono text-ink mt-1.5">{customer.phone || <span className="text-muted italic text-[11px]">NOT_SET</span>}</p>
               )}
             </div>
           </div>
         </div>
-      </CyberCard>
- 
-      {/* Package Information + Account Information — 2-col on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-      {/* Package Information */}
-      {customer.profile && (
-        <CyberCard className="p-4 bg-card/80 backdrop-blur-xl border-2 border-primary/30 dark:shadow-[0_0_30px_rgba(188,19,254,0.15)] shadow-sm">
-          <h2 className="text-sm font-bold text-primary mb-3 flex items-center gap-2 uppercase tracking-wider drop-shadow-[0_0_5px_rgba(188,19,254,0.5)]">
-            <Package size={16} className="drop-shadow-[0_0_5px_rgba(188,19,254,0.8)]" />
-            {t('profile.packageInfo')}
-          </h2>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <Package size={16} className="text-primary mt-0.5" />
-              <div className="flex-1">
-                <p className="text-xs text-accent font-bold uppercase tracking-wide">{t('profile.package')}</p>
-                <p className="text-sm font-medium text-foreground">{customer.profile.name}</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Package Information */}
+        {customer.profile && (
+          <div className="bg-paper border border-rule rounded-[10px] shadow-sm p-6">
+            <h2 className="text-xs font-mono font-bold text-ink mb-4 pb-3 border-b border-rule flex items-center gap-2 uppercase tracking-widest">
+              <Package size={14} className="text-muted" />
+              {t('profile.packageInfo')}
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <p className="text-[9px] font-mono text-muted uppercase tracking-wider mb-1">PLAN_NAME</p>
+                <p className="text-sm font-display font-medium text-ink">{customer.profile.name}</p>
               </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <CreditCard size={16} className="text-primary mt-0.5" />
-              <div className="flex-1">
-                <p className="text-xs text-accent font-bold uppercase tracking-wide">Kecepatan</p>
-                <p className="text-sm font-medium text-foreground">
-                  ↓ {customer.profile.downloadSpeed} Mbps / ↑ {customer.profile.uploadSpeed} Mbps
+              <div>
+                <p className="text-[9px] font-mono text-muted uppercase tracking-wider mb-1">BANDWIDTH (DL/UL)</p>
+                <p className="text-xs font-mono font-bold text-ink">
+                  {customer.profile.downloadSpeed} Mbps / {customer.profile.uploadSpeed} Mbps
                 </p>
               </div>
-            </div>
-            {customer.expiryDate && (
-              <div className="flex items-start gap-3">
-                <Calendar size={16} className="text-primary mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-xs text-accent font-bold uppercase tracking-wide">{t('profile.expiryDate')}</p>
-                  <p className="text-sm text-foreground">
-                    {formatWIB(customer.expiryDate, 'd MMMM yyyy')}
+              {customer.expiryDate && (
+                <div>
+                  <p className="text-[9px] font-mono text-muted uppercase tracking-wider mb-1">EXPIRATION_DATE</p>
+                  <p className="text-xs font-mono font-bold text-ink">
+                    {formatWIB(customer.expiryDate, 'dd MMM yyyy')}
                   </p>
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Account Information */}
+        <div className="bg-paper border border-rule rounded-[10px] shadow-sm p-6">
+          <h2 className="text-xs font-mono font-bold text-ink mb-4 pb-3 border-b border-rule flex items-center gap-2 uppercase tracking-widest">
+            <Shield size={14} className="text-muted" />
+            {t('profile.accountInfo')}
+          </h2>
+          <div className="space-y-4">
+            {customer.customerId && (
+              <div>
+                <p className="text-[9px] font-mono text-muted uppercase tracking-wider mb-1">CUSTOMER_ID</p>
+                <p className="text-sm font-mono font-bold text-ink bg-muted/5 px-3 py-1.5 rounded inline-block border border-rule">{customer.customerId}</p>
               </div>
             )}
           </div>
-        </CyberCard>
-      )}
- 
-      {/* Account Information */}
-      <CyberCard className="p-4 bg-card/80 backdrop-blur-xl border-2 border-primary/30 dark:shadow-[0_0_30px_rgba(188,19,254,0.15)] shadow-sm">
-        <h2 className="text-sm font-bold text-primary mb-3 flex items-center gap-2 uppercase tracking-wider drop-shadow-[0_0_5px_rgba(188,19,254,0.5)]">
-          <Shield size={16} className="drop-shadow-[0_0_5px_rgba(188,19,254,0.8)]" />
-          {t('profile.accountInfo')}
-        </h2>
-        <div className="space-y-3">
-          {customer.customerId && (
-            <div className="flex items-start gap-3">
-              <Shield size={16} className="text-primary mt-0.5" />
-              <div className="flex-1">
-                <p className="text-xs text-accent font-bold uppercase tracking-wide">ID Pelanggan</p>
-                <p className="text-sm font-mono font-bold text-foreground">{customer.customerId}</p>
-              </div>
-            </div>
-          )}
         </div>
-      </CyberCard>
       </div>
 
       {/* Change Password Card */}
-      <CyberCard className="p-4 bg-card/80 backdrop-blur-xl border-2 border-accent/30 dark:shadow-[0_0_30px_rgba(0,247,255,0.15)] shadow-sm">
-        <h2 className="text-sm font-bold text-accent mb-3 flex items-center gap-2 uppercase tracking-wider drop-shadow-[0_0_5px_rgba(0,247,255,0.5)]">
-          <Shield size={16} className="drop-shadow-[0_0_5px_rgba(0,247,255,0.8)]" />
-          Ubah Password Portal
+      <div className="bg-paper border border-rule rounded-[10px] shadow-sm p-6">
+        <h2 className="text-xs font-mono font-bold text-ink mb-4 pb-3 border-b border-rule flex items-center gap-2 uppercase tracking-widest">
+          <Shield size={14} className="text-muted" />
+          PORTAL_AUTH_KEY
         </h2>
-        <form onSubmit={handleUpdatePassword} className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <form onSubmit={handleUpdatePassword} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <p className="text-xs text-accent font-bold uppercase tracking-wide mb-1">Password Baru</p>
+              <p className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1.5">NEW_PASSWORD</p>
               <input
                 type="password"
                 required
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
-                className="w-full bg-background dark:bg-slate-800/60 border border-border dark:border-slate-600/50 focus:border-cyan-500/60 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors"
-                placeholder="Minimal 6 karakter"
+                className="w-full bg-paper border border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono"
+                placeholder="MIN_6_CHARS"
               />
             </div>
             <div>
-              <p className="text-xs text-accent font-bold uppercase tracking-wide mb-1">Konfirmasi Password</p>
+              <p className="text-[10px] font-mono text-muted uppercase tracking-wider mb-1.5">CONFIRM_PASSWORD</p>
               <input
                 type="password"
                 required
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
-                className="w-full bg-background dark:bg-slate-800/60 border border-border dark:border-slate-600/50 focus:border-cyan-500/60 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors"
-                placeholder="Ulangi password baru"
+                className="w-full bg-paper border border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 rounded-[6px] px-3 py-2 text-sm text-ink outline-none transition-all font-mono"
+                placeholder="REPEAT_PASSWORD"
               />
             </div>
           </div>
           <div className="flex justify-end pt-2">
-            <CyberButton type="submit" disabled={changingPassword} variant="cyan" size="sm" className="text-xs px-4 py-2">
-              {changingPassword ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Ubah Password'}
-            </CyberButton>
+            <button type="submit" disabled={changingPassword} className="flex items-center gap-2 px-4 py-2 bg-paper border border-rule hover:border-cobalt/50 text-ink text-[11px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50 uppercase">
+              {changingPassword ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'UPDATE_KEY'}
+            </button>
           </div>
         </form>
-      </CyberCard>
+      </div>
 
       {/* Actions */}
-      <div className="space-y-2">
-        <CyberButton
+      <div className="pt-4">
+        <button
           onClick={handleLogout}
-          variant="destructive"
-          className="w-full flex items-center justify-center gap-2 py-3"
+          className="w-full flex items-center justify-center gap-2 py-3 bg-red-600/10 hover:bg-red-600/20 text-red-600 border border-red-600/20 rounded-[10px] transition-colors text-[11px] font-mono font-bold uppercase tracking-wider"
         >
-          <LogOut size={18} />
-          <span className="font-medium">{t('profile.logout')}</span>
-        </CyberButton>
+          <LogOut size={14} />
+          <span>{t('profile.logout')}</span>
+        </button>
       </div>
 
       {/* Version Info */}
       <div className="text-center py-4">
-        <p className="text-xs text-muted-foreground/60 font-mono">
+        <p className="text-[10px] text-muted font-mono uppercase tracking-widest">
           {companyName} v1.0.0
         </p>
       </div>

@@ -195,144 +195,142 @@ export default function CustomerDashboard() {
   const activeUnpaidInvoices = invoices.filter(inv => inv.status === 'PENDING' || inv.status === 'OVERDUE');
 
   return (
-    <div className="p-4 lg:p-6 w-full space-y-6 text-foreground">
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-700">
       
-      {/* -- Selamat Datang & ID Pelanggan Header ------------------------- */}
-      <div className="bg-card border border-border p-5 rounded-2xl shadow-sm flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-[10px] font-extrabold uppercase tracking-widest text-primary">Selamat Datang</p>
-          <h1 className="text-xl font-bold mt-1">{user.name}</h1>
-          <p className="text-xs text-muted-foreground font-mono mt-0.5">ID Pelanggan: {user.customerId || '-'}</p>
-        </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-          isExpired
-            ? 'bg-red-500/10 text-red-400 border-red-500/20'
-            : user.status === 'active'
-            ? 'bg-green-500/10 text-green-400 border-green-500/20'
-            : 'bg-orange-500/10 text-orange-400 border-orange-500/20'
-        }`}>
-          {isExpired ? 'Expired' : user.status === 'active' ? 'Aktif' : 'Terisolir'}
-        </span>
-      </div>
-
-      {/* -- Ringkasan Paket & Masa Aktif --------------------------------- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-card border border-border p-4 rounded-xl flex items-center gap-3">
-          <div className="p-3 bg-primary/10 rounded-lg text-primary">
-            <Zap className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Paket Langganan</p>
-            <p className="text-sm font-bold text-foreground mt-0.5">{user.profile.name}</p>
-            <p className="text-xs text-muted-foreground">{user.profile.downloadSpeed} Mbps</p>
-          </div>
-        </div>
-
-        <div className={`border p-4 rounded-xl flex items-center gap-3 bg-card ${isExpired ? 'border-red-500/30' : 'border-border'}`}>
-          <div className={`p-3 rounded-lg ${isExpired ? 'bg-red-500/15 text-red-400' : 'bg-primary/10 text-primary'}`}>
-            <Shield className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Masa Aktif S/D</p>
-            <p className="text-sm font-bold mt-0.5">{formatWIB(user.expiredAt, 'd MMMM yyyy')}</p>
-            <p className={`text-xs font-semibold ${isExpired ? 'text-red-400' : daysLeft <= 7 ? 'text-yellow-400' : 'text-green-400'}`}>
-              {isExpired ? 'Layanan Terisolir' : daysLeft <= 0 ? 'Hari ini terakhir!' : `${daysLeft} hari lagi`}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* -- Menu Cepat ---------------------------------------------------- */}
-      <div className="space-y-2">
-        <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Menu Cepat</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <button onClick={() => router.push('/customer/invoices')} className="flex flex-col items-center justify-center p-4 rounded-xl border border-border bg-card hover:border-primary/40 transition-all">
-            <Receipt className="w-5 h-5 text-primary mb-2" />
-            <span className="text-xs font-bold">Bayar Tagihan</span>
-          </button>
-          <button onClick={() => router.push('/customer/wifi')} className="flex flex-col items-center justify-center p-4 rounded-xl border border-border bg-card hover:border-primary/40 transition-all">
-            <Wifi className="w-5 h-5 text-primary mb-2" />
-            <span className="text-xs font-bold">Pengaturan WiFi</span>
-          </button>
-          <button onClick={() => router.push('/customer/tickets')} className="flex flex-col items-center justify-center p-4 rounded-xl border border-border bg-card hover:border-primary/40 transition-all">
-            <MessageSquare className="w-5 h-5 text-primary mb-2" />
-            <span className="text-xs font-bold">Bantuan Teknis</span>
-          </button>
-          <button onClick={() => router.push('/customer/profile')} className="flex flex-col items-center justify-center p-4 rounded-xl border border-border bg-card hover:border-primary/40 transition-all">
-            <User className="w-5 h-5 text-primary mb-2" />
-            <span className="text-xs font-bold">Ubah Sandi</span>
-          </button>
-        </div>
-      </div>
-
-      {/* -- Tagihan Belum Dibayar (Aksi Pembayaran) ------------------------ */}
-      {activeUnpaidInvoices.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Tagihan Tertunda</h2>
-          <div className="space-y-2">
-            {activeUnpaidInvoices.map(invoice => (
-              <div key={invoice.id} className="bg-card border border-red-500/20 rounded-xl p-4 flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-red-500/10 text-red-400 rounded-lg">
-                    <Receipt className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-mono font-bold">{invoice.invoiceNumber}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Jatuh Tempo: {formatWIB(invoice.dueDate, 'd MMM yyyy')}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-sm text-red-400">{formatCurrency(invoice.amount)}</span>
-                  {invoice.paymentToken ? (
-                    <button onClick={() => router.push(`/pay/${invoice.paymentToken}`)}
-                      className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-lg flex items-center gap-1">
-                      Bayar Sekarang <ExternalLink className="w-3.5 h-3.5" />
-                    </button>
-                  ) : (
-                    <button onClick={() => handleRegeneratePayment(invoice.id, invoice.invoiceNumber)}
-                      disabled={generatingPayment === invoice.id}
-                      className="px-4 py-2 bg-yellow-500 text-black text-xs font-bold rounded-lg flex items-center gap-1 disabled:opacity-50">
-                      {generatingPayment === invoice.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                      Buat Link
-                    </button>
-                  )}
+      {/* ── BENTO GRID TOP (Hero) ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-rule border border-rule rounded-[10px] overflow-hidden shadow-sm">
+        
+        {/* GRAPHITE BAND (Signature 8) */}
+        <div className="md:col-span-2 bg-graphite p-6 lg:p-8 relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cobalt/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          <div className="flex flex-col h-full justify-between gap-6">
+            <div>
+              <p className="text-[10px] font-mono text-cobalt tracking-widest uppercase mb-2">STATUS: {user.status === 'active' ? '200 OK' : '403 FORBIDDEN'}</p>
+              <h1 className="text-2xl lg:text-3xl font-display font-medium text-paper tracking-tight">{user.name}</h1>
+              <p className="text-xs font-mono text-paper/60 mt-2">ID: {user.customerId || 'SYS_GEN_ID'}</p>
+            </div>
+            
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-[10px] font-mono text-paper/40 uppercase mb-1">SUBSCRIPTION_TIER</p>
+                <div className="flex items-center gap-2 text-paper">
+                  <Zap className="w-4 h-4 text-cobalt" />
+                  <span className="font-medium text-sm">{user.profile.name}</span>
+                  <span className="text-xs font-mono text-paper/60">({user.profile.downloadSpeed}Mbps)</span>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
         </div>
-      )}
 
-      {/* -- Riwayat Pembayaran Terakhir --------------------------------- */}
-      <CyberCard className="p-5 bg-card border border-border">
-        <h2 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
-          <FileText className="w-4 h-4 text-primary" /> Riwayat Tagihan Terakhir
-        </h2>
-        {invoices.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-4">Belum ada riwayat tagihan.</p>
-        ) : (
-          <div className="divide-y divide-border">
-            {invoices.slice(0, 3).map((invoice) => {
-              const isPaid = invoice.status === 'PAID';
-              return (
-                <div key={invoice.id} className="py-3 flex items-center justify-between gap-4 flex-wrap">
+        {/* LIGHT BAND (Status) */}
+        <div className="bg-paper p-6 lg:p-8 flex flex-col justify-between border-t md:border-t-0 md:border-l border-rule">
+          <div>
+            <p className="text-[10px] font-mono text-muted uppercase mb-1">TTL_REMAINING</p>
+            <p className="text-sm font-display font-medium text-ink">{formatWIB(user.expiredAt, 'd MMM yyyy')}</p>
+          </div>
+          <div className="mt-4">
+            <div className={`px-2 py-1 inline-flex rounded text-[10px] font-mono font-bold uppercase tracking-wider border ${
+              isExpired ? 'border-red-500/20 text-red-600 bg-red-500/5' :
+              daysLeft <= 7 ? 'border-yellow-500/20 text-yellow-600 bg-yellow-500/5' :
+              'border-cobalt/20 text-cobalt bg-cobalt/5'
+            }`}>
+              {isExpired ? 'ISOLATED' : daysLeft <= 0 ? 'EXPIRES_TODAY' : `${daysLeft} DAYS_LEFT`}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── QUICK ACTIONS (Bento Grid Bottom) ── */}
+      <div>
+        <p className="text-[10px] font-mono font-bold text-muted uppercase tracking-widest mb-3">COMMAND_PALETTE</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-rule border border-rule rounded-[10px] overflow-hidden shadow-sm">
+          {[
+            { label: 'PAY_BILLS', icon: Receipt, href: '/customer/invoices' },
+            { label: 'WIFI_CONFIG', icon: Wifi, href: '/customer/wifi' },
+            { label: 'SUPPORT_TKT', icon: MessageSquare, href: '/customer/tickets' },
+            { label: 'AUTH_CREDS', icon: Key, href: '/customer/profile' },
+          ].map(({ label, icon: Icon, href }) => (
+            <button key={href} onClick={() => router.push(href)} className="bg-paper p-5 flex flex-col items-start gap-4 hover:bg-muted/5 transition-colors group">
+              <Icon className="w-5 h-5 text-muted group-hover:text-cobalt transition-colors" />
+              <span className="text-[11px] font-mono font-bold text-ink tracking-wide">{label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* ── ACTIVE UNPAID INVOICES ── */}
+        {activeUnpaidInvoices.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              <p className="text-[10px] font-mono font-bold text-red-600 uppercase tracking-widest">PENDING_PAYMENTS</p>
+            </div>
+            <div className="space-y-px bg-rule border border-rule rounded-[10px] overflow-hidden shadow-sm">
+              {activeUnpaidInvoices.map(invoice => (
+                <div key={invoice.id} className="bg-paper p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <span className="font-mono text-xs font-semibold">{invoice.invoiceNumber}</span>
-                    <span className={`ml-2 px-2 py-0.5 text-[9px] rounded-full font-bold ${
-                      isPaid ? 'bg-success/20 text-success' : 'bg-yellow-500/20 text-yellow-400'
-                    }`}>{invoice.status === 'PAID' ? 'LUNAS' : 'BELUM BAYAR'}</span>
-                    <p className="text-[10px] text-muted-foreground mt-1">Jatuh Tempo: {formatWIB(invoice.dueDate, 'd MMM yyyy')}</p>
+                    <p className="text-[11px] font-mono font-medium text-ink mb-1">{invoice.invoiceNumber}</p>
+                    <p className="text-[10px] font-mono text-muted uppercase">DUE: {formatWIB(invoice.dueDate, 'dd MMM yyyy')}</p>
                   </div>
-                  <span className={`font-bold text-sm ${isPaid ? 'text-success' : 'text-yellow-400'}`}>
-                    {formatCurrency(invoice.amount)}
-                  </span>
+                  <div className="flex items-center gap-4">
+                    <span className="font-display font-semibold text-sm text-ink">{formatCurrency(invoice.amount)}</span>
+                    {invoice.paymentToken ? (
+                      <button onClick={() => router.push(`/pay/${invoice.paymentToken}`)}
+                        className="px-4 py-2 bg-cobalt hover:bg-cobalt-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors flex items-center gap-1.5">
+                        EXEC_PAY <ExternalLink className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <button onClick={() => handleRegeneratePayment(invoice.id, invoice.invoiceNumber)}
+                        disabled={generatingPayment === invoice.id}
+                        className="px-4 py-2 bg-paper text-ink border border-rule hover:border-cobalt/50 hover:text-cobalt text-[11px] font-mono font-bold rounded-[6px] transition-colors flex items-center gap-1.5 disabled:opacity-50">
+                        {generatingPayment === invoice.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                        GEN_LINK
+                      </button>
+                    )}
+                  </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         )}
-      </CyberCard>
 
+        {/* ── RECENT INVOICES ── */}
+        <div>
+          <p className="text-[10px] font-mono font-bold text-muted uppercase tracking-widest mb-3">TX_LOGS</p>
+          <div className="bg-paper border border-rule rounded-[10px] shadow-sm overflow-hidden">
+            {invoices.length === 0 ? (
+              <p className="text-[11px] font-mono text-muted text-center py-8 uppercase">NO_RECORDS_FOUND</p>
+            ) : (
+              <div className="divide-y divide-rule">
+                {invoices.slice(0, 5).map((invoice) => {
+                  const isPaid = invoice.status === 'PAID';
+                  return (
+                    <div key={invoice.id} className="p-4 flex items-center justify-between gap-4 hover:bg-muted/5 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isPaid ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-mono font-medium text-ink truncate">{invoice.invoiceNumber}</p>
+                          <p className="text-[9px] font-mono text-muted uppercase mt-0.5">
+                            {formatWIB(invoice.dueDate, 'dd MMM yyyy')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end flex-shrink-0">
+                        <span className="font-display text-sm text-ink">{formatCurrency(invoice.amount)}</span>
+                        <span className={`text-[9px] font-mono font-bold uppercase tracking-wider mt-0.5 ${isPaid ? 'text-green-600' : 'text-red-600'}`}>
+                          {invoice.status}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

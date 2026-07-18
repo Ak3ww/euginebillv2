@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -144,53 +144,53 @@ export default function TicketDetailPage() {
 
   const getStatusColor = (status: TicketStatus) => {
     const colors = {
-      OPEN: 'bg-blue-100 text-blue-800',
-      IN_PROGRESS: 'bg-yellow-100 text-yellow-800',
-      WAITING_CUSTOMER: 'bg-purple-100 text-purple-800',
-      RESOLVED: 'bg-green-100 text-green-800',
-      CLOSED: 'bg-gray-100 text-gray-800',
+      OPEN: 'bg-cobalt/10 text-cobalt border border-cobalt/20',
+      IN_PROGRESS: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
+      WAITING_CUSTOMER: 'bg-purple-500/10 text-purple-600 border border-purple-500/20',
+      RESOLVED: 'bg-green-500/10 text-green-600 border border-green-500/20',
+      CLOSED: 'bg-muted/10 text-muted border border-rule',
     };
     return colors[status] || colors.OPEN;
   };
 
   const getPriorityColor = (priority: TicketPriority) => {
     const colors = {
-      LOW: 'bg-gray-100 text-gray-600',
-      MEDIUM: 'bg-teal-100 text-teal-600',
-      HIGH: 'bg-orange-100 text-orange-600',
-      URGENT: 'bg-red-100 text-red-600',
+      LOW: 'bg-muted/10 text-muted border border-rule',
+      MEDIUM: 'bg-cobalt/10 text-cobalt border border-cobalt/20',
+      HIGH: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
+      URGENT: 'bg-red-500/10 text-red-600 border border-red-500/20',
     };
     return colors[priority] || colors.MEDIUM;
   };
 
   const getSenderBadgeColor = (senderType: SenderType) => {
     const colors = {
-      CUSTOMER: 'bg-cyan-100 text-cyan-800',
-      ADMIN: 'bg-teal-100 text-teal-800',
-      TECHNICIAN: 'bg-green-100 text-green-800',
-      SYSTEM: 'bg-gray-100 text-gray-600',
+      CUSTOMER: 'bg-cobalt/10 text-cobalt border border-cobalt/20',
+      ADMIN: 'bg-green-500/10 text-green-600 border border-green-500/20',
+      TECHNICIAN: 'bg-purple-500/10 text-purple-600 border border-purple-500/20',
+      SYSTEM: 'bg-muted/10 text-muted border border-rule',
     };
     return colors[senderType] || colors.SYSTEM;
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cobalt"></div>
       </div>
     );
   }
 
   if (!ticket) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center bg-paper border border-rule p-8 rounded-[10px] shadow-sm">
+          <h2 className="text-lg font-display font-medium text-ink mb-2 uppercase tracking-widest">
             {t('ticket.ticketNotFound')}
           </h2>
           <Link
             href="/customer/tickets"
-            className="text-teal-600 hover:text-teal-700"
+            className="text-[10px] font-mono font-bold text-cobalt hover:text-cobalt-hover uppercase tracking-wider"
           >
             {t('ticket.backToTickets')}
           </Link>
@@ -202,107 +202,114 @@ export default function TicketDetailPage() {
   const isClosed = ticket.status === 'CLOSED';
 
   return (
-    <div className="p-3 lg:p-5 space-y-3 w-full">
+    <div className="p-4 lg:p-8 max-w-4xl mx-auto space-y-6 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-3">
-        <div className="flex items-center gap-3 mb-3">
-          <Link
-            href="/customer/tickets"
-            className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-          >
-            <ArrowLeft size={22} />
-          </Link>
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="text-sm font-mono text-gray-500 dark:text-gray-400">
-                #{ticket.ticketNumber}
+      <div className="flex items-center gap-4 pb-4 border-b border-rule">
+        <Link
+          href="/customer/tickets"
+          className="text-muted hover:text-ink transition-colors flex-shrink-0"
+        >
+          <ArrowLeft size={20} />
+        </Link>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-[11px] font-mono font-bold text-ink tracking-wide">
+              #{ticket.ticketNumber}
+            </span>
+            <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${getStatusColor(ticket.status)}`}>
+              {t(`ticket.status_${ticket.status}`)}
+            </span>
+            <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${getPriorityColor(ticket.priority)}`}>
+              {t(`ticket.priority_${ticket.priority}`)}
+            </span>
+            {ticket.category && (
+              <span
+                className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-muted/10 border"
+                style={{ color: ticket.category.color, borderColor: ticket.category.color + '40' }}
+              >
+                {ticket.category.name}
               </span>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
-                  {t(`ticket.status_${ticket.status}`)}
-                </span>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
-                  {t(`ticket.priority_${ticket.priority}`)}
-                </span>
-                {ticket.category && (
-                  <span
-                    className="px-3 py-1 rounded-full text-xs font-medium text-white"
-                    style={{ backgroundColor: ticket.category.color }}
-                  >
-                    {ticket.category.name}
-                  </span>
-                )}
-            </div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-              {ticket.subject}
-            </h2>
-            <p className="text-xs text-gray-600 dark:text-gray-400">
-              {t('ticket.created')}: {formatWIB(ticket.createdAt, 'd MMM yyyy HH:mm')}
-            </p>
+            )}
           </div>
+          <h2 className="text-xl lg:text-2xl font-display font-medium text-ink truncate mb-1">
+            {ticket.subject}
+          </h2>
+          <p className="text-[10px] font-mono text-muted uppercase tracking-wider">
+            {t('ticket.created')}: {formatWIB(ticket.createdAt, 'dd MMM yyyy HH:mm')}
+          </p>
         </div>
       </div>
 
       {/* Initial Description */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-        <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-2">
-          {t('ticket.description')}
-        </h3>
-        <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">
-          {ticket.description}
-        </p>
+      <div className="bg-paper border border-rule rounded-[10px] shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-rule bg-muted/5">
+          <h3 className="text-[10px] font-mono font-bold text-ink uppercase tracking-widest">
+            {t('ticket.description')}
+          </h3>
         </div>
+        <div className="p-5">
+          <p className="text-sm font-mono text-ink whitespace-pre-wrap leading-relaxed">
+            {ticket.description}
+          </p>
+        </div>
+      </div>
 
       {/* Messages */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`bg-white dark:bg-gray-900 rounded-lg border p-3 ${
-              msg.senderType === 'SYSTEM' 
-                ? 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800' 
-                : 'border-gray-200 dark:border-gray-800'
+            className={`bg-paper border border-rule rounded-[10px] shadow-sm overflow-hidden transition-all ${
+              msg.senderType === 'SYSTEM' ? 'opacity-80' : ''
             }`}
           >
-            <div className="flex items-start gap-2">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-teal-100 dark:bg-teal-900 flex items-center justify-center">
-                  <User size={16} className="text-teal-600 dark:text-teal-400" />
+            <div className={`p-4 ${msg.senderType === 'SYSTEM' ? 'bg-muted/5' : ''}`}>
+              <div className="flex items-start gap-4">
+                <div className={`flex-shrink-0 w-8 h-8 rounded border flex items-center justify-center ${
+                  msg.senderType === 'CUSTOMER' ? 'bg-cobalt/10 border-cobalt/20 text-cobalt' : 
+                  msg.senderType === 'ADMIN' ? 'bg-green-500/10 border-green-500/20 text-green-600' :
+                  msg.senderType === 'TECHNICIAN' ? 'bg-purple-500/10 border-purple-500/20 text-purple-600' :
+                  'bg-muted/10 border-rule text-muted'
+                }`}>
+                  <User size={14} />
                 </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="font-semibold text-gray-900 dark:text-white text-sm">
-                    {msg.senderName}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${getSenderBadgeColor(msg.senderType)}`}>
-                    {t(`ticket.senderType_${msg.senderType}`)}
-                  </span>
-                  <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                    <Clock size={12} />
-                      {formatWIB(msg.createdAt, 'd MMM HH:mm')}
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className="text-xs font-display font-medium text-ink">
+                      {msg.senderName}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${getSenderBadgeColor(msg.senderType)}`}>
+                      {t(`ticket.senderType_${msg.senderType}`)}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-[9px] font-mono text-muted uppercase tracking-wider">
+                      <Clock size={10} />
+                      {formatWIB(msg.createdAt, 'dd MMM HH:mm')}
                     </div>
                   </div>
-                  <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">
+                  <p className="text-sm font-mono text-ink whitespace-pre-wrap leading-relaxed mt-3">
                     {msg.message}
                   </p>
                 </div>
               </div>
+            </div>
           </div>
         ))}
       </div>
 
       {/* Reply Form */}
       {!isClosed && (
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-          <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-3">
-            {t('ticket.addReply')}
-          </h3>
-          <form onSubmit={handleReply}>
+        <div className="bg-paper border border-rule rounded-[10px] shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-rule bg-muted/5">
+            <h3 className="text-[10px] font-mono font-bold text-ink uppercase tracking-widest">
+              {t('ticket.addReply')}
+            </h3>
+          </div>
+          <form onSubmit={handleReply} className="p-5">
             <textarea
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               rows={4}
-              className="w-full border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent mb-3"
+              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-3 text-sm font-mono text-ink focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 outline-none transition-all resize-y mb-4"
               placeholder={t('ticket.replyPlaceholder')}
               disabled={sending}
             />
@@ -310,16 +317,16 @@ export default function TicketDetailPage() {
               <button
                 type="submit"
                 disabled={sending || !replyText.trim()}
-                className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="flex items-center gap-2 px-6 py-2 bg-cobalt hover:bg-cobalt-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50 uppercase tracking-wider"
               >
                 {sending ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
                     {t('ticket.sending')}...
                   </>
                 ) : (
                   <>
-                    <Send size={16} />
+                    <Send size={14} />
                     {t('ticket.sendReply')}
                   </>
                 )}
@@ -330,8 +337,8 @@ export default function TicketDetailPage() {
       )}
 
       {isClosed && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-center">
-          <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+        <div className="bg-muted/5 border border-rule rounded-[10px] p-6 text-center">
+          <p className="text-[10px] font-mono font-bold text-muted uppercase tracking-widest">
             {t('ticket.ticketClosed')}
           </p>
         </div>

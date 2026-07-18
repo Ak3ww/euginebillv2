@@ -1,11 +1,11 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/components/cyberpunk/CyberToast';
-import { ArrowLeft, Send, CheckCircle, MapPin, Navigation } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle, MapPin, Navigation, Loader2 } from 'lucide-react';
 import { CyberCard } from '@/components/cyberpunk/CyberCard';
 import { CyberButton } from '@/components/cyberpunk/CyberButton';
 
@@ -193,133 +193,133 @@ export default function CreateTicketPage() {
 
   if (success) {
     return (
-      <div className="flex items-center justify-center p-4 py-12">
-        <CyberCard className="p-8 max-w-md w-full text-center bg-card/90 backdrop-blur-xl border-2 border-success/30 shadow-[0_0_40px_rgba(34,197,94,0.2)]">
-          <CheckCircle size={64} className="text-success mx-auto mb-4 drop-shadow-[0_0_20px_rgba(34,197,94,0.8)]" />
-          <h2 className="text-2xl font-bold text-success mb-2 drop-shadow-[0_0_10px_rgba(34,197,94,0.5)]">
+      <div className="flex items-center justify-center p-4 py-12 animate-in fade-in duration-700">
+        <div className="p-8 max-w-md w-full text-center bg-paper border border-rule rounded-[10px] shadow-sm">
+          <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
+          <h2 className="text-xl font-display font-medium text-ink mb-2">
             {t('ticket.ticketCreated')}
           </h2>
-          <p className="text-muted-foreground mb-4">
+          <p className="text-[10px] font-mono text-muted uppercase tracking-wider mb-4">
             {t('ticket.ticketNumberIs')}:
           </p>
-          <div className="bg-success/10 border-2 border-success/30 rounded-lg p-4 mb-6 shadow-[0_0_20px_rgba(34,197,94,0.15)]">
-            <span className="text-2xl font-mono font-bold text-success drop-shadow-[0_0_10px_rgba(34,197,94,0.6)]">
+          <div className="bg-green-500/10 border border-green-500/20 rounded p-4 mb-6">
+            <span className="text-xl font-mono font-bold text-green-600 tracking-wider">
               #{ticketNumber}
             </span>
           </div>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-6">
             {t('ticket.whatsappNotificationSent')}
           </p>
-          <p className="text-sm text-cyan-400">
+          <p className="text-xs font-mono font-bold text-cobalt animate-pulse">
             {t('ticket.redirectingToTicket')}...
           </p>
-        </CyberCard>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-3 lg:p-5 space-y-3 w-full">
+    <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-6 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4 pb-4 border-b border-rule">
         <Link
           href="/customer/tickets"
-          className="text-cyan-400 hover:text-cyan-300 transition-colors drop-shadow-[0_0_5px_rgba(6,182,212,0.5)]"
+          className="text-muted hover:text-ink transition-colors"
         >
-          <ArrowLeft size={22} />
+          <ArrowLeft size={20} />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">
+          <h1 className="text-xl lg:text-2xl font-display font-medium text-ink">
             {t('ticket.createTicket')}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[10px] font-mono text-muted uppercase mt-1">
             {t('ticket.createTicketDescription')}
           </p>
         </div>
       </div>
 
-      <CyberCard className="p-6 bg-card/80 backdrop-blur-xl border-2 border-cyan-500/30 shadow-[0_0_30px_rgba(6,182,212,0.15)]">
+      <div className="bg-paper border border-rule rounded-[10px] shadow-sm p-6">
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Customer Name */}
           <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]">
-              {t('ticket.customerName')} <span className="text-red-400">*</span>
+            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2">
+              {t('ticket.customerName')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.customerName}
               onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-              className={`w-full bg-background dark:bg-slate-900/50 border rounded-lg px-4 py-2.5 text-foreground placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all ${
-                errors.customerName ? 'border-red-500/50 focus:ring-red-500/50' : 'border-cyan-500/30'
+              className={`w-full bg-paper border rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono ${
+                errors.customerName ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20'
               }`}
               placeholder={t('ticket.enterYourName')}
             />
             {errors.customerName && (
-              <p className="text-red-400 text-sm mt-1">{errors.customerName}</p>
+              <p className="text-[10px] font-mono text-red-500 uppercase mt-1.5">{errors.customerName}</p>
             )}
           </div>
 
           {/* Customer Phone */}
           <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]">
-              {t('ticket.customerPhone')} <span className="text-red-400">*</span>
+            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2">
+              {t('ticket.customerPhone')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.customerPhone}
               onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-              className={`w-full bg-background dark:bg-slate-900/50 border rounded-lg px-4 py-2.5 text-foreground placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all ${
-                errors.customerPhone ? 'border-red-500/50 focus:ring-red-500/50' : 'border-cyan-500/30'
+              className={`w-full bg-paper border rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono ${
+                errors.customerPhone ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20'
               }`}
-              placeholder="08xxxxxxxxxx"
+              placeholder="+62..."
             />
             {errors.customerPhone && (
-              <p className="text-red-400 text-sm mt-1">{errors.customerPhone}</p>
+              <p className="text-[10px] font-mono text-red-500 uppercase mt-1.5">{errors.customerPhone}</p>
             )}
           </div>
 
           {/* Customer Email */}
           <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]">
+            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2">
               {t('ticket.customerEmail')}
             </label>
             <input
               type="email"
               value={formData.customerEmail}
               onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-              className="w-full bg-background dark:bg-slate-900/50 border border-cyan-500/30 rounded-lg px-4 py-2.5 text-foreground placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
-              placeholder="email@example.com"
+              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20"
+              placeholder="name@domain.com"
             />
           </div>
 
           {/* Subject */}
           <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]">
-              {t('ticket.subject')} <span className="text-red-400">*</span>
+            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2">
+              {t('ticket.subject')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.subject}
               onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-              className={`w-full bg-background dark:bg-slate-900/50 border rounded-lg px-4 py-2.5 text-foreground placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all ${
-                errors.subject ? 'border-red-500/50 focus:ring-red-500/50' : 'border-cyan-500/30'
+              className={`w-full bg-paper border rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono ${
+                errors.subject ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20'
               }`}
               placeholder={t('ticket.subjectPlaceholder')}
             />
             {errors.subject && (
-              <p className="text-red-400 text-sm mt-1">{errors.subject}</p>
+              <p className="text-[10px] font-mono text-red-500 uppercase mt-1.5">{errors.subject}</p>
             )}
           </div>
 
           {/* Category */}
           <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]">
+            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2">
               {t('ticket.category')}
             </label>
             <select
               value={formData.categoryId}
               onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-              className="w-full bg-background dark:bg-slate-900/50 border border-cyan-500/30 rounded-lg px-4 py-2.5 text-foreground focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
+              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-2.5 text-sm font-mono text-ink outline-none transition-all focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20 uppercase"
             >
               <option value="">{t('ticket.selectCategory')}</option>
               {categories.map((cat) => (
@@ -332,95 +332,90 @@ export default function CreateTicketPage() {
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]">
-              {t('ticket.description')} <span className="text-red-400">*</span>
+            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2">
+              {t('ticket.description')} <span className="text-red-500">*</span>
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={6}
-              className={`w-full bg-background dark:bg-slate-900/50 border rounded-lg px-4 py-2.5 text-foreground placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all resize-none ${
-                errors.description ? 'border-red-500/50 focus:ring-red-500/50' : 'border-cyan-500/30'
+              className={`w-full bg-paper border rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono resize-none ${
+                errors.description ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20'
               }`}
               placeholder={t('ticket.descriptionPlaceholder')}
             />
             {errors.description && (
-              <p className="text-red-400 text-sm mt-1">{errors.description}</p>
+              <p className="text-[10px] font-mono text-red-500 uppercase mt-1.5">{errors.description}</p>
             )}
-            <p className="text-muted-foreground text-sm mt-1">
+            <p className="text-[9px] font-mono text-muted uppercase mt-1.5 tracking-widest">
               {t('ticket.minCharacters')}: 10
             </p>
           </div>
 
           {/* Location Tag */}
           <div>
-            <label className="block text-sm font-medium text-cyan-400 mb-2 drop-shadow-[0_0_5px_rgba(6,182,212,0.3)]">
-              <MapPin size={14} className="inline mr-1" />
-              Lokasi / Alamat Rumah
+            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <MapPin size={12} />
+              LOKASI / ALAMAT RUMAH
             </label>
             <input
               type="text"
               value={formData.locationTag}
               onChange={(e) => setFormData({ ...formData, locationTag: e.target.value })}
-              className="w-full bg-background dark:bg-slate-900/50 border border-cyan-500/30 rounded-lg px-4 py-2.5 text-foreground placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
-              placeholder="Contoh: Jl. Merdeka No. 10, dekat warung Pak Budi"
+              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono focus:border-cobalt/50 focus:ring-1 focus:ring-cobalt/20"
+              placeholder="Contoh: Jl. Merdeka No. 10..."
             />
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-3 mt-3">
               <button
                 type="button"
                 onClick={handleGetGPS}
                 disabled={gpsLoading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-cyan-500/40 text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-paper border border-rule hover:border-cobalt/50 text-[10px] font-mono font-bold text-ink rounded-[6px] transition-colors disabled:opacity-50 uppercase tracking-wider"
               >
                 {gpsLoading ? (
-                  <><div className="w-3 h-3 border border-cyan-400 border-t-transparent rounded-full animate-spin" /> Mendapatkan lokasi…</>
+                  <><Loader2 size={12} className="animate-spin" /> MENDAPATKAN LOKASI…</>
                 ) : (
-                  <><Navigation size={12} /> Ambil Koordinat GPS</>
+                  <><Navigation size={12} /> AMBIL KOORDINAT GPS</>
                 )}
               </button>
               {formData.latitude && formData.longitude && (
-                <span className="text-xs text-emerald-400">
+                <span className="text-[10px] font-mono font-bold text-green-600 uppercase">
                   📍 {formData.latitude}, {formData.longitude}
                 </span>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Opsional — membantu teknisi menemukan lokasi rumah Anda
-            </p>
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-4 border-t border-rule mt-6">
             <Link href="/customer/tickets">
-              <CyberButton
+              <button
                 type="button"
-                variant="outline"
-                className="px-6 py-2.5"
+                className="px-6 py-2 bg-paper border border-rule hover:bg-muted/5 text-ink text-[11px] font-mono font-bold rounded-[6px] transition-colors uppercase tracking-wider"
               >
                 {t('ticket.cancel')}
-              </CyberButton>
+              </button>
             </Link>
-            <CyberButton
+            <button
               type="submit"
               disabled={loading}
-              variant="cyan"
-              className="px-6 py-2.5 flex items-center gap-2"
+              className="flex items-center gap-2 px-6 py-2 bg-cobalt hover:bg-cobalt-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50 uppercase tracking-wider"
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <Loader2 size={14} className="animate-spin" />
                   {t('ticket.creating')}...
                 </>
               ) : (
                 <>
-                  <Send size={20} />
+                  <Send size={14} />
                   {t('ticket.submitTicket')}
                 </>
               )}
-            </CyberButton>
+            </button>
           </div>
         </form>
-      </CyberCard>
+      </div>
     </div>
   );
 }
