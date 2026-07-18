@@ -16,6 +16,7 @@ export async function POST(
     const bankName = formData.get('bankName') as string;
     const accountNumber = formData.get('accountNumber') as string;
     const accountName = formData.get('accountName') as string;
+    const destinationBank = formData.get('destinationBank') as string;
     const notes = formData.get('notes') as string;
     const file = formData.get('receiptImage') as File;
 
@@ -66,9 +67,20 @@ export async function POST(
         bankName,
         accountNumber,
         accountName,
+        destinationBank,
         receiptImage: receiptUrl,
         notes,
         status: 'PENDING'
+      }
+    });
+
+    // Buat Notifikasi Admin
+    await prisma.notification.create({
+      data: {
+        type: 'payment_received',
+        title: 'Konfirmasi Pembayaran Manual',
+        message: `Pelanggan ${invoice.user.name} mengunggah bukti pembayaran manual untuk tagihan ${invoice.invoiceNumber} sebesar Rp ${invoice.amount.toLocaleString('id-ID')}.`,
+        link: '/admin/invoices'
       }
     });
 

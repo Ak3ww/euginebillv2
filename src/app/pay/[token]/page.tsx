@@ -56,7 +56,7 @@ export default function PaymentPage() {
   const [loadingQrinMethods, setLoadingQrinMethods] = useState(false);
   
   const [showManualForm, setShowManualForm] = useState(false);
-  const [manualForm, setManualForm] = useState({ bankName: '', accountNumber: '', accountName: '', notes: '', receiptImage: null as File | null });
+  const [manualForm, setManualForm] = useState({ bankName: '', accountNumber: '', accountName: '', destinationBank: '', notes: '', receiptImage: null as File | null });
   const [uploading, setUploading] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
   const [manualSuccess, setManualSuccess] = useState(false);
@@ -213,6 +213,7 @@ export default function PaymentPage() {
       formData.append('bankName', manualForm.bankName);
       formData.append('accountNumber', manualForm.accountNumber);
       formData.append('accountName', manualForm.accountName);
+      formData.append('destinationBank', manualForm.destinationBank);
       formData.append('notes', manualForm.notes);
       formData.append('receiptImage', manualForm.receiptImage);
 
@@ -225,7 +226,7 @@ export default function PaymentPage() {
       
       setManualSuccess(true);
       setTimeout(() => {
-        window.location.reload();
+        router.push('/customer/invoices');
       }, 3000);
     } catch (err: any) {
       setManualError(err.message || 'Gagal upload bukti transfer');
@@ -471,6 +472,15 @@ export default function PaymentPage() {
 
                         <div className="space-y-4">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="sm:col-span-2">
+                              <label className="text-xs font-bold text-neutral-300 block mb-1.5">Transfer Ke Mana?</label>
+                              <select className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm font-medium text-white focus:bg-neutral-900 focus:border-red-500 outline-none transition-all appearance-none" value={manualForm.destinationBank} onChange={e => setManualForm({...manualForm, destinationBank: e.target.value})}>
+                                <option value="" disabled>-- Pilih Rekening Tujuan --</option>
+                                {company?.bankAccounts && Array.isArray(company.bankAccounts) && company.bankAccounts.map((acc: any, i: number) => (
+                                  <option key={i} value={acc.bankName}>{acc.bankName} - {acc.accountNumber} (a/n {acc.accountName})</option>
+                                ))}
+                              </select>
+                            </div>
                             <div>
                               <label className="text-xs font-bold text-neutral-300 block mb-1.5">Bank Pengirim</label>
                               <input type="text" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm font-medium text-white focus:bg-neutral-900 focus:border-red-500 outline-none transition-all" placeholder="Contoh: BCA / DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />

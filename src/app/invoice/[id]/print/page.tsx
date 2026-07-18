@@ -63,12 +63,18 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
     address: rawInvoice.user?.address || '',
   };
 
+  const approvedManual = rawInvoice.manualPayments?.find((mp: any) => mp.status === 'APPROVED');
+  const anyManual = rawInvoice.manualPayments?.[0];
+
   const paidVia = (() => {
     if (!rawInvoice.paidAt) return null;
+    if (approvedManual || rawInvoice.payments?.some((p: any) => p.method === 'manual_transfer' || p.method === 'manual')) return 'transfer';
     if (rawInvoice.payments?.length > 0) return 'gateway';
-    if (rawInvoice.manualPayments?.length > 0) return 'transfer';
     return 'admin';
   })();
+
+  inv.paidVia = paidVia;
+  inv.destinationBank = approvedManual?.destinationBank || anyManual?.destinationBank || null;
 
   inv.invoice = {
     number: rawInvoice.invoiceNumber,
@@ -212,7 +218,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
               {inv.invoice.paidAt && (
                 <>
                   <div className="mb-0.5"><span className="text-gray-500">Dibayar pada: </span>{inv.invoice.paidAt}</div>
-                  <div className="mb-0.5"><span className="text-gray-500">Via: </span>{inv.paidVia === 'gateway' ? 'Payment Gateway' : inv.paidVia === 'transfer' ? 'Transfer Manual' : 'Dikonfirmasi Admin'}</div>
+                  <div className="mb-0.5"><span className="text-gray-500">Via: </span>{inv.paidVia === 'gateway' ? 'Payment Gateway' : inv.paidVia === 'transfer' ? `Transfer Manual ${inv.destinationBank ? `(ke ${inv.destinationBank})` : ''}` : 'Dikonfirmasi Admin'}</div>
                 </>
               )}
             </div>

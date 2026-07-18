@@ -575,6 +575,7 @@ model pppoeUser {
   pushSubscriptions pushSubscription[]
   oltOnuStatuses    oltOnuStatus[]
   acsDevices        acsDevice[]
+  customerNotifications customerNotification[]
 
   @@index([profileId], map: "pppoe_users_profileId_fkey")
   @@index([routerId], map: "pppoe_users_routerId_fkey")
@@ -1614,6 +1615,7 @@ model manualPayment {
   bankName        String              // Bank/E-Wallet yang digunakan (BCA, BNI, Mandiri, DANA, GoPay, dll)
   accountNumber   String?             // Nomor rekening atau nomor e-wallet pengirim
   accountName     String              // Nama lengkap pengirim sesuai rekening/e-wallet
+  destinationBank String?             // Bank tujuan (milik ISP) yang dipilih oleh pelanggan
   receiptImage    String?             // Path to uploaded receipt image
   notes           String?             @db.Text
   status          ManualPaymentStatus @default(PENDING)
@@ -2530,4 +2532,22 @@ enum RequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model customerNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String   @db.Text
+  type      String   // 'info', 'success', 'warning', 'error'
+  link      String?  // Optional link
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      pppoeUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("customer_notifications")
 }

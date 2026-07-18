@@ -212,6 +212,16 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Create Admin Notification
+    await prisma.notification.create({
+      data: {
+        type: 'system_alert',
+        title: 'Pengajuan Ganti Paket',
+        message: `Pelanggan ${pppoeUser.name} mengajukan ganti paket ke ${changeRequest.newProfile.name}.`,
+        link: '/admin/users'
+      }
+    });
+
     return NextResponse.json({
       success: true,
       message: `Pengajuan ganti paket ke ${changeRequest.newProfile.name} berhasil dikirim dan menunggu persetujuan admin`,

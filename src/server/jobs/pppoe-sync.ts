@@ -172,6 +172,10 @@ export async function autoIsolatePPPoEUsers(): Promise<{
     return { success: true, isolated: 0 }
   }
 
+  // Get company settings to check radiusEnabled
+  const company = await prisma.company.findFirst()
+  const isRadiusEnabled = company?.radiusEnabled ?? true
+
   let history: { id: string } | undefined
 
   try {
@@ -222,34 +226,36 @@ export async function autoIsolatePPPoEUsers(): Promise<{
     }
 
     // Best-effort: disconnect any PPPoE sessions that are still active for blocked/stop users
-    try {
-      const stillOnlineBlocked = await prisma.$queryRaw<Array<{ username: string }>>`
-        SELECT DISTINCT ra.username
-        FROM radacct ra
-        INNER JOIN pppoe_users pu ON pu.username = ra.username
-        WHERE pu.status IN ('blocked', 'stop')
-          AND ra.acctstoptime IS NULL
-        LIMIT 50
-      `
-
-      for (const s of stillOnlineBlocked) {
-        // Use CoA disconnect (handles DB + CoA + API fallback internally)
-        try {
-          const { disconnectPPPoEUser } = await import('@/server/services/radius/coa-handler.service')
-          await disconnectPPPoEUser(s.username)
-        } catch {}
-
-        // Ensure radacct is closed regardless of disconnect method success
-        await prisma.$executeRaw`
-          UPDATE radacct
-          SET acctstoptime = NOW(),
-              acctterminatecause = 'Admin-Reset'
-          WHERE username = ${s.username}
-            AND acctstoptime IS NULL
+    if (isRadiusEnabled) {
+      try {
+        const stillOnlineBlocked = await prisma.$queryRaw<Array<{ username: string }>>`
+          SELECT DISTINCT ra.username
+          FROM radacct ra
+          INNER JOIN pppoe_users pu ON pu.username = ra.username
+          WHERE pu.status IN ('blocked', 'stop')
+            AND ra.acctstoptime IS NULL
+          LIMIT 50
         `
+
+        for (const s of stillOnlineBlocked) {
+          // Use CoA disconnect (handles DB + CoA + API fallback internally)
+          try {
+            const { disconnectPPPoEUser } = await import('@/server/services/radius/coa-handler.service')
+            await disconnectPPPoEUser(s.username)
+          } catch {}
+
+          // Ensure radacct is closed regardless of disconnect method success
+          await prisma.$executeRaw`
+            UPDATE radacct
+            SET acctstoptime = NOW(),
+                acctterminatecause = 'Admin-Reset'
+            WHERE username = ${s.username}
+              AND acctstoptime IS NULL
+          `
+        }
+      } catch (cleanupErr: any) {
+        console.error('[PPPoE Auto-Isolir] Failed to cleanup active sessions for blocked/stop users:', cleanupErr?.message)
       }
-    } catch (cleanupErr: any) {
-      console.error('[PPPoE Auto-Isolir] Failed to cleanup active sessions for blocked/stop users:', cleanupErr?.message)
     }
 
     // Find active users with expiredAt before today minus grace period
@@ -265,8 +271,9 @@ export async function autoIsolatePPPoEUsers(): Promise<{
       status: string
       expiredAt: Date
       profileId: string
+      routerId: string | null
     }>>`
-      SELECT id, username, name, phone, email, password, status, expiredAt, profileId
+      SELECT id, username, name, phone, email, password, status, expiredAt, profileId, routerId
       FROM pppoe_users
       WHERE status = 'active'
         AND expiredAt < DATE_SUB(CURDATE(), INTERVAL ${gracePeriodDays} DAY)
@@ -302,63 +309,75 @@ export async function autoIsolatePPPoEUsers(): Promise<{
           data: { status: 'isolated' },
         })
 
-        // 2. Keep password in radcheck (ALLOW LOGIN!)
-        await prisma.$executeRaw`
-          INSERT INTO radcheck (username, attribute, op, value)
-          VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
-          ON DUPLICATE KEY UPDATE value = ${user.password}
-        `
+        if (isRadiusEnabled) {
+          // ========== RADIUS MODE ==========
+          // 2. Keep password in radcheck (ALLOW LOGIN!)
+          await prisma.$executeRaw`
+            INSERT INTO radcheck (username, attribute, op, value)
+            VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
+            ON DUPLICATE KEY UPDATE value = ${user.password}
+          `
 
-        // 2b. REMOVE Auth-Type Reject (allow login for isolation!)
-        await prisma.$executeRaw`
-          DELETE FROM radcheck 
-          WHERE username = ${user.username} 
-            AND attribute = 'Auth-Type'
-        `
+          // 2b. REMOVE Auth-Type Reject (allow login for isolation!)
+          await prisma.$executeRaw`
+            DELETE FROM radcheck 
+            WHERE username = ${user.username} 
+              AND attribute = 'Auth-Type'
+          `
 
-        // Remove reject message (allow login)
-        await prisma.$executeRaw`
-          DELETE FROM radreply 
-          WHERE username = ${user.username} 
-            AND attribute = 'Reply-Message'
-        `
+          // Remove reject message (allow login)
+          await prisma.$executeRaw`
+            DELETE FROM radreply 
+            WHERE username = ${user.username} 
+              AND attribute = 'Reply-Message'
+          `
 
-        // 3. Move to isolir group (kept for tracking/config)
-        await prisma.$executeRaw`
-          DELETE FROM radusergroup WHERE username = ${user.username}
-        `
-        await prisma.$executeRaw`
-          INSERT INTO radusergroup (username, groupname, priority)
-          VALUES (${user.username}, 'isolir', 1)
-        `
+          // 3. Move to isolir group (kept for tracking/config)
+          await prisma.$executeRaw`
+            DELETE FROM radusergroup WHERE username = ${user.username}
+          `
+          await prisma.$executeRaw`
+            INSERT INTO radusergroup (username, groupname, priority)
+            VALUES (${user.username}, 'isolir', 1)
+          `
 
-        // 4. Remove static IP (user will get IP from pool-isolir)
-        await prisma.$executeRaw`
-          DELETE FROM radreply 
-          WHERE username = ${user.username} 
-            AND attribute = 'Framed-IP-Address'
-        `
+          // 4. Remove static IP (user will get IP from pool-isolir)
+          await prisma.$executeRaw`
+            DELETE FROM radreply 
+            WHERE username = ${user.username} 
+              AND attribute = 'Framed-IP-Address'
+          `
 
-        // 5. Disconnect user — disconnectPPPoEUser handles API-first (Method 1) + CoA (Method 2)
-        try {
-          const { disconnectPPPoEUser } = await import('@/server/services/radius/coa-handler.service')
-          const disconnectResult = await disconnectPPPoEUser(user.username)
-          console.log(
-            `[PPPoE Auto-Isolir] Disconnect ${user.username}: API=${disconnectResult.apiSuccess}, CoA=${disconnectResult.coaSuccess}`
-          )
-        } catch (disconnectError: any) {
-          console.error(`[PPPoE Auto-Isolir] ? Disconnect failed for ${user.username}:`, disconnectError.message)
+          // 5. Disconnect user — disconnectPPPoEUser handles API-first (Method 1) + CoA (Method 2)
+          try {
+            const { disconnectPPPoEUser } = await import('@/server/services/radius/coa-handler.service')
+            const disconnectResult = await disconnectPPPoEUser(user.username)
+            console.log(
+              `[PPPoE Auto-Isolir] Disconnect ${user.username}: API=${disconnectResult.apiSuccess}, CoA=${disconnectResult.coaSuccess}`
+            )
+          } catch (disconnectError: any) {
+            console.error(`[PPPoE Auto-Isolir] ? Disconnect failed for ${user.username}:`, disconnectError.message)
+          }
+
+          // Close session in radacct
+          await prisma.$executeRaw`
+            UPDATE radacct 
+            SET acctstoptime = NOW(), 
+                acctterminatecause = 'Admin-Reset'
+            WHERE username = ${user.username} 
+              AND acctstoptime IS NULL
+          `
+          console.log(`[PPPoE Auto-Isolir] ?? Session closed in radacct for ${user.username}`)
+        } else {
+          // ========== NON-RADIUS MODE (MikroTik Direct) ==========
+          const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+          if (!user.routerId) {
+            console.warn(`[PPPoE Auto-Isolir] No routerId for user ${user.username}, skipping MikroTik API call`);
+          } else {
+            const result = await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, 'isolir');
+            console.log(`[PPPoE Auto-Isolir] MikroTik isolate result for ${user.username}:`, result);
+          }
         }
-
-        // Close session in radacct
-        await prisma.$executeRaw`
-          UPDATE radacct 
-          SET acctstoptime = NOW(), 
-              acctterminatecause = 'Admin-Reset'
-          WHERE username = ${user.username} 
-            AND acctstoptime IS NULL
-        `
-        console.log(`[PPPoE Auto-Isolir] ?? Session closed in radacct for ${user.username}`)
 
         isolatedCount++
         console.log(

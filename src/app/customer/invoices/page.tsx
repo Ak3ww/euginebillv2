@@ -163,31 +163,8 @@ export default function CustomerInvoicesPage() {
   }, [statusFilter, fetchInvoices]);
 
   const handlePayInvoice = async (inv: Invoice) => {
-    if (inv.paymentToken) {
-      router.push(`/pay/${inv.paymentToken}`);
-      return;
-    }
-    // Skip localhost links (created before baseUrl was configured)
-    if (inv.paymentLink && !inv.paymentLink.includes('localhost')) { window.open(inv.paymentLink, '_blank'); return; }
-    setPaying(inv.id);
-    try {
-      const token = localStorage.getItem('customer_token');
-      const res = await fetch('/api/customer/invoice/regenerate-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ invoiceId: inv.id }),
-      });
-      const data = await res.json();
-      if (data.paymentUrl || data.paymentLink || data.payment_url) {
-        window.open(data.paymentUrl || data.paymentLink || data.payment_url, '_blank');
-      } else {
-        toast('error', 'Gagal', data.error || 'Gagal membuat link pembayaran');
-      }
-    } catch {
-      toast('error', 'Error', 'Terjadi kesalahan');
-    } finally {
-      setPaying(null);
-    }
+    // Arahkan ke halaman detail invoice (web version) terlebih dahulu
+    window.open(`/invoice/${inv.invoiceNumber}`, '_blank');
   };
 
   const handlePage = (p: number) => {
@@ -336,19 +313,18 @@ export default function CustomerInvoicesPage() {
                     </span>
                     {payable && (
                       <div className="flex flex-col gap-1.5">
-                        <CyberButton
+                        <button
                           onClick={() => handlePayInvoice(inv)}
-                          disabled={isPaying}
-                          variant="cyan"
-                          className="w-full justify-center text-xs"
-                          size="sm"
+                          disabled={paying === inv.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-lg transition-colors"
                         >
-                          {isPaying ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          {paying === inv.id ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                           ) : (
-                            <><ExternalLink className="w-3.5 h-3.5 mr-1" />Bayar Sekarang</>
+                            <CreditCard className="w-3.5 h-3.5" />
                           )}
-                        </CyberButton>
+                          Lihat Tagihan
+                        </button>
                       </div>
                     )}
                   </div>

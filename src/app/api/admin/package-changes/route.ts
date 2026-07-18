@@ -270,6 +270,17 @@ export async function POST(request: NextRequest) {
       data: { status: 'APPROVED' }
     });
 
+    // Create Customer Notification
+    await prisma.customerNotification.create({
+      data: {
+        userId: user.id,
+        type: 'info',
+        title: 'Pengajuan Ganti Paket Disetujui',
+        message: `Pengajuan ganti paket Anda ke ${newProfile.name} telah disetujui. Tagihan ${actionLabel} telah diterbitkan.`,
+        link: `/invoice/${invoice.invoiceNumber}`
+      }
+    });
+
     // Send WhatsApp notification
     try {
       await sendPackageUpgradeApproval({

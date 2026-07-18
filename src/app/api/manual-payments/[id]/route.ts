@@ -241,6 +241,16 @@ export async function PATCH(
             paidAt: approvedAt,
           },
         });
+
+        await tx.customerNotification.create({
+          data: {
+            userId: manualPayment.userId,
+            type: 'success',
+            title: 'Pembayaran Disetujui',
+            message: `Pembayaran manual untuk invoice ${manualPayment.invoice.invoiceNumber} sebesar Rp ${manualPayment.invoice.amount.toLocaleString('id-ID')} telah disetujui.`,
+            link: `/invoice/${manualPayment.invoice.invoiceNumber}`
+          }
+        });
       });
 
       // Verify pppoe_users.password was NOT changed by the transaction or any DB trigger

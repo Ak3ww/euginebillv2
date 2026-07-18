@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 
 // Auth helper (shared pattern from other customer routes)
@@ -43,6 +43,26 @@ export async function GET(request: NextRequest) {
     message: string;
     timestamp: string;
   }> = [];
+
+  // 0. Generic DB Notifications
+  const genericNotifs = await prisma.customerNotification.findMany({
+    where: {
+      userId: user.id,
+      createdAt: { gte: since }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 20
+  });
+
+  for (const n of genericNotifs) {
+    events.push({
+      id: `gen-${n.id}`,
+      type: n.type || 'info', // generic info/success/warning
+      title: n.title,
+      message: n.message,
+      timestamp: n.createdAt.toISOString()
+    });
+  }
 
   // 1. Recently paid invoices (payment-success)
   const paidInvoices = await prisma.invoice.findMany({
