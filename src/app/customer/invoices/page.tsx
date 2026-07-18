@@ -163,8 +163,12 @@ export default function CustomerInvoicesPage() {
   }, [statusFilter, fetchInvoices]);
 
   const handlePayInvoice = async (inv: Invoice) => {
-    // Arahkan ke halaman detail invoice (web version) terlebih dahulu
-    window.open(`/invoice/${inv.invoiceNumber}`, '_blank');
+    // Arahkan ke halaman detail invoice (sama tab, agar APK WebView tidak buka browser)
+    if (inv.paymentToken) {
+      router.push(`/pay/${inv.paymentToken}`);
+    } else {
+      router.push(`/invoice/${inv.invoiceNumber}`);
+    }
   };
 
   const handlePage = (p: number) => {

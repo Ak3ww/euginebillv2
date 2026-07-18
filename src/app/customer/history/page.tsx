@@ -219,7 +219,13 @@ export default function PaymentHistoryPage() {
       });
       const data = await res.json();
       if (data.success && data.paymentUrl) {
-        window.open(data.paymentUrl, '_blank', 'noopener,noreferrer');
+        // Gunakan router.push agar tetap dalam app (APK WebView tidak buka browser)
+        const match = data.paymentUrl.match(/\/pay\/([^?#]+)/);
+        if (match) {
+          router.push(`/pay/${match[1]}`);
+        } else {
+          router.push('/customer/invoices');
+        }
         setTimeout(() => loadPaymentHistory(), 2000);
       } else {
         toast('error', 'Gagal Membuat Pembayaran', data.error || 'Gagal membuat link pembayaran');
@@ -296,10 +302,11 @@ export default function PaymentHistoryPage() {
   };
 
   const handlePayLink = (payment: PaymentHistory) => {
-    if (payment.paymentLink && payment.paymentLink.trim() !== '' && !payment.paymentLink.includes('localhost')) {
-      window.open(payment.paymentLink, '_blank', 'noopener,noreferrer');
-    } else if (payment.paymentToken) {
-      window.open(`/pay/${payment.paymentToken}`, '_blank');
+    // Gunakan router.push agar tetap dalam app (APK WebView tidak buka browser)
+    if (payment.paymentToken) {
+      router.push(`/pay/${payment.paymentToken}`);
+    } else {
+      router.push('/customer/invoices');
     }
   };
 
@@ -316,6 +323,9 @@ export default function PaymentHistoryPage() {
   };
 
   const handlePrintInvoice = async (payment: PaymentHistory) => {
+    // Arahkan ke halaman print invoice (tetap dalam app)
+    router.push(`/invoice/${payment.invoiceNumber}/print`);
+    return;
     try {
       const token = localStorage.getItem('customer_token');
       const res = await fetch(`/api/invoices/${payment.id}/pdf`, {
@@ -1131,16 +1141,14 @@ export default function PaymentHistoryPage() {
                     {(selectedDetail.status === 'PENDING' || selectedDetail.status === 'OVERDUE') && (
                       <div className="p-3 bg-muted/10 rounded-xl border border-border/40">
                         <p className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1.5">Link Pembayaran</p>
-                        {selectedDetail.paymentLink && selectedDetail.paymentLink.trim() !== '' && !selectedDetail.paymentLink.includes('localhost') ? (
-                          <a href={selectedDetail.paymentLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300">
+                        {selectedDetail.paymentToken ? (
+                          <button
+                            onClick={() => { setSelectedDetail(null); router.push(`/pay/${selectedDetail.paymentToken}`); }}
+                            className="flex items-center gap-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300"
+                          >
                             <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                            {selectedDetail.paymentLink.length > 40 ? selectedDetail.paymentLink.substring(0, 40) + '...' : selectedDetail.paymentLink}
-                          </a>
-                        ) : selectedDetail.paymentToken ? (
-                          <a href={`/pay/${selectedDetail.paymentToken}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300">
-                            <ExternalLink className="w-3 h-3" />
-                            /pay/{selectedDetail.paymentToken}
-                          </a>
+                            Buka Halaman Bayar
+                          </button>
                         ) : (
                           <p className="text-[11px] text-muted-foreground/60 italic">Tidak ada link pembayaran</p>
                         )}

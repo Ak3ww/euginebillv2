@@ -71,6 +71,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
 
   inv.paidVia = paidVia;
   inv.paymentLink = rawInvoice.paymentLink || (rawInvoice.paymentToken ? '/pay/' + rawInvoice.paymentToken : '');
+  inv.paymentToken = rawInvoice.paymentToken || null;
 
   const baseAmt = rawInvoice.baseAmount ?? rawInvoice.amount;
   const taxRateNum = rawInvoice.taxRate ? Number(rawInvoice.taxRate) : 0;
@@ -293,13 +294,17 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
       {/* Floating Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-200 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-50 flex justify-center no-print">
         <div className="w-full max-w-[210mm] flex gap-3">
-          <Link href={`/invoice/${inv.invoice.number}/print`} target="_blank" className="flex-1 max-w-[120px] bg-white text-gray-700 border border-gray-300 font-bold text-[13px] py-3 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
+          {/* Cetak: arahkan ke print page dalam tab yang sama */}
+          <Link href={`/invoice/${inv.invoice.number}/print`} className="flex-1 max-w-[120px] bg-white text-gray-700 border border-gray-300 font-bold text-[13px] py-3 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
             <Printer className="w-4 h-4" />
             Cetak
           </Link>
           
-          {inv.invoice.status !== 'PAID' && inv.paymentLink && (
-            <Link href={inv.paymentLink} className="flex-1 bg-red-600 text-white font-bold text-[14px] py-3 rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 flex items-center justify-center gap-2">
+          {inv.invoice.status !== 'PAID' && (inv.paymentToken || inv.paymentLink) && (
+            <Link
+              href={inv.paymentToken ? `/pay/${inv.paymentToken}` : inv.paymentLink}
+              className="flex-1 bg-red-600 text-white font-bold text-[14px] py-3 rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 flex items-center justify-center gap-2"
+            >
               <CreditCard className="w-5 h-5" />
               BAYAR SEKARANG
             </Link>

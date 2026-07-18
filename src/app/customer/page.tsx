@@ -115,7 +115,13 @@ export default function CustomerDashboard() {
 
       if (data.success && data.paymentUrl) {
         await loadInvoices();
-        window.open(data.paymentUrl, '_blank', 'noopener,noreferrer');
+        // Gunakan router.push agar tetap dalam app (APK WebView tidak buka browser)
+        const match = data.paymentUrl.match(/\/pay\/([^?#]+)/);
+        if (match) {
+          router.push(`/pay/${match[1]}`);
+        } else {
+          router.push('/customer/invoices');
+        }
       } else {
         toast('error', 'Gagal', data.error || 'Gagal membuat link pembayaran');
       }
