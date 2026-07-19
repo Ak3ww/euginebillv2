@@ -238,24 +238,26 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
     return (
     <div className="min-h-screen flex flex-col font-sans bg-[var(--color-paper-2)] text-[var(--color-ink)]">
       {/* Desktop Navigation (Hidden on Mobile) */}
-      <nav className="hidden md:flex justify-between items-center px-[var(--space-lg)] h-16 w-full sticky top-0 bg-[var(--color-paper)] border-b border-[var(--color-rule)] z-40 transition-colors duration-200">
-        <div className="flex items-center gap-8">
-          <h1 className="text-xl font-display font-medium text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
-          <div className="flex gap-6">
-            <button onClick={() => router.push('/customer')} className={cn("transition-colors font-body text-sm", isActive('/customer') && pathname === '/customer' ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>Home</button>
-            <button onClick={() => router.push('/customer/invoices')} className={cn("transition-colors font-body text-sm", isActive('/customer/invoices') ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>Invoices</button>
-            <button onClick={() => router.push('/customer/wifi')} className={cn("transition-colors font-body text-sm", isActive('/customer/wifi') ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>WiFi</button>
-            <button onClick={() => router.push('/customer/tickets')} className={cn("transition-colors font-body text-sm", isActive('/customer/tickets') ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>Support</button>
+      <nav className="hidden md:flex w-full sticky top-0 bg-[var(--color-paper)] border-b border-[var(--color-rule)] z-40 transition-colors duration-200">
+        <div className="flex justify-between items-center px-[var(--space-lg)] h-16 w-full max-w-[1280px] mx-auto">
+          <div className="flex items-center gap-8">
+            <h1 className="text-xl font-display font-medium text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
+            <div className="flex gap-6">
+              <button onClick={() => router.push('/customer')} className={cn("transition-colors font-body text-sm", isActive('/customer') && pathname === '/customer' ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>Home</button>
+              <button onClick={() => router.push('/customer/invoices')} className={cn("transition-colors font-body text-sm", isActive('/customer/invoices') ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>Invoices</button>
+              <button onClick={() => router.push('/customer/wifi')} className={cn("transition-colors font-body text-sm", isActive('/customer/wifi') ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>WiFi</button>
+              <button onClick={() => router.push('/customer/tickets')} className={cn("transition-colors font-body text-sm", isActive('/customer/tickets') ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>Support</button>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <button className="p-2 text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] rounded-full transition-colors relative">
-            <Bell className="w-5 h-5" />
-            {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)]"></span>}
-          </button>
-          <button onClick={() => router.push('/customer/profile')} className="w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] flex items-center justify-center font-bold text-sm">
-            UP
-          </button>
+          <div className="flex items-center gap-4">
+            <button className="p-2 text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] rounded-full transition-colors relative">
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)]"></span>}
+            </button>
+            <button onClick={() => router.push('/customer/profile')} className="w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] flex items-center justify-center font-bold text-sm">
+              UP
+            </button>
+          </div>
         </div>
       </nav>
 
