@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Outfit, Space_Grotesk, JetBrains_Mono, Inter } from "next/font/google";
+import { Geist, Geist_Mono, Outfit, Space_Grotesk, JetBrains_Mono, Inter, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from "@/components/client-providers";
 import { prisma } from "@/server/db/client";
@@ -35,6 +35,11 @@ const inter = Inter({
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
+  subsets: ["latin"],
+});
+
+const hankenGrotesk = Hanken_Grotesk({
+  variable: "--font-hanken",
   subsets: ["latin"],
 });
 
@@ -114,8 +119,14 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script dangerouslySetInnerHTML={{ __html: swScript }} />
         <link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png" />
+        {/* Stitch Fonts & Icons */}
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+        <style>{`
+          .bento-card { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 0.125rem; }
+          .dark .bento-card { background-color: var(--color-surface-container-low); border-color: var(--color-outline-variant); }
+        `}</style>
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} ${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} ${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable} ${hankenGrotesk.variable} antialiased`}>
         {children}
         <ClientProviders />
       </body>
