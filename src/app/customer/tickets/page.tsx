@@ -137,25 +137,25 @@ export default function CustomerTicketsPage() {
           <div className="flex flex-wrap gap-2 w-full">
             <button 
               onClick={() => setStatusFilter('all')}
-              className={\`px-4 py-1.5 rounded-full border font-label-caps text-label-caps transition-colors \${statusFilter === 'all' ? 'border-primary bg-primary/5 text-primary' : 'border-hairline-border text-on-surface-variant hover:bg-surface-muted'}\`}
+              className={`px-4 py-1.5 rounded-full border font-label-caps text-label-caps transition-colors ${statusFilter === 'all' ? 'border-primary bg-primary/5 text-primary' : 'border-hairline-border text-on-surface-variant hover:bg-surface-muted'}`}
             >
               Semua
             </button>
             <button 
               onClick={() => setStatusFilter('OPEN')}
-              className={\`px-4 py-1.5 rounded-full border font-label-caps text-label-caps transition-colors \${statusFilter === 'OPEN' ? 'border-primary bg-primary/5 text-primary' : 'border-hairline-border text-on-surface-variant hover:bg-surface-muted'}\`}
+              className={`px-4 py-1.5 rounded-full border font-label-caps text-label-caps transition-colors ${statusFilter === 'OPEN' ? 'border-primary bg-primary/5 text-primary' : 'border-hairline-border text-on-surface-variant hover:bg-surface-muted'}`}
             >
               Open
             </button>
             <button 
               onClick={() => setStatusFilter('IN_PROGRESS')}
-              className={\`px-4 py-1.5 rounded-full border font-label-caps text-label-caps transition-colors \${statusFilter === 'IN_PROGRESS' ? 'border-primary bg-primary/5 text-primary' : 'border-hairline-border text-on-surface-variant hover:bg-surface-muted'}\`}
+              className={`px-4 py-1.5 rounded-full border font-label-caps text-label-caps transition-colors ${statusFilter === 'IN_PROGRESS' ? 'border-primary bg-primary/5 text-primary' : 'border-hairline-border text-on-surface-variant hover:bg-surface-muted'}`}
             >
               In Progress
             </button>
             <button 
               onClick={() => setStatusFilter('RESOLVED')}
-              className={\`px-4 py-1.5 rounded-full border font-label-caps text-label-caps transition-colors \${statusFilter === 'RESOLVED' ? 'border-primary bg-primary/5 text-primary' : 'border-hairline-border text-on-surface-variant hover:bg-surface-muted'}\`}
+              className={`px-4 py-1.5 rounded-full border font-label-caps text-label-caps transition-colors ${statusFilter === 'RESOLVED' ? 'border-primary bg-primary/5 text-primary' : 'border-hairline-border text-on-surface-variant hover:bg-surface-muted'}`}
             >
               Resolved
             </button>
@@ -194,7 +194,7 @@ export default function CustomerTicketsPage() {
                 tickets.map(ticket => (
                   <tr 
                     key={ticket.id}
-                    onClick={() => router.push(\`/customer/tickets/\${ticket.id}\`)}
+                    onClick={() => router.push(`/customer/tickets/${ticket.id}`)}
                     className="border-b border-hairline-border hover:bg-surface-muted transition-colors cursor-pointer group"
                   >
                     <td className="p-4 border-r border-hairline-border last:border-r-0">
@@ -208,7 +208,7 @@ export default function CustomerTicketsPage() {
                       {formatWIB(ticket.createdAt).split(' ')[0]}
                     </td>
                     <td className="p-4 border-r border-hairline-border last:border-r-0 whitespace-nowrap">
-                      <span className={\`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-label-caps border \${getStatusBadgeStyle(ticket.status)}\`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-label-caps border ${getStatusBadgeStyle(ticket.status)}`}>
                         {mapStatusForDisplay(ticket.status)}
                       </span>
                     </td>

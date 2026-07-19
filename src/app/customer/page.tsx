@@ -159,7 +159,7 @@ export default function CustomerDashboard() {
           <h2 className="font-headline-lg text-headline-lg text-on-surface">{user.name}</h2>
           <p className="font-body-md text-body-md text-on-surface-variant mt-1">ID Pelanggan: {user.customerId || user.username}</p>
         </div>
-        <div className={\`inline-flex items-center gap-2 px-3 py-1 rounded-full \${user.status === 'ISOLATED' || isExpired ? 'bg-status-isolated/10 text-status-isolated' : 'bg-status-active/10 text-status-active'}\`}>
+        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${user.status === 'ISOLATED' || isExpired ? 'bg-status-isolated/10 text-status-isolated' : 'bg-status-active/10 text-status-active'}`}>
           <span className="material-symbols-outlined text-[16px]">
             {user.status === 'ISOLATED' || isExpired ? 'error' : 'check_circle'}
           </span>
@@ -173,7 +173,7 @@ export default function CustomerDashboard() {
       <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-bento-gap">
         
         {/* Sub/Expiry Module (Spans 8/12 cols depending on screen) */}
-        <div className={\`bento-card col-span-4 md:col-span-8 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 \${!pendingInvoice ? 'lg:col-span-12' : 'lg:col-span-8'}\`}>
+        <div className={`bento-card col-span-4 md:col-span-8 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${!pendingInvoice ? 'lg:col-span-12' : 'lg:col-span-8'}`}>
           <div>
             <h3 className="font-label-caps text-label-caps text-outline uppercase mb-2">Paket Langganan</h3>
             <div className="font-headline-lg text-headline-lg text-primary">{user.profile?.name || 'Loading...'}</div>
@@ -190,8 +190,8 @@ export default function CustomerDashboard() {
             <div className="font-headline-md text-headline-md text-on-surface">
               {formatWIB(user.expiredAt).split(' ')[0]}
             </div>
-            <div className={\`inline-block mt-2 px-2 py-1 rounded font-label-caps text-label-caps uppercase border border-hairline-border \${isExpired ? 'bg-error-container text-on-error-container' : 'bg-surface-container-high text-status-warning'}\`}>
-              {isExpired ? 'Kedaluwarsa' : \`Tersisa \${daysLeft} Hari\`}
+            <div className={`inline-block mt-2 px-2 py-1 rounded font-label-caps text-label-caps uppercase border border-hairline-border ${isExpired ? 'bg-error-container text-on-error-container' : 'bg-surface-container-high text-status-warning'}`}>
+              {isExpired ? 'Kedaluwarsa' : `Tersisa ${daysLeft} Hari`}
             </div>
           </div>
         </div>
@@ -211,7 +211,7 @@ export default function CustomerDashboard() {
                 <div className="font-headline-lg text-headline-lg text-on-surface mt-4">{formatCurrency(pendingInvoice.amount)}</div>
               </div>
               <button 
-                onClick={() => router.push(\`/pay/\${pendingInvoice.paymentToken}\`)}
+                onClick={() => router.push(`/pay/${pendingInvoice.paymentToken}`)}
                 className="mt-6 w-full bg-primary-container text-on-primary hover:bg-on-primary-fixed-variant transition-colors py-3 rounded font-label-caps text-label-caps uppercase flex justify-center items-center gap-2"
               >
                 Bayar Sekarang <span className="material-symbols-outlined text-[16px]">arrow_forward</span>

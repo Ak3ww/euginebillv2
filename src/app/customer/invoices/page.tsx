@@ -96,25 +96,25 @@ export default function CustomerInvoicesPage() {
         <div className="flex overflow-x-auto pb-2 md:pb-0 gap-2 hide-scrollbar">
           <button 
             onClick={() => setStatusFilter('all')}
-            className={\`px-4 py-2 rounded-full font-label-caps text-label-caps whitespace-nowrap \${statusFilter === 'all' ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-dim border border-hairline-border'}\`}
+            className={`px-4 py-2 rounded-full font-label-caps text-label-caps whitespace-nowrap ${statusFilter === 'all' ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-dim border border-hairline-border'}`}
           >
             Semua
           </button>
           <button 
             onClick={() => setStatusFilter('unpaid')}
-            className={\`px-4 py-2 rounded-full font-label-caps text-label-caps whitespace-nowrap \${statusFilter === 'unpaid' ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-dim border border-hairline-border'}\`}
+            className={`px-4 py-2 rounded-full font-label-caps text-label-caps whitespace-nowrap ${statusFilter === 'unpaid' ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-dim border border-hairline-border'}`}
           >
             Belum Bayar
           </button>
           <button 
             onClick={() => setStatusFilter('overdue')}
-            className={\`px-4 py-2 rounded-full font-label-caps text-label-caps whitespace-nowrap \${statusFilter === 'overdue' ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-dim border border-hairline-border'}\`}
+            className={`px-4 py-2 rounded-full font-label-caps text-label-caps whitespace-nowrap ${statusFilter === 'overdue' ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-dim border border-hairline-border'}`}
           >
             Jatuh Tempo
           </button>
           <button 
             onClick={() => setStatusFilter('paid')}
-            className={\`px-4 py-2 rounded-full font-label-caps text-label-caps whitespace-nowrap \${statusFilter === 'paid' ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-dim border border-hairline-border'}\`}
+            className={`px-4 py-2 rounded-full font-label-caps text-label-caps whitespace-nowrap ${statusFilter === 'paid' ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-dim border border-hairline-border'}`}
           >
             Lunas
           </button>
@@ -147,14 +147,14 @@ export default function CustomerInvoicesPage() {
             const isPaid = inv.status === 'PAID';
             
             return (
-              <div key={inv.id} className={\`grid grid-cols-1 md:grid-cols-12 gap-4 p-4 border-b border-hairline-border items-center hover:bg-surface-muted transition-colors \${isPaid ? 'opacity-75' : ''}\`}>
+              <div key={inv.id} className={`grid grid-cols-1 md:grid-cols-12 gap-4 p-4 border-b border-hairline-border items-center hover:bg-surface-muted transition-colors ${isPaid ? 'opacity-75' : ''}`}>
                 <div className="md:col-span-3 flex flex-col">
                   <span className="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">No. Tagihan</span>
                   <span className="font-data-mono text-data-mono font-bold text-primary">{inv.invoiceNumber}</span>
                 </div>
                 <div className="md:col-span-3 flex flex-col">
                   <span className="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Jatuh Tempo</span>
-                  <span className={\`font-body-md text-body-md \${isOverdue ? 'text-status-isolated' : ''}\`}>
+                  <span className={`font-body-md text-body-md ${isOverdue ? 'text-status-isolated' : ''}`}>
                     {formatWIB(inv.dueDate).split(' ')[0]}
                   </span>
                 </div>
@@ -175,7 +175,7 @@ export default function CustomerInvoicesPage() {
                 <div className="md:col-span-2 flex md:justify-end mt-2 md:mt-0">
                   {isPaid ? (
                     <button 
-                      onClick={() => router.push(\`/invoice/\${inv.id}/print\`)}
+                      onClick={() => router.push(`/invoice/${inv.id}/print`)}
                       className="w-full md:w-auto px-4 py-2 bg-transparent text-on-surface-variant font-label-caps text-label-caps flex items-center justify-center gap-2 hover:text-primary cursor-pointer"
                     >
                       <span className="material-symbols-outlined text-[18px]">download</span>
@@ -183,7 +183,7 @@ export default function CustomerInvoicesPage() {
                     </button>
                   ) : (
                     <button 
-                      onClick={() => router.push(\`/invoice/\${inv.id}\`)}
+                      onClick={() => router.push(`/invoice/${inv.id}`)}
                       className="w-full md:w-auto px-4 py-2 bg-primary-container text-on-primary font-label-caps text-label-caps rounded flex items-center justify-center gap-2 hover:opacity-90 cursor-pointer"
                     >
                       Bayar Sekarang

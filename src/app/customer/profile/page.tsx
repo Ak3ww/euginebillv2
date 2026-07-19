@@ -221,7 +221,7 @@ export default function CustomerProfilePage() {
             <h3 className="font-headline-md text-headline-md font-bold text-on-surface">{customer.name}</h3>
             <p className="font-data-mono text-data-mono text-on-surface-variant mt-1">ID: {customer.customerId || customer.username}</p>
             <div className="mt-3 flex items-center justify-center md:justify-start gap-2">
-              <span className={\`inline-flex items-center gap-1 px-2 py-1 rounded-full font-label-caps text-label-caps \${customer.status === 'ISOLATED' ? 'bg-status-isolated/10 text-status-isolated border border-status-isolated/20' : 'bg-status-active/10 text-status-active border border-status-active/20'}\`}>
+              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full font-label-caps text-label-caps ${customer.status === 'ISOLATED' ? 'bg-status-isolated/10 text-status-isolated border border-status-isolated/20' : 'bg-status-active/10 text-status-active border border-status-active/20'}`}>
                 <span className="material-symbols-outlined text-[14px]">
                   {customer.status === 'ISOLATED' ? 'error' : 'check_circle'}
                 </span> 
