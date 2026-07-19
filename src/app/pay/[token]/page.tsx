@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { BankInstructions } from './BankInstructions';
+import '@/app/customer/customer.css';
 
 interface Invoice {
   id: string;
@@ -175,13 +176,13 @@ export default function PaymentPage() {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      PAID: 'bg-status-active/10 text-status-active border border-status-active/20',
-      PENDING: 'bg-status-isolated/10 text-status-isolated border border-status-isolated/20',
-      OVERDUE: 'bg-status-danger/10 text-status-danger border border-status-danger/20'
+      PAID: 'badge-success',
+      PENDING: 'badge-error',
+      OVERDUE: 'badge-warning'
     };
     const icons: Record<string, React.ReactNode> = { PAID: <CheckCircle className="w-3.5 h-3.5" />, PENDING: <Clock className="w-3.5 h-3.5" />, OVERDUE: <AlertCircle className="w-3.5 h-3.5" /> };
     return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-full ${styles[status] || 'bg-surface-container-highest text-on-surface'}`}>
+      <span className={`hallmark-badge ${styles[status] || 'bg-[var(--color-paper-2)] text-[var(--color-ink-2)]'}`}>
         {icons[status]} {status === 'PAID' ? 'Lunas' : status === 'PENDING' ? 'Belum Bayar' : 'Terlambat'}
       </span>
     );
@@ -248,54 +249,54 @@ export default function PaymentPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-[var(--color-paper)] flex flex-col items-center justify-center">
       <div className="w-16 h-16 relative flex items-center justify-center">
-        <div className="absolute inset-0 rounded-full border-4 border-surface-container-highest"></div>
-        <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-        <ShieldCheck className="w-6 h-6 text-primary absolute" />
+        <div className="absolute inset-0 rounded-full border-4 border-[var(--color-paper-3)]"></div>
+        <div className="absolute inset-0 rounded-full border-4 border-[var(--color-accent)] border-t-transparent animate-spin"></div>
+        <ShieldCheck className="w-6 h-6 text-[var(--color-accent)] absolute" />
       </div>
-      <p className="mt-4 font-medium text-on-surface-variant">Mempersiapkan Portal Pembayaran Aman...</p>
+      <p className="mt-4 font-medium text-[var(--color-muted)]">Mempersiapkan Portal Pembayaran Aman...</p>
     </div>
   );
 
   if (error || !invoice) return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="bg-surface-container-lowest rounded-2xl border border-hairline-border p-8 max-w-sm w-full text-center shadow-lg shadow-surface-container/50">
-        <div className="w-20 h-20 bg-status-danger/10 text-status-danger rounded-full flex items-center justify-center mx-auto mb-5 border border-status-danger/20">
+    <div className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center p-4">
+      <div className="hallmark-card-elevated max-w-sm w-full text-center">
+        <div className="w-20 h-20 bg-[var(--color-error-bg)] text-[var(--color-error)] rounded-full flex items-center justify-center mx-auto mb-5 border border-[var(--color-error)]">
           <AlertCircle className="w-10 h-10" />
         </div>
-        <h2 className="text-xl font-bold text-on-surface mb-2">Tagihan Tidak Ditemukan</h2>
-        <p className="text-sm text-on-surface-variant leading-relaxed">{error || 'Link pembayaran tidak valid atau sudah kadaluarsa.'}</p>
+        <h2 className="text-xl font-bold mb-2">Tagihan Tidak Ditemukan</h2>
+        <p className="text-sm text-[var(--color-muted)] leading-relaxed">{error || 'Link pembayaran tidak valid atau sudah kadaluarsa.'}</p>
         <div className="mt-6 flex flex-col gap-3">
-          <button onClick={() => window.location.reload()} className="w-full bg-primary text-primary-content rounded-xl py-3 text-sm font-bold hover:opacity-90 transition-opacity">Muat Ulang</button>
-          <a href="/" className="w-full bg-surface-container-highest text-on-surface rounded-xl py-3 text-sm font-bold hover:bg-surface-container-higher transition-colors block">Kembali ke Beranda</a>
+          <button onClick={() => window.location.reload()} className="hallmark-button w-full">Muat Ulang</button>
+          <a href="/" className="hallmark-button-secondary w-full rounded-full py-2 flex items-center justify-center font-medium text-sm">Kembali ke Beranda</a>
         </div>
       </div>
     </div>
   );
 
   if (invoice.status === 'PAID') return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="bg-surface-container-lowest rounded-2xl border border-hairline-border p-8 max-w-sm w-full shadow-lg shadow-surface-container/50 text-center animate-in zoom-in-95 duration-500">
-        <div className="w-20 h-20 bg-status-active/10 rounded-full flex items-center justify-center mx-auto mb-5 border border-status-active/20">
-          <CheckCircle2 className="w-10 h-10 text-status-active" />
+    <div className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center p-4">
+      <div className="hallmark-card-elevated max-w-sm w-full text-center animate-in zoom-in-95 duration-500">
+        <div className="w-20 h-20 bg-[var(--color-success-bg)] rounded-full flex items-center justify-center mx-auto mb-5 border border-[var(--color-success)]">
+          <CheckCircle2 className="w-10 h-10 text-[var(--color-success)]" />
         </div>
-        <h2 className="text-2xl font-bold text-on-surface mb-2">Pembayaran Berhasil</h2>
-        <p className="text-sm text-on-surface-variant mb-8">Terima kasih, tagihan Anda telah lunas.</p>
+        <h2 className="text-2xl font-bold mb-2">Pembayaran Berhasil</h2>
+        <p className="text-sm text-[var(--color-muted)] mb-8">Terima kasih, tagihan Anda telah lunas.</p>
         
-        <div className="bg-surface-container-highest rounded-xl p-5 text-left space-y-4 border border-hairline-border mb-8">
-          <div className="flex justify-between items-center text-sm border-b border-hairline-border pb-3">
-            <span className="text-on-surface-variant">No. Tagihan</span>
-            <span className="font-bold text-on-surface flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-primary"/>{invoice.invoiceNumber}</span>
+        <div className="bg-[var(--color-paper-3)] rounded-[var(--radius-lg)] p-5 text-left space-y-4 border border-[var(--color-rule)] mb-8">
+          <div className="flex justify-between items-center text-sm border-b border-[var(--color-rule)] pb-3">
+            <span className="text-[var(--color-muted)]">No. Tagihan</span>
+            <span className="font-bold flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-[var(--color-accent)]"/>{invoice.invoiceNumber}</span>
           </div>
-          <div className="flex justify-between items-center text-sm border-b border-hairline-border pb-3">
-            <span className="text-on-surface-variant">Total Dibayar</span>
-            <span className="font-bold text-on-surface text-lg">{formatCurrency(invoice.amount)}</span>
+          <div className="flex justify-between items-center text-sm border-b border-[var(--color-rule)] pb-3">
+            <span className="text-[var(--color-muted)]">Total Dibayar</span>
+            <span className="font-bold text-lg">{formatCurrency(invoice.amount)}</span>
           </div>
           {invoice.paidAt && (
             <div className="flex justify-between items-center text-sm">
-              <span className="text-on-surface-variant">Waktu Bayar</span>
-              <span className="font-semibold text-on-surface text-xs">{formatDate(invoice.paidAt)}</span>
+              <span className="text-[var(--color-muted)]">Waktu Bayar</span>
+              <span className="font-semibold text-xs">{formatDate(invoice.paidAt)}</span>
             </div>
           )}
         </div>
@@ -303,86 +304,86 @@ export default function PaymentPage() {
         <div className="flex flex-col gap-3">
           <button 
             onClick={() => router.push(`/invoice/${invoice.id}/print`)}
-            className="w-full bg-primary text-primary-content rounded-xl py-3.5 px-4 text-sm font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            className="hallmark-button w-full flex items-center justify-center gap-2"
           >
             <FileText className="w-4 h-4" />
             Lihat / Cetak Bukti Pembayaran
           </button>
-          <p className="text-xs text-on-surface-variant mt-2">Anda akan dialihkan otomatis dalam 3 detik...</p>
+          <p className="text-xs text-[var(--color-muted)] mt-2">Anda akan dialihkan otomatis dalam 3 detik...</p>
         </div>
       </div>
     </div>
   );
 
   return (
-    <main className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8 w-full flex flex-col gap-bento-gap bg-background min-h-screen text-on-surface pb-24">
+    <main className="hallmark-container py-8 flex flex-col gap-[var(--space-lg)] min-h-screen pb-24">
       
       {/* Secure Header */}
       <div className="flex flex-col items-center text-center mb-2">
-        <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-surface-container-highest text-on-surface-variant text-xs font-bold border border-hairline-border mb-4 shadow-sm">
-          <Lock className="w-3.5 h-3.5 text-primary" /> Portal Pembayaran Aman SSL
+        <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-[var(--color-paper-2)] text-[var(--color-muted)] text-xs font-medium border border-[var(--color-rule)] mb-4">
+          <Lock className="w-3.5 h-3.5 text-[var(--color-accent)]" /> Portal Pembayaran Aman SSL
         </div>
-        <h1 className="text-3xl font-bold tracking-tight text-on-surface">Checkout</h1>
+        <h1 className="text-3xl font-display font-medium tracking-tight">Checkout</h1>
       </div>
 
       {/* Global Error Banner */}
       {error && (
-        <div className="bg-status-danger/10 border border-status-danger/30 text-status-danger p-4 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4 shadow-sm">
+        <div className="bg-[var(--color-error-bg)] border border-[var(--color-error)] text-[var(--color-error)] p-4 rounded-[var(--radius-md)] flex items-start gap-3 animate-in fade-in shadow-sm">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <p className="text-sm font-semibold">{error}</p>
+          <p className="text-sm font-medium">{error}</p>
         </div>
       )}
 
       {/* Primary Invoice Card */}
-      <div className="bento-card bg-surface-container-lowest rounded-2xl border border-hairline-border shadow-sm overflow-hidden flex flex-col">
-        <div className="bg-surface-container-highest px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-hairline-border">
+      <div className="hallmark-card-elevated overflow-hidden flex flex-col p-0">
+        <div className="bg-[var(--color-paper-3)] px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hairline-bottom">
           <div>
-            <p className="text-on-surface-variant text-xs font-medium uppercase tracking-wider mb-1">Total Tagihan</p>
-            <p className="text-3xl font-bold text-on-surface">{formatCurrency(invoice.amount)}</p>
+            <p className="text-[var(--color-muted)] text-xs font-medium uppercase tracking-wider mb-1">Total Tagihan</p>
+            <p className="text-3xl font-bold">{formatCurrency(invoice.amount)}</p>
           </div>
           <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2">
             {getStatusBadge(invoice.status)}
-            <span className="text-on-surface-variant text-xs font-mono">{invoice.invoiceNumber}</span>
+            <span className="text-[var(--color-muted)] text-xs font-mono">{invoice.invoiceNumber}</span>
           </div>
         </div>
         
         <div className="p-6 sm:p-8 space-y-6">
           {/* Customer Information */}
           <div>
-            <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-4 border-b border-hairline-border pb-2">Informasi Pelanggan</h3>
+            <h3 className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-4 border-b border-[var(--color-rule)] pb-2">Informasi Pelanggan</h3>
             <div className="grid gap-4">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-surface-container-highest border border-hairline-border flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <User className="w-4 h-4 text-primary" />
+                <div className="w-8 h-8 rounded-full bg-[var(--color-paper-3)] border border-[var(--color-rule)] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <User className="w-4 h-4 text-[var(--color-accent)]" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-on-surface">{invoice.user?.name || invoice.customerName}</p>
-                  <div className="text-xs text-on-surface-variant mt-0.5 flex flex-wrap gap-x-4 gap-y-1">
-                    {invoice.user?.customerId && <span className="flex items-center gap-1"><Hash className="w-3 h-3 text-primary"/> {invoice.user.customerId}</span>}
-                    <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-primary"/> {invoice.user?.phone || invoice.customerPhone}</span>
-                    {invoice.user?.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-primary"/> {invoice.user.email}</span>}
+                  <p className="text-sm font-bold text-[var(--color-ink)]">{invoice.user?.name || invoice.customerName}</p>
+                  <div className="text-xs text-[var(--color-muted)] mt-0.5 flex flex-wrap gap-x-4 gap-y-1">
+                    {invoice.user?.customerId && <span className="flex items-center gap-1"><Hash className="w-3 h-3 text-[var(--color-accent)]"/> {invoice.user.customerId}</span>}
+                    <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-[var(--color-accent)]"/> {invoice.user?.phone || invoice.customerPhone}</span>
+                    {invoice.user?.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-[var(--color-accent)]"/> {invoice.user.email}</span>}
                   </div>
                 </div>
               </div>
 
               {invoice.user?.address && (
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center flex-shrink-0 mt-0.5 border border-hairline-border">
-                    <MapPin className="w-4 h-4 text-on-surface-variant" />
+                  <div className="w-8 h-8 rounded-full bg-[var(--color-paper-3)] flex items-center justify-center flex-shrink-0 mt-0.5 border border-[var(--color-rule)]">
+                    <MapPin className="w-4 h-4 text-[var(--color-muted)]" />
                   </div>
-                  <p className="text-sm text-on-surface-variant leading-relaxed pt-1.5">{invoice.user.address}</p>
+                  <p className="text-sm text-[var(--color-muted)] leading-relaxed pt-1.5">{invoice.user.address}</p>
                 </div>
               )}
               
               {invoice.user?.profile && (
-                <div className="flex items-start gap-3 bg-surface-container p-3 rounded-xl border border-hairline-border mt-2 shadow-sm">
-                  <div className="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center flex-shrink-0">
-                    <Package className="w-4 h-4 text-on-surface-variant" />
+                <div className="flex items-start gap-3 bg-[var(--color-paper-2)] p-3 rounded-xl border border-[var(--color-rule)] mt-2 shadow-sm">
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-paper-3)] flex items-center justify-center flex-shrink-0">
+                    <Package className="w-4 h-4 text-[var(--color-muted)]" />
                   </div>
                   <div className="flex-1 pt-0.5">
-                    <p className="text-sm font-bold text-on-surface">{invoice.user.profile.name}</p>
+                    <p className="text-sm font-bold text-[var(--color-ink)]">{invoice.user.profile.name}</p>
                     {(invoice.user.profile.downloadSpeed > 0) && (
-                      <p className="text-xs text-on-surface-variant flex items-center gap-1 mt-1"><Zap className="w-3 h-3 text-primary" /> {invoice.user.profile.downloadSpeed} Mbps</p>
+                      <p className="text-xs text-[var(--color-muted)] flex items-center gap-1 mt-1"><Zap className="w-3 h-3 text-[var(--color-accent)]" /> {invoice.user.profile.downloadSpeed} Mbps</p>
                     )}
                   </div>
                 </div>
@@ -391,87 +392,87 @@ export default function PaymentPage() {
           </div>
 
           {/* Dates Grid */}
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-hairline-border">
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[var(--color-rule)]">
             <div>
-              <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-on-surface-variant" /> Tanggal Terbit</p>
-              <p className="text-sm font-bold text-on-surface pl-5">{formatDate(invoice.createdAt)}</p>
+              <p className="text-[11px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-[var(--color-muted)]" /> Tanggal Terbit</p>
+              <p className="text-sm font-bold text-[var(--color-ink)] pl-5">{formatDate(invoice.createdAt)}</p>
             </div>
             <div>
-              <p className="text-[11px] font-bold text-status-danger uppercase tracking-wider mb-1 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-status-danger" /> Jatuh Tempo</p>
-              <p className="text-sm font-bold text-status-danger pl-5">{formatDate(invoice.dueDate)}</p>
+              <p className="text-[11px] font-bold text-[var(--color-error)] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-[var(--color-error)]" /> Jatuh Tempo</p>
+              <p className="text-sm font-bold text-[var(--color-error)] pl-5">{formatDate(invoice.dueDate)}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Payment Methods Section */}
-      <div className="bento-card bg-surface-container-lowest rounded-2xl border border-hairline-border shadow-sm overflow-hidden flex flex-col">
-        <div className="px-6 sm:px-8 py-5 border-b border-hairline-border bg-surface-container-highest flex items-center gap-3">
-          <div className="w-8 h-8 bg-surface-container text-primary rounded-lg flex items-center justify-center border border-hairline-border shadow-sm">
+      <div className="hallmark-card-elevated overflow-hidden flex flex-col p-0">
+        <div className="px-6 sm:px-8 py-5 hairline-bottom bg-[var(--color-paper-3)] flex items-center gap-3">
+          <div className="w-8 h-8 bg-[var(--color-paper)] text-[var(--color-accent)] rounded-[var(--radius-md)] flex items-center justify-center border border-[var(--color-rule)] shadow-sm">
             <CreditCard className="w-4 h-4" />
           </div>
-          <h2 className="text-lg font-bold text-on-surface">Pilih Metode Pembayaran</h2>
+          <h2 className="text-lg font-bold">Pilih Metode Pembayaran</h2>
         </div>
         
         <div className="p-6 sm:p-8 space-y-4">
           
           {/* Manual Transfer Option */}
-          <div className="border border-hairline-border rounded-xl overflow-hidden bg-surface-container shadow-sm">
+          <div className="border border-[var(--color-rule)] rounded-[var(--radius-lg)] overflow-hidden bg-[var(--color-paper-2)] shadow-sm">
             <button
               onClick={() => setShowManualForm(!showManualForm)}
-              className={`w-full flex items-center justify-between p-4 hover:bg-surface-container-highest transition-colors ${showManualForm ? 'border-b border-hairline-border bg-surface-container-highest' : 'bg-surface-container'}`}
+              className={`w-full flex items-center justify-between p-4 hover:bg-[var(--color-paper-3)] transition-colors ${showManualForm ? 'hairline-bottom bg-[var(--color-paper-3)]' : 'bg-[var(--color-paper-2)]'}`}
             >
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${showManualForm ? 'bg-primary text-primary-content shadow-md' : 'bg-surface-container-lowest text-on-surface-variant border border-hairline-border'}`}>
+                <div className={`w-12 h-12 rounded-[var(--radius-md)] flex items-center justify-center transition-colors ${showManualForm ? 'bg-[var(--color-accent)] text-[var(--color-accent-ink)] shadow-md' : 'bg-[var(--color-paper)] text-[var(--color-ink-2)] border border-[var(--color-rule)]'}`}>
                   <Building2 className="w-5 h-5" />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-bold text-on-surface">Transfer Manual Bank</p>
-                  <p className="text-xs text-on-surface-variant mt-0.5">Upload bukti transfer</p>
+                  <p className="text-sm font-bold text-[var(--color-ink)]">Transfer Manual Bank</p>
+                  <p className="text-xs text-[var(--color-muted)] mt-0.5">Upload bukti transfer</p>
                 </div>
               </div>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 ${showManualForm ? 'bg-surface-container-highest text-primary rotate-90 border border-hairline-border' : 'bg-surface-container-lowest text-on-surface-variant border border-hairline-border'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 ${showManualForm ? 'bg-[var(--color-paper-3)] text-[var(--color-accent)] rotate-90 border border-[var(--color-rule)]' : 'bg-[var(--color-paper)] text-[var(--color-muted)] border border-[var(--color-rule)]'}`}>
                 <ChevronRight className="w-4 h-4" />
               </div>
             </button>
 
             {/* Manual Form Body */}
             {showManualForm && (
-              <div className="p-5 sm:p-6 bg-surface-container-lowest animate-in slide-in-from-top-2 duration-300">
+              <div className="p-5 sm:p-6 bg-[var(--color-paper)] animate-in slide-in-from-top-2 duration-300">
                 {manualSuccess ? (
                   <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-status-active/10 border border-status-active/20 text-status-active rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 bg-[var(--color-success-bg)] border border-[var(--color-success)] text-[var(--color-success)] rounded-full flex items-center justify-center mx-auto mb-4">
                       <CheckCircle2 className="w-8 h-8" />
                     </div>
-                    <h3 className="text-lg font-bold text-on-surface mb-2">Bukti Terkirim!</h3>
-                    <p className="text-sm text-on-surface-variant">Bukti transfer Anda telah berhasil diunggah dan sedang menunggu konfirmasi Admin.</p>
+                    <h3 className="text-lg font-bold text-[var(--color-ink)] mb-2">Bukti Terkirim!</h3>
+                    <p className="text-sm text-[var(--color-muted)]">Bukti transfer Anda telah berhasil diunggah dan sedang menunggu konfirmasi Admin.</p>
                   </div>
                 ) : (
                   <div className="space-y-8">
                     {/* Bank Accounts */}
                     <div>
-                      <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-primary" /> Tujuan Transfer
+                      <h4 className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-[var(--color-accent)]" /> Tujuan Transfer
                       </h4>
                       {company?.bankAccounts && Array.isArray(company.bankAccounts) && company.bankAccounts.length > 0 ? (
                         <div className="grid gap-3">
                           {company.bankAccounts.map((acc: any, i: number) => (
-                            <div key={i} className="bg-surface-container p-4 rounded-xl border border-hairline-border flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-primary/50 transition-colors shadow-sm">
+                            <div key={i} className="bg-[var(--color-paper-2)] p-4 rounded-xl border border-[var(--color-rule)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-[var(--color-accent)]/50 transition-colors shadow-sm">
                               <div>
-                                <p className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">{acc.bankName}</p>
-                                <p className="text-xl font-mono font-bold text-on-surface tracking-tight">{acc.accountNumber}</p>
-                                <p className="text-xs text-on-surface-variant mt-1 font-medium">a/n {acc.accountName}</p>
+                                <p className="text-xs font-bold text-[var(--color-accent)] mb-1 uppercase tracking-wider">{acc.bankName}</p>
+                                <p className="text-xl font-mono font-bold text-[var(--color-ink)] tracking-tight">{acc.accountNumber}</p>
+                                <p className="text-xs text-[var(--color-muted)] mt-1 font-medium">a/n {acc.accountName}</p>
                               </div>
                               <button onClick={() => {
                                 navigator.clipboard.writeText(acc.accountNumber);
-                              }} className="text-xs font-bold text-on-surface bg-surface-container-highest px-4 py-2 rounded-lg border border-hairline-border hover:bg-surface-container-higher hover:text-primary transition-all shadow-sm">
+                              }} className="text-xs font-bold text-[var(--color-ink)] bg-[var(--color-paper-3)] px-4 py-2 rounded-lg border border-[var(--color-rule)] hover:bg-[var(--color-paper-2)]-higher hover:text-[var(--color-accent)] transition-all shadow-sm">
                                 Salin Rekening
                               </button>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="bg-status-danger/10 text-status-danger p-4 rounded-xl text-sm border border-status-danger/20 flex items-center gap-2">
+                        <div className="bg-[var(--color-error-bg)] text-[var(--color-error)] p-4 rounded-xl text-sm border border-[var(--color-error)] flex items-center gap-2">
                           <AlertCircle className="w-4 h-4" /> Belum ada rekening tujuan yang disetting admin.
                         </div>
                       )}
@@ -479,12 +480,12 @@ export default function PaymentPage() {
 
                     {/* Upload Form */}
                     <div>
-                      <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-4 border-t border-hairline-border pt-6 flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-primary" /> Konfirmasi Pembayaran
+                      <h4 className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-4 border-t border-[var(--color-rule)] pt-6 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-[var(--color-accent)]" /> Konfirmasi Pembayaran
                       </h4>
                       
                       {manualError && (
-                        <div className="mb-4 bg-status-danger/10 border border-status-danger/30 text-status-danger p-3 rounded-xl text-sm flex items-start gap-2">
+                        <div className="mb-4 bg-[var(--color-error-bg)] border border-[var(--color-error)] text-[var(--color-error)] p-3 rounded-xl text-sm flex items-start gap-2">
                           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {manualError}
                         </div>
                       )}
@@ -492,8 +493,8 @@ export default function PaymentPage() {
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="sm:col-span-2">
-                            <label className="text-xs font-bold text-on-surface block mb-1.5">Transfer Ke Mana?</label>
-                            <select className="w-full bg-surface-container border border-hairline-border rounded-xl px-4 py-2.5 text-sm font-medium text-on-surface focus:bg-surface-container-highest focus:border-primary outline-none transition-all appearance-none" value={manualForm.destinationBank} onChange={e => setManualForm({...manualForm, destinationBank: e.target.value})}>
+                            <label className="text-xs font-bold text-[var(--color-ink)] block mb-1.5">Transfer Ke Mana?</label>
+                            <select className="w-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:bg-[var(--color-paper-3)] focus:border-[var(--color-accent)] outline-none transition-all appearance-none" value={manualForm.destinationBank} onChange={e => setManualForm({...manualForm, destinationBank: e.target.value})}>
                               <option value="" disabled>-- Pilih Rekening Tujuan --</option>
                               {company?.bankAccounts && Array.isArray(company.bankAccounts) && company.bankAccounts.map((acc: any, i: number) => (
                                 <option key={i} value={acc.bankName}>{acc.bankName} - {acc.accountNumber} (a/n {acc.accountName})</option>
@@ -501,41 +502,41 @@ export default function PaymentPage() {
                             </select>
                           </div>
                           <div>
-                            <label className="text-xs font-bold text-on-surface block mb-1.5">Bank Pengirim</label>
-                            <input type="text" className="w-full bg-surface-container border border-hairline-border rounded-xl px-4 py-2.5 text-sm font-medium text-on-surface focus:bg-surface-container-highest focus:border-primary outline-none transition-all placeholder:text-on-surface-variant" placeholder="Contoh: BCA / DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />
+                            <label className="text-xs font-bold text-[var(--color-ink)] block mb-1.5">Bank Pengirim</label>
+                            <input type="text" className="w-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:bg-[var(--color-paper-3)] focus:border-[var(--color-accent)] outline-none transition-all placeholder:text-[var(--color-muted)]" placeholder="Contoh: BCA / DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />
                           </div>
                           <div>
-                            <label className="text-xs font-bold text-on-surface block mb-1.5">Atas Nama Pengirim</label>
-                            <input type="text" className="w-full bg-surface-container border border-hairline-border rounded-xl px-4 py-2.5 text-sm font-medium text-on-surface focus:bg-surface-container-highest focus:border-primary outline-none transition-all placeholder:text-on-surface-variant" placeholder="Nama pemilik rekening" value={manualForm.accountName} onChange={e => setManualForm({...manualForm, accountName: e.target.value})} />
+                            <label className="text-xs font-bold text-[var(--color-ink)] block mb-1.5">Atas Nama Pengirim</label>
+                            <input type="text" className="w-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:bg-[var(--color-paper-3)] focus:border-[var(--color-accent)] outline-none transition-all placeholder:text-[var(--color-muted)]" placeholder="Nama pemilik rekening" value={manualForm.accountName} onChange={e => setManualForm({...manualForm, accountName: e.target.value})} />
                           </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <label className="text-xs font-bold text-on-surface block mb-1.5">No. Rekening (Opsional)</label>
-                            <input type="text" className="w-full bg-surface-container border border-hairline-border rounded-xl px-4 py-2.5 text-sm font-medium text-on-surface focus:bg-surface-container-highest focus:border-primary outline-none transition-all placeholder:text-on-surface-variant" placeholder="12345678" value={manualForm.accountNumber} onChange={e => setManualForm({...manualForm, accountNumber: e.target.value})} />
+                            <label className="text-xs font-bold text-[var(--color-ink)] block mb-1.5">No. Rekening (Opsional)</label>
+                            <input type="text" className="w-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:bg-[var(--color-paper-3)] focus:border-[var(--color-accent)] outline-none transition-all placeholder:text-[var(--color-muted)]" placeholder="12345678" value={manualForm.accountNumber} onChange={e => setManualForm({...manualForm, accountNumber: e.target.value})} />
                           </div>
                           <div>
-                            <label className="text-xs font-bold text-on-surface block mb-1.5">Catatan (Opsional)</label>
-                            <input type="text" className="w-full bg-surface-container border border-hairline-border rounded-xl px-4 py-2.5 text-sm font-medium text-on-surface focus:bg-surface-container-highest focus:border-primary outline-none transition-all placeholder:text-on-surface-variant" placeholder="Cth: Tagihan bln ini" value={manualForm.notes} onChange={e => setManualForm({...manualForm, notes: e.target.value})} />
+                            <label className="text-xs font-bold text-[var(--color-ink)] block mb-1.5">Catatan (Opsional)</label>
+                            <input type="text" className="w-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:bg-[var(--color-paper-3)] focus:border-[var(--color-accent)] outline-none transition-all placeholder:text-[var(--color-muted)]" placeholder="Cth: Tagihan bln ini" value={manualForm.notes} onChange={e => setManualForm({...manualForm, notes: e.target.value})} />
                           </div>
                         </div>
                         
                         <div>
-                          <label className="text-xs font-bold text-on-surface block mb-1.5">Bukti Transfer (Gambar)</label>
+                          <label className="text-xs font-bold text-[var(--color-ink)] block mb-1.5">Bukti Transfer (Gambar)</label>
                           <div className="relative">
-                            <input type="file" accept="image/*" className="w-full bg-surface-container border border-hairline-border rounded-xl px-4 py-2.5 text-sm font-medium text-on-surface focus:bg-surface-container-highest focus:border-primary outline-none transition-all file:mr-4 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-surface-container-highest file:text-primary hover:file:bg-surface-container-higher cursor-pointer" onChange={e => setManualForm({...manualForm, receiptImage: e.target.files?.[0] || null})} />
+                            <input type="file" accept="image/*" className="w-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:bg-[var(--color-paper-3)] focus:border-[var(--color-accent)] outline-none transition-all file:mr-4 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[var(--color-paper-3)] file:text-[var(--color-accent)] hover:file:bg-[var(--color-paper-2)]-higher cursor-pointer" onChange={e => setManualForm({...manualForm, receiptImage: e.target.files?.[0] || null})} />
                           </div>
                         </div>
                         
-                        <button onClick={handleManualSubmit} disabled={uploading} className="w-full bg-primary text-primary-content hover:opacity-90 rounded-xl py-3.5 text-sm font-bold transition-opacity disabled:opacity-50 mt-4 flex justify-center items-center shadow-md">
+                        <button onClick={handleManualSubmit} disabled={uploading} className="w-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 rounded-xl py-3.5 text-sm font-bold transition-opacity disabled:opacity-50 mt-4 flex justify-center items-center shadow-md">
                           {uploading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ImageIcon className="w-5 h-5 mr-2" />}
                           {uploading ? 'Mengunggah...' : 'Kirim Bukti Transfer'}
                         </button>
 
                         {/* WhatsApp Alternative */}
                         {company?.phone && (
-                          <div className="pt-6 mt-6 border-t border-hairline-border text-center">
-                            <p className="text-xs text-on-surface-variant mb-3 font-medium">Bermasalah saat upload? Konfirmasi via WhatsApp:</p>
+                          <div className="pt-6 mt-6 border-t border-[var(--color-rule)] text-center">
+                            <p className="text-xs text-[var(--color-muted)] mb-3 font-medium">Bermasalah saat upload? Konfirmasi via WhatsApp:</p>
                             <a href={`https://wa.me/${company.phone.replace(/[^0-9]/g, '')}?text=Halo, saya ingin konfirmasi pembayaran untuk tagihan ${invoice.invoiceNumber}.`} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20b958] text-white rounded-xl py-3.5 text-sm font-bold shadow-md transition-all">
                               <Phone className="w-4 h-4" /> Hubungi Admin
                             </a>
@@ -551,30 +552,30 @@ export default function PaymentPage() {
 
           {/* Auto Payment Gateways */}
           {paymentGateways.length > 0 && (
-            <details className="group bg-surface-container-lowest border border-hairline-border rounded-xl overflow-hidden shadow-sm" open>
-              <summary className="flex items-center justify-between p-4 cursor-pointer list-none outline-none select-none hover:bg-surface-container transition-colors">
+            <details className="group bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl overflow-hidden shadow-sm" open>
+              <summary className="flex items-center justify-between p-4 cursor-pointer list-none outline-none select-none hover:bg-[var(--color-paper-2)] transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-surface-container text-primary rounded-xl flex items-center justify-center border border-hairline-border">
+                  <div className="w-10 h-10 bg-[var(--color-paper-2)] text-[var(--color-accent)] rounded-xl flex items-center justify-center border border-[var(--color-rule)]">
                     <Zap className="w-5 h-5" />
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-bold text-on-surface">Pembayaran Otomatis</p>
-                    <p className="text-[11px] text-on-surface-variant">QRIS, Virtual Account, & Gerai Ritel</p>
+                    <p className="text-sm font-bold text-[var(--color-ink)]">Pembayaran Otomatis</p>
+                    <p className="text-[11px] text-[var(--color-muted)]">QRIS, Virtual Account, & Gerai Ritel</p>
                   </div>
                 </div>
-                <span className="transition-transform duration-300 group-open:rotate-180 text-on-surface-variant">
+                <span className="transition-transform duration-300 group-open:rotate-180 text-[var(--color-muted)]">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </span>
               </summary>
               
-              <div className="p-4 pt-0 border-t border-hairline-border bg-surface-container-lowest">
+              <div className="p-4 pt-0 border-t border-[var(--color-rule)] bg-[var(--color-paper)]">
                 <div className="mt-4">
                   {paymentGateways.map((gateway) => {
                     if (gateway.provider === 'duitku') {
                       if (loadingDuitkuMethods) return (
-                        <div key={gateway.id} className="flex items-center justify-center py-6 bg-surface-container border border-hairline-border rounded-xl mb-4">
-                          <Loader2 className="w-5 h-5 animate-spin text-primary mr-2" />
-                          <span className="text-sm font-medium text-on-surface-variant">Memuat kanal pembayaran...</span>
+                        <div key={gateway.id} className="flex items-center justify-center py-6 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl mb-4">
+                          <Loader2 className="w-5 h-5 animate-spin text-[var(--color-accent)] mr-2" />
+                          <span className="text-sm font-medium text-[var(--color-muted)]">Memuat kanal pembayaran...</span>
                         </div>
                       );
                       if (duitkuMethods.length > 0) return (
@@ -584,12 +585,12 @@ export default function PaymentPage() {
                               key={method.code}
                               onClick={() => handlePayment(gateway.provider, method.code)}
                               disabled={processing}
-                              className="w-full flex flex-col items-center text-center p-3 bg-surface-container border border-hairline-border rounded-xl hover:border-primary/50 hover:shadow-md transition-all group disabled:opacity-50"
+                              className="w-full flex flex-col items-center text-center p-3 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl hover:border-[var(--color-accent)]/50 hover:shadow-md transition-all group disabled:opacity-50"
                             >
-                              <div className="w-10 h-10 bg-surface-container-highest rounded-lg flex items-center justify-center text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary transition-colors border border-hairline-border group-hover:border-primary/30 mb-2">
+                              <div className="w-10 h-10 bg-[var(--color-paper-3)] rounded-lg flex items-center justify-center text-[var(--color-muted)] group-hover:bg-primary/10 group-hover:text-[var(--color-accent)] transition-colors border border-[var(--color-rule)] group-hover:border-[var(--color-accent)]/30 mb-2">
                                 <CreditCard className="w-5 h-5" />
                               </div>
-                              <span className="text-xs font-bold text-on-surface line-clamp-2 leading-tight">{method.name}</span>
+                              <span className="text-xs font-bold text-[var(--color-ink)] line-clamp-2 leading-tight">{method.name}</span>
                             </button>
                           ))}
                         </div>
@@ -598,9 +599,9 @@ export default function PaymentPage() {
                     
                     if (gateway.provider === 'qrin') {
                       if (loadingQrinMethods) return (
-                        <div key={gateway.id} className="flex items-center justify-center py-6 bg-surface-container border border-hairline-border rounded-xl mb-4">
-                          <Loader2 className="w-5 h-5 animate-spin text-primary mr-2" />
-                          <span className="text-sm font-medium text-on-surface-variant">Memuat kanal pembayaran...</span>
+                        <div key={gateway.id} className="flex items-center justify-center py-6 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl mb-4">
+                          <Loader2 className="w-5 h-5 animate-spin text-[var(--color-accent)] mr-2" />
+                          <span className="text-sm font-medium text-[var(--color-muted)]">Memuat kanal pembayaran...</span>
                         </div>
                       );
                       if (qrinMethods.length > 0) {
@@ -611,12 +612,12 @@ export default function PaymentPage() {
                                 key={method.code}
                                 onClick={() => handlePayment(gateway.provider, method.code)}
                                 disabled={processing}
-                                className="w-full flex flex-col items-center text-center p-3 bg-surface-container border border-hairline-border rounded-xl hover:border-primary/50 hover:shadow-md transition-all group disabled:opacity-50"
+                                className="w-full flex flex-col items-center text-center p-3 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl hover:border-[var(--color-accent)]/50 hover:shadow-md transition-all group disabled:opacity-50"
                               >
-                                <div className="w-10 h-10 bg-surface-container-highest rounded-lg flex items-center justify-center text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary transition-colors border border-hairline-border group-hover:border-primary/30 p-1.5 overflow-hidden mb-2">
+                                <div className="w-10 h-10 bg-[var(--color-paper-3)] rounded-lg flex items-center justify-center text-[var(--color-muted)] group-hover:bg-primary/10 group-hover:text-[var(--color-accent)] transition-colors border border-[var(--color-rule)] group-hover:border-[var(--color-accent)]/30 p-1.5 overflow-hidden mb-2">
                                   {method.logo ? <img src={method.logo} alt={method.name} className="max-w-full max-h-full object-contain filter invert dark:invert-0" /> : <CreditCard className="w-4 h-4" />}
                                 </div>
-                                <span className="text-xs font-bold text-on-surface line-clamp-2 leading-tight">{method.name}</span>
+                                <span className="text-xs font-bold text-[var(--color-ink)] line-clamp-2 leading-tight">{method.name}</span>
                               </button>
                             ))}
                           </div>
@@ -628,12 +629,12 @@ export default function PaymentPage() {
                           key={gateway.id}
                           onClick={() => handlePayment(gateway.provider, 'qris')}
                           disabled={processing}
-                          className="w-full flex flex-col items-center text-center p-3 bg-surface-container border border-hairline-border rounded-xl hover:border-primary/50 transition-all group disabled:opacity-50 mb-4 text-on-surface"
+                          className="w-full flex flex-col items-center text-center p-3 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl hover:border-[var(--color-accent)]/50 transition-all group disabled:opacity-50 mb-4 text-[var(--color-ink)]"
                         >
-                          <div className="w-10 h-10 bg-surface-container-highest rounded-lg flex items-center justify-center text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary mb-2 border border-hairline-border group-hover:border-primary/30">
+                          <div className="w-10 h-10 bg-[var(--color-paper-3)] rounded-lg flex items-center justify-center text-[var(--color-muted)] group-hover:bg-primary/10 group-hover:text-[var(--color-accent)] mb-2 border border-[var(--color-rule)] group-hover:border-[var(--color-accent)]/30">
                             <CreditCard className="w-5 h-5" />
                           </div>
-                          <span className="text-xs font-bold text-on-surface">QRIS / VA (QRIN)</span>
+                          <span className="text-xs font-bold text-[var(--color-ink)]">QRIS / VA (QRIN)</span>
                         </button>
                       );
                     }
@@ -644,12 +645,12 @@ export default function PaymentPage() {
                         key={gateway.id}
                         onClick={() => handlePayment(gateway.provider)}
                         disabled={processing}
-                        className="w-full flex flex-col items-center text-center p-3 bg-surface-container border border-hairline-border rounded-xl hover:border-primary/50 transition-all group disabled:opacity-50 mb-4 text-on-surface"
+                        className="w-full flex flex-col items-center text-center p-3 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl hover:border-[var(--color-accent)]/50 transition-all group disabled:opacity-50 mb-4 text-[var(--color-ink)]"
                       >
-                        <div className="w-10 h-10 bg-surface-container-highest rounded-lg flex items-center justify-center text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary mb-2 border border-hairline-border group-hover:border-primary/30">
+                        <div className="w-10 h-10 bg-[var(--color-paper-3)] rounded-lg flex items-center justify-center text-[var(--color-muted)] group-hover:bg-primary/10 group-hover:text-[var(--color-accent)] mb-2 border border-[var(--color-rule)] group-hover:border-[var(--color-accent)]/30">
                           <CreditCard className="w-5 h-5" />
                         </div>
-                        <span className="text-xs font-bold text-on-surface">{gateway.name}</span>
+                        <span className="text-xs font-bold text-[var(--color-ink)]">{gateway.name}</span>
                       </button>
                     );
                   })}
@@ -659,8 +660,8 @@ export default function PaymentPage() {
           )}
 
           {paymentGateways.length === 0 && (
-            <div className="text-center py-8 bg-surface-container rounded-xl border border-hairline-border">
-              <p className="text-sm font-medium text-on-surface-variant">Silakan gunakan fitur transfer manual di atas.</p>
+            <div className="text-center py-8 bg-[var(--color-paper-2)] rounded-xl border border-[var(--color-rule)]">
+              <p className="text-sm font-medium text-[var(--color-muted)]">Silakan gunakan fitur transfer manual di atas.</p>
             </div>
           )}
         </div>
@@ -669,19 +670,19 @@ export default function PaymentPage() {
       {/* QR Code Modal */}
       {qrString && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-container-lowest border border-hairline-border rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
+          <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
             <button 
               onClick={() => setQrString(null)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface bg-surface-container hover:bg-surface-container-highest rounded-full p-2 transition-colors border border-hairline-border"
+              className="absolute top-4 right-4 text-[var(--color-muted)] hover:text-[var(--color-ink)] bg-[var(--color-paper-2)] hover:bg-[var(--color-paper-3)] rounded-full p-2 transition-colors border border-[var(--color-rule)]"
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-16 h-16 bg-surface-container-highest border border-hairline-border text-primary rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
+            <div className="w-16 h-16 bg-[var(--color-paper-3)] border border-[var(--color-rule)] text-[var(--color-accent)] rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
               <QrCode className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-on-surface mb-2">Scan QRIS</h3>
-            <p className="text-sm text-on-surface-variant mb-6">Silakan gunakan aplikasi M-Banking atau E-Wallet Anda untuk memindai kode QRIS ini.</p>
-            <div className="bg-white p-4 rounded-xl inline-block border-2 border-hairline-border shadow-sm mb-6 relative group">
+            <h3 className="text-xl font-bold text-[var(--color-ink)] mb-2">Scan QRIS</h3>
+            <p className="text-sm text-[var(--color-muted)] mb-6">Silakan gunakan aplikasi M-Banking atau E-Wallet Anda untuk memindai kode QRIS ini.</p>
+            <div className="bg-white p-4 rounded-xl inline-block border-2 border-[var(--color-rule)] shadow-sm mb-6 relative group">
               <QRCodeSVG id="qris-svg" value={qrString} size={200} level="H" includeMargin={false} />
             </div>
             <div className="flex gap-3 mb-6">
@@ -708,16 +709,16 @@ export default function PaymentPage() {
                   };
                   img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
                 }}
-                className="flex-1 bg-surface-container-highest hover:bg-surface-container-higher text-on-surface font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2 border border-hairline-border"
+                className="flex-1 bg-[var(--color-paper-3)] hover:bg-[var(--color-paper-2)]-higher text-[var(--color-ink)] font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2 border border-[var(--color-rule)]"
               >
                 <ImageIcon className="w-4 h-4" /> Simpan
               </button>
               <button 
                 onClick={handleCheckPaymentStatus}
                 disabled={checkingStatus}
-                className="flex-[2] bg-primary hover:opacity-90 text-primary-content font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-[2] bg-primary hover:opacity-90 text-[var(--color-accent)]-content font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin text-primary-content" /> : null}
+                {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin text-[var(--color-accent)]-content" /> : null}
                 <span>Saya Sudah Bayar</span>
               </button>
             </div>
@@ -728,34 +729,34 @@ export default function PaymentPage() {
       {/* VA Modal */}
       {vaNumber && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-container-lowest border border-hairline-border rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
+          <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
             <button 
               onClick={() => setVaNumber(null)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface bg-surface-container hover:bg-surface-container-highest rounded-full p-2 transition-colors border border-hairline-border"
+              className="absolute top-4 right-4 text-[var(--color-muted)] hover:text-[var(--color-ink)] bg-[var(--color-paper-2)] hover:bg-[var(--color-paper-3)] rounded-full p-2 transition-colors border border-[var(--color-rule)]"
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-16 h-16 bg-surface-container-highest border border-hairline-border text-primary rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
+            <div className="w-16 h-16 bg-[var(--color-paper-3)] border border-[var(--color-rule)] text-[var(--color-accent)] rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
               <CreditCard className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-on-surface mb-2">Instruksi Pembayaran</h3>
-            <p className="text-sm text-on-surface-variant mb-6">Silakan lakukan transfer ke nomor Virtual Account atau tunjukkan kode pembayaran berikut.</p>
+            <h3 className="text-xl font-bold text-[var(--color-ink)] mb-2">Instruksi Pembayaran</h3>
+            <p className="text-sm text-[var(--color-muted)] mb-6">Silakan lakukan transfer ke nomor Virtual Account atau tunjukkan kode pembayaran berikut.</p>
             
-            <div className="bg-surface-container p-5 rounded-xl border border-hairline-border text-left space-y-4 mb-6 shadow-sm">
+            <div className="bg-[var(--color-paper-2)] p-5 rounded-xl border border-[var(--color-rule)] text-left space-y-4 mb-6 shadow-sm">
               <div>
-                <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-1">Metode</p>
-                <p className="text-sm font-bold text-on-surface">{vaBank}</p>
+                <p className="text-xs text-[var(--color-muted)] font-medium uppercase tracking-wider mb-1">Metode</p>
+                <p className="text-sm font-bold text-[var(--color-ink)]">{vaBank}</p>
               </div>
               <div>
-                <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-1">Nomor / Kode</p>
-                <div className="flex items-center justify-between bg-surface-container-highest px-3 py-2 border border-hairline-border rounded-lg">
-                  <p className="font-mono text-lg font-bold text-primary">{vaNumber}</p>
+                <p className="text-xs text-[var(--color-muted)] font-medium uppercase tracking-wider mb-1">Nomor / Kode</p>
+                <div className="flex items-center justify-between bg-[var(--color-paper-3)] px-3 py-2 border border-[var(--color-rule)] rounded-lg">
+                  <p className="font-mono text-lg font-bold text-[var(--color-accent)]">{vaNumber}</p>
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(vaNumber);
                       alert('Disalin!');
                     }}
-                    className="text-xs bg-surface-container-lowest border border-hairline-border px-2 py-1 rounded text-on-surface hover:bg-surface-container-highest font-semibold shadow-sm transition-colors"
+                    className="text-xs bg-[var(--color-paper)] border border-[var(--color-rule)] px-2 py-1 rounded text-[var(--color-ink)] hover:bg-[var(--color-paper-3)] font-semibold shadow-sm transition-colors"
                   >
                     Salin
                   </button>
@@ -763,7 +764,7 @@ export default function PaymentPage() {
               </div>
             </div>
             
-            <div className="bg-surface-container border border-hairline-border p-4 rounded-xl mb-6 shadow-sm">
+            <div className="bg-[var(--color-paper-2)] border border-[var(--color-rule)] p-4 rounded-xl mb-6 shadow-sm">
               <BankInstructions bankName={vaBank || ''} vaNumber={vaNumber} />
             </div>
  
@@ -771,15 +772,15 @@ export default function PaymentPage() {
               <button 
                 onClick={handleCheckPaymentStatus}
                 disabled={checkingStatus}
-                className="w-full bg-primary hover:opacity-90 text-primary-content font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-md"
+                className="w-full bg-primary hover:opacity-90 text-[var(--color-accent)]-content font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-md"
               >
-                {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin text-primary-content" /> : null}
+                {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin text-[var(--color-accent)]-content" /> : null}
                 <span>Saya Sudah Bayar</span>
               </button>
               
               <button 
                 onClick={() => setVaNumber(null)}
-                className="w-full bg-surface-container-highest hover:bg-surface-container-higher text-on-surface font-bold py-3 px-4 rounded-xl transition-all text-sm border border-hairline-border"
+                className="w-full bg-[var(--color-paper-3)] hover:bg-[var(--color-paper-2)]-higher text-[var(--color-ink)] font-bold py-3 px-4 rounded-xl transition-all text-sm border border-[var(--color-rule)]"
               >
                 Tutup / Pilih Metode Lain
               </button>
@@ -791,13 +792,13 @@ export default function PaymentPage() {
       {/* Loading Overlay */}
       {processing && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
-          <div className="bg-surface-container-lowest border border-hairline-border rounded-2xl p-8 flex flex-col items-center shadow-2xl max-w-sm w-full mx-4">
+          <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-2xl p-8 flex flex-col items-center shadow-2xl max-w-sm w-full mx-4">
             <div className="w-16 h-16 relative flex items-center justify-center mb-4">
               <div className="absolute inset-0 rounded-full border-4 border-surface-container-highest"></div>
-              <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-[var(--color-accent)] border-t-transparent animate-spin"></div>
             </div>
-            <p className="text-lg font-bold text-on-surface">Memproses Transaksi...</p>
-            <p className="text-sm text-on-surface-variant mt-2 text-center">Mohon tunggu, jangan tutup halaman ini.</p>
+            <p className="text-lg font-bold text-[var(--color-ink)]">Memproses Transaksi...</p>
+            <p className="text-sm text-[var(--color-muted)] mt-2 text-center">Mohon tunggu, jangan tutup halaman ini.</p>
           </div>
         </div>
       )}
@@ -805,15 +806,15 @@ export default function PaymentPage() {
       {/* Beautiful custom alert for unpaid status */}
       {statusError && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-container-lowest border border-hairline-border rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-status-danger/10 border border-status-danger/20 text-status-danger rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-[var(--color-error-bg)] border border-[var(--color-error)] text-[var(--color-error)] rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-on-surface mb-2">Belum Terdeteksi</h3>
-            <p className="text-sm text-on-surface-variant mb-6">{statusError}</p>
+            <h3 className="text-lg font-bold text-[var(--color-ink)] mb-2">Belum Terdeteksi</h3>
+            <p className="text-sm text-[var(--color-muted)] mb-6">{statusError}</p>
             <button 
               onClick={() => setStatusError(null)}
-              className="w-full bg-primary hover:opacity-90 text-primary-content font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md"
+              className="w-full bg-primary hover:opacity-90 text-[var(--color-accent)]-content font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md"
             >
               Tutup
             </button>

@@ -1,0 +1,206 @@
+/* Hallmark · macrostructure: Bento Grid · N5 Floating pill · Ft1 Minimal
+ * theme: custom · vibe: "industrial precision, sharp, enterprise-grade" · paper: oklch(98% 0.005 20) · accent: oklch(60% 0.18 20)
+ * display: Geist · body: Geist · axes: light / geometric-sans / warm
+ * studied: no · context: inferred · v1.1.0
+ */
+
+:root {
+  /* Palette */
+  --color-paper:    oklch(98% 0.005 20);
+  --color-paper-2:  oklch(95% 0.007 20);
+  --color-paper-3:  oklch(92% 0.009 20);
+  --color-rule:     oklch(88% 0.009 20);
+  --color-rule-2:   oklch(84% 0.010 20);
+  --color-neutral:  oklch(56% 0.008 20);
+  --color-muted:    oklch(40% 0.008 20);
+  --color-ink:      oklch(20% 0.010 20);
+  --color-ink-2:    oklch(35% 0.010 20);
+  
+  --color-accent:   oklch(55% 0.18 25);
+  --color-accent-ink: var(--color-paper);
+  --color-focus:    oklch(55% 0.20 25);
+
+  /* Status Colors (tinted to match palette) */
+  --color-success:  oklch(60% 0.14 145);
+  --color-success-bg: oklch(95% 0.04 145);
+  --color-error:    oklch(55% 0.18 25);
+  --color-error-bg: oklch(95% 0.04 25);
+  --color-warning:  oklch(70% 0.15 75);
+  --color-warning-bg: oklch(95% 0.04 75);
+  --color-info:     oklch(60% 0.12 250);
+  --color-info-bg:  oklch(95% 0.04 250);
+
+  /* Typography */
+  --font-display: 'Geist', 'Inter', sans-serif;
+  --font-body: 'Geist', 'Inter', sans-serif;
+  --font-mono: 'Geist Mono', monospace;
+
+  /* Spacing */
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs:  0.5rem;
+  --space-sm:  0.75rem;
+  --space-md:  1rem;
+  --space-lg:  1.5rem;
+  --space-xl:  2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+  --space-4xl: 6rem;
+  --space-5xl: 8rem;
+
+  /* Borders */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  line-height: 1.2;
+  font-style: normal;
+  letter-spacing: -0.02em;
+}
+
+/* Utilities */
+.hallmark-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-md) var(--space-lg);
+}
+
+.hallmark-card {
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.hallmark-card-elevated {
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+.hallmark-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-full);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+}
+
+.hallmark-button:hover {
+  background: var(--color-focus);
+  transform: translateY(-1px);
+}
+
+.hallmark-button:active {
+  transform: translateY(0);
+}
+
+.hallmark-button-secondary {
+  background: transparent;
+  color: var(--color-ink);
+  border: 1px solid var(--color-rule);
+}
+
+.hallmark-button-secondary:hover {
+  background: var(--color-paper-2);
+  border-color: var(--color-rule-2);
+}
+
+.hallmark-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-success { background: var(--color-success-bg); color: var(--color-success); border: 1px solid var(--color-success); }
+.badge-error { background: var(--color-error-bg); color: var(--color-error); border: 1px solid var(--color-error); }
+.badge-warning { background: var(--color-warning-bg); color: var(--color-warning); border: 1px solid var(--color-warning); }
+.badge-info { background: var(--color-info-bg); color: var(--color-info); border: 1px solid var(--color-info); }
+
+/* Grid */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--space-lg);
+}
+
+/* Nav N5 */
+.floating-nav {
+  position: fixed;
+  bottom: var(--space-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-rule);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-full);
+  display: flex;
+  gap: var(--space-2xs);
+  z-index: 50;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.01);
+}
+
+@media (min-width: 768px) {
+  .floating-nav {
+    top: var(--space-lg);
+    bottom: auto;
+  }
+}
+
+.nav-item {
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-full);
+  color: var(--color-ink-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-item:hover {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+}
+
+.nav-item.active {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+/* Layout Utilities */
+.hairline-bottom {
+  border-bottom: 1px solid var(--color-rule);
+}

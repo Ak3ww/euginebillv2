@@ -152,95 +152,97 @@ export default function CustomerDashboard() {
   const pendingInvoice = activeUnpaidInvoices[0];
 
   return (
-    <main className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-6 w-full">
-      {/* Hero Section */}
-      <section className="mb-6 flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
+    <main className="hallmark-container">
+      {/* Header */}
+      <header className="mb-[var(--space-xl)] pb-[var(--space-lg)] hairline-bottom flex justify-between items-end">
         <div>
-          <h2 className="font-headline-lg text-headline-lg text-on-surface">{user.name}</h2>
-          <p className="font-body-md text-body-md text-on-surface-variant mt-1">ID Pelanggan: {user.customerId || user.username}</p>
+          <h2 className="text-2xl md:text-3xl font-display font-medium mb-1">{user.name}</h2>
+          <p className="text-[var(--color-muted)] text-sm">ID Pelanggan: {user.customerId || user.username}</p>
         </div>
-        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${user.status === 'ISOLATED' || isExpired ? 'bg-status-isolated/10 text-status-isolated' : 'bg-status-active/10 text-status-active'}`}>
-          <span className="material-symbols-outlined text-[16px]">
-            {user.status === 'ISOLATED' || isExpired ? 'error' : 'check_circle'}
-          </span>
-          <span className="font-label-caps text-label-caps uppercase">
-            {user.status === 'ISOLATED' || isExpired ? 'Terisolir' : 'Aktif'}
-          </span>
+        <div className={`hallmark-badge ${user.status === 'ISOLATED' || isExpired ? 'badge-error' : 'badge-success'}`}>
+          {user.status === 'ISOLATED' || isExpired ? 'Terisolir' : 'Aktif'}
         </div>
-      </section>
+      </header>
 
-      {/* Bento Grid Layout */}
-      <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-bento-gap">
+      {/* Bento Grid */}
+      <div className="bento-grid">
         
-        {/* Sub/Expiry Module (Spans 8/12 cols depending on screen) */}
-        <div className={`bento-card col-span-4 md:col-span-8 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${!pendingInvoice ? 'lg:col-span-12' : 'lg:col-span-8'}`}>
+        {/* Package Info Card */}
+        <div className={`hallmark-card col-span-12 ${!pendingInvoice ? 'md:col-span-12' : 'md:col-span-8'} flex flex-col justify-between`}>
           <div>
-            <h3 className="font-label-caps text-label-caps text-outline uppercase mb-2">Paket Langganan</h3>
-            <div className="font-headline-lg text-headline-lg text-primary">{user.profile?.name || 'Loading...'}</div>
-            <div className="font-body-sm text-on-surface-variant mt-2 flex items-center gap-2">
-              <span className="material-symbols-outlined text-[16px] text-primary">speed</span>
-              Up to {user.profile?.downloadSpeed || 0}Mbps Download / Upload
-            </div>
+            <div className="text-xs uppercase tracking-wider text-[var(--color-muted)] mb-2 font-medium">Paket Langganan</div>
+            <div className="text-3xl font-medium text-[var(--color-accent)]">{user.profile?.name || 'Loading...'}</div>
           </div>
-          
-          <div className="w-full md:w-px md:h-16 bg-hairline-border md:mx-4"></div>
-          
-          <div>
-            <h3 className="font-label-caps text-label-caps text-outline uppercase mb-2">Jatuh Tempo</h3>
-            <div className="font-headline-md text-headline-md text-on-surface">
-              {formatWIB(user.expiredAt).split(' ')[0]}
+          <div className="mt-6 flex flex-col md:flex-row md:items-center justify-between border-t border-[var(--color-rule)] pt-4 gap-4">
+            <div className="text-sm text-[var(--color-ink-2)] flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px]">speed</span>
+              Up to {user.profile?.downloadSpeed || 0}Mbps
             </div>
-            <div className={`inline-block mt-2 px-2 py-1 rounded font-label-caps text-label-caps uppercase border border-hairline-border ${isExpired ? 'bg-error-container text-on-error-container' : 'bg-surface-container-high text-status-warning'}`}>
-              {isExpired ? 'Kedaluwarsa' : `Tersisa ${daysLeft} Hari`}
+            <div className="md:text-right">
+              <div className="text-xs uppercase tracking-wider text-[var(--color-muted)] mb-1">Jatuh Tempo</div>
+              <div className="font-mono text-sm font-medium">{formatWIB(user.expiredAt).split(' ')[0]}</div>
+              <div className={`text-xs mt-1 font-medium ${isExpired ? 'text-[var(--color-error)]' : 'text-[var(--color-warning)]'}`}>
+                {isExpired ? 'Kedaluwarsa' : `Tersisa ${daysLeft} Hari`}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Pending Bill Module */}
+        {/* Pending Invoice Card */}
         {pendingInvoice && (
-          <div className="bento-card col-span-4 md:col-span-4 lg:col-span-4 p-6 border-l-4 border-l-status-isolated relative overflow-hidden bg-surface-bright">
-            <div className="absolute top-0 right-0 p-4 opacity-5">
-              <span className="material-symbols-outlined text-9xl text-status-isolated" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
-            </div>
-            <div className="relative z-10 flex flex-col h-full justify-between">
-              <div>
-                <h3 className="font-label-caps text-label-caps text-status-isolated uppercase mb-1 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[16px]">receipt_long</span> Tagihan Belum Dibayar
-                </h3>
-                <p className="font-data-mono text-data-mono text-on-surface-variant">{pendingInvoice.invoiceNumber}</p>
-                <div className="font-headline-lg text-headline-lg text-on-surface mt-4">{formatCurrency(pendingInvoice.amount)}</div>
+          <div className="hallmark-card-elevated col-span-12 md:col-span-4 border-l-4 border-l-[var(--color-error)] flex flex-col justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-[var(--color-error)] mb-2 font-medium flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">warning</span> Tagihan Tertunda
               </div>
-              <button 
-                onClick={() => router.push(`/pay/${pendingInvoice.paymentToken}`)}
-                className="mt-6 w-full bg-primary-container text-on-primary hover:bg-on-primary-fixed-variant transition-colors py-3 rounded font-label-caps text-label-caps uppercase flex justify-center items-center gap-2"
-              >
-                Bayar Sekarang <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-              </button>
+              <div className="font-mono text-sm mb-4 text-[var(--color-muted)]">{pendingInvoice.invoiceNumber}</div>
+              <div className="text-3xl font-medium mb-6">{formatCurrency(pendingInvoice.amount)}</div>
             </div>
+            <button 
+              onClick={() => router.push(`/pay/${pendingInvoice.paymentToken}`)}
+              className="hallmark-button w-full"
+            >
+              Bayar Sekarang
+            </button>
           </div>
         )}
 
-        {/* Quick Actions Grid */}
-        <div className="col-span-4 md:col-span-8 lg:col-span-12 mt-4">
-          <h3 className="font-headline-md text-headline-md text-on-surface mb-4">Aksi Cepat</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button onClick={() => router.push('/customer/invoices')} className="bento-card p-4 flex flex-col items-center justify-center gap-3 hover:bg-surface-container-low transition-colors duration-200 active:opacity-70 group cursor-pointer">
-              <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-3xl">receipt_long</span>
-              <span className="font-label-caps text-label-caps text-on-surface uppercase">Tagihan</span>
-            </button>
-            <button onClick={() => router.push('/customer/wifi')} className="bento-card p-4 flex flex-col items-center justify-center gap-3 hover:bg-surface-container-low transition-colors duration-200 active:opacity-70 group cursor-pointer">
-              <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-3xl">router</span>
-              <span className="font-label-caps text-label-caps text-on-surface uppercase">Pengaturan Wi-Fi</span>
-            </button>
-            <button onClick={() => router.push('/customer/upgrade')} className="bento-card p-4 flex flex-col items-center justify-center gap-3 hover:bg-surface-container-low transition-colors duration-200 active:opacity-70 group cursor-pointer">
-              <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-3xl">upgrade</span>
-              <span className="font-label-caps text-label-caps text-on-surface uppercase">Upgrade Layanan</span>
-            </button>
-            <button onClick={() => router.push('/customer/tickets')} className="bento-card p-4 flex flex-col items-center justify-center gap-3 hover:bg-surface-container-low transition-colors duration-200 active:opacity-70 group cursor-pointer">
-              <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-3xl">contact_support</span>
-              <span className="font-label-caps text-label-caps text-on-surface uppercase">Pusat Bantuan</span>
-            </button>
-          </div>
+        {/* Quick Actions Title */}
+        <div className="col-span-12 mt-6 mb-2">
+          <h3 className="text-lg font-medium">Aksi Cepat</h3>
+        </div>
+
+        {/* Action Widgets */}
+        <div 
+          className="col-span-6 md:col-span-3 hallmark-card hover:bg-[var(--color-paper-2)] hover:border-[var(--color-rule-2)] cursor-pointer transition-colors flex flex-col items-center text-center p-6"
+          onClick={() => router.push('/customer/invoices')}
+        >
+          <span className="material-symbols-outlined text-3xl text-[var(--color-accent)] mb-3">receipt_long</span>
+          <div className="font-medium text-sm">Riwayat Tagihan</div>
+        </div>
+
+        <div 
+          className="col-span-6 md:col-span-3 hallmark-card hover:bg-[var(--color-paper-2)] hover:border-[var(--color-rule-2)] cursor-pointer transition-colors flex flex-col items-center text-center p-6"
+          onClick={() => router.push('/customer/wifi')}
+        >
+          <span className="material-symbols-outlined text-3xl text-[var(--color-accent)] mb-3">router</span>
+          <div className="font-medium text-sm">Pengaturan Wi-Fi</div>
+        </div>
+
+        <div 
+          className="col-span-6 md:col-span-3 hallmark-card hover:bg-[var(--color-paper-2)] hover:border-[var(--color-rule-2)] cursor-pointer transition-colors flex flex-col items-center text-center p-6"
+          onClick={() => router.push('/customer/upgrade')}
+        >
+          <span className="material-symbols-outlined text-3xl text-[var(--color-accent)] mb-3">upgrade</span>
+          <div className="font-medium text-sm">Upgrade Layanan</div>
+        </div>
+
+        <div 
+          className="col-span-6 md:col-span-3 hallmark-card hover:bg-[var(--color-paper-2)] hover:border-[var(--color-rule-2)] cursor-pointer transition-colors flex flex-col items-center text-center p-6"
+          onClick={() => router.push('/customer/tickets')}
+        >
+          <span className="material-symbols-outlined text-3xl text-[var(--color-accent)] mb-3">contact_support</span>
+          <div className="font-medium text-sm">Pusat Bantuan</div>
         </div>
 
       </div>
