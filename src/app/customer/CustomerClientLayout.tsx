@@ -235,34 +235,65 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  return (
-    <div className="min-h-screen flex flex-col pb-24 md:pt-24 font-sans bg-[var(--color-paper)] text-[var(--color-ink)]">
-      {/* N5 Floating Pill Nav */}
-      <nav className="floating-nav">
-        <button onClick={() => router.push('/customer')} className={cn("nav-item", isActive('/customer') && pathname === '/customer' && "active")}>
-          <Home className="w-4 h-4" />
-          <span className="hidden md:inline">Beranda</span>
-        </button>
-        <button onClick={() => router.push('/customer/invoices')} className={cn("nav-item", (isActive('/customer/invoices') || isActive('/customer/history')) && "active")}>
-          <FileText className="w-4 h-4" />
-          <span className="hidden md:inline">Tagihan</span>
-          {unreadCount > 0 && <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] ml-1"></span>}
-        </button>
-        <button onClick={() => router.push('/customer/wifi')} className={cn("nav-item", isActive('/customer/wifi') && "active")}>
-          <Wifi className="w-4 h-4" />
-          <span className="hidden md:inline">WiFi</span>
-        </button>
-        <button onClick={() => router.push('/customer/tickets')} className={cn("nav-item", isActive('/customer/tickets') && "active")}>
-          <MessageSquare className="w-4 h-4" />
-          <span className="hidden md:inline">Bantuan</span>
-        </button>
-        <button onClick={() => router.push('/customer/profile')} className={cn("nav-item", isActive('/customer/profile') && "active")}>
-          <User className="w-4 h-4" />
-          <span className="hidden md:inline">Akun</span>
-        </button>
+    return (
+    <div className="min-h-screen flex flex-col font-sans bg-[var(--color-paper-2)] text-[var(--color-ink)]">
+      {/* Desktop Navigation (Hidden on Mobile) */}
+      <nav className="hidden md:flex justify-between items-center px-[var(--space-lg)] h-16 w-full sticky top-0 bg-[var(--color-paper)] border-b border-[var(--color-rule)] z-40 transition-colors duration-200">
+        <div className="flex items-center gap-8">
+          <h1 className="text-xl font-display font-medium text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
+          <div className="flex gap-6">
+            <button onClick={() => router.push('/customer')} className={cn("transition-colors font-body text-sm", isActive('/customer') && pathname === '/customer' ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>Home</button>
+            <button onClick={() => router.push('/customer/invoices')} className={cn("transition-colors font-body text-sm", isActive('/customer/invoices') ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>Invoices</button>
+            <button onClick={() => router.push('/customer/wifi')} className={cn("transition-colors font-body text-sm", isActive('/customer/wifi') ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>WiFi</button>
+            <button onClick={() => router.push('/customer/tickets')} className={cn("transition-colors font-body text-sm", isActive('/customer/tickets') ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>Support</button>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <button className="p-2 text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] rounded-full transition-colors relative">
+            <Bell className="w-5 h-5" />
+            {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)]"></span>}
+          </button>
+          <button onClick={() => router.push('/customer/profile')} className="w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] flex items-center justify-center font-bold text-sm">
+            UP
+          </button>
+        </div>
       </nav>
 
+      {/* Mobile Top App Bar */}
+      <header className="md:hidden w-full top-0 sticky bg-[var(--color-paper)] border-b border-[var(--color-rule)] flex justify-between items-center px-[var(--space-md)] h-16 z-40">
+        <button onClick={() => router.push('/customer/profile')} className="w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] flex items-center justify-center font-bold text-sm">
+          UP
+        </button>
+        <h1 className="text-lg font-display font-medium text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
+        <button className="text-[var(--color-muted)] transition-colors duration-200 active:opacity-70 p-2 rounded-full hover:bg-[var(--color-paper-3)] relative">
+          <Bell className="w-5 h-5" />
+          {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)]"></span>}
+        </button>
+      </header>
+
       {children}
+
+      {/* Bottom Navigation Bar (Mobile) */}
+      <nav className="fixed bottom-0 w-full z-50 bg-[var(--color-paper)] border-t border-[var(--color-rule)] md:hidden">
+        <div className="flex justify-around items-center pt-2 pb-safe px-2 h-16 pb-2">
+          <button onClick={() => router.push('/customer')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer') && pathname === '/customer' ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
+            <Home className="w-6 h-6" />
+            <span className="font-mono text-[10px] mt-1 uppercase">Home</span>
+          </button>
+          <button onClick={() => router.push('/customer/invoices')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/invoices') ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
+            <FileText className="w-6 h-6" />
+            <span className="font-mono text-[10px] mt-1 uppercase">Invoices</span>
+          </button>
+          <button onClick={() => router.push('/customer/wifi')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/wifi') ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
+            <Wifi className="w-6 h-6" />
+            <span className="font-mono text-[10px] mt-1 uppercase">WiFi</span>
+          </button>
+          <button onClick={() => router.push('/customer/tickets')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/tickets') ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
+            <MessageSquare className="w-6 h-6" />
+            <span className="font-mono text-[10px] mt-1 uppercase">Support</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

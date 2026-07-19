@@ -151,98 +151,109 @@ export default function CustomerDashboard() {
   const activeUnpaidInvoices = invoices.filter(inv => inv.status === 'PENDING' || inv.status === 'OVERDUE');
   const pendingInvoice = activeUnpaidInvoices[0];
 
-  return (
-    <main className="hallmark-container">
-      {/* Header */}
-      <header className="mb-[var(--space-xl)] pb-[var(--space-lg)] hairline-bottom flex justify-between items-end">
+    return (
+    <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6">
+      {/* Hero Section */}
+      <section className="mb-6 flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
         <div>
-          <h2 className="text-2xl md:text-3xl font-display font-medium mb-1">{user.name}</h2>
-          <p className="text-[var(--color-muted)] text-sm">ID Pelanggan: {user.customerId || user.username}</p>
+          <h2 className="text-3xl font-display font-medium text-[var(--color-ink)]">{user.name}</h2>
+          <p className="text-sm font-body text-[var(--color-ink-2)] mt-1">ID Pelanggan: {user.customerId || user.username}</p>
         </div>
-        <div className={`hallmark-badge ${user.status === 'ISOLATED' || isExpired ? 'badge-error' : 'badge-success'}`}>
-          {user.status === 'ISOLATED' || isExpired ? 'Terisolir' : 'Aktif'}
+        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${user.status === 'ISOLATED' || isExpired ? 'bg-[var(--color-error-bg)] text-[var(--color-error)]' : 'bg-[var(--color-success-bg)] text-[var(--color-success)]'}`}>
+          <span className="material-symbols-outlined text-[16px]">
+            {user.status === 'ISOLATED' || isExpired ? 'error' : 'check_circle'}
+          </span>
+          <span className="font-mono text-[10px] uppercase font-bold tracking-wider">
+            {user.status === 'ISOLATED' || isExpired ? 'Terisolir' : 'Aktif'}
+          </span>
         </div>
-      </header>
+      </section>
 
-      {/* Bento Grid */}
-      <div className="bento-grid">
+      {/* Bento Grid Layout */}
+      <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-5">
         
-        {/* Package Info Card */}
-        <div className={`hallmark-card col-span-12 ${!pendingInvoice ? 'md:col-span-12' : 'md:col-span-8'} flex flex-col justify-between`}>
+        {/* Sub/Expiry Module */}
+        <div className={`col-span-4 ${!pendingInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-sm`}>
           <div>
-            <div className="text-xs uppercase tracking-wider text-[var(--color-muted)] mb-2 font-medium">Paket Langganan</div>
-            <div className="text-3xl font-medium text-[var(--color-accent)]">{user.profile?.name || 'Loading...'}</div>
-          </div>
-          <div className="mt-6 flex flex-col md:flex-row md:items-center justify-between border-t border-[var(--color-rule)] pt-4 gap-4">
-            <div className="text-sm text-[var(--color-ink-2)] flex items-center gap-2">
-              <span className="material-symbols-outlined text-[16px]">speed</span>
-              Up to {user.profile?.downloadSpeed || 0}Mbps
+            <h3 className="font-mono text-[10px] text-[var(--color-muted)] font-bold uppercase tracking-wider mb-2">Paket Langganan</h3>
+            <div className="text-3xl font-display font-medium text-[var(--color-focus)]">{user.profile?.name || 'Loading...'}</div>
+            <div className="text-sm font-body text-[var(--color-ink-2)] mt-2 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px] text-[var(--color-focus)]">speed</span>
+              Up to {user.profile?.downloadSpeed || 0}Mbps Download / Upload
             </div>
-            <div className="md:text-right">
-              <div className="text-xs uppercase tracking-wider text-[var(--color-muted)] mb-1">Jatuh Tempo</div>
-              <div className="font-mono text-sm font-medium">{formatWIB(user.expiredAt).split(' ')[0]}</div>
-              <div className={`text-xs mt-1 font-medium ${isExpired ? 'text-[var(--color-error)]' : 'text-[var(--color-warning)]'}`}>
-                {isExpired ? 'Kedaluwarsa' : `Tersisa ${daysLeft} Hari`}
-              </div>
+          </div>
+          <div className="w-full md:w-px md:h-16 bg-[var(--color-rule)] md:mx-4 hidden md:block"></div>
+          <div>
+            <h3 className="font-mono text-[10px] text-[var(--color-muted)] font-bold uppercase tracking-wider mb-2">Jatuh Tempo</h3>
+            <div className="text-2xl font-display font-medium text-[var(--color-ink)]">{formatWIB(user.expiredAt).split(' ')[0]}</div>
+            <div className={`inline-block mt-2 px-2 py-1 bg-[var(--color-paper-3)] rounded font-mono text-[10px] uppercase font-bold tracking-wider border border-[var(--color-rule)] ${isExpired ? 'text-[var(--color-error)]' : 'text-[var(--color-warning)]'}`}>
+              {isExpired ? 'Kedaluwarsa' : `Tersisa ${daysLeft} Hari`}
             </div>
           </div>
         </div>
 
-        {/* Pending Invoice Card */}
+        {/* Pending Bill Module */}
         {pendingInvoice && (
-          <div className="hallmark-card-elevated col-span-12 md:col-span-4 border-l-4 border-l-[var(--color-error)] flex flex-col justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-wider text-[var(--color-error)] mb-2 font-medium flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px]">warning</span> Tagihan Tertunda
-              </div>
-              <div className="font-mono text-sm mb-4 text-[var(--color-muted)]">{pendingInvoice.invoiceNumber}</div>
-              <div className="text-3xl font-medium mb-6">{formatCurrency(pendingInvoice.amount)}</div>
+          <div className="col-span-4 md:col-span-4 lg:col-span-4 bg-[var(--color-paper)] border border-[var(--color-rule)] border-l-4 border-l-[var(--color-error)] rounded-[var(--radius-lg)] p-6 relative overflow-hidden shadow-sm flex flex-col justify-between">
+            <div className="absolute top-0 right-0 p-4 opacity-5">
+              <span className="material-symbols-outlined text-9xl text-[var(--color-error)]" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
             </div>
-            <button 
-              onClick={() => router.push(`/pay/${pendingInvoice.paymentToken}`)}
-              className="hallmark-button w-full"
-            >
-              Bayar Sekarang
-            </button>
+            <div className="relative z-10 flex flex-col h-full justify-between">
+              <div>
+                <h3 className="font-mono text-[10px] text-[var(--color-error)] font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">receipt_long</span> Tagihan Belum Dibayar
+                </h3>
+                <p className="font-mono text-sm text-[var(--color-ink-2)]">{pendingInvoice.invoiceNumber}</p>
+                <div className="text-3xl font-display font-medium text-[var(--color-ink)] mt-4">{formatCurrency(pendingInvoice.amount)}</div>
+              </div>
+              <button 
+                onClick={() => router.push(`/pay/${pendingInvoice.paymentToken}`)}
+                className="mt-6 w-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 transition-opacity py-3 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider flex justify-center items-center gap-2"
+              >
+                Bayar Sekarang <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Quick Actions Title */}
-        <div className="col-span-12 mt-6 mb-2">
-          <h3 className="text-lg font-medium">Aksi Cepat</h3>
-        </div>
+        {/* Quick Actions Grid */}
+        <div className="col-span-4 md:col-span-8 lg:col-span-12 mt-4">
+          <h3 className="text-2xl font-display font-medium text-[var(--color-ink)] mb-4">Aksi Cepat</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            
+            <button 
+              onClick={() => router.push('/customer/invoices')}
+              className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-4 flex flex-col items-center justify-center gap-3 hover:bg-[var(--color-paper-3)] transition-colors duration-200 active:opacity-70 group shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[var(--color-focus)] group-hover:scale-110 transition-transform text-3xl">receipt_long</span>
+              <span className="font-mono text-[10px] font-bold text-[var(--color-ink)] uppercase tracking-wider">Tagihan</span>
+            </button>
+            
+            <button 
+              onClick={() => router.push('/customer/wifi')}
+              className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-4 flex flex-col items-center justify-center gap-3 hover:bg-[var(--color-paper-3)] transition-colors duration-200 active:opacity-70 group shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[var(--color-focus)] group-hover:scale-110 transition-transform text-3xl">router</span>
+              <span className="font-mono text-[10px] font-bold text-[var(--color-ink)] uppercase tracking-wider">Pengaturan Wi-Fi</span>
+            </button>
 
-        {/* Action Widgets */}
-        <div 
-          className="col-span-6 md:col-span-3 hallmark-card hover:bg-[var(--color-paper-2)] hover:border-[var(--color-rule-2)] cursor-pointer transition-colors flex flex-col items-center text-center p-6"
-          onClick={() => router.push('/customer/invoices')}
-        >
-          <span className="material-symbols-outlined text-3xl text-[var(--color-accent)] mb-3">receipt_long</span>
-          <div className="font-medium text-sm">Riwayat Tagihan</div>
-        </div>
+            <button 
+              onClick={() => router.push('/customer/upgrade')}
+              className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-4 flex flex-col items-center justify-center gap-3 hover:bg-[var(--color-paper-3)] transition-colors duration-200 active:opacity-70 group shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[var(--color-focus)] group-hover:scale-110 transition-transform text-3xl">upgrade</span>
+              <span className="font-mono text-[10px] font-bold text-[var(--color-ink)] uppercase tracking-wider">Upgrade Layanan</span>
+            </button>
 
-        <div 
-          className="col-span-6 md:col-span-3 hallmark-card hover:bg-[var(--color-paper-2)] hover:border-[var(--color-rule-2)] cursor-pointer transition-colors flex flex-col items-center text-center p-6"
-          onClick={() => router.push('/customer/wifi')}
-        >
-          <span className="material-symbols-outlined text-3xl text-[var(--color-accent)] mb-3">router</span>
-          <div className="font-medium text-sm">Pengaturan Wi-Fi</div>
-        </div>
-
-        <div 
-          className="col-span-6 md:col-span-3 hallmark-card hover:bg-[var(--color-paper-2)] hover:border-[var(--color-rule-2)] cursor-pointer transition-colors flex flex-col items-center text-center p-6"
-          onClick={() => router.push('/customer/upgrade')}
-        >
-          <span className="material-symbols-outlined text-3xl text-[var(--color-accent)] mb-3">upgrade</span>
-          <div className="font-medium text-sm">Upgrade Layanan</div>
-        </div>
-
-        <div 
-          className="col-span-6 md:col-span-3 hallmark-card hover:bg-[var(--color-paper-2)] hover:border-[var(--color-rule-2)] cursor-pointer transition-colors flex flex-col items-center text-center p-6"
-          onClick={() => router.push('/customer/tickets')}
-        >
-          <span className="material-symbols-outlined text-3xl text-[var(--color-accent)] mb-3">contact_support</span>
-          <div className="font-medium text-sm">Pusat Bantuan</div>
+            <button 
+              onClick={() => router.push('/customer/tickets')}
+              className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-4 flex flex-col items-center justify-center gap-3 hover:bg-[var(--color-paper-3)] transition-colors duration-200 active:opacity-70 group shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[var(--color-focus)] group-hover:scale-110 transition-transform text-3xl">contact_support</span>
+              <span className="font-mono text-[10px] font-bold text-[var(--color-ink)] uppercase tracking-wider">Pusat Bantuan</span>
+            </button>
+            
+          </div>
         </div>
 
       </div>

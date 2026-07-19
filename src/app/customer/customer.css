@@ -1,29 +1,29 @@
 /* Hallmark · macrostructure: Bento Grid · N5 Floating pill · Ft1 Minimal
- * theme: custom · vibe: "industrial precision, sharp, enterprise-grade" · paper: oklch(98% 0.005 20) · accent: oklch(60% 0.18 20)
+ * theme: custom · vibe: "industrial precision, sharp, enterprise-grade" · paper: #ffffff · accent: oklch(60% 0.18 20)
  * display: Geist · body: Geist · axes: light / geometric-sans / warm
  * studied: no · context: inferred · v1.1.0
  */
 
 :root {
   /* Palette */
-  --color-paper:    oklch(98% 0.005 20);
-  --color-paper-2:  oklch(95% 0.007 20);
-  --color-paper-3:  oklch(92% 0.009 20);
-  --color-rule:     oklch(88% 0.009 20);
-  --color-rule-2:   oklch(84% 0.010 20);
-  --color-neutral:  oklch(56% 0.008 20);
-  --color-muted:    oklch(40% 0.008 20);
-  --color-ink:      oklch(20% 0.010 20);
-  --color-ink-2:    oklch(35% 0.010 20);
+  --color-paper:    #ffffff;
+  --color-paper-2:  #f9f9fe;
+  --color-paper-3:  #f4f3f9;
+  --color-rule:     #E2E8F0;
+  --color-rule-2:   #c3c6d1;
+  --color-neutral:  #737781;
+  --color-muted:    #737781;
+  --color-ink:      #1a1c20;
+  --color-ink-2:    #434750;
   
-  --color-accent:   oklch(55% 0.18 25);
+  --color-accent:   #1b437c;
   --color-accent-ink: var(--color-paper);
-  --color-focus:    oklch(55% 0.20 25);
+  --color-focus:    #002c60;
 
   /* Status Colors (tinted to match palette) */
   --color-success:  oklch(60% 0.14 145);
   --color-success-bg: oklch(95% 0.04 145);
-  --color-error:    oklch(55% 0.18 25);
+  --color-error:    #1b437c;
   --color-error-bg: oklch(95% 0.04 25);
   --color-warning:  oklch(70% 0.15 75);
   --color-warning-bg: oklch(95% 0.04 75);
