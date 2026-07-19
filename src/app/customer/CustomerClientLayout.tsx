@@ -595,7 +595,8 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─── Bridge for globalfunction CustomerToastBridge() {
+// ─── Bridge for global
+function CustomerToastBridge() {
   const { addToast, confirm } = useToast();
   useEffect(() => {
     registerGlobalToast(addToast);
