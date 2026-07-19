@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EugineBill - Invoice Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+                  "on-tertiary-container": "#ed9f63",
+                  "on-primary-fixed": "#001b3e",
+                  "surface-tint": "#3a5e99",
+                  "primary": "#002c60",
+                  "outline": "#737781",
+                  "tertiary-container": "#6b3500",
+                  "primary-fixed": "#d7e3ff",
+                  "outline-variant": "#c3c6d1",
+                  "on-primary": "#ffffff",
+                  "status-isolated": "#DC2626",
+                  "surface": "#f9f9fe",
+                  "inverse-on-surface": "#f1f0f6",
+                  "tertiary-fixed-dim": "#ffb782",
+                  "tertiary-fixed": "#ffdcc5",
+                  "surface-container-high": "#e8e7ed",
+                  "inverse-surface": "#2f3035",
+                  "status-warning": "#D97706",
+                  "on-secondary-fixed": "#001c39",
+                  "tertiary": "#4a2300",
+                  "secondary": "#0060ac",
+                  "on-secondary-container": "#003e73",
+                  "on-error-container": "#93000a",
+                  "primary-fixed-dim": "#aac7ff",
+                  "on-error": "#ffffff",
+                  "surface-container-highest": "#e2e2e7",
+                  "secondary-fixed-dim": "#a4c9ff",
+                  "surface-container-low": "#f4f3f9",
+                  "on-background": "#1a1c20",
+                  "on-secondary-fixed-variant": "#004883",
+                  "surface-muted": "#F8FAFC",
+                  "on-tertiary-fixed-variant": "#6f3803",
+                  "surface-container-lowest": "#ffffff",
+                  "on-primary-fixed-variant": "#1f467f",
+                  "surface-bright": "#f9f9fe",
+                  "surface-container": "#eeedf3",
+                  "status-active": "#059669",
+                  "secondary-container": "#68abff",
+                  "surface-variant": "#e2e2e7",
+                  "hairline-border": "#E2E8F0",
+                  "background": "#f9f9fe",
+                  "surface-dim": "#dad9df",
+                  "on-surface": "#1a1c20",
+                  "on-surface-variant": "#434750",
+                  "on-tertiary-fixed": "#301400",
+                  "primary-container": "#1b437c",
+                  "on-secondary": "#ffffff",
+                  "error-container": "#ffdad6",
+                  "on-tertiary": "#ffffff",
+                  "inverse-primary": "#aac7ff",
+                  "secondary-fixed": "#d4e3ff",
+                  "on-primary-container": "#8fb1f1",
+                  "error": "#ba1a1a"
+          },
+          "borderRadius": {
+                  "DEFAULT": "0.125rem",
+                  "lg": "0.25rem",
+                  "xl": "0.5rem",
+                  "full": "0.75rem"
+          },
+          "spacing": {
+                  "margin-mobile": "16px",
+                  "margin-desktop": "32px",
+                  "container-max": "1280px",
+                  "unit": "4px",
+                  "bento-gap": "20px",
+                  "gutter": "16px"
+          },
+          "fontFamily": {
+                  "data-mono": [
+                          "JetBrains Mono"
+                  ],
+                  "body-lg": [
+                          "Hanken Grotesk"
+                  ],
+                  "label-caps": [
+                          "JetBrains Mono"
+                  ],
+                  "headline-lg": [
+                          "Hanken Grotesk"
+                  ],
+                  "body-md": [
+                          "Hanken Grotesk"
+                  ],
+                  "headline-md": [
+                          "Hanken Grotesk"
+                  ],
+                  "display-lg": [
+                          "Hanken Grotesk"
+                  ]
+          },
+          "fontSize": {
+                  "data-mono": [
+                          "14px",
+                          {
+                                  "lineHeight": "20px",
+                                  "fontWeight": "400"
+                          }
+                  ],
+                  "body-lg": [
+                          "18px",
+                          {
+                                  "lineHeight": "28px",
+                                  "fontWeight": "400"
+                          }
+                  ],
+                  "label-caps": [
+                          "12px",
+                          {
+                                  "lineHeight": "16px",
+                                  "letterSpacing": "0.05em",
+                                  "fontWeight": "500"
+                          }
+                  ],
+                  "headline-lg": [
+                          "32px",
+                          {
+                                  "lineHeight": "40px",
+                                  "fontWeight": "600"
+                          }
+                  ],
+                  "body-md": [
+                          "16px",
+                          {
+                                  "lineHeight": "24px",
+                                  "fontWeight": "400"
+                          }
+                  ],
+                  "headline-md": [
+                          "24px",
+                          {
+                                  "lineHeight": "32px",
+                                  "fontWeight": "600"
+                          }
+                  ],
+                  "display-lg": [
+                          "48px",
+                          {
+                                  "lineHeight": "56px",
+                                  "letterSpacing": "-0.02em",
+                                  "fontWeight": "700"
+                          }
+                  ]
+          }
+  },
+      },
+    }
+  </script>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased h-screen flex overflow-hidden">
+<!-- SideNavBar -->
+<aside class="bg-surface-container-low h-screen w-64 fixed left-0 top-0 border-r border-hairline-border flex flex-col p-gutter hidden md:flex z-50">
+<div class="flex items-center gap-3 mb-8 px-2">
+<img alt="EugineBill Logo" class="h-10 w-10 object-contain" data-alt="EugineBill ISP IT and Networking Solutions Logo, blue color scheme" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCi34BUfxVljoQDJqNMJixZ-JfdFJF3DQyGA-MFPy7c90nkitxJydGCABdmRRAQynckUe91Da9juOWiPX-EGPeIIkOmkG2d7ufANFGLKkY3mlAQ9lcig21QMdrbCp--C_WGcMmZO-kmJ9W0w7WEivSqVJDENIbP5JsxhfA9QoDXuaS18sgRCBs7C8928owGONzmfwEh1Ix2Tcb2vHkaODpLT5-BU8XbFNYjuorATIcmlqEX5nytyKK2wXZ8grrTSG1RZAl-rITYOzs"/>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">EugineBill</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant">ISP Management</p>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-label-caps text-label-caps">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary-container text-on-primary-container font-bold cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">receipt_long</span>
+<span class="font-label-caps text-label-caps">Invoices</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">payments</span>
+<span class="font-label-caps text-label-caps">Payments</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">support_agent</span>
+<span class="font-label-caps text-label-caps">Helpdesk</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+<span class="font-label-caps text-label-caps">Settings</span>
+</a>
+</nav>
+<div class="mt-auto pt-4 border-t border-hairline-border">
+<button class="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-surface-container-high text-primary font-label-caps text-label-caps hover:bg-surface-dim transition-colors">
+<span class="material-symbols-outlined text-[18px]">headset_mic</span>
+        Contact Support
+      </button>
+</div>
+</aside>
+<!-- Main Content Wrapper -->
+<main class="flex-1 flex flex-col h-screen md:ml-64 relative overflow-y-auto">
+<!-- TopNavBar -->
+<header class="bg-surface-container-lowest w-full h-16 border-b border-hairline-border flex justify-between items-center px-margin-mobile md:px-margin-desktop sticky top-0 z-40">
+<div class="flex items-center md:hidden">
+<img alt="EugineBill Logo" class="h-8 w-8 object-contain" data-alt="EugineBill ISP Logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCi34BUfxVljoQDJqNMJixZ-JfdFJF3DQyGA-MFPy7c90nkitxJydGCABdmRRAQynckUe91Da9juOWiPX-EGPeIIkOmkG2d7ufANFGLKkY3mlAQ9lcig21QMdrbCp--C_WGcMmZO-kmJ9W0w7WEivSqVJDENIbP5JsxhfA9QoDXuaS18sgRCBs7C8928owGONzmfwEh1Ix2Tcb2vHkaODpLT5-BU8XbFNYjuorATIcmlqEX5nytyKK2wXZ8grrTSG1RZAl-rITYOzs"/>
+</div>
+<div class="flex-1 px-4 max-w-md hidden md:block">
+<!-- Search left empty as per json "search_bar": "on_left" structure, typically would have input here if fully implemented -->
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-full p-2 cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-full p-2 cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-container-high border border-hairline-border overflow-hidden cursor-pointer">
+<img class="w-full h-full object-cover" data-alt="User Profile avatar placeholder, standard gray silhouette on light background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDelGkq0ladXNoTt3CD-XVpOvYzgkO-928LoofuT0OBzphN-l1QbPltUfXnB377mYZ695WSIjY4ZBMZM_z4D1oycI4McCiJPTNtrvC9_XFM7nrxTBwB6W7_lcLzgeIaxjWVRVzaPeHIWwvrrAmFPzAzoOET3dikV4Q6hTxuK3HY1lh5IXqRSvDnUQg4TVN-c3qB2R5W13qAerkWMbMB8K54O6d6rKFFkYdBh5-7Q4GFvfjGOgMnHMcAnyJ4dhoR4rL8ZtMbKSm3mnw"/>
+</div>
+</div>
+</header>
+<!-- Page Canvas -->
+<div class="flex-1 p-margin-mobile md:p-margin-desktop w-full max-w-container-max mx-auto space-y-6">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-primary">Invoice Management</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">View and manage all your billing statements.</p>
+</div>
+<!-- Filters -->
+<div class="flex overflow-x-auto pb-2 md:pb-0 gap-2 hide-scrollbar">
+<button class="px-4 py-2 rounded-full bg-primary-container text-on-primary-container font-label-caps text-label-caps whitespace-nowrap">Semua</button>
+<button class="px-4 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-dim font-label-caps text-label-caps whitespace-nowrap border border-hairline-border">Belum Bayar</button>
+<button class="px-4 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-dim font-label-caps text-label-caps whitespace-nowrap border border-hairline-border">Jatuh Tempo</button>
+<button class="px-4 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-dim font-label-caps text-label-caps whitespace-nowrap border border-hairline-border">Lunas</button>
+</div>
+</div>
+<!-- Content Area - Hairline Table / List -->
+<div class="bg-surface-container-lowest border border-hairline-border rounded-lg overflow-hidden">
+<!-- Table Header (Desktop) -->
+<div class="hidden md:grid grid-cols-12 gap-4 p-4 border-b border-hairline-border bg-surface-muted text-on-surface-variant font-label-caps text-label-caps">
+<div class="col-span-3">Invoice Number</div>
+<div class="col-span-3">Due Date</div>
+<div class="col-span-2">Total Amount</div>
+<div class="col-span-2">Status</div>
+<div class="col-span-2 text-right">Action</div>
+</div>
+<!-- Row 1: Unpaid -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 border-b border-hairline-border items-center hover:bg-surface-muted transition-colors">
+<div class="md:col-span-3 flex flex-col">
+<span class="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Invoice Number</span>
+<span class="font-data-mono text-data-mono font-bold text-primary">INV-202310-001</span>
+</div>
+<div class="md:col-span-3 flex flex-col">
+<span class="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Due Date</span>
+<span class="font-body-md text-body-md">15 Oct 2023</span>
+</div>
+<div class="md:col-span-2 flex flex-col">
+<span class="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Total Amount</span>
+<span class="font-data-mono text-data-mono">Rp 350.000</span>
+</div>
+<div class="md:col-span-2 flex flex-col items-start">
+<span class="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Status</span>
+<span class="px-2 py-1 rounded-full bg-surface-container-highest text-on-surface-variant font-label-caps text-label-caps border border-hairline-border">Belum Bayar</span>
+</div>
+<div class="md:col-span-2 flex md:justify-end mt-2 md:mt-0">
+<button class="w-full md:w-auto px-4 py-2 bg-primary-container text-on-primary font-label-caps text-label-caps rounded flex items-center justify-center gap-2 hover:opacity-90">
+              Bayar Sekarang
+            </button>
+</div>
+</div>
+<!-- Row 2: Overdue -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 border-b border-hairline-border items-center hover:bg-surface-muted transition-colors">
+<div class="md:col-span-3 flex flex-col">
+<span class="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Invoice Number</span>
+<span class="font-data-mono text-data-mono font-bold text-primary">INV-202309-042</span>
+</div>
+<div class="md:col-span-3 flex flex-col">
+<span class="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Due Date</span>
+<span class="font-body-md text-body-md text-status-isolated">15 Sep 2023</span>
+</div>
+<div class="md:col-span-2 flex flex-col">
+<span class="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Total Amount</span>
+<span class="font-data-mono text-data-mono">Rp 350.000</span>
+</div>
+<div class="md:col-span-2 flex flex-col items-start">
+<span class="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Status</span>
+<span class="px-2 py-1 rounded-full bg-status-isolated/10 text-status-isolated font-label-caps text-label-caps">Jatuh Tempo</span>
+</div>
+<div class="md:col-span-2 flex md:justify-end mt-2 md:mt-0">
+<button class="w-full md:w-auto px-4 py-2 bg-transparent border border-primary text-primary font-label-caps text-label-caps rounded flex items-center justify-center gap-2 hover:bg-surface-container-low">
+              Buat Link
+            </button>
+</div>
+</div>
+<!-- Row 3: Paid -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center hover:bg-surface-muted transition-colors opacity-75">
+<div class="md:col-span-3 flex flex-col">
+<span class="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Invoice Number</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant">INV-202308-118</span>
+</div>
+<div class="md:col-span-3 flex flex-col">
+<span class="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Due Date</span>
+<span class="font-body-md text-body-md">15 Aug 2023</span>
+</div>
+<div class="md:col-span-2 flex flex-col">
+<span class="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Total Amount</span>
+<span class="font-data-mono text-data-mono">Rp 350.000</span>
+</div>
+<div class="md:col-span-2 flex flex-col items-start">
+<span class="md:hidden font-label-caps text-label-caps text-on-surface-variant mb-1">Status</span>
+<span class="px-2 py-1 rounded-full bg-status-active/10 text-status-active font-label-caps text-label-caps">Lunas</span>
+</div>
+<div class="md:col-span-2 flex md:justify-end mt-2 md:mt-0">
+<button class="w-full md:w-auto px-4 py-2 bg-transparent text-on-surface-variant font-label-caps text-label-caps flex items-center justify-center gap-2 hover:text-primary">
+<span class="material-symbols-outlined text-[18px]">download</span>
+              Receipt
+            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="bg-surface w-full py-8 border-t border-hairline-border mt-auto">
+<div class="flex flex-col md:flex-row justify-between items-center px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto gap-4">
+<div class="font-headline-sm text-headline-sm text-primary">
+<img alt="EugineBill Logo" class="h-6 object-contain grayscale opacity-50" data-alt="EugineBill small footer logo in grayscale" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCi34BUfxVljoQDJqNMJixZ-JfdFJF3DQyGA-MFPy7c90nkitxJydGCABdmRRAQynckUe91Da9juOWiPX-EGPeIIkOmkG2d7ufANFGLKkY3mlAQ9lcig21QMdrbCp--C_WGcMmZO-kmJ9W0w7WEivSqVJDENIbP5JsxhfA9QoDXuaS18sgRCBs7C8928owGONzmfwEh1Ix2Tcb2vHkaODpLT5-BU8XbFNYjuorATIcmlqEX5nytyKK2wXZ8grrTSG1RZAl-rITYOzs"/>
+</div>
+<p class="font-label-caps text-label-caps text-on-surface-variant text-center md:text-left">
+          © 2024 EugineBill ISP. All Rights Reserved.
+        </p>
+<div class="flex gap-4 font-label-caps text-label-caps text-on-surface-variant">
+<a class="hover:text-primary transition-colors cursor-pointer" href="#">Terms of Service</a>
+<a class="hover:text-primary transition-colors cursor-pointer" href="#">Privacy Policy</a>
+<a class="hover:text-primary transition-colors cursor-pointer" href="#">Network Status</a>
+</div>
+</div>
+</footer>
+</main>
+<style>
+    /* Hide scrollbar for horizontal scroll areas but keep functionality */
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</body></html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EugineBill Customer Portal - Helpdesk</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&amp;family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-container": "#ed9f63",
+                      "on-primary-fixed": "#001b3e",
+                      "surface-tint": "#3a5e99",
+                      "primary": "#002c60",
+                      "outline": "#737781",
+                      "tertiary-container": "#6b3500",
+                      "primary-fixed": "#d7e3ff",
+                      "outline-variant": "#c3c6d1",
+                      "on-primary": "#ffffff",
+                      "status-isolated": "#DC2626",
+                      "surface": "#f9f9fe",
+                      "inverse-on-surface": "#f1f0f6",
+                      "tertiary-fixed-dim": "#ffb782",
+                      "tertiary-fixed": "#ffdcc5",
+                      "surface-container-high": "#e8e7ed",
+                      "inverse-surface": "#2f3035",
+                      "status-warning": "#D97706",
+                      "on-secondary-fixed": "#001c39",
+                      "tertiary": "#4a2300",
+                      "secondary": "#0060ac",
+                      "on-secondary-container": "#003e73",
+                      "on-error-container": "#93000a",
+                      "primary-fixed-dim": "#aac7ff",
+                      "on-error": "#ffffff",
+                      "surface-container-highest": "#e2e2e7",
+                      "secondary-fixed-dim": "#a4c9ff",
+                      "surface-container-low": "#f4f3f9",
+                      "on-background": "#1a1c20",
+                      "on-secondary-fixed-variant": "#004883",
+                      "surface-muted": "#F8FAFC",
+                      "on-tertiary-fixed-variant": "#6f3803",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary-fixed-variant": "#1f467f",
+                      "surface-bright": "#f9f9fe",
+                      "surface-container": "#eeedf3",
+                      "status-active": "#059669",
+                      "secondary-container": "#68abff",
+                      "surface-variant": "#e2e2e7",
+                      "hairline-border": "#E2E8F0",
+                      "background": "#f9f9fe",
+                      "surface-dim": "#dad9df",
+                      "on-surface": "#1a1c20",
+                      "on-surface-variant": "#434750",
+                      "on-tertiary-fixed": "#301400",
+                      "primary-container": "#1b437c",
+                      "on-secondary": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "on-tertiary": "#ffffff",
+                      "inverse-primary": "#aac7ff",
+                      "secondary-fixed": "#d4e3ff",
+                      "on-primary-container": "#8fb1f1",
+                      "error": "#ba1a1a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "margin-mobile": "16px",
+                      "margin-desktop": "32px",
+                      "container-max": "1280px",
+                      "unit": "4px",
+                      "bento-gap": "20px",
+                      "gutter": "16px"
+              },
+              "fontFamily": {
+                      "data-mono": [
+                              "JetBrains Mono"
+                      ],
+                      "body-lg": [
+                              "Hanken Grotesk"
+                      ],
+                      "label-caps": [
+                              "JetBrains Mono"
+                      ],
+                      "headline-lg": [
+                              "Hanken Grotesk"
+                      ],
+                      "body-md": [
+                              "Hanken Grotesk"
+                      ],
+                      "headline-md": [
+                              "Hanken Grotesk"
+                      ],
+                      "display-lg": [
+                              "Hanken Grotesk"
+                      ]
+              },
+              "fontSize": {
+                      "data-mono": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-surface-container-low border-r border-hairline-border p-gutter z-40">
+<div class="flex items-center gap-3 mb-8">
+<img alt="EugineBill Logo" class="h-10 object-contain" data-alt="Eugine Media Group IT and Networking Solutions Logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCi34BUfxVljoQDJqNMJixZ-JfdFJF3DQyGA-MFPy7c90nkitxJydGCABdmRRAQynckUe91Da9juOWiPX-EGPeIIkOmkG2d7ufANFGLKkY3mlAQ9lcig21QMdrbCp--C_WGcMmZO-kmJ9W0w7WEivSqVJDENIbP5JsxhfA9QoDXuaS18sgRCBs7C8928owGONzmfwEh1Ix2Tcb2vHkaODpLT5-BU8XbFNYjuorATIcmlqEX5nytyKK2wXZ8grrTSG1RZAl-rITYOzs"/>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">EugineBill</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant">ISP Management</p>
+</div>
+</div>
+<ul class="flex flex-col gap-2 flex-grow">
+<li>
+<a class="flex items-center gap-3 p-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-label-caps text-label-caps">Dashboard</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 p-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">receipt_long</span>
+<span class="font-label-caps text-label-caps">Invoices</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 p-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">payments</span>
+<span class="font-label-caps text-label-caps">Payments</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 p-3 rounded-lg bg-primary-container text-on-primary-container font-bold cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">support_agent</span>
+<span class="font-label-caps text-label-caps">Helpdesk</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 p-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+<span class="font-label-caps text-label-caps">Settings</span>
+</a>
+</li>
+</ul>
+<div class="mt-auto">
+<button class="w-full bg-primary-container text-on-primary-container font-label-caps text-label-caps py-3 rounded-lg hover:opacity-90 transition-opacity">Contact Support</button>
+</div>
+</nav>
+<!-- TopNavBar (Mobile) -->
+<header class="md:hidden flex justify-between items-center px-margin-mobile w-full h-16 bg-surface-container-lowest border-b border-hairline-border fixed top-0 z-40">
+<img alt="EugineBill Logo" class="h-8 object-contain" data-alt="Eugine Media Group IT and Networking Solutions Logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCi34BUfxVljoQDJqNMJixZ-JfdFJF3DQyGA-MFPy7c90nkitxJydGCABdmRRAQynckUe91Da9juOWiPX-EGPeIIkOmkG2d7ufANFGLKkY3mlAQ9lcig21QMdrbCp--C_WGcMmZO-kmJ9W0w7WEivSqVJDENIbP5JsxhfA9QoDXuaS18sgRCBs7C8928owGONzmfwEh1Ix2Tcb2vHkaODpLT5-BU8XbFNYjuorATIcmlqEX5nytyKK2wXZ8grrTSG1RZAl-rITYOzs"/>
+<div class="flex items-center gap-4 text-primary">
+<span class="material-symbols-outlined cursor-pointer active:opacity-80">notifications</span>
+<span class="material-symbols-outlined cursor-pointer active:opacity-80">help_outline</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="w-full md:ml-64 pt-16 md:pt-0 p-margin-mobile md:p-margin-desktop max-w-container-max mx-auto relative min-h-screen pb-32 md:pb-8">
+<!-- Header & Actions -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-bento-gap">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-background">Helpdesk / Ticketing</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Manage and track your support requests.</p>
+</div>
+<button class="bg-primary-container text-white px-6 py-2.5 rounded flex items-center gap-2 hover:opacity-90 transition-opacity shadow-sm" onclick="toggleModal('createTicketModal')">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">add</span>
+<span class="font-label-caps text-label-caps">Buat Tiket Baru</span>
+</button>
+</div>
+<!-- Filters & Search Bento Module -->
+<div class="bg-surface-container-lowest rounded-xl border border-hairline-border p-6 mb-bento-gap shadow-sm">
+<div class="flex flex-col md:flex-row gap-4 justify-between items-center">
+<!-- Search -->
+<div class="relative w-full md:w-96">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-surface border border-hairline-border rounded-lg font-body-md text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="Search tickets..." type="text"/>
+</div>
+<!-- Status Filters -->
+<div class="flex flex-wrap gap-2 w-full md:w-auto">
+<button class="px-4 py-1.5 rounded-full border border-primary bg-primary/5 text-primary font-label-caps text-label-caps transition-colors">Semua</button>
+<button class="px-4 py-1.5 rounded-full border border-hairline-border text-on-surface-variant hover:bg-surface-muted font-label-caps text-label-caps transition-colors">Open</button>
+<button class="px-4 py-1.5 rounded-full border border-hairline-border text-on-surface-variant hover:bg-surface-muted font-label-caps text-label-caps transition-colors">In Progress</button>
+<button class="px-4 py-1.5 rounded-full border border-hairline-border text-on-surface-variant hover:bg-surface-muted font-label-caps text-label-caps transition-colors">Resolved</button>
+</div>
+</div>
+</div>
+<!-- Ticket Table Bento Module -->
+<div class="bg-surface-container-lowest rounded-xl border border-hairline-border overflow-hidden shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-muted border-b border-hairline-border">
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant font-medium border-r border-hairline-border last:border-r-0">Subject</th>
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant font-medium border-r border-hairline-border last:border-r-0">Category</th>
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant font-medium border-r border-hairline-border last:border-r-0">Date</th>
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant font-medium border-r border-hairline-border last:border-r-0">Status</th>
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant font-medium border-r border-hairline-border last:border-r-0">Last Update</th>
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant font-medium w-16"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-b border-hairline-border hover:bg-surface-muted transition-colors cursor-pointer group">
+<td class="p-4 border-r border-hairline-border last:border-r-0">
+<div class="font-body-md text-body-md text-on-background font-medium">Internet Connection Drops Repeatedly</div>
+<div class="font-data-mono text-data-mono text-on-surface-variant text-xs mt-1">#TCK-2024-001</div>
+</td>
+<td class="p-4 border-r border-hairline-border last:border-r-0 font-body-md text-body-md text-on-surface-variant">Technical Support</td>
+<td class="p-4 border-r border-hairline-border last:border-r-0 font-data-mono text-data-mono text-on-surface-variant">Oct 24, 2024</td>
+<td class="p-4 border-r border-hairline-border last:border-r-0">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-label-caps bg-emerald-100/50 text-emerald-700 border border-emerald-200">
+                                    Open
+                                </span>
+</td>
+<td class="p-4 border-r border-hairline-border last:border-r-0 font-data-mono text-data-mono text-on-surface-variant">2 hours ago</td>
+<td class="p-4 text-center">
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">chevron_right</span>
+</td>
+</tr>
+<tr class="border-b border-hairline-border hover:bg-surface-muted transition-colors cursor-pointer group">
+<td class="p-4 border-r border-hairline-border last:border-r-0">
+<div class="font-body-md text-body-md text-on-background font-medium">Router Configuration Request</div>
+<div class="font-data-mono text-data-mono text-on-surface-variant text-xs mt-1">#TCK-2024-002</div>
+</td>
+<td class="p-4 border-r border-hairline-border last:border-r-0 font-body-md text-body-md text-on-surface-variant">Setup &amp; Config</td>
+<td class="p-4 border-r border-hairline-border last:border-r-0 font-data-mono text-data-mono text-on-surface-variant">Oct 22, 2024</td>
+<td class="p-4 border-r border-hairline-border last:border-r-0">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-label-caps bg-amber-100/50 text-amber-700 border border-amber-200">
+                                    In Progress
+                                </span>
+</td>
+<td class="p-4 border-r border-hairline-border last:border-r-0 font-data-mono text-data-mono text-on-surface-variant">Yesterday</td>
+<td class="p-4 text-center">
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">chevron_right</span>
+</td>
+</tr>
+<tr class="border-b border-hairline-border hover:bg-surface-muted transition-colors cursor-pointer group">
+<td class="p-4 border-r border-hairline-border last:border-r-0">
+<div class="font-body-md text-body-md text-on-background font-medium">Billing Inquiry - Overcharge</div>
+<div class="font-data-mono text-data-mono text-on-surface-variant text-xs mt-1">#TCK-2024-003</div>
+</td>
+<td class="p-4 border-r border-hairline-border last:border-r-0 font-body-md text-body-md text-on-surface-variant">Billing</td>
+<td class="p-4 border-r border-hairline-border last:border-r-0 font-data-mono text-data-mono text-on-surface-variant">Oct 15, 2024</td>
+<td class="p-4 border-r border-hairline-border last:border-r-0">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-label-caps bg-surface-variant text-on-surface-variant border border-outline-variant">
+                                    Resolved
+                                </span>
+</td>
+<td class="p-4 border-r border-hairline-border last:border-r-0 font-data-mono text-data-mono text-on-surface-variant">Oct 18, 2024</td>
+<td class="p-4 text-center">
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">chevron_right</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination (simplified) -->
+<div class="p-4 flex items-center justify-between border-t border-hairline-border bg-surface-muted/50">
+<span class="font-data-mono text-data-mono text-on-surface-variant text-sm">Showing 1 to 3 of 12</span>
+<div class="flex gap-2">
+<button class="p-1 rounded text-outline-variant hover:text-primary hover:bg-surface disabled:opacity-50" disabled=""><span class="material-symbols-outlined">chevron_left</span></button>
+<button class="p-1 rounded text-outline-variant hover:text-primary hover:bg-surface"><span class="material-symbols-outlined">chevron_right</span></button>
+</div>
+</div>
+</div>
+</main>
+<!-- Create Ticket Modal Overlay -->
+<div class="fixed inset-0 z-50 bg-on-background/50 backdrop-blur-sm hidden items-center justify-center p-4" id="createTicketModal">
+<div class="bg-surface-container-lowest w-full max-w-2xl rounded-xl border border-hairline-border shadow-2xl flex flex-col max-h-[90vh]">
+<!-- Modal Header -->
+<div class="p-6 border-b border-hairline-border flex justify-between items-center">
+<h3 class="font-headline-md text-headline-md text-on-background">Buat Tiket Baru</h3>
+<button class="text-on-surface-variant hover:text-error transition-colors" onclick="toggleModal('createTicketModal')">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Modal Body (Scrollable) -->
+<div class="p-6 overflow-y-auto flex-grow flex flex-col gap-6">
+<div class="flex flex-col gap-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Subject</label>
+<input class="w-full px-4 py-2.5 bg-surface border border-hairline-border rounded text-body-md focus:outline-none focus:border-primary transition-colors" placeholder="Brief description of the issue" type="text"/>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Category</label>
+<select class="w-full px-4 py-2.5 bg-surface border border-hairline-border rounded text-body-md focus:outline-none focus:border-primary transition-colors appearance-none">
+<option disabled="" selected="" value="">Select a category</option>
+<option value="technical">Technical Support (No Internet, Slow Speed)</option>
+<option value="billing">Billing &amp; Payment</option>
+<option value="config">Router Configuration</option>
+<option value="other">Other Inquiry</option>
+</select>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Description</label>
+<textarea class="w-full px-4 py-2.5 bg-surface border border-hairline-border rounded text-body-md focus:outline-none focus:border-primary transition-colors resize-none" placeholder="Provide detailed information about your problem..." rows="4"></textarea>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Location (GPS)</label>
+<div class="flex gap-2">
+<input class="w-full px-4 py-2 bg-surface border border-hairline-border rounded text-body-md focus:outline-none focus:border-primary transition-colors" placeholder="Coordinates or Address" readonly="" type="text"/>
+<button class="bg-surface-variant text-on-surface px-4 py-2 rounded font-label-caps text-label-caps flex items-center gap-2 whitespace-nowrap hover:bg-surface-dim transition-colors border border-hairline-border">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">location_on</span>
+                            Dapatkan Lokasi
+                        </button>
+</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant">File Upload</label>
+<div class="border-2 border-dashed border-outline-variant rounded-lg p-8 flex flex-col items-center justify-center bg-surface hover:bg-surface-muted transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-4xl text-outline-variant group-hover:text-primary transition-colors mb-2">upload_file</span>
+<p class="font-body-md text-body-md text-on-surface-variant text-center">Click to upload or drag and drop<br/><span class="text-sm">SVG, PNG, JPG or GIF (MAX. 5MB)</span></p>
+<input class="hidden" type="file"/>
+</div>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="p-6 border-t border-hairline-border bg-surface-muted flex justify-end gap-3 rounded-b-xl">
+<button class="px-6 py-2.5 rounded border border-primary text-primary font-label-caps text-label-caps hover:bg-primary/5 transition-colors" onclick="toggleModal('createTicketModal')">Batal</button>
+<button class="px-6 py-2.5 rounded bg-primary-container text-white font-label-caps text-label-caps hover:opacity-90 transition-opacity">Kirim Tiket</button>
+</div>
+</div>
+</div>
+<script>
+        function toggleModal(modalID) {
+            const modal = document.getElementById(modalID);
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                document.body.style.overflow = 'auto';
+            }
+        }
+    </script>
+</body></html>

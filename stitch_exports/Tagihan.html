@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EugineBill - Invoice Management</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config injected from Style Guidance -->
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary-fixed": "#001b3e",
+                      "surface-variant": "#e2e2e7",
+                      "inverse-on-surface": "#f1f0f6",
+                      "secondary-fixed-dim": "#a4c9ff",
+                      "on-secondary-fixed-variant": "#004883",
+                      "inverse-surface": "#2f3035",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-bright": "#f9f9fe",
+                      "status-isolated": "#DC2626",
+                      "surface-container-low": "#f4f3f9",
+                      "on-tertiary-fixed-variant": "#6f3803",
+                      "secondary-container": "#68abff",
+                      "error-container": "#ffdad6",
+                      "on-error": "#ffffff",
+                      "status-warning": "#D97706",
+                      "on-secondary": "#ffffff",
+                      "hairline-border": "#E2E8F0",
+                      "on-primary-container": "#8fb1f1",
+                      "surface-muted": "#F8FAFC",
+                      "on-tertiary-container": "#ed9f63",
+                      "on-secondary-container": "#003e73",
+                      "surface": "#f9f9fe",
+                      "primary-container": "#1b437c",
+                      "on-primary-fixed-variant": "#1f467f",
+                      "on-surface": "#1a1c20",
+                      "outline": "#737781",
+                      "surface-container": "#eeedf3",
+                      "secondary": "#0060ac",
+                      "surface-tint": "#3a5e99",
+                      "inverse-primary": "#aac7ff",
+                      "on-error-container": "#93000a",
+                      "background": "#f9f9fe",
+                      "primary-fixed": "#d7e3ff",
+                      "primary": "#002c60",
+                      "surface-container-high": "#e8e7ed",
+                      "outline-variant": "#c3c6d1",
+                      "on-primary": "#ffffff",
+                      "surface-container-highest": "#e2e2e7",
+                      "on-tertiary-fixed": "#301400",
+                      "secondary-fixed": "#d4e3ff",
+                      "on-surface-variant": "#434750",
+                      "on-tertiary": "#ffffff",
+                      "error": "#ba1a1a",
+                      "surface-dim": "#dad9df",
+                      "tertiary": "#4a2300",
+                      "on-background": "#1a1c20",
+                      "tertiary-fixed": "#ffdcc5",
+                      "tertiary-fixed-dim": "#ffb782",
+                      "on-secondary-fixed": "#001c39",
+                      "status-active": "#059669",
+                      "primary-fixed-dim": "#aac7ff",
+                      "tertiary-container": "#6b3500"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "margin-mobile": "16px",
+                      "unit": "4px",
+                      "container-max": "1280px",
+                      "bento-gap": "20px",
+                      "margin-desktop": "32px",
+                      "gutter": "16px"
+              },
+              "fontFamily": {
+                      "headline-lg": [
+                              "Hanken Grotesk"
+                      ],
+                      "body-lg": [
+                              "Hanken Grotesk"
+                      ],
+                      "label-caps": [
+                              "JetBrains Mono"
+                      ],
+                      "headline-md": [
+                              "Hanken Grotesk"
+                      ],
+                      "body-md": [
+                              "Hanken Grotesk"
+                      ],
+                      "data-mono": [
+                              "JetBrains Mono"
+                      ],
+                      "display-lg": [
+                              "Hanken Grotesk"
+                      ]
+              },
+              "fontSize": {
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "data-mono": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for better appearance */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f9f9fe;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c3c6d1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #737781;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface antialiased min-h-screen pb-24 md:pb-0">
+<!-- Desktop Navigation (Hidden on Mobile) -->
+<nav class="hidden md:flex justify-between items-center px-margin-desktop h-16 w-full sticky top-0 bg-surface-bright border-b border-hairline-border z-40">
+<div class="flex items-center gap-8">
+<h1 class="text-headline-md font-headline-md text-primary tracking-tight">EugineBill</h1>
+<div class="flex gap-6">
+<a class="text-on-surface-variant hover:text-primary transition-colors font-body-md text-body-md" href="#">Home</a>
+<a class="text-primary font-body-md text-body-md border-b-2 border-primary pb-1" href="#">Invoices</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-body-md text-body-md" href="#">WiFi</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-body-md text-body-md" href="#">Support</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-sm">
+                UP
+            </div>
+</div>
+</nav>
+<!-- Mobile Top App Bar -->
+<header class="md:hidden w-full top-0 sticky bg-surface-bright border-b border-hairline-border flex justify-between items-center px-margin-mobile h-16 z-40">
+<div class="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-sm">
+            UP
+        </div>
+<h1 class="text-headline-md-mobile font-headline-md text-primary tracking-tight">EugineBill</h1>
+<button class="text-on-surface-variant transition-colors duration-200 active:opacity-70 p-2 rounded-full hover:bg-surface-container-low">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</header>
+<main class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-6">
+<!-- Header & Filters -->
+<div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h2 class="font-headline-lg text-headline-lg md:text-headline-lg-mobile text-on-surface mb-2">Invoices</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Manage your billing history and pending payments.</p>
+</div>
+<!-- Tabs/Pills -->
+<div class="flex gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar" style="scrollbar-width: none;">
+<button class="px-4 py-2 rounded-full bg-primary-container text-on-primary border border-primary-container font-label-caps text-label-caps whitespace-nowrap">
+                    Semua
+                </button>
+<button class="px-4 py-2 rounded-full bg-surface-container-lowest text-on-surface border border-hairline-border hover:bg-surface-muted transition-colors font-label-caps text-label-caps whitespace-nowrap">
+                    Belum Bayar
+                </button>
+<button class="px-4 py-2 rounded-full bg-surface-container-lowest text-on-surface border border-hairline-border hover:bg-surface-muted transition-colors font-label-caps text-label-caps whitespace-nowrap">
+                    Lunas
+                </button>
+</div>
+</div>
+<!-- Bento Grid for Invoices -->
+<div class="grid grid-cols-1 md:grid-cols-8 lg:grid-cols-12 gap-bento-gap">
+<!-- Summary Module (Spans 4 cols on Desktop) -->
+<div class="md:col-span-8 lg:col-span-4 bg-surface-container-lowest border border-hairline-border rounded-lg p-6 flex flex-col justify-between">
+<div>
+<h3 class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-2">Total Outstanding</h3>
+<div class="font-display-lg text-display-lg text-on-surface">Rp 850.000</div>
+<p class="font-body-md text-body-md text-status-isolated mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]">error</span>
+                        2 Invoices Overdue
+                    </p>
+</div>
+<div class="mt-6">
+<button class="w-full bg-primary-container text-on-primary py-3 rounded font-body-md text-body-md font-bold hover:opacity-90 transition-opacity">
+                        Bayar Semua (Rp 850.000)
+                    </button>
+</div>
+</div>
+<!-- List Module (Spans 8 cols on Desktop) -->
+<div class="md:col-span-8 lg:col-span-8 flex flex-col gap-4">
+<!-- Unpaid Invoice Card -->
+<div class="bg-surface-container-lowest border border-status-isolated rounded-lg p-6 hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow">
+<div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+<div class="flex items-start gap-4">
+<div class="w-12 h-12 rounded bg-error-container text-on-error-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">receipt_long</span>
+</div>
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="font-data-mono text-data-mono text-on-surface-variant">INV-202310-001</span>
+<span class="px-2 py-0.5 rounded-full bg-status-isolated/10 text-status-isolated font-label-caps text-[10px] border border-status-isolated/20">Jatuh Tempo</span>
+</div>
+<h4 class="font-headline-md text-headline-md-mobile text-on-surface">Paket Pro 100Mbps</h4>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Due: 15 Oct 2023</p>
+</div>
+</div>
+<div class="flex flex-col sm:items-end gap-3 border-t sm:border-t-0 border-hairline-border pt-4 sm:pt-0">
+<div class="font-headline-md text-headline-md-mobile text-on-surface font-bold">Rp 450.000</div>
+<button class="bg-primary-container text-on-primary px-4 py-2 rounded font-body-md text-body-md hover:opacity-90 transition-opacity whitespace-nowrap">
+                                Bayar Sekarang
+                            </button>
+</div>
+</div>
+</div>
+<!-- Unpaid Invoice Card 2 -->
+<div class="bg-surface-container-lowest border border-hairline-border rounded-lg p-6 hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow">
+<div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+<div class="flex items-start gap-4">
+<div class="w-12 h-12 rounded bg-surface-container text-on-surface-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">receipt_long</span>
+</div>
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="font-data-mono text-data-mono text-on-surface-variant">INV-202310-002</span>
+<span class="px-2 py-0.5 rounded-full bg-status-warning/10 text-status-warning font-label-caps text-[10px] border border-status-warning/20">Belum Bayar</span>
+</div>
+<h4 class="font-headline-md text-headline-md-mobile text-on-surface">Add-on: Static IP</h4>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Due: 20 Oct 2023</p>
+</div>
+</div>
+<div class="flex flex-col sm:items-end gap-3 border-t sm:border-t-0 border-hairline-border pt-4 sm:pt-0">
+<div class="font-headline-md text-headline-md-mobile text-on-surface font-bold">Rp 400.000</div>
+<button class="bg-primary-container text-on-primary px-4 py-2 rounded font-body-md text-body-md hover:opacity-90 transition-opacity whitespace-nowrap">
+                                Bayar Sekarang
+                            </button>
+</div>
+</div>
+</div>
+<!-- Paid Invoice Card -->
+<div class="bg-surface-container-lowest border border-hairline-border rounded-lg p-6 opacity-75">
+<div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+<div class="flex items-start gap-4">
+<div class="w-12 h-12 rounded bg-surface-muted text-on-surface-variant flex items-center justify-center shrink-0 border border-hairline-border">
+<span class="material-symbols-outlined text-status-active">check_circle</span>
+</div>
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="font-data-mono text-data-mono text-on-surface-variant">INV-202309-001</span>
+<span class="px-2 py-0.5 rounded-full bg-status-active/10 text-status-active font-label-caps text-[10px] border border-status-active/20">Lunas</span>
+</div>
+<h4 class="font-headline-md text-headline-md-mobile text-on-surface">Paket Pro 100Mbps</h4>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Paid on: 12 Sep 2023</p>
+</div>
+</div>
+<div class="flex flex-col sm:items-end gap-3 border-t sm:border-t-0 border-hairline-border pt-4 sm:pt-0">
+<div class="font-headline-md text-headline-md-mobile text-on-surface-variant font-bold line-through decoration-hairline-border">Rp 450.000</div>
+<button class="border border-primary-container text-primary-container px-4 py-2 rounded font-body-md text-body-md hover:bg-surface-muted transition-colors whitespace-nowrap flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                                Lihat Receipt
+                            </button>
+</div>
+</div>
+</div>
+<!-- Load More -->
+<div class="text-center mt-4">
+<button class="text-primary font-body-md text-body-md font-bold hover:underline">Load More History</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Mobile Bottom Nav -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center pt-2 pb-safe px-2 bg-surface-container-lowest border-t border-hairline-border z-50">
+<a class="flex flex-col items-center justify-center text-on-surface-variant font-label-caps text-label-caps hover:bg-surface-container-low p-2 rounded-lg active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined mb-1">home</span>
+            Home
+        </a>
+<a class="flex flex-col items-center justify-center text-primary font-bold font-label-caps text-label-caps hover:bg-surface-container-low p-2 rounded-lg active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined fill mb-1">receipt_long</span>
+            Invoices
+        </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant font-label-caps text-label-caps hover:bg-surface-container-low p-2 rounded-lg active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined mb-1">router</span>
+            WiFi
+        </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant font-label-caps text-label-caps hover:bg-surface-container-low p-2 rounded-lg active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined mb-1">contact_support</span>
+            Support
+        </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant font-label-caps text-label-caps hover:bg-surface-container-low p-2 rounded-lg active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined mb-1">person</span>
+            Profile
+        </a>
+</nav>
+<!-- Safe area padding for mobile bottom nav on iOS -->
+<style>
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
+    </style>
+</body></html>

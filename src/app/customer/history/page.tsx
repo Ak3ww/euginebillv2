@@ -32,6 +32,8 @@ import {
 import { CyberCard, CyberButton, SimpleModal, ModalHeader, ModalTitle, ModalDescription, ModalBody, ModalFooter, ModalButton } from '@/components/cyberpunk';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { printInvoiceStandard, printInvoiceThermal } from '@/lib/invoice-print';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,6 +124,33 @@ export default function PaymentHistoryPage() {
   const [proofPreviewUrl, setProofPreviewUrl] = useState<string | null>(null);
   const [submittingOffline, setSubmittingOffline] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    if (!loading && payments.length > 0) {
+      gsap.fromTo('.history-item', 
+        { y: 30, opacity: 0, scale: 0.98 },
+        { y: 0, opacity: 1, scale: 1, duration: 0.5, stagger: 0.05, ease: 'power2.out', clearProps: 'all' }
+      );
+    }
+  }, { scope: containerRef, dependencies: [payments, loading] });
+
+  // 3D Hover Effect
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = ((y - centerY) / centerY) * -3;
+    const rotateY = ((x - centerX) / centerX) * 3;
+    gsap.to(card, { rotateX, rotateY, duration: 0.4, ease: "power2.out", transformPerspective: 1000 });
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    gsap.to(e.currentTarget, { rotateX: 0, rotateY: 0, duration: 0.7, ease: "power2.out" });
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('customer_token');
@@ -521,7 +550,7 @@ export default function PaymentHistoryPage() {
   const totalPendingAmount = pendingPayments.reduce((s, p) => s + p.amount, 0);
 
   return (
-    <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-700">
+    <div ref={containerRef} className="p-4 lg:p-8 max-w-5xl mx-auto space-y-8 pb-24">
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-rule">
         <div>
@@ -531,18 +560,20 @@ export default function PaymentHistoryPage() {
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="flex items-center gap-2 px-3 py-2 bg-paper rounded border border-rule hover:bg-muted/10 transition-colors disabled:opacity-50 text-[10px] font-mono font-bold text-ink uppercase tracking-wider"
+          className="flex items-center gap-2 px-4 py-2.5 glass-panel rounded-xl border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50 text-[10px] font-mono font-bold uppercase tracking-wider"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           <span className="hidden sm:inline">Refresh</span>
         </button>
       </div>
 
       {payments.length === 0 && (
-        <div className="p-10 text-center bg-paper rounded-[10px] border border-rule shadow-sm">
-          <Receipt className="w-14 h-14 mx-auto mb-3 text-muted/40" />
-          <h3 className="text-sm font-display font-medium text-ink mb-1">NO_RECORDS_FOUND</h3>
-          <p className="text-[10px] font-mono text-muted uppercase tracking-widest">History log is empty</p>
+        <div className="p-12 text-center glass-panel rounded-2xl border border-white/10 shadow-sm flex flex-col items-center">
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 mb-4">
+            <Receipt className="w-12 h-12 opacity-50" />
+          </div>
+          <h3 className="text-sm font-display font-medium mb-2">NO_RECORDS_FOUND</h3>
+          <p className="text-[10px] font-mono opacity-50 uppercase tracking-widest">History log is empty</p>
         </div>
       )}
 
@@ -566,8 +597,14 @@ export default function PaymentHistoryPage() {
               const invoiceLabel = payment.isPackageChange ? 'Ganti Paket' : (payment.invoiceType ? (INVOICE_TYPE_LABEL[payment.invoiceType] || payment.invoiceType) : null);
 
               return (
-                <div key={payment.id} className={`bg-paper rounded-[10px] border ${config.borderColor} shadow-sm overflow-hidden`}>
-                  <div className="p-5">
+                <div 
+                  key={payment.id} 
+                  className={`history-item floating-element glass-panel rounded-2xl border ${config.borderColor} shadow-[0_0_15px_rgba(0,0,0,0.2)] overflow-hidden group relative hover:bg-white/[0.03] transition-colors`}
+                  onMouseMove={handleMouseMove}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${config.bgColor.replace('/10', '')}`} />
+                  <div className="p-6">
                     {/* Header row */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
@@ -597,17 +634,17 @@ export default function PaymentHistoryPage() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-px mb-4 bg-rule border border-rule rounded overflow-hidden">
-                      <div className="bg-paper p-3">
+                    <div className="grid grid-cols-2 gap-px mb-5 bg-white/10 border border-white/10 rounded-xl overflow-hidden">
+                      <div className="bg-[#050b1a] p-4">
                         <p className="text-[9px] font-mono text-muted uppercase mb-1">DUE_DATE</p>
                         <p className="text-xs font-display font-medium text-ink flex items-center gap-1.5">
                           <Calendar className="w-3 h-3 text-muted" />
                           {formatDate(payment.dueDate)}
                         </p>
                       </div>
-                      <div className="bg-paper p-3">
-                        <p className="text-[9px] font-mono text-muted uppercase mb-1">AMOUNT</p>
-                        <p className="text-sm font-display font-semibold text-ink">{formatCurrency(payment.amount)}</p>
+                      <div className="bg-[#050b1a] p-4">
+                        <p className="text-[9px] font-mono opacity-60 uppercase mb-1">AMOUNT</p>
+                        <p className="text-base font-display font-semibold">{formatCurrency(payment.amount)}</p>
                       </div>
                     </div>
 
@@ -679,8 +716,14 @@ export default function PaymentHistoryPage() {
               const sourceConfig = payment.paymentSource ? PAYMENT_SOURCE_CONFIG[payment.paymentSource] : null;
 
               return (
-                <div key={payment.id} className="bg-paper border border-rule rounded-[10px] shadow-sm overflow-hidden hover:bg-muted/5 transition-colors">
-                  <div className="p-4">
+                <div 
+                  key={payment.id} 
+                  className="history-item floating-element glass-panel border border-white/10 rounded-2xl shadow-sm overflow-hidden hover:bg-white/5 transition-colors relative"
+                  onMouseMove={handleMouseMove}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500/50" />
+                  <div className="p-5">
                     {/* Header */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">

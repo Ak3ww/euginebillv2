@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Profile Settings - EugineBill</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "on-tertiary-container": "#ed9f63",
+                "on-primary-fixed": "#001b3e",
+                "surface-tint": "#3a5e99",
+                "primary": "#002c60",
+                "outline": "#737781",
+                "tertiary-container": "#6b3500",
+                "primary-fixed": "#d7e3ff",
+                "outline-variant": "#c3c6d1",
+                "on-primary": "#ffffff",
+                "status-isolated": "#DC2626",
+                "surface": "#f9f9fe",
+                "inverse-on-surface": "#f1f0f6",
+                "tertiary-fixed-dim": "#ffb782",
+                "tertiary-fixed": "#ffdcc5",
+                "surface-container-high": "#e8e7ed",
+                "inverse-surface": "#2f3035",
+                "status-warning": "#D97706",
+                "on-secondary-fixed": "#001c39",
+                "tertiary": "#4a2300",
+                "secondary": "#0060ac",
+                "on-secondary-container": "#003e73",
+                "on-error-container": "#93000a",
+                "primary-fixed-dim": "#aac7ff",
+                "on-error": "#ffffff",
+                "surface-container-highest": "#e2e2e7",
+                "secondary-fixed-dim": "#a4c9ff",
+                "surface-container-low": "#f4f3f9",
+                "on-background": "#1a1c20",
+                "on-secondary-fixed-variant": "#004883",
+                "surface-muted": "#F8FAFC",
+                "on-tertiary-fixed-variant": "#6f3803",
+                "surface-container-lowest": "#ffffff",
+                "on-primary-fixed-variant": "#1f467f",
+                "surface-bright": "#f9f9fe",
+                "surface-container": "#eeedf3",
+                "status-active": "#059669",
+                "secondary-container": "#68abff",
+                "surface-variant": "#e2e2e7",
+                "hairline-border": "#E2E8F0",
+                "background": "#f9f9fe",
+                "surface-dim": "#dad9df",
+                "on-surface": "#1a1c20",
+                "on-surface-variant": "#434750",
+                "on-tertiary-fixed": "#301400",
+                "primary-container": "#1b437c",
+                "on-secondary": "#ffffff",
+                "error-container": "#ffdad6",
+                "on-tertiary": "#ffffff",
+                "inverse-primary": "#aac7ff",
+                "secondary-fixed": "#d4e3ff",
+                "on-primary-container": "#8fb1f1",
+                "error": "#ba1a1a"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+        },
+        "spacing": {
+                "margin-mobile": "16px",
+                "margin-desktop": "32px",
+                "container-max": "1280px",
+                "unit": "4px",
+                "bento-gap": "20px",
+                "gutter": "16px"
+        },
+        "fontFamily": {
+                "data-mono": ["JetBrains Mono"],
+                "body-lg": ["Hanken Grotesk"],
+                "label-caps": ["JetBrains Mono"],
+                "headline-lg": ["Hanken Grotesk"],
+                "body-md": ["Hanken Grotesk"],
+                "headline-md": ["Hanken Grotesk"],
+                "display-lg": ["Hanken Grotesk"]
+        },
+        "fontSize": {
+                "data-mono": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body {
+    background-color: theme('colors.background');
+    color: theme('colors.on-surface');
+  }
+</style>
+</head>
+<body class="flex h-screen w-full overflow-hidden font-body-md text-body-md bg-surface antialiased">
+<!-- SideNavBar (Desktop) -->
+<aside class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 border-r border-hairline-border dark:border-outline-variant bg-surface-container-low dark:bg-surface-container-low p-gutter z-20">
+<div class="flex items-center gap-3 mb-8 px-2">
+<img alt="EugineBill Logo" class="h-8 w-8 object-contain rounded-DEFAULT" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCi34BUfxVljoQDJqNMJixZ-JfdFJF3DQyGA-MFPy7c90nkitxJydGCABdmRRAQynckUe91Da9juOWiPX-EGPeIIkOmkG2d7ufANFGLKkY3mlAQ9lcig21QMdrbCp--C_WGcMmZO-kmJ9W0w7WEivSqVJDENIbP5JsxhfA9QoDXuaS18sgRCBs7C8928owGONzmfwEh1Ix2Tcb2vHkaODpLT5-BU8XbFNYjuorATIcmlqEX5nytyKK2wXZ8grrTSG1RZAl-rITYOzs"/>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed tracking-tight">EugineBill</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant">ISP Management</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95 group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">dashboard</span>
+<span class="font-label-caps text-label-caps">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95 group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">receipt_long</span>
+<span class="font-label-caps text-label-caps">Invoices</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95 group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">payments</span>
+<span class="font-label-caps text-label-caps">Payments</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95 group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">support_agent</span>
+<span class="font-label-caps text-label-caps">Helpdesk</span>
+</a>
+<!-- Active Tab: Settings (Profile) -->
+<a class="flex items-center gap-3 px-3 py-2.5 bg-primary-container text-on-primary-container font-bold rounded-lg cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-caps text-label-caps uppercase">Settings</span>
+</a>
+</nav>
+<div class="mt-auto">
+<button class="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-primary text-primary rounded-DEFAULT hover:bg-primary hover:text-on-primary transition-colors cursor-pointer active:scale-95">
+<span class="material-symbols-outlined text-[18px]">support_agent</span>
+<span class="font-label-caps text-label-caps">Contact Support</span>
+</button>
+</div>
+</aside>
+<!-- Main Layout Wrapper -->
+<div class="flex-1 flex flex-col md:ml-64 h-screen overflow-hidden">
+<!-- TopNavBar -->
+<header class="w-full h-16 bg-surface-container-lowest dark:bg-surface-container-lowest flex justify-between items-center px-margin-mobile md:px-margin-desktop mx-auto max-w-container-max z-10 shrink-0">
+<!-- Mobile Brand (hidden on desktop) -->
+<div class="md:hidden flex items-center gap-2">
+<img alt="EugineBill Logo" class="h-6 w-6 object-contain rounded-DEFAULT" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCi34BUfxVljoQDJqNMJixZ-JfdFJF3DQyGA-MFPy7c90nkitxJydGCABdmRRAQynckUe91Da9juOWiPX-EGPeIIkOmkG2d7ufANFGLKkY3mlAQ9lcig21QMdrbCp--C_WGcMmZO-kmJ9W0w7WEivSqVJDENIbP5JsxhfA9QoDXuaS18sgRCBs7C8928owGONzmfwEh1Ix2Tcb2vHkaODpLT5-BU8XbFNYjuorATIcmlqEX5nytyKK2wXZ8grrTSG1RZAl-rITYOzs"/>
+<span class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed tracking-tight">EugineBill</span>
+</div>
+<!-- Search Bar -->
+<div class="hidden md:flex items-center relative w-64">
+<span class="material-symbols-outlined absolute left-3 text-on-surface-variant text-[20px]">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-surface-container-low border-none rounded-DEFAULT font-body-md text-body-md focus:ring-1 focus:ring-primary outline-none text-on-surface placeholder:text-on-surface-variant transition-colors" placeholder="Search..." type="text"/>
+</div>
+<!-- Trailing Icons -->
+<div class="flex items-center gap-4">
+<button class="text-primary dark:text-primary-fixed hover:bg-surface-container-low dark:hover:bg-surface-container-low transition-colors cursor-pointer active:opacity-80 p-2 rounded-full relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-status-isolated rounded-full"></span>
+</button>
+<button class="text-primary dark:text-primary-fixed hover:bg-surface-container-low dark:hover:bg-surface-container-low transition-colors cursor-pointer active:opacity-80 p-2 rounded-full hidden md:block">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-hairline-border ml-2 cursor-pointer">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A professional headshot of an internet subscriber with a neutral expression, clean modern lighting, high resolution." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3XqyTmzvxTkyGKwFRPVdXZNjBlMAjnCnNFwSKmDq3eSaNfSKIR5fXnhs0sIkvcxfXOjZoVVii27FFQn78rAessyRDhLxl5rcO1TxktFfpird19bHR-gIwQNE29dtaaWALmXoaA-tmOBUs6VPi3prCF7shuy2ZgY_590TyIiKiorqowC9YZ2Kp8AMp5Bkx04mHqh-UKsHopSWADYdDzFriPNs7QxR_CCy8TQ2MCDZKKlJfZ2ZlIruSIFVuGsOtv4q2rtSQK0N0qfc"/>
+</div>
+</div>
+</header>
+<!-- Scrollable Canvas -->
+<main class="flex-1 overflow-y-auto px-margin-mobile md:px-margin-desktop py-8 bg-surface w-full">
+<div class="max-w-[800px] mx-auto space-y-bento-gap">
+<!-- Page Title -->
+<div class="mb-6">
+<h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Profile Settings</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Manage your account credentials and security preferences.</p>
+</div>
+<!-- Bento Card: Profile Header -->
+<div class="bg-surface-container-lowest border border-hairline-border rounded-lg p-6 flex flex-col md:flex-row items-center gap-6 shadow-[0_4px_12px_rgba(0,0,0,0.02)]">
+<div class="relative group cursor-pointer">
+<div class="w-24 h-24 rounded-full overflow-hidden border-2 border-hairline-border">
+<img alt="Customer Avatar" class="w-full h-full object-cover" data-alt="A high-quality, professional headshot of a customer facing the camera, well-lit studio lighting, isolated on a light background, exuding trust and reliability." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCu5C_Jm2HeHA5pcd-o4MYTWbVpOSKZsp0lg1xmGHuAazaAgUMNcENgRfUhleOyrhhdETlBwSE2bTfuzXCpylZUUOfyEDSqiQJ4G0RgA7CfSUNPfijdqe5w0nSB2ncT61O6uN2qzvRcjI0kR1fNNH6vLRaWAX2JJNNvRGglv3KPBtjb2M-MQdzu5qIGv62PutreijE_CIHp8l6ifny45xzqJ6oxXKknkDCD-ZuyBvdL1g1ySW6OCg3jH8ZznnaccDS5jPNf3HFVFog"/>
+</div>
+<div class="absolute inset-0 bg-inverse-surface/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-on-primary">photo_camera</span>
+</div>
+</div>
+<div class="text-center md:text-left flex-1">
+<h3 class="font-headline-md text-headline-md font-bold text-on-surface">Alex Mercer</h3>
+<p class="font-data-mono text-data-mono text-on-surface-variant mt-1">ID: CUST-982441</p>
+<div class="mt-3 flex items-center justify-center md:justify-start gap-2">
+<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-status-active/10 text-status-active font-label-caps text-label-caps border border-status-active/20">
+<span class="material-symbols-outlined text-[14px]">check_circle</span> Active Subscriber
+              </span>
+</div>
+</div>
+</div>
+<!-- Bento Card: Personal Information -->
+<div class="bg-surface-container-lowest border border-hairline-border rounded-lg p-6 shadow-[0_4px_12px_rgba(0,0,0,0.02)]">
+<div class="flex items-center gap-2 mb-6 border-b border-hairline-border pb-4">
+<span class="material-symbols-outlined text-primary">person</span>
+<h3 class="font-body-lg text-body-lg font-semibold text-on-surface">Personal Information</h3>
+</div>
+<form class="space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Name Input -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase">Full Name</label>
+<input class="w-full px-4 py-2.5 bg-surface border border-hairline-border rounded-DEFAULT font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="text" value="Alex Mercer"/>
+</div>
+<!-- Email Input -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase">Email Address</label>
+<input class="w-full px-4 py-2.5 bg-surface border border-hairline-border rounded-DEFAULT font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="email" value="alex.mercer@example.com"/>
+</div>
+</div>
+<!-- Phone Number & OTP Section -->
+<div class="bg-surface-container-low p-5 rounded-DEFAULT border border-hairline-border space-y-4">
+<div class="flex flex-col gap-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase">Phone Number</label>
+<div class="flex gap-3">
+<div class="flex-1 relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-data-mono text-data-mono">+62</span>
+<input class="w-full pl-12 pr-4 py-2.5 bg-surface border border-hairline-border rounded-DEFAULT font-data-mono text-data-mono text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="tel" value="81234567890"/>
+</div>
+<button class="shrink-0 px-4 py-2.5 bg-surface text-primary border border-primary rounded-DEFAULT font-label-caps text-label-caps uppercase hover:bg-primary-container hover:text-on-primary-container transition-colors active:scale-95" type="button">
+                    Kirim OTP
+                  </button>
+</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase">OTP Code</label>
+<input class="w-full max-w-[200px] px-4 py-2.5 bg-surface border border-hairline-border rounded-DEFAULT font-data-mono text-data-mono text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors tracking-widest" placeholder="Enter 6-digit code" type="text"/>
+<p class="font-label-caps text-label-caps text-on-surface-variant mt-1 lowercase">Check your SMS for the code.</p>
+</div>
+</div>
+<div class="flex justify-end pt-2">
+<button class="px-6 py-2.5 bg-primary text-on-primary rounded-DEFAULT font-label-caps text-label-caps uppercase hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm active:scale-95" type="button">
+                Simpan Perubahan
+              </button>
+</div>
+</form>
+</div>
+<!-- Bento Card: Security -->
+<div class="bg-surface-container-lowest border border-hairline-border rounded-lg p-6 shadow-[0_4px_12px_rgba(0,0,0,0.02)]">
+<div class="flex items-center gap-2 mb-6 border-b border-hairline-border pb-4">
+<span class="material-symbols-outlined text-status-warning">lock</span>
+<h3 class="font-body-lg text-body-lg font-semibold text-on-surface">Security</h3>
+</div>
+<form class="space-y-5">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="flex flex-col gap-1.5 relative">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase">Password Baru</label>
+<div class="relative">
+<input class="w-full pl-4 pr-10 py-2.5 bg-surface border border-hairline-border rounded-DEFAULT font-data-mono text-data-mono text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="••••••••" type="password"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility_off</span>
+</button>
+</div>
+</div>
+<div class="flex flex-col gap-1.5 relative">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase">Ulangi Password</label>
+<div class="relative">
+<input class="w-full pl-4 pr-10 py-2.5 bg-surface border border-hairline-border rounded-DEFAULT font-data-mono text-data-mono text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="••••••••" type="password"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility_off</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex justify-end pt-4">
+<button class="px-6 py-2.5 border border-primary text-primary rounded-DEFAULT font-label-caps text-label-caps uppercase hover:bg-primary hover:text-on-primary transition-colors shadow-sm active:scale-95" type="button">
+                Ubah Password
+              </button>
+</div>
+</form>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-8 bg-surface dark:bg-surface border-t border-hairline-border dark:border-outline-variant shrink-0 z-10">
+<div class="flex flex-col md:flex-row justify-between items-center px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto gap-4">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-primary font-bold">EugineBill</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant dark:text-on-surface-variant mt-1">© 2024 EugineBill ISP. All Rights Reserved.</span>
+</div>
+<div class="flex flex-wrap justify-center gap-6">
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Terms of Service</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Privacy Policy</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Network Status</a>
+</div>
+</div>
+</footer>
+</div>
+</body></html>

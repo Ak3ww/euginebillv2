@@ -235,7 +235,7 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-paper text-ink font-body relative flex">
+    <div className={cn("min-h-screen font-body relative flex antigravity-wrapper transition-colors duration-500", isDark ? "bg-[#020617] text-slate-100" : "bg-slate-50 text-slate-900")}>
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -248,7 +248,7 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
       <aside
         className={cn(
           'fixed top-0 left-0 h-full z-50 transition-transform duration-300 ease-out',
-          'w-64 bg-paper border-r border-rule',
+          'w-64 glass-panel border-r border-rule/20 backdrop-blur-xl',
           'flex flex-col',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
           'lg:translate-x-0'
@@ -326,9 +326,9 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── MAIN CONTENT ── */}
-      <div className="lg:ml-64 flex-1 flex flex-col min-h-screen">
+      <div className="lg:ml-64 flex-1 flex flex-col min-h-screen relative z-10">
         {/* Desktop Header */}
-        <header className="hidden lg:flex sticky top-0 z-20 bg-paper border-b border-rule items-center justify-between px-6 py-4">
+        <header className="hidden lg:flex sticky top-0 z-40 glass-panel border-b border-rule/20 items-center justify-between px-6 py-4 backdrop-blur-xl">
           <div>
             <h2 className="text-sm font-display font-medium text-ink">Customer Portal</h2>
             <p className="text-[10px] font-mono text-muted tracking-widest uppercase">{companyName}</p>
@@ -415,7 +415,7 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-20 bg-paper border-b border-rule">
+        <header className="lg:hidden sticky top-0 z-40 glass-panel border-b border-rule/20 backdrop-blur-xl">
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               {/* Menu button (left side) */}
@@ -517,12 +517,12 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 pb-20 lg:pb-0 bg-paper">
+        <main className="flex-1 pb-20 lg:pb-0 relative z-0">
           {children}
         </main>
 
         {/* ── MOBILE BOTTOM NAV ── */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-paper border-t border-rule">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 glass-panel border-t border-rule/20 backdrop-blur-xl">
           <div className="flex items-center justify-around px-1 py-1 safe-area-pb">
             {[
               { href: '/customer',          icon: Home,        label: 'Beranda' },

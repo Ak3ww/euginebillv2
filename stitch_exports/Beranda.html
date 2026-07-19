@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EugineBill - Main Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed": "#001b3e",
+                        "surface-variant": "#e2e2e7",
+                        "inverse-on-surface": "#f1f0f6",
+                        "secondary-fixed-dim": "#a4c9ff",
+                        "on-secondary-fixed-variant": "#004883",
+                        "inverse-surface": "#2f3035",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-bright": "#f9f9fe",
+                        "status-isolated": "#DC2626",
+                        "surface-container-low": "#f4f3f9",
+                        "on-tertiary-fixed-variant": "#6f3803",
+                        "secondary-container": "#68abff",
+                        "error-container": "#ffdad6",
+                        "on-error": "#ffffff",
+                        "status-warning": "#D97706",
+                        "on-secondary": "#ffffff",
+                        "hairline-border": "#E2E8F0",
+                        "on-primary-container": "#8fb1f1",
+                        "surface-muted": "#F8FAFC",
+                        "on-tertiary-container": "#ed9f63",
+                        "on-secondary-container": "#003e73",
+                        "surface": "#f9f9fe",
+                        "primary-container": "#1b437c",
+                        "on-primary-fixed-variant": "#1f467f",
+                        "on-surface": "#1a1c20",
+                        "outline": "#737781",
+                        "surface-container": "#eeedf3",
+                        "secondary": "#0060ac",
+                        "surface-tint": "#3a5e99",
+                        "inverse-primary": "#aac7ff",
+                        "on-error-container": "#93000a",
+                        "background": "#f9f9fe",
+                        "primary-fixed": "#d7e3ff",
+                        "primary": "#002c60",
+                        "surface-container-high": "#e8e7ed",
+                        "outline-variant": "#c3c6d1",
+                        "on-primary": "#ffffff",
+                        "surface-container-highest": "#e2e2e7",
+                        "on-tertiary-fixed": "#301400",
+                        "secondary-fixed": "#d4e3ff",
+                        "on-surface-variant": "#434750",
+                        "on-tertiary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "surface-dim": "#dad9df",
+                        "tertiary": "#4a2300",
+                        "on-background": "#1a1c20",
+                        "tertiary-fixed": "#ffdcc5",
+                        "tertiary-fixed-dim": "#ffb782",
+                        "on-secondary-fixed": "#001c39",
+                        "status-active": "#059669",
+                        "primary-fixed-dim": "#aac7ff",
+                        "tertiary-container": "#6b3500"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "unit": "4px",
+                        "container-max": "1280px",
+                        "bento-gap": "20px",
+                        "margin-desktop": "32px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "label-caps": ["JetBrains Mono"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "data-mono": ["JetBrains Mono"],
+                        "display-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "data-mono": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #F1F5F9; }
+        .bento-card { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 0.125rem; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-on-surface bg-background pb-[80px]">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-surface-bright dark:bg-surface-dim border-b border-hairline-border dark:border-outline-variant z-40 transition-colors duration-200">
+<div class="flex justify-between items-center px-margin-mobile h-16 w-full max-w-container-max mx-auto">
+<div class="flex items-center gap-4 hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors duration-200 p-2 rounded">
+<div class="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A small, professional avatar image of a person, suitable for a dashboard profile picture, well-lit, neutral background, reflecting enterprise aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqXfaYXfTQAquQqjH2F2ORMFOhVfjttSw6qUb3zPIGcAT19I5sCN-e9IH8zoU4FplfApTjYm3vCC2V06_onIu76tQQ3oE0b2KffQJQr3ehV-dmwdXJJhoVJ0QgtlPLO5ZnTLSli9Yeco_dvtUFeaDu-_y5jju7N0WzWtZJhHjJO8ADzlZXsf4ouYTkKJIdwv6gOuuaHQMi1tn95MITnGMCAOuh4ERIzwhWgxziEjxaFBjnfgFO2pLEWiKvIVCVnQ2nokX5q0tl0TI"/>
+</div>
+<h1 class="text-headline-md font-headline-md text-primary dark:text-primary-fixed-dim tracking-tight">EugineBill</h1>
+</div>
+<button class="text-primary dark:text-primary-fixed-dim p-2 rounded-full hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors duration-200 active:opacity-70">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</div>
+</header>
+<main class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-6">
+<!-- Hero Section -->
+<section class="mb-6 flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Budi Santoso</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">ID Pelanggan: CUST-0921-X</p>
+</div>
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-status-active/10 text-status-active">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+<span class="font-label-caps text-label-caps uppercase">Aktif</span>
+</div>
+</section>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-bento-gap">
+<!-- Sub/Expiry Module (Spans 8/12 cols depending on screen) -->
+<div class="bento-card col-span-4 md:col-span-8 lg:col-span-8 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+<div>
+<h3 class="font-label-caps text-label-caps text-outline uppercase mb-2">Paket Langganan</h3>
+<div class="font-headline-lg text-headline-lg text-primary">Paket 30Mbps</div>
+<div class="font-body-sm text-on-surface-variant mt-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary">speed</span>
+                         Up to 30Mbps Download / Upload
+                    </div>
+</div>
+<div class="w-full md:w-px md:h-16 bg-hairline-border md:mx-4"></div>
+<div>
+<h3 class="font-label-caps text-label-caps text-outline uppercase mb-2">Jatuh Tempo</h3>
+<div class="font-headline-md text-headline-md text-on-surface">12 Okt 2024</div>
+<div class="inline-block mt-2 px-2 py-1 bg-surface-container-high rounded font-label-caps text-label-caps text-status-warning uppercase border border-hairline-border">
+                        Tersisa 5 Hari
+                    </div>
+</div>
+</div>
+<!-- Pending Bill Module -->
+<div class="bento-card col-span-4 md:col-span-4 lg:col-span-4 p-6 border-l-4 border-l-status-isolated relative overflow-hidden bg-surface-bright">
+<!-- Subtle warning background pattern/gradient -->
+<div class="absolute top-0 right-0 p-4 opacity-5">
+<span class="material-symbols-outlined text-9xl text-status-isolated" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div>
+<h3 class="font-label-caps text-label-caps text-status-isolated uppercase mb-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">receipt_long</span> Tagihan Belum Dibayar
+                        </h3>
+<p class="font-data-mono text-data-mono text-on-surface-variant">INV-2024-10-001</p>
+<div class="font-headline-lg text-headline-lg text-on-surface mt-4">Rp 350.000</div>
+</div>
+<button class="mt-6 w-full bg-primary-container text-on-primary hover:bg-on-primary-fixed-variant transition-colors py-3 rounded font-label-caps text-label-caps uppercase flex justify-center items-center gap-2">
+                        Bayar Sekarang <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Quick Actions Grid -->
+<div class="col-span-4 md:col-span-8 lg:col-span-12 mt-4">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-4">Aksi Cepat</h3>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<button class="bento-card p-4 flex flex-col items-center justify-center gap-3 hover:bg-surface-container-low transition-colors duration-200 active:opacity-70 group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-3xl">receipt_long</span>
+<span class="font-label-caps text-label-caps text-on-surface uppercase">Tagihan</span>
+</button>
+<button class="bento-card p-4 flex flex-col items-center justify-center gap-3 hover:bg-surface-container-low transition-colors duration-200 active:opacity-70 group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-3xl">router</span>
+<span class="font-label-caps text-label-caps text-on-surface uppercase">Pengaturan Wi-Fi</span>
+</button>
+<button class="bento-card p-4 flex flex-col items-center justify-center gap-3 hover:bg-surface-container-low transition-colors duration-200 active:opacity-70 group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-3xl">upgrade</span>
+<span class="font-label-caps text-label-caps text-on-surface uppercase">Upgrade Layanan</span>
+</button>
+<button class="bento-card p-4 flex flex-col items-center justify-center gap-3 hover:bg-surface-container-low transition-colors duration-200 active:opacity-70 group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-3xl">contact_support</span>
+<span class="font-label-caps text-label-caps text-on-surface uppercase">Pusat Bantuan</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 bg-surface-container-lowest dark:bg-surface-container-highest border-t border-hairline-border dark:border-outline-variant md:hidden">
+<div class="fixed bottom-0 left-0 w-full flex justify-around items-center pt-2 pb-safe px-2 h-16">
+<!-- Home (Active) -->
+<button class="flex flex-col items-center justify-center text-primary dark:text-secondary-fixed-dim font-bold active:scale-95 transition-transform duration-150 hover:bg-surface-container-low p-2 rounded-lg flex-1">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-caps text-label-caps mt-1">Home</span>
+</button>
+<!-- Invoices -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline active:scale-95 transition-transform duration-150 hover:bg-surface-container-low p-2 rounded-lg flex-1">
+<span class="material-symbols-outlined">receipt_long</span>
+<span class="font-label-caps text-label-caps mt-1">Invoices</span>
+</button>
+<!-- WiFi -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline active:scale-95 transition-transform duration-150 hover:bg-surface-container-low p-2 rounded-lg flex-1">
+<span class="material-symbols-outlined">router</span>
+<span class="font-label-caps text-label-caps mt-1">WiFi</span>
+</button>
+<!-- Support -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline active:scale-95 transition-transform duration-150 hover:bg-surface-container-low p-2 rounded-lg flex-1">
+<span class="material-symbols-outlined">contact_support</span>
+<span class="font-label-caps text-label-caps mt-1">Support</span>
+</button>
+<!-- Profile -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline active:scale-95 transition-transform duration-150 hover:bg-surface-container-low p-2 rounded-lg flex-1">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-caps text-label-caps mt-1">Profile</span>
+</button>
+</div>
+</nav>
+</body></html>

@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Ticket, MessageSquare, Plus, Filter } from 'lucide-react';
-import { CyberCard, CyberButton } from '@/components/cyberpunk';
 import { formatWIB } from '@/lib/timezone';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 
 type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'WAITING_CUSTOMER' | 'RESOLVED' | 'CLOSED';
 type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
@@ -35,8 +35,35 @@ export default function CustomerTicketsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [customerId, setCustomerId] = useState<string | null>(null);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    if (!loading && tickets.length > 0) {
+      gsap.fromTo('.ticket-item', 
+        { y: 30, opacity: 0, scale: 0.98 },
+        { y: 0, opacity: 1, scale: 1, duration: 0.5, stagger: 0.05, ease: 'power2.out', clearProps: 'all' }
+      );
+    }
+  }, { scope: containerRef, dependencies: [tickets, loading] });
+
+  // 3D Hover Effect
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = ((y - centerY) / centerY) * -3;
+    const rotateY = ((x - centerX) / centerX) * 3;
+    gsap.to(card, { rotateX, rotateY, duration: 0.4, ease: "power2.out", transformPerspective: 1000 });
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    gsap.to(e.currentTarget, { rotateX: 0, rotateY: 0, duration: 0.7, ease: "power2.out" });
+  };
+
   useEffect(() => {
-    // Check auth and get customer ID
     const token = localStorage.getItem('customer_token');
     const userData = localStorage.getItem('customer_user');
     
@@ -88,54 +115,68 @@ export default function CustomerTicketsPage() {
 
   const getStatusColor = (status: TicketStatus) => {
     const colors = {
-      OPEN: 'bg-accent/10 text-accent border border-accent/20',
-      IN_PROGRESS: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
-      WAITING_CUSTOMER: 'bg-purple-500/10 text-purple-600 border border-purple-500/20',
-      RESOLVED: 'bg-green-500/10 text-green-600 border border-green-500/20',
-      CLOSED: 'bg-muted/10 text-muted border border-rule',
+      OPEN: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+      IN_PROGRESS: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+      WAITING_CUSTOMER: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+      RESOLVED: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+      CLOSED: 'bg-white/10 text-gray-400 border-white/20',
+    };
+    return colors[status] || colors.OPEN;
+  };
+
+  const getStatusIndicator = (status: TicketStatus) => {
+    const colors = {
+      OPEN: 'bg-blue-500',
+      IN_PROGRESS: 'bg-amber-500',
+      WAITING_CUSTOMER: 'bg-purple-500',
+      RESOLVED: 'bg-emerald-500',
+      CLOSED: 'bg-gray-500',
     };
     return colors[status] || colors.OPEN;
   };
 
   const getPriorityColor = (priority: TicketPriority) => {
     const colors = {
-      LOW: 'bg-muted/10 text-muted border border-rule',
-      MEDIUM: 'bg-accent/10 text-accent border border-accent/20',
-      HIGH: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
-      URGENT: 'bg-red-500/10 text-red-600 border border-red-500/20',
+      LOW: 'bg-white/10 text-gray-400 border-white/20',
+      MEDIUM: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+      HIGH: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+      URGENT: 'bg-red-500/10 text-red-400 border-red-500/30',
     };
     return colors[priority] || colors.MEDIUM;
   };
 
   return (
-    <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-6 animate-in fade-in duration-700">
+    <div ref={containerRef} className="p-4 lg:p-8 max-w-5xl mx-auto space-y-6 pb-24">
       {/* Header */}
-      <div className="flex justify-between items-center pb-4 border-b border-rule">
+      <div className="flex justify-between items-center pb-4 border-b border-white/10">
         <div>
-          <h1 className="text-xl lg:text-2xl font-display font-medium text-ink">
+          <h1 className="text-xl lg:text-3xl font-display font-medium flex items-center gap-3">
+            <div className="p-2 bg-purple-500/10 rounded-xl border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+              <Ticket className="w-6 h-6 text-purple-400" />
+            </div>
             {t('ticket.myTickets')}
           </h1>
-          <p className="text-[10px] font-mono text-muted uppercase mt-1">
+          <p className="text-[10px] font-mono opacity-50 uppercase mt-2 tracking-widest">
             {t('ticket.manageYourTickets')}
           </p>
         </div>
         <button
           onClick={() => router.push('/customer/tickets/create')}
-          className="flex items-center gap-1.5 px-3 py-2 bg-accent hover:bg-accent-hover text-paper text-[10px] font-mono font-bold rounded-[6px] transition-colors uppercase tracking-wider"
+          className="flex items-center gap-2 px-4 py-2.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 border border-purple-500/30 text-xs font-mono font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(168,85,247,0.1)] hover:shadow-[0_0_20px_rgba(168,85,247,0.2)] uppercase tracking-wider"
         >
-          <Plus size={14} />
+          <Plus size={16} />
           <span className="hidden sm:inline">{t('common.create')}</span>
         </button>
       </div>
 
       <div>
         {/* Filters */}
-        <div className="p-4 mb-6 bg-paper border border-rule rounded-[10px] shadow-sm flex items-center gap-4">
-          <Filter size={16} className="text-muted" />
+        <div className="p-4 mb-6 glass-panel border border-white/10 rounded-2xl flex items-center gap-4">
+          <Filter size={18} className="text-gray-400" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="flex-1 max-w-[200px] border border-rule bg-paper rounded-[6px] px-3 py-1.5 text-xs font-mono text-ink focus:border-accent/50 focus:ring-1 focus:ring-accent/20 outline-none transition-all uppercase"
+            className="flex-1 max-w-[200px] border border-white/20 bg-black/40 rounded-xl px-4 py-2.5 text-xs font-mono focus:border-purple-400/50 outline-none transition-all uppercase"
           >
             <option value="all">{t('ticket.allStatus')}</option>
             <option value="OPEN">{t('ticket.status_OPEN')}</option>
@@ -148,64 +189,69 @@ export default function CustomerTicketsPage() {
 
         {/* Tickets List */}
         {loading ? (
-          <div className="text-center py-12 flex justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+          <div className="text-center py-20 flex justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
           </div>
         ) : tickets.length === 0 ? (
-          <div className="p-12 text-center bg-paper border border-rule rounded-[10px] shadow-sm">
-            <Ticket size={32} className="text-muted/40 mx-auto mb-4" />
-            <h3 className="text-sm font-display font-medium text-ink mb-1 uppercase tracking-widest">
+          <div className="p-16 text-center glass-panel border border-white/10 rounded-2xl flex flex-col items-center">
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 mb-4">
+              <Ticket size={40} className="text-gray-400 opacity-50" />
+            </div>
+            <h3 className="text-sm font-display font-medium mb-2 uppercase tracking-widest">
               {t('ticket.noTickets')}
             </h3>
-            <p className="text-[10px] font-mono text-muted uppercase mb-6 tracking-wider">
+            <p className="text-[10px] font-mono opacity-50 uppercase mb-6 tracking-wider">
               {t('ticket.noTicketsDescription')}
             </p>
             <button
               onClick={() => router.push('/customer/tickets/create')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-paper border border-rule hover:border-accent/50 text-ink text-[10px] font-mono font-bold rounded-[6px] transition-colors uppercase tracking-wider"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-mono font-bold rounded-xl transition-colors uppercase tracking-wider"
             >
               <Plus size={14} />
               {t('ticket.createFirstTicket')}
             </button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {tickets.map((ticket) => (
               <div
                 key={ticket.id}
                 onClick={() => router.push(`/customer/tickets/${ticket.id}`)}
-                className="p-5 cursor-pointer bg-paper border border-rule hover:bg-muted/5 rounded-[10px] shadow-sm transition-colors group"
+                className="ticket-item floating-element p-5 lg:p-6 cursor-pointer glass-panel border border-white/10 hover:bg-white/[0.05] rounded-2xl relative overflow-hidden group transition-colors"
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
               >
+                <div className={`absolute left-0 top-0 bottom-0 w-1 ${getStatusIndicator(ticket.status)} opacity-50`} />
                 <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-3 flex-wrap">
-                      <span className="text-[11px] font-mono text-ink font-bold tracking-wide">
+                  <div className="flex-1 min-w-0 pl-2">
+                    <div className="flex items-center gap-3 mb-3 flex-wrap">
+                      <span className="text-sm font-mono font-bold tracking-wide">
                         #{ticket.ticketNumber}
                       </span>
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${getStatusColor(ticket.status)}`}>
+                      <span className={`px-2.5 py-1 rounded-lg border text-[9px] font-mono font-bold uppercase tracking-wider ${getStatusColor(ticket.status)}`}>
                         {t(`ticket.status_${ticket.status}`)}
                       </span>
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${getPriorityColor(ticket.priority)}`}>
+                      <span className={`px-2.5 py-1 rounded-lg border text-[9px] font-mono font-bold uppercase tracking-wider ${getPriorityColor(ticket.priority)}`}>
                         {t(`ticket.priority_${ticket.priority}`)}
                       </span>
                       {ticket.category && (
                         <span
-                          className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-muted/10 border"
-                          style={{ color: ticket.category.color, borderColor: ticket.category.color + '40' }}
+                          className="px-2.5 py-1 rounded-lg text-[9px] font-mono font-bold uppercase tracking-wider bg-white/5 border border-white/10"
+                          style={{ color: ticket.category.color }}
                         >
                           {ticket.category.name}
                         </span>
                       )}
                     </div>
-                    <h3 className="text-base font-display font-medium text-ink mb-3 group-hover:text-accent transition-colors truncate">
+                    <h3 className="text-lg lg:text-xl font-display font-medium mb-4 group-hover:text-white text-gray-200 transition-colors truncate">
                       {ticket.subject}
                     </h3>
-                    <div className="flex items-center gap-4 text-[10px] font-mono text-muted uppercase tracking-wider">
-                      <div className="flex items-center gap-1.5">
-                        <MessageSquare size={12} />
+                    <div className="flex items-center gap-5 text-[10px] font-mono opacity-50 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare size={14} />
                         <span>{ticket._count.messages} {t('ticket.messages')}</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
                         <span>{formatWIB(ticket.createdAt, 'dd MMM yyyy HH:mm')}</span>
                       </div>
                     </div>
@@ -219,5 +265,3 @@ export default function CustomerTicketsPage() {
     </div>
   );
 }
-
-
