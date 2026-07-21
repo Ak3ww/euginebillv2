@@ -179,29 +179,54 @@ export default function CustomerDashboard() {
       <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-5">
 
         {/* Paket Langganan Card */}
-        <div className={`bento-card col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} flex flex-col md:flex-row justify-between items-start md:items-center gap-6`}>
-          <div className="flex-1">
-            <p className="section-header">Paket Langganan</p>
-            <div className="text-2xl md:text-[32px] font-display font-semibold text-[var(--color-focus)] leading-tight">
+        <div className={`bento-card col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6`}>
+          {/* Subtle router watermark background */}
+          <div className="absolute -right-6 -bottom-6 opacity-[0.03] pointer-events-none">
+            <span className="material-symbols-outlined text-[140px] text-[var(--color-ink)]" style={{ fontVariationSettings: "'FILL' 1" }}>
+              router
+            </span>
+          </div>
+
+          <div className="flex-1 relative z-10">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="section-header mb-0">Paket Langganan</span>
+              <span className="px-2 py-0.5 rounded-full font-mono text-[9px] font-bold uppercase tracking-wider bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)]/20">
+                Fiber Unlimited
+              </span>
+            </div>
+            <div className="text-2xl md:text-[30px] font-display font-bold text-[var(--color-focus)] leading-tight tracking-tight">
               {user.profile?.name || '-'}
             </div>
-            <div className="text-sm font-body text-[var(--color-ink-2)] mt-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px] text-[var(--color-accent)]">speed</span>
-              Hingga {user.profile?.downloadSpeed || 0} Mbps
+            <div className="flex flex-wrap items-center gap-3 mt-3">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[var(--radius-sm)] bg-[var(--color-paper-3)] border border-[var(--color-rule)] text-xs font-mono font-medium text-[var(--color-ink-2)]">
+                <span className="material-symbols-outlined text-[16px] text-[var(--color-accent)]">download</span>
+                Up to {user.profile?.downloadSpeed || 0} Mbps
+              </div>
+              {user.profile?.uploadSpeed ? (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[var(--radius-sm)] bg-[var(--color-paper-3)] border border-[var(--color-rule)] text-xs font-mono font-medium text-[var(--color-ink-2)]">
+                  <span className="material-symbols-outlined text-[16px] text-[var(--color-accent)]">upload</span>
+                  Up to {user.profile.uploadSpeed} Mbps
+                </div>
+              ) : null}
             </div>
           </div>
-          <div className="w-full md:w-px md:h-12 bg-[var(--color-rule)] md:mx-4" />
-          <div>
+
+          <div className="w-full md:w-px md:h-16 bg-[var(--color-rule)] md:mx-2 shrink-0 relative z-10" />
+
+          <div className="relative z-10 min-w-[160px]">
             <p className="section-header">Jatuh Tempo</p>
             <div className="text-xl font-display font-semibold text-[var(--color-ink)]">{formattedDueDate}</div>
-            <div className={`inline-block mt-2 px-2.5 py-1 rounded font-mono text-[10px] font-bold uppercase tracking-wider border ${
-              isExpired
-                ? 'bg-[var(--color-error-bg)] text-[var(--color-error)] border-[var(--color-error-border)]'
-                : daysLeft <= 7
-                ? 'bg-[var(--color-warning-bg)] text-[var(--color-warning)] border-[var(--color-warning-border)]'
-                : 'bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success-border)]'
-            }`}>
-              {isExpired ? 'Kedaluwarsa' : `Tersisa ${daysLeft} Hari`}
+            <div className="flex items-center gap-2 mt-2">
+              <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded font-mono text-[10px] font-bold uppercase tracking-wider border ${
+                isExpired
+                  ? 'bg-[var(--color-error-bg)] text-[var(--color-error)] border-[var(--color-error-border)]'
+                  : daysLeft <= 7
+                  ? 'bg-[var(--color-warning-bg)] text-[var(--color-warning)] border-[var(--color-warning-border)]'
+                  : 'bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success-border)]'
+              }`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                {isExpired ? 'Kedaluwarsa' : `Tersisa ${daysLeft} Hari`}
+              </div>
             </div>
           </div>
         </div>
