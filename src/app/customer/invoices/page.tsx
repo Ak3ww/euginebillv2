@@ -208,7 +208,7 @@ export default function CustomerInvoicesPage() {
                       <div className="font-display text-xl font-bold text-[var(--color-ink)]">{formatCurrency(inv.amount)}</div>
                       {isPaid ? (
                         <button 
-                          onClick={() => window.open(`/invoice/${inv.id}/print`, '_blank')}
+                          onClick={() => window.open(`/invoice/${inv.invoiceNumber}/print`, '_blank')}
                           className="bg-transparent border border-[var(--color-rule)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)] px-4 py-2 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider transition-colors flex items-center justify-center gap-2"
                         >
                           <span className="material-symbols-outlined text-[14px]">download</span> Lihat Receipt

@@ -86,7 +86,7 @@ export default function PaymentPage() {
   useEffect(() => {
     if (invoice?.status === 'PAID') {
       redirectTimerRef.current = setTimeout(() => {
-        router.push(`/invoice/${invoice.id}/print`);
+        router.push(`/invoice/${invoice.invoiceNumber}/print`);
       }, 3000);
     }
     return () => {
@@ -303,7 +303,7 @@ export default function PaymentPage() {
         
         <div className="flex flex-col gap-3">
           <button 
-            onClick={() => router.push(`/invoice/${invoice.id}/print`)}
+            onClick={() => router.push(`/invoice/${invoice.invoiceNumber}/print`)}
             className="hallmark-button w-full flex items-center justify-center gap-2"
           >
             <FileText className="w-4 h-4" />
