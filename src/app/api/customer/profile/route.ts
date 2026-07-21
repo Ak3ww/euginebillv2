@@ -113,12 +113,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, phone, email, password, phoneOtp } = body;
+    const { phone, email, password, phoneOtp } = body;
 
     // Validate
-    if (name !== undefined && (typeof name !== 'string' || name.trim().length < 2)) {
-      return NextResponse.json({ success: false, message: 'Nama minimal 2 karakter' }, { status: 400 });
-    }
     if (phone !== undefined && phone !== '' && !/^[0-9+\-\s]{8,20}$/.test(phone)) {
       return NextResponse.json({ success: false, message: 'Format nomor telepon tidak valid' }, { status: 400 });
     }
@@ -130,7 +127,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     const updateData: Record<string, string> = {};
-    if (name !== undefined) updateData.name = name.trim();
     if (email !== undefined) updateData.email = email.trim();
     if (password !== undefined && password !== '') updateData.portalPassword = password;
 

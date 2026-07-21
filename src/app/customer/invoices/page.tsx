@@ -214,12 +214,20 @@ export default function CustomerInvoicesPage() {
                           <span className="material-symbols-outlined text-[14px]">download</span> Lihat Receipt
                         </button>
                       ) : (
-                        <button 
-                          onClick={() => router.push(`/pay/${inv.paymentToken}`)}
-                          className="bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 px-4 py-2 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider transition-opacity whitespace-nowrap"
-                        >
-                          Bayar Sekarang
-                        </button>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => router.push(`/invoice/${inv.invoiceNumber}`)}
+                            className="bg-transparent border border-[var(--color-rule)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)] px-4 py-2 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">visibility</span> Lihat Invoice
+                          </button>
+                          <button 
+                            onClick={() => router.push(`/pay/${inv.paymentToken}`)}
+                            className="bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 px-4 py-2 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider transition-opacity whitespace-nowrap flex items-center justify-center gap-2"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">payment</span> Bayar
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

@@ -236,66 +236,80 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
     return (
-    <div className="min-h-screen flex flex-col font-sans bg-[var(--color-paper-2)] text-[var(--color-ink)]">
-      {/* Desktop Navigation (Hidden on Mobile) */}
-      <nav className="hidden md:flex w-full sticky top-0 bg-[var(--color-paper)] border-b border-[var(--color-rule)] z-40 transition-colors duration-200">
-        <div className="flex justify-between items-center px-[var(--space-lg)] h-16 w-full max-w-[1280px] mx-auto">
-          <div className="flex items-center gap-8">
-            <h1 className="text-xl font-display font-medium text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
-            <div className="flex gap-6">
-              <button onClick={() => router.push('/customer')} className={cn("transition-colors font-body text-sm", isActive('/customer') && pathname === '/customer' ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>Home</button>
-              <button onClick={() => router.push('/customer/invoices')} className={cn("transition-colors font-body text-sm", isActive('/customer/invoices') ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>Invoices</button>
-              <button onClick={() => router.push('/customer/wifi')} className={cn("transition-colors font-body text-sm", isActive('/customer/wifi') ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>WiFi</button>
-              <button onClick={() => router.push('/customer/tickets')} className={cn("transition-colors font-body text-sm", isActive('/customer/tickets') ? "text-[var(--color-focus)] border-b-2 border-[var(--color-focus)] pb-1" : "text-[var(--color-muted)] hover:text-[var(--color-focus)]")}>Support</button>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] rounded-full transition-colors relative">
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)]"></span>}
-            </button>
-            <button onClick={() => router.push('/customer/profile')} className="w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] flex items-center justify-center font-bold text-sm">
-              UP
-            </button>
-          </div>
+    <div className="min-h-screen flex flex-col md:flex-row font-sans bg-[var(--color-paper-2)] text-[var(--color-ink)]">
+      
+      {/* Desktop Sidebar (Hidden on Mobile) */}
+      <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 bg-[var(--color-paper)] border-r border-[var(--color-rule)] z-40 transition-colors duration-200 shrink-0">
+        <div className="p-6">
+          <h1 className="text-2xl font-display font-bold text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
         </div>
-      </nav>
-
-      {/* Mobile Top App Bar */}
-      <header className="md:hidden w-full top-0 sticky bg-[var(--color-paper)] border-b border-[var(--color-rule)] flex justify-between items-center px-[var(--space-md)] h-16 z-40">
-        <button onClick={() => router.push('/customer/profile')} className="w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] flex items-center justify-center font-bold text-sm">
-          UP
-        </button>
-        <h1 className="text-lg font-display font-medium text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
-        <button className="text-[var(--color-muted)] transition-colors duration-200 active:opacity-70 p-2 rounded-full hover:bg-[var(--color-paper-3)] relative">
-          <Bell className="w-5 h-5" />
-          {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)]"></span>}
-        </button>
-      </header>
-
-      {children}
-
-      {/* Bottom Navigation Bar (Mobile) */}
-      <nav className="fixed bottom-0 w-full z-50 bg-[var(--color-paper)] border-t border-[var(--color-rule)] md:hidden">
-        <div className="flex justify-around items-center pt-2 pb-safe px-2 h-16 pb-2">
-          <button onClick={() => router.push('/customer')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer') && pathname === '/customer' ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
-            <Home className="w-6 h-6" />
-            <span className="font-mono text-[10px] mt-1 uppercase">Home</span>
+        
+        <div className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
+          <button onClick={() => router.push('/customer')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-body text-sm font-medium", isActive('/customer') && pathname === '/customer' ? "bg-[var(--color-focus)]/10 text-[var(--color-focus)]" : "text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] hover:text-[var(--color-focus)]")}>
+            <Home className="w-5 h-5" /> Beranda
           </button>
-          <button onClick={() => router.push('/customer/invoices')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/invoices') ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
-            <FileText className="w-6 h-6" />
-            <span className="font-mono text-[10px] mt-1 uppercase">Invoices</span>
+          <button onClick={() => router.push('/customer/invoices')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-body text-sm font-medium", isActive('/customer/invoices') ? "bg-[var(--color-focus)]/10 text-[var(--color-focus)]" : "text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] hover:text-[var(--color-focus)]")}>
+            <FileText className="w-5 h-5" /> Tagihan
           </button>
-          <button onClick={() => router.push('/customer/wifi')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/wifi') ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
-            <Wifi className="w-6 h-6" />
-            <span className="font-mono text-[10px] mt-1 uppercase">WiFi</span>
+          <button onClick={() => router.push('/customer/wifi')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-body text-sm font-medium", isActive('/customer/wifi') ? "bg-[var(--color-focus)]/10 text-[var(--color-focus)]" : "text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] hover:text-[var(--color-focus)]")}>
+            <Wifi className="w-5 h-5" /> WiFi
           </button>
-          <button onClick={() => router.push('/customer/tickets')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/tickets') ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
-            <MessageSquare className="w-6 h-6" />
-            <span className="font-mono text-[10px] mt-1 uppercase">Support</span>
+          <button onClick={() => router.push('/customer/tickets')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-body text-sm font-medium", isActive('/customer/tickets') ? "bg-[var(--color-focus)]/10 text-[var(--color-focus)]" : "text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] hover:text-[var(--color-focus)]")}>
+            <MessageSquare className="w-5 h-5" /> Tiket
           </button>
         </div>
-      </nav>
+
+        <div className="p-4 border-t border-[var(--color-rule)] space-y-2">
+           <button onClick={() => router.push('/customer/profile')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-body text-sm font-medium", isActive('/customer/profile') ? "bg-[var(--color-focus)]/10 text-[var(--color-focus)]" : "text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink)]")}>
+             <User className="w-5 h-5" /> Profil Saya
+           </button>
+           <button onClick={() => { localStorage.removeItem('customer_token'); router.push('/customer/login'); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-body text-sm font-medium text-red-500 hover:bg-red-500/10">
+             <LogOut className="w-5 h-5" /> Keluar
+           </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        
+        {/* Mobile Top App Bar */}
+        <header className="md:hidden w-full top-0 sticky bg-[var(--color-paper)] border-b border-[var(--color-rule)] flex justify-between items-center px-[var(--space-md)] h-16 z-40">
+          <button onClick={() => router.push('/customer/profile')} className="w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] flex items-center justify-center font-bold text-sm">
+            <User className="w-4 h-4" />
+          </button>
+          <h1 className="text-lg font-display font-bold text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
+          <button className="text-[var(--color-muted)] transition-colors duration-200 active:opacity-70 p-2 rounded-full hover:bg-[var(--color-paper-3)] relative">
+            <Bell className="w-5 h-5" />
+            {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)]"></span>}
+          </button>
+        </header>
+
+        <div className="flex-1 pb-16 md:pb-0">
+          {children}
+        </div>
+        
+        {/* Bottom Navigation Bar (Mobile) */}
+        <nav className="fixed bottom-0 w-full z-50 bg-[var(--color-paper)] border-t border-[var(--color-rule)] md:hidden">
+          <div className="flex justify-around items-center pt-2 pb-safe px-2 h-16 pb-2">
+            <button onClick={() => router.push('/customer')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer') && pathname === '/customer' ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
+              <Home className="w-6 h-6" />
+              <span className="font-mono text-[10px] mt-1 uppercase">Home</span>
+            </button>
+            <button onClick={() => router.push('/customer/invoices')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/invoices') ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
+              <FileText className="w-6 h-6" />
+              <span className="font-mono text-[10px] mt-1 uppercase">Tagihan</span>
+            </button>
+            <button onClick={() => router.push('/customer/wifi')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/wifi') ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
+              <Wifi className="w-6 h-6" />
+              <span className="font-mono text-[10px] mt-1 uppercase">WiFi</span>
+            </button>
+            <button onClick={() => router.push('/customer/tickets')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/tickets') ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
+              <MessageSquare className="w-6 h-6" />
+              <span className="font-mono text-[10px] mt-1 uppercase">Tiket</span>
+            </button>
+          </div>
+        </nav>
+      </div>
     </div>
   );
 }

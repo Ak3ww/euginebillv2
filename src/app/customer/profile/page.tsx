@@ -106,8 +106,8 @@ export default function CustomerProfilePage() {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editName.trim()) {
-      toast('error', 'Validasi', 'Nama tidak boleh kosong');
+    if (false) {
+      // Name edit disabled
       return;
     }
     const isPhoneChanged = editPhone.trim() !== (customer?.phone || '');
@@ -127,7 +127,6 @@ export default function CustomerProfilePage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          name: editName.trim(),
           email: editEmail.trim() || null,
           phone: editPhone.trim(),
           otpCode: isPhoneChanged ? otpCode.trim() : undefined,
@@ -246,9 +245,10 @@ export default function CustomerProfilePage() {
                 <input 
                   type="text" 
                   value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-surface border border-hairline-border rounded-DEFAULT font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" 
+                  readOnly
+                  className="w-full px-4 py-2.5 bg-surface-container border border-hairline-border rounded-DEFAULT font-body-md text-body-md text-on-surface-variant opacity-70 cursor-not-allowed" 
                 />
+                <p className="text-[10px] text-on-surface-variant mt-1">Nama hanya dapat diubah oleh Admin.</p>
               </div>
               
               {/* Email Input */}
