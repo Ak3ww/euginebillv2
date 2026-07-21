@@ -92,51 +92,9 @@ export default function CustomerInvoicesPage() {
   const totalOutstanding = invoices.filter(inv => inv.status === 'PENDING' || inv.status === 'OVERDUE').reduce((sum, inv) => sum + inv.amount, 0);
   const overdueCount = invoices.filter(inv => inv.status === 'OVERDUE').length;
 
-  /* ─── 100.0% Exact Web Invoice Visual DOM Capture PDF Download ─── */
-  const downloadPdf = async (inv: Invoice) => {
-    setDownloadingId(inv.id);
-    try {
-      let iframe: HTMLIFrameElement | null = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.top = '0';
-      iframe.style.left = '0';
-      iframe.style.width = '794px';
-      iframe.style.height = '1123px';
-      iframe.style.opacity = '0.01';
-      iframe.style.pointerEvents = 'none';
-      iframe.style.zIndex = '-9999';
-      iframe.src = `/invoice/${inv.invoiceNumber}`;
-      document.body.appendChild(iframe);
-
-      await new Promise((resolve) => { iframe!.onload = resolve; });
-      await new Promise((resolve) => setTimeout(resolve, 400));
-
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-      const element = iframeDoc?.getElementById('invoice-capture-area');
-
-      if (element) {
-        const { downloadWebInvoiceAsPdf } = await import('@/lib/client-pdf-downloader');
-        await downloadWebInvoiceAsPdf(element, `Invoice-${inv.invoiceNumber}.pdf`);
-        toast('success', 'PDF diunduh', `${inv.invoiceNumber}.pdf`);
-      } else {
-        const link = document.createElement('a');
-        link.href = `/invoice/${inv.invoiceNumber}/pdf`;
-        link.download = `Invoice-${inv.invoiceNumber}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast('success', 'PDF diunduh', `${inv.invoiceNumber}.pdf`);
-      }
-
-      if (iframe && document.body.contains(iframe)) {
-        document.body.removeChild(iframe);
-      }
-    } catch (err) {
-      console.error('PDF error:', err);
-      toast('error', 'Gagal mengunduh PDF', 'Silakan coba lagi.');
-    } finally {
-      setDownloadingId(null);
-    }
+  /* ─── 100.0% Exact Web Invoice PDF Download ─── */
+  const downloadPdf = (inv: Invoice) => {
+    window.open(`/invoice/${inv.invoiceNumber}?autoDownload=true`, '_blank');
   };
 
   return (

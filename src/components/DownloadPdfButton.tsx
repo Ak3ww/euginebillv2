@@ -1,10 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, Loader2 } from 'lucide-react';
-import { downloadWebInvoiceAsPdf } from '@/lib/client-pdf-downloader';
+import { downloadVisibleInvoiceAsPdf } from '@/lib/client-pdf-downloader';
 
-export default function DownloadPdfButton({ invoiceNumber }: { invoiceNumber: string }) {
+export default function DownloadPdfButton({ 
+  invoiceNumber, 
+  autoTrigger = false 
+}: { 
+  invoiceNumber: string;
+  autoTrigger?: boolean;
+}) {
   const [isDownloading, setIsDownloading] = useState(false);
 
   const handleDownload = async () => {
@@ -12,25 +18,28 @@ export default function DownloadPdfButton({ invoiceNumber }: { invoiceNumber: st
     try {
       const element = document.getElementById('invoice-capture-area');
       if (element) {
-        // High-DPI 100.0% exact visual DOM capture of the web invoice
-        await downloadWebInvoiceAsPdf(element, `Invoice-${invoiceNumber}.pdf`);
+        await downloadVisibleInvoiceAsPdf(element, `Invoice-${invoiceNumber}.pdf`);
       } else {
-        // Fallback direct download link
-        const link = document.createElement('a');
-        link.href = `/invoice/${invoiceNumber}/pdf`;
-        link.download = `Invoice-${invoiceNumber}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        // Redirect to invoice page with autoDownload query if element not in DOM
+        window.location.href = `/invoice/${invoiceNumber}?autoDownload=true`;
       }
     } catch (err) {
       console.error('Download error:', err);
-      // Fallback
-      window.open(`/invoice/${invoiceNumber}/pdf`, '_blank');
+      // Native print fallback as last resort
+      window.print();
     } finally {
       setIsDownloading(false);
     }
   };
+
+  useEffect(() => {
+    if (autoTrigger) {
+      const timer = setTimeout(() => {
+        handleDownload();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [autoTrigger]);
 
   return (
     <button 

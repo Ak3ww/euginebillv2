@@ -13,8 +13,16 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 }
 
-export default async function PublicInvoicePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PublicInvoicePage({ 
+  params,
+  searchParams
+}: { 
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ autoDownload?: string }>;
+}) {
   const { id } = await params;
+  const search = searchParams ? await searchParams : {};
+  const autoDownload = search.autoDownload === 'true';
   
   const rawInvoice = await prisma.invoice.findUnique({
     where: { invoiceNumber: id },
@@ -128,7 +136,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
             Cetak
           </Link>
           
-          <DownloadPdfButton invoiceNumber={inv.invoice.number} />
+          <DownloadPdfButton invoiceNumber={inv.invoice.number} autoTrigger={autoDownload} />
           
           {inv.invoice.status !== 'PAID' && (inv.paymentToken || inv.paymentLink) && (
             <Link
