@@ -94,7 +94,7 @@ export default function CustomerInvoicesPage() {
 
   /* ─── 100.0% Exact Web Invoice PDF Download ─── */
   const downloadPdf = (inv: Invoice) => {
-    window.open(`/invoice/${inv.invoiceNumber}?autoDownload=true`, '_blank');
+    router.push(`/invoice/${inv.invoiceNumber}?autoDownload=true`);
   };
 
   return (

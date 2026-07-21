@@ -59,8 +59,8 @@ export default function InvoiceTemplate({ data }: { data: InvoiceTemplateData })
 
   return (
     <div id="invoice-capture-area" className="w-full max-w-3xl bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden flex flex-col relative h-fit print:w-[210mm] print:max-w-none print:shadow-none print:border-none print:rounded-none print:bg-white print:m-0 print:p-0">
-      {/* Top Brand Banner */}
-      <div className="bg-gradient-to-r from-[#002c60] to-[#1b437c] p-5 print:hidden" />
+      {/* Top Brand Banner (Oceanic Blue Header) */}
+      <div className="bg-gradient-to-r from-[#002c60] to-[#1b437c] p-5" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} />
 
       <div className="p-6 sm:p-8 print:p-4 flex-1 relative">
         {/* Background Watermark */}

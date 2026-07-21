@@ -25,8 +25,13 @@ export default function DownloadPdfButton({
       }
     } catch (err) {
       console.error('Download error:', err);
-      // Native print fallback as last resort
-      window.print();
+      // Silent direct file download fallback (No Print Popup!)
+      const link = document.createElement('a');
+      link.href = `/invoice/${invoiceNumber}/pdf`;
+      link.download = `Invoice-${invoiceNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } finally {
       setIsDownloading(false);
     }
