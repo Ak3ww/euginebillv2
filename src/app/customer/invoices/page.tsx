@@ -200,7 +200,11 @@ export default function CustomerInvoicesPage() {
                           </span>
                         </div>
                         <h4 className="font-display text-lg font-medium text-[var(--color-ink)]">{inv.profileName || (inv.invoiceType === 'INSTALLATION' ? 'Biaya Instalasi' : 'Layanan Internet')}</h4>
-                        <p className="font-body text-sm text-[var(--color-ink-2)] mt-1">{isPaid ? `Paid on: ${formatWIB(new Date(inv.paidAt!)).split(' ')[0]}` : `Due: ${formatWIB(new Date(inv.dueDate)).split(' ')[0]}`}</p>
+                        <p className="font-body text-sm text-[var(--color-ink-2)] mt-1">
+                          {isPaid 
+                            ? `Dibayar pada: ${new Date(inv.paidAt!).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })}` 
+                            : `Jatuh Tempo: ${new Date(inv.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })}`}
+                        </p>
                       </div>
                     </div>
                     

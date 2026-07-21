@@ -89,11 +89,11 @@ export default function CustomerTicketsPage() {
 
   const mapStatusForDisplay = (status: TicketStatus) => {
     switch (status) {
-      case 'OPEN': return 'Open';
-      case 'IN_PROGRESS': return 'In Progress';
-      case 'WAITING_CUSTOMER': return 'Waiting Customer';
-      case 'RESOLVED': return 'Resolved';
-      case 'CLOSED': return 'Closed';
+      case 'OPEN': return 'Terbuka';
+      case 'IN_PROGRESS': return 'Diproses';
+      case 'WAITING_CUSTOMER': return 'Menunggu Pelanggan';
+      case 'RESOLVED': return 'Selesai';
+      case 'CLOSED': return 'Ditutup';
       default: return status;
     }
   };
@@ -145,19 +145,19 @@ export default function CustomerTicketsPage() {
               onClick={() => setStatusFilter('OPEN')}
               className={`px-4 py-1.5 rounded-full border font-mono text-[10px] uppercase font-bold tracking-wider transition-colors ${statusFilter === 'OPEN' ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]' : 'border-[var(--color-rule)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]'}`}
             >
-              Open
+              Terbuka
             </button>
             <button 
               onClick={() => setStatusFilter('IN_PROGRESS')}
               className={`px-4 py-1.5 rounded-full border font-mono text-[10px] uppercase font-bold tracking-wider transition-colors ${statusFilter === 'IN_PROGRESS' ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]' : 'border-[var(--color-rule)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]'}`}
             >
-              In Progress
+              Diproses
             </button>
             <button 
               onClick={() => setStatusFilter('RESOLVED')}
               className={`px-4 py-1.5 rounded-full border font-mono text-[10px] uppercase font-bold tracking-wider transition-colors ${statusFilter === 'RESOLVED' ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]' : 'border-[var(--color-rule)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]'}`}
             >
-              Resolved
+              Selesai
             </button>
           </div>
         </div>
