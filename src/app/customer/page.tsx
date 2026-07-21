@@ -154,21 +154,64 @@ export default function CustomerDashboard() {
 
     return (
     <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6">
-      {/* Hero Section */}
-      <section className="mb-6 relative overflow-hidden bg-cover bg-center bg-no-repeat rounded-2xl p-6 md:p-8 border border-[var(--color-rule)] shadow-sm" style={{ backgroundImage: 'url(/images/customer_card_bg.png)' }}>
-        <div className="absolute inset-0 bg-[var(--color-accent)]/80 mix-blend-multiply backdrop-blur-[1px]"></div>
-        <div className="relative z-10 flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
-          <div>
-            <h2 className="text-3xl md:text-4xl font-display font-medium text-white drop-shadow-md">{user.name}</h2>
-            <p className="text-sm md:text-base font-body text-white/80 mt-1 drop-shadow-sm font-medium tracking-wide">ID Pelanggan: {user.customerId || user.username}</p>
+      {/* Hero Section - Credit Card Style */}
+      <section className="mb-8 flex justify-center md:justify-start">
+        <div 
+          className="relative overflow-hidden bg-cover bg-center bg-no-repeat rounded-3xl p-6 md:p-8 shadow-2xl border border-white/10 w-full md:w-[480px] aspect-[1.6/1] flex flex-col justify-between group transition-transform duration-500 hover:scale-[1.02]" 
+          style={{ backgroundImage: 'url(/images/customer_card_bg.png)' }}
+        >
+          {/* Glassmorphism overlays */}
+          <div className="absolute inset-0 bg-gradient-to-br from-black/40 to-[var(--color-accent)]/70 mix-blend-multiply"></div>
+          <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent"></div>
+          
+          {/* Card Shine Effect */}
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-1000 bg-gradient-to-tr from-transparent via-white to-transparent -translate-x-full group-hover:translate-x-full ease-in-out"></div>
+
+          <div className="relative z-10 flex justify-between items-start">
+            {/* Sim Card Chip */}
+            <div className="w-12 h-9 rounded-md bg-gradient-to-br from-yellow-200/60 to-yellow-500/40 border border-yellow-200/30 flex items-center justify-center relative overflow-hidden backdrop-blur-sm shadow-sm">
+              <div className="absolute w-full h-[1px] bg-yellow-200/20 top-1/2"></div>
+              <div className="absolute h-full w-[1px] bg-yellow-200/20 left-1/3"></div>
+              <div className="absolute h-full w-[1px] bg-yellow-200/20 right-1/3"></div>
+            </div>
+
+            {/* Contactless Icon */}
+            <div className="text-white/80">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
+                <path d="M8.5 14c-.6-1.5-1.5-3.3-1.5-5.5 0-2.2.9-4 1.5-5.5"></path>
+                <path d="M11.5 16c-.9-2-2.5-4.5-2.5-7.5 0-3 1.6-5.5 2.5-7.5"></path>
+                <path d="M14.5 18c-1.2-2.5-3.5-5.7-3.5-9.5 0-3.8 2.3-7 3.5-9.5"></path>
+                <path d="M17.5 20c-1.5-3-4.5-7-4.5-11.5 0-4.5 3-8.5 4.5-11.5"></path>
+              </svg>
+            </div>
           </div>
-          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-md shadow-sm border border-white/20 ${user.status === 'ISOLATED' || isExpired ? 'bg-red-500/80 text-white' : 'bg-emerald-500/80 text-white'}`}>
-            <span className="material-symbols-outlined text-[18px]">
-              {user.status === 'ISOLATED' || isExpired ? 'error' : 'check_circle'}
-            </span>
-            <span className="font-mono text-xs md:text-sm uppercase font-bold tracking-wider drop-shadow-sm">
-              {user.status === 'ISOLATED' || isExpired ? 'Terisolir' : 'Aktif'}
-            </span>
+
+          <div className="relative z-10 mt-auto">
+            {/* Card Number (Customer ID) */}
+            <div className="font-mono text-2xl md:text-3xl text-white tracking-[0.2em] mb-4 drop-shadow-md font-medium" style={{ textShadow: '1px 1px 3px rgba(0,0,0,0.5)' }}>
+              {(user.customerId || user.username).toString().replace(/(.{4})/g, '$1 ').trim()}
+            </div>
+
+            <div className="flex justify-between items-end">
+              {/* Cardholder Name */}
+              <div>
+                <div className="text-[9px] font-mono text-white/60 uppercase tracking-widest mb-1">Nama Pelanggan</div>
+                <div className="font-display text-lg md:text-xl text-white tracking-wider uppercase drop-shadow-sm font-semibold truncate max-w-[200px] md:max-w-[280px]">
+                  {user.name}
+                </div>
+              </div>
+
+              {/* Status / "Valid Thru" */}
+              <div className="text-right">
+                <div className="text-[9px] font-mono text-white/60 uppercase tracking-widest mb-1">Status</div>
+                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full backdrop-blur-md shadow-sm border border-white/20 ${user.status === 'ISOLATED' || isExpired ? 'bg-red-500/40 text-red-100' : 'bg-emerald-500/40 text-emerald-100'}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
+                  <span className="font-mono text-[10px] uppercase font-bold tracking-wider drop-shadow-sm">
+                    {user.status === 'ISOLATED' || isExpired ? 'Terisolir' : 'Aktif'}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
