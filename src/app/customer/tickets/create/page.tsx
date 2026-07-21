@@ -194,12 +194,12 @@ export default function CreateTicketPage() {
   if (success) {
     return (
       <div className="flex items-center justify-center p-4 py-12 animate-in fade-in duration-700">
-        <div className="p-8 max-w-md w-full text-center bg-paper border border-rule rounded-[10px] shadow-sm">
+        <div className="p-8 max-w-md w-full text-center bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm">
           <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
-          <h2 className="text-xl font-display font-medium text-ink mb-2">
+          <h2 className="text-xl font-display font-medium text-[var(--color-ink)] mb-2">
             {t('ticket.ticketCreated')}
           </h2>
-          <p className="text-[10px] font-mono text-muted uppercase tracking-wider mb-4">
+          <p className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-4">
             {t('ticket.ticketNumberIs')}:
           </p>
           <div className="bg-green-500/10 border border-green-500/20 rounded p-4 mb-6">
@@ -207,10 +207,10 @@ export default function CreateTicketPage() {
               #{ticketNumber}
             </span>
           </div>
-          <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-6">
+          <p className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-widest mb-6">
             {t('ticket.whatsappNotificationSent')}
           </p>
-          <p className="text-xs font-mono font-bold text-accent animate-pulse">
+          <p className="text-xs font-mono font-bold text-[var(--color-accent)] animate-pulse">
             {t('ticket.redirectingToTicket')}...
           </p>
         </div>
@@ -221,36 +221,36 @@ export default function CreateTicketPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 space-y-6 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="flex items-center gap-4 pb-4 border-b border-rule">
+      <div className="flex items-center gap-4 pb-4 border-b border-[var(--color-rule)]">
         <Link
           href="/customer/tickets"
-          className="text-muted hover:text-ink transition-colors"
+          className="text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
         >
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <h1 className="text-xl lg:text-2xl font-display font-medium text-ink">
+          <h1 className="text-xl lg:text-2xl font-display font-medium text-[var(--color-ink)]">
             {t('ticket.createTicket')}
           </h1>
-          <p className="text-[10px] font-mono text-muted uppercase mt-1">
+          <p className="text-[10px] font-mono text-[var(--color-muted)] uppercase mt-1">
             {t('ticket.createTicketDescription')}
           </p>
         </div>
       </div>
 
-      <div className="bg-paper border border-rule rounded-[10px] shadow-sm p-6">
+      <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm p-6">
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Customer Name */}
           <div>
-            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2">
+            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">
               {t('ticket.customerName')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.customerName}
               onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-              className={`w-full bg-paper border rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono ${
-                errors.customerName ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20'
+              className={`w-full bg-[var(--color-paper)] border rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono ${
+                errors.customerName ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-[var(--color-rule)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20'
               }`}
               placeholder={t('ticket.enterYourName')}
             />
@@ -261,15 +261,15 @@ export default function CreateTicketPage() {
 
           {/* Customer Phone */}
           <div>
-            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2">
+            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">
               {t('ticket.customerPhone')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.customerPhone}
               onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-              className={`w-full bg-paper border rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono ${
-                errors.customerPhone ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20'
+              className={`w-full bg-[var(--color-paper)] border rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono ${
+                errors.customerPhone ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-[var(--color-rule)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20'
               }`}
               placeholder="+62..."
             />
@@ -280,29 +280,29 @@ export default function CreateTicketPage() {
 
           {/* Customer Email */}
           <div>
-            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2">
+            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">
               {t('ticket.customerEmail')}
             </label>
             <input
               type="email"
               value={formData.customerEmail}
               onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono focus:border-accent/50 focus:ring-1 focus:ring-accent/20"
+              className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20"
               placeholder="name@domain.com"
             />
           </div>
 
           {/* Subject */}
           <div>
-            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2">
+            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">
               {t('ticket.subject')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.subject}
               onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-              className={`w-full bg-paper border rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono ${
-                errors.subject ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20'
+              className={`w-full bg-[var(--color-paper)] border rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono ${
+                errors.subject ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-[var(--color-rule)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20'
               }`}
               placeholder={t('ticket.subjectPlaceholder')}
             />
@@ -313,13 +313,13 @@ export default function CreateTicketPage() {
 
           {/* Category */}
           <div>
-            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2">
+            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">
               {t('ticket.category')}
             </label>
             <select
               value={formData.categoryId}
               onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-2.5 text-sm font-mono text-ink outline-none transition-all focus:border-accent/50 focus:ring-1 focus:ring-accent/20 uppercase"
+              className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 text-sm font-mono text-[var(--color-ink)] outline-none transition-all focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 uppercase"
             >
               <option value="">{t('ticket.selectCategory')}</option>
               {categories.map((cat) => (
@@ -332,29 +332,29 @@ export default function CreateTicketPage() {
 
           {/* Description */}
           <div>
-            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2">
+            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">
               {t('ticket.description')} <span className="text-red-500">*</span>
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={6}
-              className={`w-full bg-paper border rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono resize-none ${
-                errors.description ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-rule focus:border-accent/50 focus:ring-1 focus:ring-accent/20'
+              className={`w-full bg-[var(--color-paper)] border rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono resize-none ${
+                errors.description ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-[var(--color-rule)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20'
               }`}
               placeholder={t('ticket.descriptionPlaceholder')}
             />
             {errors.description && (
               <p className="text-[10px] font-mono text-red-500 uppercase mt-1.5">{errors.description}</p>
             )}
-            <p className="text-[9px] font-mono text-muted uppercase mt-1.5 tracking-widest">
+            <p className="text-[9px] font-mono text-[var(--color-muted)] uppercase mt-1.5 tracking-widest">
               {t('ticket.minCharacters')}: 10
             </p>
           </div>
 
           {/* Location Tag */}
           <div>
-            <label className="block text-[10px] font-mono text-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <MapPin size={12} />
               LOKASI / ALAMAT RUMAH
             </label>
@@ -362,7 +362,7 @@ export default function CreateTicketPage() {
               type="text"
               value={formData.locationTag}
               onChange={(e) => setFormData({ ...formData, locationTag: e.target.value })}
-              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-2.5 text-sm text-ink outline-none transition-all font-mono focus:border-accent/50 focus:ring-1 focus:ring-accent/20"
+              className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20"
               placeholder="Contoh: Jl. Merdeka No. 10..."
             />
             <div className="flex items-center gap-3 mt-3">
@@ -370,7 +370,7 @@ export default function CreateTicketPage() {
                 type="button"
                 onClick={handleGetGPS}
                 disabled={gpsLoading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-paper border border-rule hover:border-accent/50 text-[10px] font-mono font-bold text-ink rounded-[6px] transition-colors disabled:opacity-50 uppercase tracking-wider"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-paper)] border border-[var(--color-rule)] hover:border-[var(--color-focus)]/50 text-[10px] font-mono font-bold text-[var(--color-ink)] rounded-[var(--radius-sm)] transition-colors disabled:opacity-50 uppercase tracking-wider"
               >
                 {gpsLoading ? (
                   <><Loader2 size={12} className="animate-spin" /> MENDAPATKAN LOKASI…</>
@@ -387,11 +387,11 @@ export default function CreateTicketPage() {
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-rule mt-6">
+          <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-rule)] mt-6">
             <Link href="/customer/tickets">
               <button
                 type="button"
-                className="px-6 py-2 bg-paper border border-rule hover:bg-muted/5 text-ink text-[11px] font-mono font-bold rounded-[6px] transition-colors uppercase tracking-wider"
+                className="px-6 py-2 bg-[var(--color-paper)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] text-[var(--color-ink)] text-[10px] font-mono font-bold rounded-[var(--radius-sm)] transition-colors uppercase tracking-wider"
               >
                 {t('ticket.cancel')}
               </button>
@@ -399,7 +399,7 @@ export default function CreateTicketPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-2 bg-accent hover:bg-accent-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50 uppercase tracking-wider"
+              className="flex items-center gap-2 px-6 py-2 bg-[var(--color-accent)] hover:bg-[var(--color-accent)]-hover text-[var(--color-accent-ink)] text-[10px] font-mono font-bold rounded-[var(--radius-sm)] transition-colors disabled:opacity-50 uppercase tracking-wider"
             >
               {loading ? (
                 <>

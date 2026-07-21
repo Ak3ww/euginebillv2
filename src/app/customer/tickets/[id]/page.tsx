@@ -144,19 +144,19 @@ export default function TicketDetailPage() {
 
   const getStatusColor = (status: TicketStatus) => {
     const colors = {
-      OPEN: 'bg-accent/10 text-accent border border-accent/20',
+      OPEN: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-accent/20',
       IN_PROGRESS: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
       WAITING_CUSTOMER: 'bg-purple-500/10 text-purple-600 border border-purple-500/20',
       RESOLVED: 'bg-green-500/10 text-green-600 border border-green-500/20',
-      CLOSED: 'bg-muted/10 text-muted border border-rule',
+      CLOSED: 'bg-muted/10 text-[var(--color-muted)] border border-[var(--color-rule)]',
     };
     return colors[status] || colors.OPEN;
   };
 
   const getPriorityColor = (priority: TicketPriority) => {
     const colors = {
-      LOW: 'bg-muted/10 text-muted border border-rule',
-      MEDIUM: 'bg-accent/10 text-accent border border-accent/20',
+      LOW: 'bg-muted/10 text-[var(--color-muted)] border border-[var(--color-rule)]',
+      MEDIUM: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-accent/20',
       HIGH: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
       URGENT: 'bg-red-500/10 text-red-600 border border-red-500/20',
     };
@@ -165,10 +165,10 @@ export default function TicketDetailPage() {
 
   const getSenderBadgeColor = (senderType: SenderType) => {
     const colors = {
-      CUSTOMER: 'bg-accent/10 text-accent border border-accent/20',
+      CUSTOMER: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-accent/20',
       ADMIN: 'bg-green-500/10 text-green-600 border border-green-500/20',
       TECHNICIAN: 'bg-purple-500/10 text-purple-600 border border-purple-500/20',
-      SYSTEM: 'bg-muted/10 text-muted border border-rule',
+      SYSTEM: 'bg-muted/10 text-[var(--color-muted)] border border-[var(--color-rule)]',
     };
     return colors[senderType] || colors.SYSTEM;
   };
@@ -184,13 +184,13 @@ export default function TicketDetailPage() {
   if (!ticket) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="text-center bg-paper border border-rule p-8 rounded-[10px] shadow-sm">
-          <h2 className="text-lg font-display font-medium text-ink mb-2 uppercase tracking-widest">
+        <div className="text-center bg-[var(--color-paper)] border border-[var(--color-rule)] p-8 rounded-[var(--radius-lg)] shadow-sm">
+          <h2 className="text-lg font-display font-medium text-[var(--color-ink)] mb-2 uppercase tracking-widest">
             {t('ticket.ticketNotFound')}
           </h2>
           <Link
             href="/customer/tickets"
-            className="text-[10px] font-mono font-bold text-accent hover:text-accent-hover uppercase tracking-wider"
+            className="text-[10px] font-mono font-bold text-[var(--color-accent)] hover:text-[var(--color-accent)]-hover uppercase tracking-wider"
           >
             {t('ticket.backToTickets')}
           </Link>
@@ -204,16 +204,16 @@ export default function TicketDetailPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 space-y-6 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="flex items-center gap-4 pb-4 border-b border-rule">
+      <div className="flex items-center gap-4 pb-4 border-b border-[var(--color-rule)]">
         <Link
           href="/customer/tickets"
-          className="text-muted hover:text-ink transition-colors flex-shrink-0"
+          className="text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors flex-shrink-0"
         >
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-[11px] font-mono font-bold text-ink tracking-wide">
+            <span className="text-[10px] font-mono font-bold text-[var(--color-ink)] tracking-wide">
               #{ticket.ticketNumber}
             </span>
             <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${getStatusColor(ticket.status)}`}>
@@ -231,24 +231,24 @@ export default function TicketDetailPage() {
               </span>
             )}
           </div>
-          <h2 className="text-xl lg:text-2xl font-display font-medium text-ink truncate mb-1">
+          <h2 className="text-xl lg:text-2xl font-display font-medium text-[var(--color-ink)] truncate mb-1">
             {ticket.subject}
           </h2>
-          <p className="text-[10px] font-mono text-muted uppercase tracking-wider">
+          <p className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider">
             {t('ticket.created')}: {formatWIB(ticket.createdAt, 'dd MMM yyyy HH:mm')}
           </p>
         </div>
       </div>
 
       {/* Initial Description */}
-      <div className="bg-paper border border-rule rounded-[10px] shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-rule bg-muted/5">
-          <h3 className="text-[10px] font-mono font-bold text-ink uppercase tracking-widest">
+      <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-[var(--color-rule)] bg-muted/5">
+          <h3 className="text-[10px] font-mono font-bold text-[var(--color-ink)] uppercase tracking-widest">
             {t('ticket.description')}
           </h3>
         </div>
         <div className="p-5">
-          <p className="text-sm font-mono text-ink whitespace-pre-wrap leading-relaxed">
+          <p className="text-sm font-mono text-[var(--color-ink)] whitespace-pre-wrap leading-relaxed">
             {ticket.description}
           </p>
         </div>
@@ -259,34 +259,34 @@ export default function TicketDetailPage() {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`bg-paper border border-rule rounded-[10px] shadow-sm overflow-hidden transition-all ${
+            className={`bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden transition-all ${
               msg.senderType === 'SYSTEM' ? 'opacity-80' : ''
             }`}
           >
             <div className={`p-4 ${msg.senderType === 'SYSTEM' ? 'bg-muted/5' : ''}`}>
               <div className="flex items-start gap-4">
                 <div className={`flex-shrink-0 w-8 h-8 rounded border flex items-center justify-center ${
-                  msg.senderType === 'CUSTOMER' ? 'bg-accent/10 border-accent/20 text-accent' : 
+                  msg.senderType === 'CUSTOMER' ? 'bg-[var(--color-accent)]/10 border-accent/20 text-[var(--color-accent)]' : 
                   msg.senderType === 'ADMIN' ? 'bg-green-500/10 border-green-500/20 text-green-600' :
                   msg.senderType === 'TECHNICIAN' ? 'bg-purple-500/10 border-purple-500/20 text-purple-600' :
-                  'bg-muted/10 border-rule text-muted'
+                  'bg-muted/10 border-[var(--color-rule)] text-[var(--color-muted)]'
                 }`}>
                   <User size={14} />
                 </div>
                 <div className="flex-1 min-w-0 pt-0.5">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className="text-xs font-display font-medium text-ink">
+                    <span className="text-xs font-display font-medium text-[var(--color-ink)]">
                       {msg.senderName}
                     </span>
                     <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${getSenderBadgeColor(msg.senderType)}`}>
                       {t(`ticket.senderType_${msg.senderType}`)}
                     </span>
-                    <div className="flex items-center gap-1.5 text-[9px] font-mono text-muted uppercase tracking-wider">
+                    <div className="flex items-center gap-1.5 text-[9px] font-mono text-[var(--color-muted)] uppercase tracking-wider">
                       <Clock size={10} />
                       {formatWIB(msg.createdAt, 'dd MMM HH:mm')}
                     </div>
                   </div>
-                  <p className="text-sm font-mono text-ink whitespace-pre-wrap leading-relaxed mt-3">
+                  <p className="text-sm font-mono text-[var(--color-ink)] whitespace-pre-wrap leading-relaxed mt-3">
                     {msg.message}
                   </p>
                 </div>
@@ -298,9 +298,9 @@ export default function TicketDetailPage() {
 
       {/* Reply Form */}
       {!isClosed && (
-        <div className="bg-paper border border-rule rounded-[10px] shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-rule bg-muted/5">
-            <h3 className="text-[10px] font-mono font-bold text-ink uppercase tracking-widest">
+        <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-[var(--color-rule)] bg-muted/5">
+            <h3 className="text-[10px] font-mono font-bold text-[var(--color-ink)] uppercase tracking-widest">
               {t('ticket.addReply')}
             </h3>
           </div>
@@ -309,7 +309,7 @@ export default function TicketDetailPage() {
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               rows={4}
-              className="w-full bg-paper border border-rule rounded-[6px] px-4 py-3 text-sm font-mono text-ink focus:border-accent/50 focus:ring-1 focus:ring-accent/20 outline-none transition-all resize-y mb-4"
+              className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-3 text-sm font-mono text-[var(--color-ink)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 outline-none transition-all resize-y mb-4"
               placeholder={t('ticket.replyPlaceholder')}
               disabled={sending}
             />
@@ -317,7 +317,7 @@ export default function TicketDetailPage() {
               <button
                 type="submit"
                 disabled={sending || !replyText.trim()}
-                className="flex items-center gap-2 px-6 py-2 bg-accent hover:bg-accent-hover text-paper text-[11px] font-mono font-bold rounded-[6px] transition-colors disabled:opacity-50 uppercase tracking-wider"
+                className="flex items-center gap-2 px-6 py-2 bg-[var(--color-accent)] hover:bg-[var(--color-accent)]-hover text-[var(--color-accent-ink)] text-[10px] font-mono font-bold rounded-[var(--radius-sm)] transition-colors disabled:opacity-50 uppercase tracking-wider"
               >
                 {sending ? (
                   <>
@@ -337,8 +337,8 @@ export default function TicketDetailPage() {
       )}
 
       {isClosed && (
-        <div className="bg-muted/5 border border-rule rounded-[10px] p-6 text-center">
-          <p className="text-[10px] font-mono font-bold text-muted uppercase tracking-widest">
+        <div className="bg-muted/5 border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 text-center">
+          <p className="text-[10px] font-mono font-bold text-[var(--color-muted)] uppercase tracking-widest">
             {t('ticket.ticketClosed')}
           </p>
         </div>

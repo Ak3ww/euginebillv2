@@ -208,27 +208,27 @@ export default function UpgradePackagePage() {
     );
   }
 
-  return (
-    <div className="p-4 lg:p-8 w-full max-w-6xl mx-auto space-y-6">
+    return (
+    <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 min-h-screen">
       {/* Page Header */}
-      <div className="border-b border-neutral-200 pb-4">
-        <h1 className="text-2xl font-black text-neutral-900 tracking-tight">Pengajuan Ganti Paket</h1>
-        <p className="text-sm text-neutral-500 mt-1">Ubah paket internet Anda secara mandiri. Invoice akan turun setelah disetujui Admin.</p>
+      <div className="mb-6">
+        <h2 className="text-2xl font-display font-medium text-[var(--color-ink)]">Pengajuan Ganti Paket</h2>
+        <p className="text-sm font-body text-[var(--color-ink-2)] mt-1">Ubah paket internet Anda secara mandiri. Invoice akan turun setelah disetujui Admin.</p>
       </div>
 
       {/* Error Alert */}
       {error && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-red-50 border-l-4 border-red-600 rounded-r-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-[var(--color-error)]/10 border-l-4 border-[var(--color-error)] rounded-[var(--radius-sm)] mb-6">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm font-medium text-red-800 leading-relaxed">{error}</p>
+            <AlertCircle className="w-5 h-5 text-[var(--color-error)] flex-shrink-0 mt-0.5" />
+            <p className="text-sm font-medium text-[var(--color-error)] leading-relaxed">{error}</p>
           </div>
           {error.includes('tagihan yang belum dibayar') && companyPhone && (
             <a
               href={`https://wa.me/${companyPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Halo Admin, saya ${customer?.name || ''} (${customer?.customerId || '-'}) ingin mengajukan Ganti Paket, tapi di portal tertulis ada tagihan yang belum dibayar. Mohon bantuannya untuk mengecek dan membatalkan tagihan bulan depan saya agar bisa Ganti Paket.`)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-shrink-0 inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm shadow-emerald-900/20"
+              className="flex-shrink-0 inline-flex items-center gap-2 bg-[var(--color-success)] text-white px-4 py-2 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider transition-colors shadow-sm"
             >
               Hubungi Admin via WA
             </a>
@@ -238,12 +238,12 @@ export default function UpgradePackagePage() {
 
       {/* Pending Request Alert */}
       {pendingRequest && (
-        <div className="flex items-start gap-4 p-5 bg-amber-50 border border-amber-200 rounded-xl shadow-sm">
-          <Clock className="w-6 h-6 flex-shrink-0 text-amber-600 animate-pulse mt-0.5" />
+        <div className="flex items-start gap-4 p-5 bg-[var(--color-warning)]/10 border border-[var(--color-warning)]/20 rounded-[var(--radius-lg)] mb-6 shadow-sm">
+          <Clock className="w-6 h-6 flex-shrink-0 text-[var(--color-warning)] animate-pulse mt-0.5" />
           <div>
-            <p className="text-base font-bold text-amber-900">Pengajuan Sedang Diproses</p>
-            <p className="text-sm text-amber-800 mt-1 leading-relaxed">
-              Pengajuan pindah ke paket <strong className="text-amber-900">{pendingRequest.newProfileName}</strong> sedang menunggu persetujuan dari Admin. 
+            <p className="text-base font-bold text-[var(--color-warning)]">Pengajuan Sedang Diproses</p>
+            <p className="text-sm text-[var(--color-warning)]/80 mt-1 leading-relaxed">
+              Pengajuan pindah ke paket <strong className="font-bold">{pendingRequest.newProfileName}</strong> sedang menunggu persetujuan dari Admin. 
               Invoice penyesuaian akan dikirim otomatis via WhatsApp setelah pengajuan disetujui.
             </p>
           </div>
@@ -255,31 +255,31 @@ export default function UpgradePackagePage() {
         <div className="lg:col-span-4 space-y-6">
           {/* Current Package Card */}
           {customer && (
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
-              <div className="bg-neutral-900 px-5 py-4">
+            <div className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm overflow-hidden">
+              <div className="bg-[var(--color-paper-2)] px-5 py-4 border-b border-[var(--color-rule)]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] text-neutral-400 font-bold tracking-widest uppercase mb-1 block">Paket Saat Ini</span>
-                    <h2 className="text-lg font-black text-white">{customer.profileName}</h2>
+                    <span className="font-mono text-[10px] text-[var(--color-muted)] font-bold uppercase tracking-wider mb-1 block">Paket Saat Ini</span>
+                    <h2 className="text-lg font-display font-medium text-[var(--color-ink)]">{customer.profileName}</h2>
                   </div>
-                  <Package className="w-8 h-8 text-neutral-700" />
+                  <Package className="w-6 h-6 text-[var(--color-muted)]" />
                 </div>
               </div>
               
               <div className="p-5">
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center border-b border-neutral-100 pb-3">
-                    <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Kecepatan</span>
-                    <span className="text-sm font-black text-neutral-900">{formatSpeed(customer.downloadSpeed)}</span>
+                  <div className="flex justify-between items-center border-b border-[var(--color-rule)] pb-3">
+                    <span className="font-mono text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider">Kecepatan</span>
+                    <span className="text-sm font-bold text-[var(--color-ink)]">{formatSpeed(customer.downloadSpeed)}</span>
                   </div>
-                  <div className="flex justify-between items-center border-b border-neutral-100 pb-3">
-                    <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Harga Bulanan</span>
-                    <span className="text-sm font-black text-red-600">{formatCurrency(customer.price)}</span>
+                  <div className="flex justify-between items-center border-b border-[var(--color-rule)] pb-3">
+                    <span className="font-mono text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider">Harga Bulanan</span>
+                    <span className="text-sm font-bold text-[var(--color-focus)]">{formatCurrency(customer.price)}</span>
                   </div>
                   {customer.expiredAt && (
                     <div className="flex justify-between items-center pt-1">
-                      <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Masa Aktif</span>
-                      <span className="text-xs font-bold text-neutral-700 bg-neutral-100 px-2.5 py-1 rounded-md">
+                      <span className="font-mono text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider">Masa Aktif</span>
+                      <span className="font-mono text-[10px] font-bold text-[var(--color-ink-2)] bg-[var(--color-paper-3)] px-2.5 py-1 rounded-[var(--radius-sm)] border border-[var(--color-rule)]">
                         {new Date(customer.expiredAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
                     </div>
@@ -290,22 +290,22 @@ export default function UpgradePackagePage() {
           )}
 
           {/* Guidelines Card */}
-          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5">
-            <h3 className="text-xs font-black text-neutral-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Info className="w-4 h-4 text-blue-500" /> Informasi Ganti Paket
+          <div className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-5">
+            <h3 className="font-mono text-[10px] font-bold text-[var(--color-ink)] uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Info className="w-4 h-4 text-[var(--color-focus)]" /> Informasi Ganti Paket
             </h3>
-            <ul className="text-sm text-neutral-600 space-y-3">
+            <ul className="text-sm font-body text-[var(--color-ink-2)] space-y-3">
               <li className="flex gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
-                <span>Pengajuan ganti paket akan <b>direview oleh Admin</b> terlebih dahulu.</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-focus)] mt-1.5 flex-shrink-0" />
+                <span>Pengajuan ganti paket akan <b className="text-[var(--color-ink)] font-semibold">direview oleh Admin</b> terlebih dahulu.</span>
               </li>
               <li className="flex gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
-                <span>Setelah disetujui, sistem akan membuatkan invoice <b>Prorata (disesuaikan dengan sisa hari aktif)</b>.</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-focus)] mt-1.5 flex-shrink-0" />
+                <span>Setelah disetujui, sistem akan membuatkan invoice <b className="text-[var(--color-ink)] font-semibold">Prorata (disesuaikan dengan sisa hari aktif)</b>.</span>
               </li>
               <li className="flex gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
-                <span>Paket baru Anda <b>otomatis aktif</b> segera setelah invoice lunas dibayarkan.</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-focus)] mt-1.5 flex-shrink-0" />
+                <span>Paket baru Anda <b className="text-[var(--color-ink)] font-semibold">otomatis aktif</b> segera setelah invoice lunas dibayarkan.</span>
               </li>
             </ul>
           </div>
@@ -313,12 +313,12 @@ export default function UpgradePackagePage() {
 
         {/* -- RIGHT COLUMN: Package list & calculations (8/12) -- */}
         <div className="lg:col-span-8 space-y-6">
-          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-5 border-b border-neutral-100 bg-neutral-50/50 flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-lg text-red-600">
+          <div className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm overflow-hidden">
+            <div className="px-6 py-5 border-b border-[var(--color-rule)] bg-[var(--color-paper-2)] flex items-center gap-3">
+              <div className="p-2 bg-[var(--color-focus)]/10 rounded-[var(--radius-sm)] text-[var(--color-focus)]">
                 <Tag className="w-4 h-4" />
               </div>
-              <h2 className="text-sm font-black text-neutral-900 uppercase tracking-wider">Pilih Paket Baru</h2>
+              <h2 className="font-mono text-[10px] font-bold text-[var(--color-ink)] uppercase tracking-wider">Pilih Paket Baru</h2>
             </div>
 
             <div className="p-6">
@@ -334,25 +334,25 @@ export default function UpgradePackagePage() {
                         key={pkg.id}
                         onClick={() => !isDisabled && setSelectedPackage(pkg.id)}
                         disabled={isDisabled}
-                        className={`relative text-left p-5 rounded-2xl border-2 transition-all duration-200 ${
+                        className={`relative text-left p-5 rounded-[var(--radius-lg)] border-2 transition-all duration-200 ${
                           isSelected
-                            ? 'border-red-600 bg-red-50 shadow-md shadow-red-100'
+                            ? 'border-[var(--color-focus)] bg-[var(--color-focus)]/5'
                             : isDisabled
-                              ? 'border-neutral-100 bg-neutral-50 opacity-60 cursor-not-allowed'
-                              : 'border-neutral-200 bg-white hover:border-red-300 hover:shadow-sm'
+                              ? 'border-[var(--color-rule)] bg-[var(--color-paper-2)] opacity-60 cursor-not-allowed'
+                              : 'border-[var(--color-rule)] bg-[var(--color-paper)] hover:border-[var(--color-focus)]/50 hover:bg-[var(--color-paper-3)]'
                         }`}
                       >
                         {isSelected && (
-                          <div className="absolute top-4 right-4 text-red-600 bg-white rounded-full">
-                            <CheckCircle className="w-6 h-6" />
+                          <div className="absolute top-4 right-4 text-[var(--color-focus)]">
+                            <CheckCircle className="w-5 h-5" />
                           </div>
                         )}
-                        <h3 className={`font-black text-base mb-1 ${isSelected ? 'text-red-900' : 'text-neutral-900'}`}>{pkg.name}</h3>
-                        <p className="text-xs font-medium text-neutral-500 mb-4">
+                        <h3 className={`font-display text-base font-medium mb-1 ${isSelected ? 'text-[var(--color-focus)]' : 'text-[var(--color-ink)]'}`}>{pkg.name}</h3>
+                        <p className="text-xs font-body text-[var(--color-ink-2)] mb-4">
                           {pkg.description || `${formatSpeed(pkg.downloadSpeed)} Unlimited`}
                         </p>
-                        <p className="text-lg font-black text-red-600">
-                          {formatCurrency(pkg.price)}<span className="text-xs font-semibold text-neutral-500">/bln</span>
+                        <p className="text-lg font-display font-medium text-[var(--color-ink)]">
+                          {formatCurrency(pkg.price)}<span className="text-xs font-mono text-[var(--color-muted)] font-normal">/bln</span>
                         </p>
                       </button>
                     );
@@ -363,69 +363,69 @@ export default function UpgradePackagePage() {
 
           {/* Calculation Breakdown Preview */}
           {selectedPackage && (
-            <div className="bg-neutral-900 rounded-2xl shadow-xl overflow-hidden text-white border border-neutral-800">
-              <div className="px-6 py-4 border-b border-neutral-800 flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase tracking-widest text-neutral-400">
+            <div className="bg-[var(--color-paper-2)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm overflow-hidden text-[var(--color-ink)]">
+              <div className="px-6 py-4 border-b border-[var(--color-rule)] flex items-center justify-between">
+                <h3 className="font-mono text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider">
                   Estimasi Biaya Prorata
                 </h3>
               </div>
 
               <div className="p-6">
                 {loadingCalc ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-neutral-400">
-                    <Loader2 className="w-8 h-8 animate-spin text-red-500 mb-3" />
-                    <span className="text-sm font-medium">Menghitung rincian biaya...</span>
+                  <div className="flex flex-col items-center justify-center py-8 text-[var(--color-ink-2)]">
+                    <Loader2 className="w-8 h-8 animate-spin text-[var(--color-focus)] mb-3" />
+                    <span className="text-sm font-body">Menghitung rincian biaya...</span>
                   </div>
                 ) : calculation ? (
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-neutral-400">Sisa Masa Aktif Paket Lama</span>
-                      <span className="font-bold">{calculation.remainingDays} Hari</span>
+                    <div className="flex justify-between items-center text-sm font-body">
+                      <span className="text-[var(--color-ink-2)]">Sisa Masa Aktif Paket Lama</span>
+                      <span className="font-medium text-[var(--color-ink)]">{calculation.remainingDays} Hari</span>
                     </div>
 
                     {calculation.isProrated && (
                       <>
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-neutral-400">Sisa Saldo Paket Lama (Potongan)</span>
-                          <span className="font-bold text-emerald-400">-{formatCurrency(calculation.oldUnusedValue)}</span>
+                        <div className="flex justify-between items-center text-sm font-body">
+                          <span className="text-[var(--color-ink-2)]">Sisa Saldo Paket Lama (Potongan)</span>
+                          <span className="font-medium text-[var(--color-success)]">-{formatCurrency(calculation.oldUnusedValue)}</span>
                         </div>
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-neutral-400">Biaya Paket Baru ({calculation.remainingDays} Hari)</span>
-                          <span className="font-bold">{formatCurrency(calculation.newProratedCost)}</span>
+                        <div className="flex justify-between items-center text-sm font-body">
+                          <span className="text-[var(--color-ink-2)]">Biaya Paket Baru ({calculation.remainingDays} Hari)</span>
+                          <span className="font-medium text-[var(--color-ink)]">{formatCurrency(calculation.newProratedCost)}</span>
                         </div>
                       </>
                     )}
 
-                    <div className="flex justify-between items-center text-sm border-t border-neutral-800 pt-4">
-                      <span className="text-neutral-400">Harga Dasar Penyesuaian</span>
-                      <span className="font-bold">{formatCurrency(calculation.baseAmount)}</span>
+                    <div className="flex justify-between items-center text-sm font-body border-t border-[var(--color-rule)] pt-4">
+                      <span className="text-[var(--color-ink-2)]">Harga Dasar Penyesuaian</span>
+                      <span className="font-medium text-[var(--color-ink)]">{formatCurrency(calculation.baseAmount)}</span>
                     </div>
 
                     {calculation.taxAmount > 0 && (
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-neutral-400">PPN ({calculation.taxRate}%)</span>
-                        <span className="font-bold">{formatCurrency(calculation.taxAmount)}</span>
+                      <div className="flex justify-between items-center text-sm font-body">
+                        <span className="text-[var(--color-ink-2)]">PPN ({calculation.taxRate}%)</span>
+                        <span className="font-medium text-[var(--color-ink)]">{formatCurrency(calculation.taxAmount)}</span>
                       </div>
                     )}
 
-                    <div className="flex justify-between items-center font-black text-xl border-t border-neutral-800 pt-4 mt-2">
+                    <div className="flex justify-between items-center font-display text-xl font-medium border-t border-[var(--color-rule)] pt-4 mt-2">
                       <span>Estimasi Tagihan Baru</span>
-                      <span className="text-red-500">{formatCurrency(calculation.totalAmount)}</span>
+                      <span className="text-[var(--color-focus)]">{formatCurrency(calculation.totalAmount)}</span>
                     </div>
                     
-                    <p className="text-[10px] text-neutral-500 text-center pt-2">
+                    <p className="font-mono text-[10px] text-[var(--color-muted)] text-center pt-2 mt-4">
                       *Ini hanya estimasi. Tagihan akhir akan dibuat setelah Admin menyetujui pengajuan Anda.
                     </p>
 
                     <button
                       onClick={handleUpgrade}
                       disabled={upgrading || !!pendingRequest}
-                      className="w-full mt-6 bg-red-600 hover:bg-red-700 disabled:bg-neutral-800 disabled:text-neutral-500 text-white font-black py-4 rounded-xl flex items-center justify-center transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] hover:shadow-[0_0_30px_rgba(220,38,38,0.5)] disabled:shadow-none"
+                      className="w-full mt-6 bg-[var(--color-accent)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-[var(--color-accent-ink)] py-4 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider flex items-center justify-center transition-opacity"
                     >
                       {upgrading ? (
-                        <><Loader2 className="w-5 h-5 animate-spin mr-2" />Memproses Pengajuan...</>
+                        <><Loader2 className="w-4 h-4 animate-spin mr-2" />Memproses Pengajuan...</>
                       ) : (
-                        <><Send className="w-5 h-5 mr-2" />AJUKAN GANTI PAKET</>
+                        <><Send className="w-4 h-4 mr-2" />AJUKAN GANTI PAKET</>
                       )}
                     </button>
                   </div>
@@ -435,6 +435,6 @@ export default function UpgradePackagePage() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

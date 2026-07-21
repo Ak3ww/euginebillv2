@@ -150,7 +150,7 @@ export default function CustomerDashboard() {
   const isExpired = expiredDate < nowWIB();
   const daysLeft = Math.ceil((expiredDate.getTime() - nowWIB().getTime()) / (1000 * 60 * 60 * 24));
   const activeUnpaidInvoices = invoices.filter(inv => inv.status === 'PENDING' || inv.status === 'OVERDUE');
-  const pendingInvoice = activeUnpaidInvoices[0];
+  const latestInvoice = invoices[0];
 
     return (
     <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6">
@@ -220,7 +220,7 @@ export default function CustomerDashboard() {
       <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-5">
         
         {/* Sub/Expiry Module */}
-        <div className={`col-span-4 ${!pendingInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-sm`}>
+        <div className={`col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-sm`}>
           <div>
             <h3 className="font-mono text-[10px] text-[var(--color-muted)] font-bold uppercase tracking-wider mb-2">Paket Langganan</h3>
             <div className="text-3xl font-display font-medium text-[var(--color-focus)]">{user.profile?.name || 'Loading...'}</div>
@@ -239,26 +239,42 @@ export default function CustomerDashboard() {
           </div>
         </div>
 
-        {/* Pending Bill Module */}
-        {pendingInvoice && (
-          <div className="col-span-4 md:col-span-4 lg:col-span-4 bg-[var(--color-paper)] border border-[var(--color-rule)] border-l-4 border-l-[var(--color-error)] rounded-[var(--radius-lg)] p-6 relative overflow-hidden shadow-sm flex flex-col justify-between">
+        {/* Latest Invoice Module */}
+        {latestInvoice && (
+          <div className={`col-span-4 md:col-span-4 lg:col-span-4 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 relative overflow-hidden shadow-sm flex flex-col justify-between ${latestInvoice.status === 'PENDING' || latestInvoice.status === 'OVERDUE' ? 'border-l-4 border-l-[var(--color-error)]' : 'border-l-4 border-l-[var(--color-success)]'}`}>
             <div className="absolute top-0 right-0 p-4 opacity-5">
-              <span className="material-symbols-outlined text-9xl text-[var(--color-error)]" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
+              <span className={`material-symbols-outlined text-9xl ${latestInvoice.status === 'PENDING' || latestInvoice.status === 'OVERDUE' ? 'text-[var(--color-error)]' : 'text-[var(--color-success)]'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                {latestInvoice.status === 'PENDING' || latestInvoice.status === 'OVERDUE' ? 'warning' : 'check_circle'}
+              </span>
             </div>
             <div className="relative z-10 flex flex-col h-full justify-between">
               <div>
-                <h3 className="font-mono text-[10px] text-[var(--color-error)] font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">receipt_long</span> Tagihan Belum Dibayar
+                <h3 className={`font-mono text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center gap-1 ${latestInvoice.status === 'PENDING' || latestInvoice.status === 'OVERDUE' ? 'text-[var(--color-error)]' : 'text-[var(--color-success)]'}`}>
+                  <span className="material-symbols-outlined text-[14px]">receipt_long</span> 
+                  {latestInvoice.status === 'PENDING' || latestInvoice.status === 'OVERDUE' ? 'Tagihan Belum Dibayar' : 'Tagihan Terakhir (Lunas)'}
                 </h3>
-                <p className="font-mono text-sm text-[var(--color-ink-2)]">{pendingInvoice.invoiceNumber}</p>
-                <div className="text-3xl font-display font-medium text-[var(--color-ink)] mt-4">{formatCurrency(pendingInvoice.amount)}</div>
+                <p className="font-mono text-sm text-[var(--color-ink-2)]">{latestInvoice.invoiceNumber}</p>
+                <div className="text-3xl font-display font-medium text-[var(--color-ink)] mt-4">{formatCurrency(latestInvoice.amount)}</div>
+                <div className="font-mono text-[10px] text-[var(--color-ink-2)] mt-2">
+                  {latestInvoice.status === 'PAID' ? `Dibayar pada: ${new Date(latestInvoice.paidAt!).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })}` : `Jatuh Tempo: ${new Date(latestInvoice.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })}`}
+                </div>
               </div>
-              <button 
-                onClick={() => router.push(`/pay/${pendingInvoice.paymentToken}`)}
-                className="mt-6 w-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 transition-opacity py-3 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider flex justify-center items-center gap-2"
-              >
-                Bayar Sekarang <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-              </button>
+              <div className="flex gap-2 mt-6">
+                <button 
+                  onClick={() => router.push(`/invoice/${latestInvoice.invoiceNumber}`)}
+                  className="w-full bg-[var(--color-paper-2)] text-[var(--color-ink)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors py-3 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider flex justify-center items-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[16px]">visibility</span> Lihat
+                </button>
+                {(latestInvoice.status === 'PENDING' || latestInvoice.status === 'OVERDUE') && (
+                  <button 
+                    onClick={() => router.push(`/pay/${latestInvoice.paymentToken}`)}
+                    className="w-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 transition-opacity py-3 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider flex justify-center items-center gap-2"
+                  >
+                    Bayar
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
