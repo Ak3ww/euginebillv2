@@ -92,21 +92,70 @@ export default function CustomerInvoicesPage() {
   const totalOutstanding = invoices.filter(inv => inv.status === 'PENDING' || inv.status === 'OVERDUE').reduce((sum, inv) => sum + inv.amount, 0);
   const overdueCount = invoices.filter(inv => inv.status === 'OVERDUE').length;
 
-  /* ─── Direct PDF Download ─── */
-  const downloadPdf = (inv: Invoice) => {
+  /* ─── Exact Web Invoice PDF Download ─── */
+  const downloadPdf = async (inv: Invoice) => {
     setDownloadingId(inv.id);
     try {
-      const link = document.createElement('a');
-      link.href = `/invoice/${inv.invoiceNumber}/pdf`;
-      link.download = `Invoice-${inv.invoiceNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      let iframe: HTMLIFrameElement | null = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.top = '0';
+      iframe.style.left = '0';
+      iframe.style.width = '800px';
+      iframe.style.height = '1200px';
+      iframe.style.opacity = '0.01';
+      iframe.style.pointerEvents = 'none';
+      iframe.style.zIndex = '-9999';
+      iframe.src = `/invoice/${inv.invoiceNumber}`;
+      document.body.appendChild(iframe);
+
+      await new Promise((resolve) => {
+        iframe!.onload = resolve;
+      });
+
+      // Wait 1000ms for Tailwind styles, logo images & QR codes to load
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      const element = iframeDoc?.getElementById('invoice-capture-area');
+
+      if (!element) {
+        const link = document.createElement('a');
+        link.href = `/invoice/${inv.invoiceNumber}/pdf`;
+        link.download = `Invoice-${inv.invoiceNumber}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast('success', 'PDF diunduh', `${inv.invoiceNumber}.pdf`);
+        return;
+      }
+
+      // @ts-ignore
+      const html2pdf = (await import('html2pdf.js')).default;
+      const opt = {
+        margin: [5, 5, 5, 5],
+        filename: `Invoice-${inv.invoiceNumber}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true, 
+          allowTaint: true,
+          logging: false,
+          windowWidth: 800
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+
+      if (iframe && document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
       toast('success', 'PDF diunduh', `${inv.invoiceNumber}.pdf`);
-    } catch {
+    } catch (err) {
+      console.error('PDF error:', err);
       toast('error', 'Gagal mengunduh PDF', 'Silakan coba lagi.');
     } finally {
-      setTimeout(() => setDownloadingId(null), 1000);
+      setDownloadingId(null);
     }
   };
 
