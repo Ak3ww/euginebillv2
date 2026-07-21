@@ -28,10 +28,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
 
   if (!rawInvoice) notFound();
 
-  // Jika invoice sudah lunas, langsung arahkan ke tampilan cetak (agar seragam dengan cetak admin)
-  if (rawInvoice.status === 'PAID' || rawInvoice.paidAt) {
-    redirect(`/invoice/${rawInvoice.invoiceNumber}/print`);
-  }
+  // Redirect removed, both PAID and UNPAID show the same web layout
 
   const companyRaw = await prisma.company.findFirst();
 
@@ -304,6 +301,11 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
             <Printer className="w-4 h-4" />
             Cetak
           </Link>
+          
+          <a href={`/invoice/${inv.invoice.number}/pdf`} download={`Invoice-${inv.invoice.number}.pdf`} className="flex-1 max-w-[150px] bg-[var(--color-paper-2)] text-[var(--color-ink)] border border-[var(--color-rule)] font-bold text-[13px] py-3 rounded-xl hover:bg-[var(--color-paper)] transition-colors flex items-center justify-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Simpan PDF
+          </a>
           
           {inv.invoice.status !== 'PAID' && (inv.paymentToken || inv.paymentLink) && (
             <Link

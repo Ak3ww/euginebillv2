@@ -108,59 +108,74 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
     setNotifHistory(prev => prev.filter(n => n.id !== id));
   };
 
+  const isInitialPollRef = useRef(true);
+  
   const poll = useCallback(async () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('customer_token') : null;
     if (!token) return;
     try {
-      const url = notifHistory.length > 0 && lastCheckedRef.current
-        ? `/api/customer/notifications?since=${encodeURIComponent(lastCheckedRef.current)}`
-        : `/api/customer/notifications`;
-
+      // Use lastCheckedRef unconditionally to avoid spam, unless we really want history.
+      // If we just want history on fresh login, we can do it once.
+      let url = `/api/customer/notifications?since=${encodeURIComponent(lastCheckedRef.current)}`;
+      if (isInitialPollRef.current && notifHistory.length === 0) {
+          url = `/api/customer/notifications`; // fetch recent on first load if no history
+      }
+      
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return;
       const data = await res.json();
+      
+      const isInitial = isInitialPollRef.current;
+      isInitialPollRef.current = false;
+      
       if (!data.success || !Array.isArray(data.events) || data.events.length === 0) return;
 
       lastCheckedRef.current = new Date().toISOString();
       localStorage.setItem('customer_notif_last_checked', lastCheckedRef.current);
-      const events: NotifEvent[] = data.events;
+      const events = data.events;
 
-      // Dedup: filter out events whose IDs already triggered a toast in this session
+      // Dedup
       const newEvents = events.filter(e => !shownEventIdsRef.current.has(e.id));
       if (newEvents.length === 0) return;
 
       setUnreadCount(prev => prev + newEvents.length);
       setNotifHistory(prev => {
-        // Also dedup history by id
         const existingIds = new Set(prev.map(p => p.id));
         const fresh = newEvents.filter(e => !existingIds.has(e.id));
         return [...fresh, ...prev].slice(0, 20);
       });
 
-      // Trigger auto-refresh on all customer pages that are listening
       window.dispatchEvent(new CustomEvent('customer-data-refresh'));
 
-      for (const event of newEvents) {
-        shownEventIdsRef.current.add(event.id);
-        const fire = addToastRef.current;
-        if (event.type === 'payment_success') {
-          fire({ type: 'success', title: event.title, description: event.message, duration: 8000 });
-        } else if (event.type === 'payment_rejected') {
-          fire({ type: 'error', title: event.title, description: event.message, duration: 12000 });
-        } else if (event.type === 'package_changed') {
-          fire({ type: 'success', title: event.title, description: event.message, duration: 10000 });
-        } else if (event.type === 'ticket_reply') {
-          fire({ type: 'info', title: event.title, description: event.message, duration: 10000 });
-        } else if (event.type === 'ticket_resolved') {
-          fire({ type: 'success', title: event.title, description: event.message, duration: 10000 });
-        } else {
-          fire({ type: 'info', title: event.title, description: event.message, duration: 7000 });
+      // Do NOT fire toasts on the initial load (prevent spam on reload)
+      if (!isInitial) {
+        for (const event of newEvents) {
+          shownEventIdsRef.current.add(event.id);
+          const fire = addToastRef.current;
+          if (event.type === 'payment_success') {
+            fire({ type: 'success', title: event.title, description: event.message, duration: 8000 });
+          } else if (event.type === 'payment_rejected') {
+            fire({ type: 'error', title: event.title, description: event.message, duration: 12000 });
+          } else if (event.type === 'package_changed') {
+            fire({ type: 'success', title: event.title, description: event.message, duration: 10000 });
+          } else if (event.type === 'ticket_reply') {
+            fire({ type: 'info', title: event.title, description: event.message, duration: 10000 });
+          } else if (event.type === 'ticket_resolved') {
+            fire({ type: 'success', title: event.title, description: event.message, duration: 10000 });
+          } else {
+            fire({ type: 'info', title: event.title, description: event.message, duration: 7000 });
+          }
         }
+      } else {
+         // Mark all as shown on initial load so they don't toast later
+         for (const event of newEvents) {
+            shownEventIdsRef.current.add(event.id);
+         }
       }
     } catch {
       // silently ignore
     }
-  }, []);
+  }, [notifHistory.length]);
 
   useEffect(() => {
     // Load from cache immediately to prevent logo flash / layout shift
@@ -273,16 +288,97 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         
+        
+        {/* Desktop Top Header */}
+        <header className="hidden md:flex w-full top-0 sticky bg-[var(--color-paper)]/80 backdrop-blur-md border-b border-[var(--color-rule)] justify-between items-center px-8 h-16 z-30">
+          <div className="text-sm font-medium text-[var(--color-muted)]">
+            Selamat datang, <strong className="text-[var(--color-ink)]">{authenticated ? 'Pelanggan' : ''}</strong>
+          </div>
+          <div className="flex items-center gap-4 relative">
+            <button onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} className="text-[var(--color-muted)] transition-colors duration-200 hover:text-[var(--color-focus)] p-2 rounded-full hover:bg-[var(--color-focus)]/10 relative">
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)]"></span>}
+            </button>
+            
+          {bellOpen && (
+            <div className="absolute top-12 right-0 w-80 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
+              <div className="p-3 border-b border-[var(--color-rule)] flex justify-between items-center bg-[var(--color-paper-2)]">
+                <span className="font-bold text-sm">Notifikasi</span>
+                {notifHistory.length > 0 && (
+                  <button onClick={handleClearAllNotifications} className="text-xs text-[var(--color-focus)] hover:underline">Bersihkan</button>
+                )}
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {notifHistory.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-[var(--color-muted)] flex flex-col items-center gap-2">
+                    <Bell className="w-8 h-8 opacity-20" />
+                    Belum ada notifikasi
+                  </div>
+                ) : (
+                  notifHistory.map(n => (
+                    <div key={n.id} className="p-3 border-b border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors relative group">
+                      <div className="text-xs font-bold mb-1">{n.title}</div>
+                      <div className="text-[11px] text-[var(--color-ink-2)] leading-relaxed">{n.message}</div>
+                      <div className="text-[9px] text-[var(--color-muted)] mt-1">{new Date(n.timestamp).toLocaleString('id-ID')}</div>
+                      <button onClick={() => handleDeleteNotification(n.id)} className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-50 p-1 rounded transition-all">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+            <button onClick={toggleTheme} className="text-[var(--color-muted)] p-2 rounded-full hover:bg-[var(--color-paper-3)] transition-colors">
+              {isDark ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5" />}
+            </button>
+          </div>
+        </header>
+
         {/* Mobile Top App Bar */}
         <header className="md:hidden w-full top-0 sticky bg-[var(--color-paper)] border-b border-[var(--color-rule)] flex justify-between items-center px-[var(--space-md)] h-16 z-40">
           <button onClick={() => router.push('/customer/profile')} className="w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] flex items-center justify-center font-bold text-sm">
             <User className="w-4 h-4" />
           </button>
           <h1 className="text-lg font-display font-bold text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
-          <button className="text-[var(--color-muted)] transition-colors duration-200 active:opacity-70 p-2 rounded-full hover:bg-[var(--color-paper-3)] relative">
+          <button onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} className="text-[var(--color-muted)] transition-colors duration-200 active:opacity-70 p-2 rounded-full hover:bg-[var(--color-paper-3)] relative">
+            
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)]"></span>}
+          
           </button>
+
+          {bellOpen && (
+            <div className="absolute top-12 right-0 w-80 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
+              <div className="p-3 border-b border-[var(--color-rule)] flex justify-between items-center bg-[var(--color-paper-2)]">
+                <span className="font-bold text-sm">Notifikasi</span>
+                {notifHistory.length > 0 && (
+                  <button onClick={handleClearAllNotifications} className="text-xs text-[var(--color-focus)] hover:underline">Bersihkan</button>
+                )}
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {notifHistory.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-[var(--color-muted)] flex flex-col items-center gap-2">
+                    <Bell className="w-8 h-8 opacity-20" />
+                    Belum ada notifikasi
+                  </div>
+                ) : (
+                  notifHistory.map(n => (
+                    <div key={n.id} className="p-3 border-b border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors relative group">
+                      <div className="text-xs font-bold mb-1">{n.title}</div>
+                      <div className="text-[11px] text-[var(--color-ink-2)] leading-relaxed">{n.message}</div>
+                      <div className="text-[9px] text-[var(--color-muted)] mt-1">{new Date(n.timestamp).toLocaleString('id-ID')}</div>
+                      <button onClick={() => handleDeleteNotification(n.id)} className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-50 p-1 rounded transition-all">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
         </header>
 
         <div className="flex-1 pb-16 md:pb-0">

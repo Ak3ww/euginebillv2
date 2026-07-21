@@ -124,8 +124,13 @@ export default function CustomerDashboard() {
     try {
       const res = await fetch('/api/customer/invoices?limit=10', { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
-      if (data.success && data.invoices) {
-        setInvoices(data.invoices);
+      if (data.success && data.data && data.data.invoices) {
+        const raw = data.data.invoices;
+        const sorted = [
+          ...raw.filter((inv: any) => inv.status === 'PENDING' || inv.status === 'OVERDUE'),
+          ...raw.filter((inv: any) => inv.status !== 'PENDING' && inv.status !== 'OVERDUE'),
+        ];
+        setInvoices(sorted);
       }
     } catch (error) {
       console.error('Load invoices error:', error);
@@ -159,19 +164,26 @@ export default function CustomerDashboard() {
       <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-5">
         
         {/* Paket Langganan + Info Pelanggan Module */}
-        <div className={`relative overflow-hidden col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} bg-gradient-to-br from-[var(--color-focus)]/10 to-[var(--color-paper)] border border-[var(--color-rule)] border-l-4 border-l-[var(--color-focus)] rounded-[var(--radius-lg)] p-6 shadow-sm`}>
-          {/* Watermark */}
-          <span className="material-symbols-outlined text-[120px] text-[var(--color-focus)]/8 absolute -bottom-4 -right-4 select-none">router</span>
+        <div 
+          className={`relative overflow-hidden bg-cover bg-center bg-no-repeat group col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} border border-[var(--color-rule)] border-l-4 border-l-[var(--color-focus)] rounded-[var(--radius-lg)] p-6 shadow-sm transition-transform duration-500`}
+          style={{ backgroundImage: 'url(/images/customer_card_bg.png)' }}
+        >
+          {/* Glassmorphism overlays */}
+          <div className="absolute inset-0 bg-gradient-to-br from-black/60 to-[var(--color-focus)]/70 mix-blend-multiply"></div>
+          <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent"></div>
           
+          {/* Card Shine Effect */}
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-1000 bg-gradient-to-tr from-transparent via-white to-transparent -translate-x-full group-hover:translate-x-full ease-in-out"></div>
+
           {/* Top row: ID + Status */}
-          <div className="flex items-center justify-between mb-4">
-            <span className="font-mono text-[10px] text-[var(--color-muted)] uppercase tracking-widest">
-              ID: <span className="text-[var(--color-ink)] font-bold tracking-[0.2em]">{(user.customerId || user.username).toString()}</span>
+          <div className="relative z-10 flex items-center justify-between mb-4">
+            <span className="font-mono text-[10px] text-white/70 uppercase tracking-widest">
+              ID: <span className="text-white font-bold tracking-[0.2em] drop-shadow-md">{(user.customerId || user.username).toString()}</span>
             </span>
-            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border font-mono text-[10px] uppercase font-bold tracking-wider ${
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full backdrop-blur-md shadow-sm border border-white/20 font-mono text-[10px] uppercase font-bold tracking-wider ${
               user.status === 'ISOLATED' || isExpired 
-                ? 'bg-[var(--color-error)]/10 border-[var(--color-error)]/20 text-[var(--color-error)]' 
-                : 'bg-[var(--color-success)]/10 border-[var(--color-success)]/20 text-[var(--color-success)]'
+                ? 'bg-red-500/40 text-red-100' 
+                : 'bg-emerald-500/40 text-emerald-100'
             }`}>
               <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
               {user.status === 'ISOLATED' || isExpired ? 'Terisolir' : 'Aktif'}
@@ -179,26 +191,26 @@ export default function CustomerDashboard() {
           </div>
 
           {/* Customer Name */}
-          <div className="font-display text-2xl md:text-3xl font-medium text-[var(--color-ink)] truncate mb-5">
+          <div className="relative z-10 font-display text-2xl md:text-3xl font-medium text-white tracking-wider drop-shadow-sm truncate mb-5">
             {user.name}
           </div>
 
           {/* Bottom row: Package + Due Date */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <h3 className="font-mono text-[10px] text-[var(--color-muted)] font-bold uppercase tracking-wider mb-1">Paket Langganan</h3>
-              <div className="text-lg font-display font-medium text-[var(--color-focus)]">{user.profile?.name || '-'}</div>
-              <div className="text-xs font-body text-[var(--color-ink-2)] mt-1 flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[14px] text-[var(--color-focus)]">speed</span>
+              <h3 className="font-mono text-[10px] text-white/70 font-bold uppercase tracking-wider mb-1">Paket Langganan</h3>
+              <div className="text-lg font-display font-medium text-white drop-shadow-sm">{user.profile?.name || '-'}</div>
+              <div className="text-xs font-body text-white/80 mt-1 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px]">speed</span>
                 Hingga {user.profile?.downloadSpeed || 0} Mbps
               </div>
             </div>
-            <div className="md:w-px md:h-12 bg-[var(--color-rule)] hidden md:block self-stretch"></div>
+            <div className="md:w-px md:h-12 bg-white/20 hidden md:block self-stretch"></div>
             <div>
-              <h3 className="font-mono text-[10px] text-[var(--color-muted)] font-bold uppercase tracking-wider mb-1">Jatuh Tempo</h3>
-              <div className="text-lg font-display font-medium text-[var(--color-ink)]">{formattedDueDate}</div>
-              <div className={`inline-block mt-1.5 px-2 py-0.5 rounded font-mono text-[10px] uppercase font-bold tracking-wider border border-[var(--color-rule)] ${
-                isExpired ? 'text-[var(--color-error)] bg-[var(--color-error)]/5' : 'text-[var(--color-warning)] bg-[var(--color-warning)]/5'
+              <h3 className="font-mono text-[10px] text-white/70 font-bold uppercase tracking-wider mb-1">Jatuh Tempo</h3>
+              <div className="text-lg font-display font-medium text-white drop-shadow-sm">{formattedDueDate}</div>
+              <div className={`inline-block mt-1.5 px-2 py-0.5 rounded font-mono text-[10px] uppercase font-bold tracking-wider border border-white/20 backdrop-blur-sm ${
+                isExpired ? 'text-red-100 bg-red-500/40' : 'text-emerald-100 bg-emerald-500/40'
               }`}>
                 {isExpired ? 'Kedaluwarsa' : `Tersisa ${daysLeft} Hari`}
               </div>

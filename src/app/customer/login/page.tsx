@@ -151,6 +151,7 @@ export default function CustomerLoginPage() {
                 className="flex-1 px-4 py-3 text-sm bg-muted text-foreground placeholder:text-muted-foreground focus:bg-input focus:outline-none transition-colors"
                 placeholder="ID Pelanggan (UID)"
                 disabled={loading}
+                autoComplete="username"
               />
             </div>
 
@@ -166,6 +167,7 @@ export default function CustomerLoginPage() {
                 className="flex-1 px-4 py-3 text-sm bg-muted text-foreground placeholder:text-muted-foreground focus:bg-input focus:outline-none transition-colors"
                 placeholder="Password"
                 disabled={loading}
+                autoComplete="current-password"
               />
             </div>
 
