@@ -1,9 +1,10 @@
 import { prisma } from '@/server/db/client';
-import { notFound, redirect } from 'next/navigation';
-import { QRCodeSVG } from 'qrcode.react';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Printer, CreditCard } from 'lucide-react';
 import DownloadPdfButton from '@/components/DownloadPdfButton';
+import InvoiceTemplate from '@/components/InvoiceTemplate';
+
 export const metadata = {
   title: 'Invoice',
 };
@@ -27,8 +28,6 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   });
 
   if (!rawInvoice) notFound();
-
-  // Redirect removed, both PAID and UNPAID show the same web layout
 
   const companyRaw = await prisma.company.findFirst();
 
@@ -71,7 +70,6 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     status: rawInvoice.status,
   };
 
-  inv.paidVia = paidVia;
   inv.paymentLink = rawInvoice.paymentLink || (rawInvoice.paymentToken ? '/pay/' + rawInvoice.paymentToken : '');
   inv.paymentToken = rawInvoice.paymentToken || null;
 
@@ -102,8 +100,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   } else if (rawInvoice.type === 'TOPUP') {
     items.push({ description: 'Top Up Saldo', quantity: 1, price: rawInvoice.amount, total: rawInvoice.amount });
   } else if (rawInvoice.invoiceType === 'ADDON' && parsedFees.length > 0) {
-    // If it's an ADDON invoice with parsedFees, we don't push anything to items,
-    // so that we don't duplicate the additionalFees in the render below.
+    // If it's an ADDON invoice with parsedFees, we don't push anything to items
   } else {
     items.push({ 
       description: 'Langganan Internet (' + new Date(rawInvoice.dueDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) + ') - ' + (rawInvoice.user?.profile?.name || 'Paket Internet'), 
@@ -115,11 +112,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
 
   inv.items = items;
   inv.additionalFees = parsedFees;
-
   inv.amountFormatted = formatCurrency(rawInvoice.amount);
-  const fmtCurr = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
-
-import InvoiceTemplate from '@/components/InvoiceTemplate';
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8 pb-32 flex justify-center text-gray-900 font-sans text-[11px] leading-relaxed print:p-0 print:bg-white">
