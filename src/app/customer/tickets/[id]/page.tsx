@@ -202,7 +202,7 @@ export default function TicketDetailPage() {
   const isClosed = ticket.status === 'CLOSED';
 
   return (
-    <div className="p-4 lg:p-8 max-w-4xl mx-auto space-y-6 animate-in fade-in duration-700">
+    <div className="max-w-4xl mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 space-y-6 animate-in fade-in duration-700">
       {/* Header */}
       <div className="flex items-center gap-4 pb-4 border-b border-rule">
         <Link

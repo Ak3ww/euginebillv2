@@ -199,7 +199,7 @@ export default function CustomerProfilePage() {
   const isPhoneChanged = editPhone.trim() !== (customer.phone || '');
 
   return (
-    <main className="flex-1 overflow-y-auto px-margin-mobile md:px-margin-desktop py-8 bg-surface w-full">
+    <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 min-h-screen">
       <div className="max-w-[800px] mx-auto space-y-bento-gap">
         
         {/* Page Title */}
