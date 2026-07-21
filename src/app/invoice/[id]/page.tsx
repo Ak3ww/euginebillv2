@@ -125,7 +125,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
       <style dangerouslySetInnerHTML={{ __html: '@media print { @page { size: A4; margin: 10mm; } .no-print { display: none !important; } }' }} />
 
       <div id="invoice-capture-area" className="w-full max-w-3xl bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden flex flex-col relative h-fit print:w-[210mm] print:shadow-none print:border-none print:rounded-none print:bg-white">
-        <div className="bg-gradient-to-r from-[var(--color-focus)] to-[var(--color-accent)] p-6 print:hidden" />
+        <div className="bg-[var(--color-focus)] p-6 print:hidden border-b border-[var(--color-rule)]" />
         
         <div className="p-6 sm:p-8 print:p-0 flex-1 mt-4 print:mt-0 relative">
           {inv.company.logo && (

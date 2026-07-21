@@ -54,6 +54,7 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
   // null = not yet checked (SSR), true/false after client mounts
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [customerName, setCustomerName] = useState('Pelanggan');
   const [notifHistory, setNotifHistory] = useState<NotifEvent[]>([]);
   const [now, setNow] = useState<Date | null>(null);
   // Default: look back 24h so events that happened before page load are caught
@@ -234,6 +235,10 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setAuthenticated(!!localStorage.getItem('customer_token'));
+    try {
+      const u = JSON.parse(localStorage.getItem('customer_user') || '{}');
+      if (u.name) setCustomerName(u.name);
+    } catch { /* ignore */ }
   }, [pathname]);
 
   const isActive = (href: string) => {
@@ -293,16 +298,23 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
         {/* Desktop Top Header */}
         <header className="hidden md:flex w-full top-0 sticky bg-[var(--color-paper)]/80 backdrop-blur-md border-b border-[var(--color-rule)] justify-between items-center px-8 h-16 z-30">
           <div className="text-sm font-medium text-[var(--color-muted)]">
-            Selamat datang, <strong className="text-[var(--color-ink)]">{authenticated ? 'Pelanggan' : ''}</strong>
+            Selamat datang, <strong className="text-[var(--color-ink)]">{authenticated ? customerName : ''}</strong>
           </div>
-          <div className="flex items-center gap-4 relative">
-            <button onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} className="text-[var(--color-muted)] transition-colors duration-200 hover:text-[var(--color-focus)] p-2 rounded-full hover:bg-[var(--color-focus)]/10 relative">
+          <div className="flex items-center gap-3">
+            <button onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} className="p-2 text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] rounded-full transition-colors relative">
               <Bell className="w-5 h-5" />
-              {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)]"></span>}
+              {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--color-error)] rounded-full animate-pulse border border-white"></span>}
             </button>
-            
+            <div className="w-7 h-7 rounded-full bg-[var(--color-paper-3)] border border-[var(--color-rule)] flex items-center justify-center text-[var(--color-ink)] font-bold text-xs">
+              {authenticated ? customerName.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <button onClick={toggleTheme} className="text-[var(--color-muted)] p-2 rounded-full hover:bg-[var(--color-paper-3)] transition-colors">
+              {isDark ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5" />}
+            </button>
+          </div>
+          
           {bellOpen && (
-            <div className="absolute top-12 right-0 w-80 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
+            <div className="absolute top-16 right-8 w-80 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
               <div className="p-3 border-b border-[var(--color-rule)] flex justify-between items-center bg-[var(--color-paper-2)]">
                 <span className="font-bold text-sm">Notifikasi</span>
                 {notifHistory.length > 0 && (
@@ -330,18 +342,15 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           )}
-
-            <button onClick={toggleTheme} className="text-[var(--color-muted)] p-2 rounded-full hover:bg-[var(--color-paper-3)] transition-colors">
-              {isDark ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5" />}
-            </button>
-          </div>
         </header>
 
         {/* Mobile Top App Bar */}
         <header className="md:hidden w-full top-0 sticky bg-[var(--color-paper)] border-b border-[var(--color-rule)] flex justify-between items-center px-[var(--space-md)] h-16 z-40">
-          <button onClick={() => router.push('/customer/profile')} className="w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] flex items-center justify-center font-bold text-sm">
-            <User className="w-4 h-4" />
-          </button>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[var(--color-paper-3)] border border-[var(--color-rule)] flex items-center justify-center text-[var(--color-ink)] font-bold text-sm">
+                {authenticated ? customerName.charAt(0).toUpperCase() : 'U'}
+              </div>
+            </div>
           <h1 className="text-lg font-display font-bold text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
           <button onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} className="text-[var(--color-muted)] transition-colors duration-200 active:opacity-70 p-2 rounded-full hover:bg-[var(--color-paper-3)] relative">
             

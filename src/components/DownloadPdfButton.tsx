@@ -9,8 +9,8 @@ export default function DownloadPdfButton({ invoiceNumber }: { invoiceNumber: st
   const handleDownload = async () => {
     try {
       setIsGenerating(true);
-      // Dynamically import html2pdf.js so it doesn't break Server Components
-      const html2pdf = (await import('html2pdf.js')).default;
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = html2pdfModule.default || html2pdfModule;
       
       const element = document.getElementById('invoice-capture-area');
       if (!element) throw new Error('Invoice container not found');
