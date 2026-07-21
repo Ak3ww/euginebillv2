@@ -39,6 +39,22 @@ export async function GET(
       return new NextResponse('Invoice not found', { status: 404 });
     }
 
+    // Attempt 100% exact PDF generation using Headless Chrome (Puppeteer)
+    try {
+      const { generateInvoicePdfFromUrl } = await import('@/lib/puppeteer-pdf');
+      const host = req.headers.get('host') || undefined;
+      const pdfBuffer = await generateInvoicePdfFromUrl(id, host);
+
+      return new NextResponse(pdfBuffer, {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="Invoice-${id}.pdf"`,
+        },
+      });
+    } catch (puppeteerErr) {
+      console.warn('[PDF Route] Puppeteer fallback to jsPDF:', puppeteerErr);
+    }
+
     const company = await prisma.company.findFirst();
 
     const isPaid = invoice.status === 'PAID';
