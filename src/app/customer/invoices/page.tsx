@@ -89,6 +89,13 @@ export default function CustomerInvoicesPage() {
 
   return (
     <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6">
+      <button 
+        onClick={() => router.push('/customer')}
+        className="flex items-center gap-1.5 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors font-mono text-[10px] uppercase tracking-wider font-bold mb-6"
+      >
+        <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+        Kembali
+      </button>
       {/* Header & Filters */}
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
@@ -139,11 +146,6 @@ export default function CustomerInvoicesPage() {
                 {overdueCount} Invoices Overdue
               </p>
             )}
-          </div>
-          <div className="mt-6">
-            <button className="w-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 transition-opacity py-3 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider">
-              Bayar Semua
-            </button>
           </div>
         </div>
 

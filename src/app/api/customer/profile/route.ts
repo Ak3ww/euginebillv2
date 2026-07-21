@@ -113,7 +113,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { phone, email, password, phoneOtp } = body;
+    const { phone, email, password, phoneOtp, passwordOtp } = body;
 
     // Validate
     if (phone !== undefined && phone !== '' && !/^[0-9+\-\s]{8,20}$/.test(phone)) {
@@ -122,13 +122,12 @@ export async function PATCH(request: NextRequest) {
     if (email !== undefined && email !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ success: false, message: 'Format email tidak valid' }, { status: 400 });
     }
-    if (password !== undefined && password !== '' && password.length < 6) {
-      return NextResponse.json({ success: false, message: 'Password minimal 6 karakter' }, { status: 400 });
+    if (password !== undefined && password !== '' && password.length < 8) {
+      return NextResponse.json({ success: false, message: 'Password minimal 8 karakter' }, { status: 400 });
     }
 
     const updateData: Record<string, string> = {};
     if (email !== undefined) updateData.email = email.trim();
-    if (password !== undefined && password !== '') updateData.portalPassword = password;
 
     const user = await prisma.pppoeUser.findUnique({ where: { id: session.userId } });
     if (!user) {
@@ -166,6 +165,36 @@ export async function PATCH(request: NextRequest) {
 
         updateData.phone = cleanNewPhoneWithCountry;
       }
+    }
+
+    if (password !== undefined && password !== '') {
+      if (!passwordOtp) {
+        return NextResponse.json({ success: false, message: 'Verifikasi OTP diperlukan untuk mengganti password' }, { status: 400 });
+      }
+      if (!user.phone) {
+        return NextResponse.json({ success: false, message: 'Nomor WhatsApp belum terdaftar' }, { status: 400 });
+      }
+
+      const otpRecord = await prisma.customerSession.findFirst({
+        where: {
+          userId: session.userId,
+          phone: user.phone,
+          otpCode: passwordOtp,
+          otpExpiry: { gte: new Date() },
+          verified: false
+        }
+      });
+
+      if (!otpRecord) {
+        return NextResponse.json({ success: false, message: 'Kode OTP salah atau kadaluarsa' }, { status: 400 });
+      }
+
+      await prisma.customerSession.update({
+        where: { id: otpRecord.id },
+        data: { verified: true }
+      });
+
+      updateData.portalPassword = password;
     }
 
     if (Object.keys(updateData).length === 0) {

@@ -20,29 +20,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 401 });
     }
 
-    const { newPhone } = await request.json();
-    if (!newPhone) {
-      return NextResponse.json({ success: false, error: 'Nomor WhatsApp baru wajib diisi' }, { status: 400 });
-    }
+    const { newPhone, purpose } = await request.json();
+    let cleanPhone = '';
 
-    // Clean phone number
-    let cleanPhone = newPhone.replace(/[^0-9]/g, '');
-    if (cleanPhone.startsWith('0')) {
-      cleanPhone = '62' + cleanPhone.substring(1);
-    }
-    if (!cleanPhone.startsWith('62')) {
-      cleanPhone = '62' + cleanPhone;
-    }
-
-    // Check if phone number is already registered to another user
-    const existing = await prisma.pppoeUser.findFirst({
-      where: {
-        phone: cleanPhone,
-        id: { not: session.userId }
+    if (purpose === 'password_change') {
+      const user = await prisma.pppoeUser.findUnique({ where: { id: session.userId } });
+      if (!user || !user.phone) {
+         return NextResponse.json({ success: false, error: 'Nomor WhatsApp belum terdaftar di akun ini' }, { status: 400 });
       }
-    });
-    if (existing) {
-      return NextResponse.json({ success: false, error: 'Nomor WhatsApp ini sudah digunakan oleh akun lain' }, { status: 400 });
+      cleanPhone = user.phone;
+    } else {
+      if (!newPhone) {
+        return NextResponse.json({ success: false, error: 'Nomor WhatsApp baru wajib diisi' }, { status: 400 });
+      }
+
+      // Clean phone number
+      cleanPhone = newPhone.replace(/[^0-9]/g, '');
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = '62' + cleanPhone.substring(1);
+      }
+      if (!cleanPhone.startsWith('62')) {
+        cleanPhone = '62' + cleanPhone;
+      }
+
+      // Check if phone number is already registered to another user
+      const existing = await prisma.pppoeUser.findFirst({
+        where: {
+          phone: cleanPhone,
+          id: { not: session.userId }
+        }
+      });
+      if (existing) {
+        return NextResponse.json({ success: false, error: 'Nomor WhatsApp ini sudah digunakan oleh akun lain' }, { status: 400 });
+      }
     }
 
     // Rate limiting: max 3 OTPs per 15 mins for this phone number
@@ -80,7 +90,9 @@ export async function POST(request: NextRequest) {
     const companyName = company?.name || 'EugineBill';
 
     // Send OTP via WhatsApp
-    const message = `Kode OTP Anda untuk perubahan nomor WhatsApp: ${otpCode}\n\nBerlaku selama 5 menit.\nJangan bagikan kode ini kepada siapapun.\n\n- ${companyName}`;
+    const message = purpose === 'password_change'
+      ? `Kode OTP Anda untuk reset password portal: ${otpCode}\n\nBerlaku selama 5 menit.\nJangan bagikan kode ini kepada siapapun.\n\n- ${companyName}`
+      : `Kode OTP Anda untuk perubahan nomor WhatsApp: ${otpCode}\n\nBerlaku selama 5 menit.\nJangan bagikan kode ini kepada siapapun.\n\n- ${companyName}`;
 
     await WhatsAppService.sendMessage({
       phone: cleanPhone,

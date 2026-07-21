@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { BankInstructions } from './BankInstructions';
-import '@/app/customer/customer.css';
 
 interface Invoice {
   id: string;
@@ -182,7 +181,7 @@ export default function PaymentPage() {
     };
     const icons: Record<string, React.ReactNode> = { PAID: <CheckCircle className="w-3.5 h-3.5" />, PENDING: <Clock className="w-3.5 h-3.5" />, OVERDUE: <AlertCircle className="w-3.5 h-3.5" /> };
     return (
-      <span className={`hallmark-badge ${styles[status] || 'bg-[var(--color-paper-2)] text-[var(--color-ink-2)]'}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${styles[status] || 'bg-[var(--color-paper-2)] text-[var(--color-ink-2)]'}`}>
         {icons[status]} {status === 'PAID' ? 'Lunas' : status === 'PENDING' ? 'Belum Bayar' : 'Terlambat'}
       </span>
     );
@@ -261,15 +260,15 @@ export default function PaymentPage() {
 
   if (error || !invoice) return (
     <div className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center p-4">
-      <div className="hallmark-card-elevated max-w-sm w-full text-center">
+      <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden max-w-sm w-full text-center">
         <div className="w-20 h-20 bg-[var(--color-error-bg)] text-[var(--color-error)] rounded-full flex items-center justify-center mx-auto mb-5 border border-[var(--color-error)]">
           <AlertCircle className="w-10 h-10" />
         </div>
         <h2 className="text-xl font-bold mb-2">Tagihan Tidak Ditemukan</h2>
         <p className="text-sm text-[var(--color-muted)] leading-relaxed">{error || 'Link pembayaran tidak valid atau sudah kadaluarsa.'}</p>
         <div className="mt-6 flex flex-col gap-3">
-          <button onClick={() => window.location.reload()} className="hallmark-button w-full">Muat Ulang</button>
-          <a href="/" className="hallmark-button-secondary w-full rounded-full py-2 flex items-center justify-center font-medium text-sm">Kembali ke Beranda</a>
+          <button onClick={() => window.location.reload()} className="bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 rounded-[var(--radius-sm)] py-3 font-bold transition-opacity w-full">Muat Ulang</button>
+          <a href="/" className="bg-[var(--color-paper-2)] text-[var(--color-ink)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors w-full rounded-full py-2 flex items-center justify-center font-medium text-sm">Kembali ke Beranda</a>
         </div>
       </div>
     </div>
@@ -277,7 +276,7 @@ export default function PaymentPage() {
 
   if (invoice.status === 'PAID') return (
     <div className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center p-4">
-      <div className="hallmark-card-elevated max-w-sm w-full text-center animate-in zoom-in-95 duration-500">
+      <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden max-w-sm w-full text-center animate-in zoom-in-95 duration-500">
         <div className="w-20 h-20 bg-[var(--color-success-bg)] rounded-full flex items-center justify-center mx-auto mb-5 border border-[var(--color-success)]">
           <CheckCircle2 className="w-10 h-10 text-[var(--color-success)]" />
         </div>
@@ -304,7 +303,7 @@ export default function PaymentPage() {
         <div className="flex flex-col gap-3">
           <button 
             onClick={() => router.push(`/invoice/${invoice.invoiceNumber}/print`)}
-            className="hallmark-button w-full flex items-center justify-center gap-2"
+            className="bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 rounded-[var(--radius-sm)] py-3 font-bold transition-opacity w-full flex items-center justify-center gap-2"
           >
             <FileText className="w-4 h-4" />
             Lihat / Cetak Bukti Pembayaran
@@ -316,7 +315,7 @@ export default function PaymentPage() {
   );
 
   return (
-    <main className="hallmark-container py-8 flex flex-col gap-[var(--space-lg)] min-h-screen pb-24">
+    <main className="max-w-2xl mx-auto px-4 py-8 min-h-screen pb-24 flex flex-col gap-6 py-8 flex flex-col gap-[var(--space-lg)] min-h-screen pb-24">
       
       {/* Secure Header */}
       <div className="flex flex-col items-center text-center mb-2">
@@ -335,8 +334,8 @@ export default function PaymentPage() {
       )}
 
       {/* Primary Invoice Card */}
-      <div className="hallmark-card-elevated overflow-hidden flex flex-col p-0">
-        <div className="bg-[var(--color-paper-3)] px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hairline-bottom">
+      <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden overflow-hidden flex flex-col p-0">
+        <div className="bg-[var(--color-paper-3)] px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-rule)]">
           <div>
             <p className="text-[var(--color-muted)] text-xs font-medium uppercase tracking-wider mb-1">Total Tagihan</p>
             <p className="text-3xl font-bold">{formatCurrency(invoice.amount)}</p>
@@ -406,8 +405,8 @@ export default function PaymentPage() {
       </div>
 
       {/* Payment Methods Section */}
-      <div className="hallmark-card-elevated overflow-hidden flex flex-col p-0">
-        <div className="px-6 sm:px-8 py-5 hairline-bottom bg-[var(--color-paper-3)] flex items-center gap-3">
+      <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden overflow-hidden flex flex-col p-0">
+        <div className="px-6 sm:px-8 py-5 border-b border-[var(--color-rule)] bg-[var(--color-paper-3)] flex items-center gap-3">
           <div className="w-8 h-8 bg-[var(--color-paper)] text-[var(--color-accent)] rounded-[var(--radius-md)] flex items-center justify-center border border-[var(--color-rule)] shadow-sm">
             <CreditCard className="w-4 h-4" />
           </div>
@@ -420,7 +419,7 @@ export default function PaymentPage() {
           <div className="border border-[var(--color-rule)] rounded-[var(--radius-lg)] overflow-hidden bg-[var(--color-paper-2)] shadow-sm">
             <button
               onClick={() => setShowManualForm(!showManualForm)}
-              className={`w-full flex items-center justify-between p-4 hover:bg-[var(--color-paper-3)] transition-colors ${showManualForm ? 'hairline-bottom bg-[var(--color-paper-3)]' : 'bg-[var(--color-paper-2)]'}`}
+              className={`w-full flex items-center justify-between p-4 hover:bg-[var(--color-paper-3)] transition-colors ${showManualForm ? 'border-b border-[var(--color-rule)] bg-[var(--color-paper-3)]' : 'bg-[var(--color-paper-2)]'}`}
             >
               <div className="flex items-center gap-4">
                 <div className={`w-12 h-12 rounded-[var(--radius-md)] flex items-center justify-center transition-colors ${showManualForm ? 'bg-[var(--color-accent)] text-[var(--color-accent-ink)] shadow-md' : 'bg-[var(--color-paper)] text-[var(--color-ink-2)] border border-[var(--color-rule)]'}`}>

@@ -44,25 +44,27 @@ export async function GET(request: NextRequest) {
     timestamp: string;
   }> = [];
 
-  // 0. Generic DB Notifications
-  const genericNotifs = await prisma.customerNotification.findMany({
-    where: {
-      userId: user.id,
-      createdAt: { gte: since }
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 20
-  });
-
-  for (const n of genericNotifs) {
-    events.push({
-      id: `gen-${n.id}`,
-      type: n.type || 'info', // generic info/success/warning
-      title: n.title,
-      message: n.message,
-      timestamp: n.createdAt.toISOString()
+  // 0. Generic DB Notifications (wrapped in try-catch in case table doesn't exist yet)
+  try {
+    const genericNotifs = await prisma.customerNotification.findMany({
+      where: {
+        userId: user.id,
+        createdAt: { gte: since }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20
     });
-  }
+
+    for (const n of genericNotifs) {
+      events.push({
+        id: `gen-${n.id}`,
+        type: n.type || 'info', // generic info/success/warning
+        title: n.title,
+        message: n.message,
+        timestamp: n.createdAt.toISOString()
+      });
+    }
+  } catch { /* Table may not exist in all environments */ }
 
   // 1. Recently paid invoices (payment-success)
   const paidInvoices = await prisma.invoice.findMany({

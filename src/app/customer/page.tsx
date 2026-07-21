@@ -220,7 +220,8 @@ export default function CustomerDashboard() {
       <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-5">
         
         {/* Sub/Expiry Module */}
-        <div className={`col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-sm`}>
+        <div className={`relative overflow-hidden col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} bg-gradient-to-br from-[var(--color-focus)]/10 to-[var(--color-paper)] border border-[var(--color-rule)] border-l-4 border-l-[var(--color-focus)] rounded-[var(--radius-lg)] p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-sm`}>
+          <span className="material-symbols-outlined text-5xl text-[var(--color-focus)]/20 absolute top-4 right-4">router</span>
           <div>
             <h3 className="font-mono text-[10px] text-[var(--color-muted)] font-bold uppercase tracking-wider mb-2">Paket Langganan</h3>
             <div className="text-3xl font-display font-medium text-[var(--color-focus)]">{user.profile?.name || 'Loading...'}</div>

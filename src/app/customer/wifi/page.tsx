@@ -6,9 +6,7 @@ import {
   Wifi, WifiOff, Router, RefreshCw, Pencil, Save, X,
   Eye, EyeOff, Monitor, ServerCrash, Info, Radio, Power
 } from 'lucide-react';
-import { CyberCard, CyberButton } from '@/components/cyberpunk';
-import { useToast } from '@/components/cyberpunk/CyberToast';
-import { showConfirm } from '@/lib/sweetalert';
+import { showConfirm, showSuccess, showError } from '@/lib/sweetalert';
 
 interface WLANConfig {
   index: number;
@@ -60,7 +58,6 @@ interface EditState {
 
 export default function CustomerWiFiPage() {
   const router = useRouter();
-  const { addToast } = useToast();
 
   const [device, setDevice] = useState<DeviceInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,8 +69,13 @@ export default function CustomerWiFiPage() {
   const [rebooting, setRebooting] = useState(false);
   const [loadSpeedtest, setLoadSpeedtest] = useState(false);
 
-  const toast = (type: 'success' | 'error' | 'info', title: string, desc?: string) =>
-    addToast({ type, title, description: desc, duration: type === 'error' ? 8000 : 5000 });
+  const toast = (type: 'success' | 'error' | 'info', title: string, desc?: string) => {
+    if (type === 'error') {
+      showError(title, desc);
+    } else {
+      showSuccess(title, desc);
+    }
+  };
 
   const loadDevice = useCallback(async () => {
     const token = localStorage.getItem('customer_token');
@@ -229,8 +231,8 @@ export default function CustomerWiFiPage() {
     return (
       <div className="p-4 lg:p-6 flex items-center justify-center py-20">
         <div className="text-center">
-          <div className="animate-spin w-10 h-10 border-2 border-cyan-400 border-t-transparent rounded-full mx-auto" />
-          <p className="mt-3 text-slate-400 text-sm">Memuat info perangkat…</p>
+          <div className="animate-spin w-10 h-10 border-2 border-[var(--color-focus)] border-t-transparent rounded-full mx-auto" />
+          <p className="mt-3 text-[var(--color-muted)] text-sm font-mono">Memuat info perangkat…</p>
         </div>
       </div>
     );
@@ -239,14 +241,14 @@ export default function CustomerWiFiPage() {
   // --- GenieACS not configured -------------------------------------------------
   if (noGenieACS) {
     return (
-      <div className="p-4 lg:p-6 space-y-4">
-        <CyberCard className="text-center py-12">
-          <ServerCrash className="w-16 h-16 mx-auto text-slate-500 mb-4" />
-          <h3 className="text-lg font-bold text-slate-300 mb-2">GenieACS belum dikonfigurasi</h3>
-          <p className="text-sm text-slate-500 max-w-sm mx-auto">
+      <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 space-y-4">
+        <div className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-6 text-center py-12">
+          <ServerCrash className="w-16 h-16 mx-auto text-[var(--color-muted)] mb-4" />
+          <h3 className="text-lg font-display text-[var(--color-ink)] mb-2">GenieACS belum dikonfigurasi</h3>
+          <p className="text-sm text-[var(--color-muted)] font-body max-w-sm mx-auto">
             Fitur pengaturan WiFi memerlukan GenieACS TR-069. Hubungi admin untuk mengaktifkan fitur ini.
           </p>
-        </CyberCard>
+        </div>
       </div>
     );
   }
@@ -254,49 +256,52 @@ export default function CustomerWiFiPage() {
   // --- Device not found ---------------------------------------------------------
   if (noDevice || !device) {
     return (
-      <div className="p-4 lg:p-6 space-y-4">
-        <CyberCard className="text-center py-12">
-          <WifiOff className="w-16 h-16 mx-auto text-slate-500 mb-4" />
-          <h3 className="text-lg font-bold text-slate-300 mb-2">Perangkat tidak ditemukan</h3>
-          <p className="text-sm text-slate-500 max-w-sm mx-auto mb-6">
+      <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 space-y-4">
+        <div className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-6 text-center py-12">
+          <WifiOff className="w-16 h-16 mx-auto text-[var(--color-muted)] mb-4" />
+          <h3 className="text-lg font-display text-[var(--color-ink)] mb-2">Perangkat tidak ditemukan</h3>
+          <p className="text-sm font-body text-[var(--color-muted)] max-w-sm mx-auto mb-6">
             Pastikan ONT/router sudah terdaftar dan terhubung ke GenieACS.
           </p>
-          <CyberButton onClick={handleRefresh} disabled={refreshing} variant="outline" size="sm">
+          <button onClick={handleRefresh} disabled={refreshing} className="bg-[var(--color-paper-2)] text-[var(--color-ink)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors py-2 px-4 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider inline-flex items-center justify-center">
             <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Coba Lagi
-          </CyberButton>
-        </CyberCard>
+          </button>
+        </div>
       </div>
     );
   }
 
   // --- Main view ---------------------------------------------------------------
   return (
-    <div className="p-4 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 w-full">
+    <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 space-y-4 sm:space-y-5 w-full">
+      <button onClick={() => router.push('/customer')} className="flex items-center gap-1.5 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors font-mono text-[10px] uppercase tracking-wider font-bold mb-6">
+        <span className="material-symbols-outlined text-[16px]">arrow_back</span>Kembali
+      </button>
 
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-lg font-bold text-white flex items-center gap-2">
-            <Wifi className="w-5 h-5 text-cyan-400" />
+          <h1 className="text-lg font-display text-[var(--color-ink)] flex items-center gap-2">
+            <Wifi className="w-5 h-5 text-[var(--color-focus)]" />
             Pengaturan WiFi
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">Kelola SSID dan password WiFi perangkat Anda</p>
+          <p className="text-xs font-body text-[var(--color-muted)] mt-0.5">Kelola SSID dan password WiFi perangkat Anda</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleReboot}
             disabled={rebooting}
             title="Reboot Modem/ONT"
-            className="p-2 rounded-lg border border-slate-700 text-slate-400 hover:text-red-400 hover:border-red-400 transition-colors disabled:opacity-40"
+            className="p-2 rounded-[var(--radius-sm)] border border-[var(--color-rule)] text-[var(--color-muted)] hover:text-[var(--color-error)] hover:border-[var(--color-error)] transition-colors disabled:opacity-40"
           >
-            <Power className={`w-4 h-4 ${rebooting ? 'animate-pulse text-red-400' : ''}`} />
+            <Power className={`w-4 h-4 ${rebooting ? 'animate-pulse text-[var(--color-error)]' : ''}`} />
           </button>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
             title="Perbarui Data"
-            className="p-2 rounded-lg border border-slate-700 text-slate-400 hover:text-cyan-400 hover:border-cyan-400 transition-colors"
+            className="p-2 rounded-[var(--radius-sm)] border border-[var(--color-rule)] text-[var(--color-muted)] hover:text-[var(--color-focus)] hover:border-[var(--color-focus)] transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
@@ -304,61 +309,61 @@ export default function CustomerWiFiPage() {
       </div>
 
       {/* Device Info Card */}
-      <CyberCard className="p-4 sm:p-5">
+      <div className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-cyan-400/10 flex items-center justify-center">
-            <Router className="w-5 h-5 text-cyan-400" />
+          <div className="w-10 h-10 rounded-full bg-[var(--color-paper-2)] flex items-center justify-center border border-[var(--color-rule)]">
+            <Router className="w-5 h-5 text-[var(--color-focus)]" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-white truncate">{device.model || 'Perangkat ONT'}</p>
-            <p className="text-xs text-slate-400">{device.manufacturer || 'Router'}</p>
+            <p className="font-display font-medium text-[var(--color-ink)] truncate">{device.model || 'Perangkat ONT'}</p>
+            <p className="text-xs font-body text-[var(--color-muted)]">{device.manufacturer || 'Router'}</p>
           </div>
-          <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+          <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-1 rounded-[var(--radius-sm)] ${
             device.status?.toLowerCase() === 'online'
-              ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/20'
-              : 'bg-red-400/10 text-red-400 border border-red-400/20'
+              ? 'bg-[var(--color-success)]/10 text-[var(--color-success)] border border-[var(--color-success)]/20'
+              : 'bg-[var(--color-error)]/10 text-[var(--color-error)] border border-[var(--color-error)]/20'
           }`}>
             {device.status?.toUpperCase() === 'ONLINE' ? 'ONLINE' : 'OFFLINE'}
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="grid grid-cols-2 gap-4 text-sm font-body">
           {device.serialNumber && device.serialNumber !== '-' && (
             <div>
-              <span className="text-slate-500">Serial</span>
-              <p className="text-slate-300 font-mono truncate">{device.serialNumber}</p>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)]">Serial</span>
+              <p className="text-[var(--color-ink)] font-mono truncate">{device.serialNumber}</p>
             </div>
           )}
           {device.softwareVersion && device.softwareVersion !== '-' && (
             <div>
-              <span className="text-slate-500">Firmware</span>
-              <p className="text-slate-300 truncate">{device.softwareVersion}</p>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)]">Firmware</span>
+              <p className="text-[var(--color-ink)] truncate">{device.softwareVersion}</p>
             </div>
           )}
           {device.uptime && device.uptime !== '-' && (
             <div>
-              <span className="text-slate-500">Uptime</span>
-              <p className="text-slate-300">{device.uptime}</p>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)]">Uptime</span>
+              <p className="text-[var(--color-ink)]">{device.uptime}</p>
             </div>
           )}
           {device.signalStrength?.rxPower && device.signalStrength.rxPower !== '-' && (
             <div>
-              <span className="text-slate-500">RX Power</span>
-              <p className="text-slate-300">{device.signalStrength.rxPower}</p>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)]">RX Power</span>
+              <p className="text-[var(--color-ink)]">{device.signalStrength.rxPower}</p>
             </div>
           )}
           <div>
-            <span className="text-slate-500">Jaringan WiFi</span>
-            <p className="text-slate-300">{device.wlanConfigs.length} WLAN</p>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)]">Jaringan WiFi</span>
+            <p className="text-[var(--color-ink)]">{device.wlanConfigs.length} WLAN</p>
           </div>
           {device.connectedHosts.length > 0 && (
             <div>
-              <span className="text-slate-500">Perangkat terhubung</span>
-              <p className="text-slate-300">{device.connectedHosts.length}</p>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)]">Perangkat terhubung</span>
+              <p className="text-[var(--color-ink)]">{device.connectedHosts.length}</p>
             </div>
           )}
         </div>
-      </CyberCard>
+      </div>
 
       {/* WLAN Cards */}
       {device.wlanConfigs.map((wlan) => {
@@ -366,78 +371,75 @@ export default function CustomerWiFiPage() {
         const bandLabel = wlan.band === '5GHz' ? '5 GHz' : '2.4 GHz';
 
         return (
-          <CyberCard key={wlan.index} className="p-4 sm:p-5">
+          <div key={wlan.index} className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-6">
             {/* WLAN Header */}
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 rounded-full bg-muted dark:bg-slate-800 flex items-center justify-center">
-                <Radio className={`w-5 h-5 ${wlan.enabled ? 'text-emerald-400' : 'text-slate-500'}`} />
+              <div className="w-9 h-9 rounded-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] flex items-center justify-center">
+                <Radio className={`w-5 h-5 ${wlan.enabled ? 'text-[var(--color-success)]' : 'text-[var(--color-muted)]'}`} />
               </div>
               <div className="flex-1">
-                <p className="font-bold text-white text-sm">WiFi {bandLabel}</p>
-                <p className="text-xs text-slate-400 truncate">{wlan.ssid || '(SSID belum dikonfigurasi)'}</p>
+                <p className="font-display font-medium text-[var(--color-ink)] text-sm">WiFi {bandLabel}</p>
+                <p className="text-xs font-body text-[var(--color-muted)] truncate">{wlan.ssid || '(SSID belum dikonfigurasi)'}</p>
               </div>
-              <span className={`text-xs font-bold px-2 py-1 rounded-full border ${
+              <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-1 rounded-[var(--radius-sm)] border ${
                 wlan.enabled
-                  ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20'
-                  : 'bg-red-400/10 text-red-400 border-red-400/20'
+                  ? 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/20'
+                  : 'bg-[var(--color-error)]/10 text-[var(--color-error)] border-[var(--color-error)]/20'
               }`}>
                 {wlan.enabled ? 'Aktif' : 'Mati'}
               </span>
             </div>
 
-            <div className="border-t border-border/50 dark:border-slate-700/50 pt-4">
+            <div className="border-t border-[var(--color-rule)] pt-4">
               {!isEditing ? (
                 // -- View mode ---------------------------------------------
-                <div className="space-y-2">
+                <div className="space-y-3 font-body">
                   <div className="flex items-center gap-2 text-sm">
-                    <Wifi className="w-4 h-4 text-slate-500 shrink-0" />
-                    <span className="text-white">{wlan.ssid || '—'}</span>
+                    <Wifi className="w-4 h-4 text-[var(--color-muted)] shrink-0" />
+                    <span className="text-[var(--color-ink)]">{wlan.ssid || '—'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-slate-500 text-xs w-16">Keamanan</span>
-                    <span className="text-slate-300 text-xs">{wlan.security !== '-' ? wlan.security : 'WPA2-PSK'}</span>
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)] w-16">Keamanan</span>
+                    <span className="text-[var(--color-ink)] text-xs">{wlan.security !== '-' ? wlan.security : 'WPA2-PSK'}</span>
                   </div>
                   {wlan.totalAssociations > 0 && (
                     <div className="flex items-center gap-2 text-sm">
-                      <Monitor className="w-4 h-4 text-slate-500 shrink-0" />
-                      <span className="text-slate-400 text-xs">{wlan.totalAssociations} perangkat terhubung</span>
+                      <Monitor className="w-4 h-4 text-[var(--color-muted)] shrink-0" />
+                      <span className="text-[var(--color-muted)] text-xs">{wlan.totalAssociations} perangkat terhubung</span>
                     </div>
                   )}
                   <div className="mt-5 pt-1">
-                    <CyberButton
+                    <button
                       onClick={() => startEdit(wlan)}
                       disabled={!!editing && !isEditing}
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
+                      className="w-full bg-[var(--color-paper-2)] text-[var(--color-ink)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors py-2 px-4 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider inline-flex justify-center items-center"
                     >
                       <Pencil className="w-4 h-4 mr-2" />
                       Edit WiFi Ini
-                    </CyberButton>
+                    </button>
                   </div>
                   {/* Connected devices for this WLAN */}
                   {(() => {
                     const wlanDevices = device.connectedHosts.filter(h => h.associatedDevice === String(wlan.index));
                     if (wlanDevices.length === 0) return null;
                     return (
-                      <div className="mt-3 pt-3 border-t border-border/50 dark:border-slate-700/50">
-                        <p className="text-xs text-slate-500 mb-2">Perangkat terhubung ke SSID ini:</p>
-                        <div className="space-y-1.5">
+                      <div className="mt-4 pt-4 border-t border-[var(--color-rule)]">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)] mb-3">Perangkat terhubung ke SSID ini:</p>
+                        <div className="space-y-2">
                           {wlanDevices.map((host, i) => (
-                            <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg bg-muted/40 dark:bg-slate-800/40 border border-border/40 dark:border-slate-700/40">
-                              <div className="w-6 h-6 rounded-full bg-emerald-400/10 flex items-center justify-center shrink-0">
-                                <Monitor className="w-3 h-3 text-emerald-400" />
+                            <div key={i} className="flex items-center gap-3 p-2 rounded-[var(--radius-sm)] bg-[var(--color-paper-2)] border border-[var(--color-rule)]">
+                              <div className="w-8 h-8 rounded-full bg-[var(--color-success)]/10 flex items-center justify-center shrink-0 border border-[var(--color-success)]/20">
+                                <Monitor className="w-4 h-4 text-[var(--color-success)]" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-white truncate">
+                                <p className="text-sm font-medium text-[var(--color-ink)] truncate font-display">
                                   {host.hostname && host.hostname !== '-' ? host.hostname : host.macAddress}
                                 </p>
-                                <p className="text-xs text-slate-500">
+                                <p className="text-xs font-mono text-[var(--color-muted)]">
                                   {host.ipAddress !== '-' ? host.ipAddress : host.macAddress}
                                   {host.signalStrength && host.signalStrength !== '-' ? ` · ${host.signalStrength}` : ''}
                                 </p>
                               </div>
-                              <span className="text-xs text-emerald-400 shrink-0">?</span>
                             </div>
                           ))}
                         </div>
@@ -450,7 +452,7 @@ export default function CustomerWiFiPage() {
                 <div className="space-y-4">
                   {/* SSID */}
                   <div>
-                    <label className="block text-xs text-muted-foreground dark:text-slate-400 mb-1.5">
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)] mb-1.5">
                       Nama WiFi (SSID)
                     </label>
                     <input
@@ -460,14 +462,14 @@ export default function CustomerWiFiPage() {
                       maxLength={32}
                       autoComplete="off"
                       placeholder="Nama WiFi baru"
-                      className="w-full bg-background dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-cyan-500 transition-colors"
+                      className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 text-sm font-mono text-[var(--color-ink)] outline-none focus:border-[var(--color-focus)] transition-colors"
                     />
-                    <p className="text-xs text-slate-500 mt-1">{editing.ssid.length}/32 karakter</p>
+                    <p className="text-[10px] font-mono text-[var(--color-muted)] mt-1.5">{editing.ssid.length}/32 karakter</p>
                   </div>
 
                   {/* Password */}
                   <div>
-                    <label className="block text-xs text-muted-foreground dark:text-slate-400 mb-1.5">
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)] mb-1.5">
                       Password WiFi
                     </label>
                     <div className="relative">
@@ -478,37 +480,36 @@ export default function CustomerWiFiPage() {
                         maxLength={63}
                         autoComplete="new-password"
                         placeholder="Kosongkan jika tidak ingin mengubah"
-                        className="w-full bg-background dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg px-3 py-2 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-cyan-500 transition-colors"
+                        className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 pr-10 text-sm font-mono text-[var(--color-ink)] outline-none focus:border-[var(--color-focus)] transition-colors"
                       />
                       <button
                         type="button"
                         onClick={() => setEditing({ ...editing, showPassword: !editing.showPassword })}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
                       >
                         {editing.showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">8–63 karakter. Kosongkan jika tidak ingin mengubah password.</p>
+                    <p className="text-[10px] font-mono text-[var(--color-muted)] mt-1.5">8–63 karakter. Kosongkan jika tidak ingin mengubah password.</p>
                   </div>
 
                   {/* Action buttons */}
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 pt-2">
                     <button
                       onClick={cancelEdit}
                       disabled={saving}
-                      className="flex-1 py-2 rounded-lg border border-border dark:border-slate-600 text-foreground dark:text-slate-300 text-sm font-bold hover:border-muted-foreground/50 transition-colors disabled:opacity-40"
+                      className="flex-1 bg-[var(--color-paper-2)] text-[var(--color-ink)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors py-3 px-4 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider disabled:opacity-40"
                     >
                       Batal
                     </button>
-                    <CyberButton
+                    <button
                       onClick={handleSave}
                       disabled={saving}
-                      size="sm"
-                      className="flex-1"
+                      className="flex-1 bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 transition-opacity py-3 px-4 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider inline-flex items-center justify-center disabled:opacity-40"
                     >
                       {saving ? (
                         <div className="flex items-center gap-2">
-                          <div className="animate-spin w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full" />
+                          <div className="animate-spin w-4 h-4 border-2 border-[var(--color-accent-ink)]/30 border-t-[var(--color-accent-ink)] rounded-full" />
                           Menyimpan…
                         </div>
                       ) : (
@@ -517,46 +518,45 @@ export default function CustomerWiFiPage() {
                           Simpan
                         </div>
                       )}
-                    </CyberButton>
+                    </button>
                   </div>
                 </div>
               )}
             </div>
-          </CyberCard>
+          </div>
         );
       })}
 
       {/* Info Box */}
-      <CyberCard className="p-4 sm:p-5 border-blue-500/20 bg-blue-500/5">
+      <div className="bg-[var(--color-paper-2)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-6">
         <div className="flex items-start gap-3">
-          <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-slate-400">
-            Perubahan dikirim langsung ke perangkat via TR-069. Setelah disimpan, tunggu <strong className="text-slate-300">30–60 detik</strong> lalu sambungkan kembali ke WiFi dengan nama/password baru.
+          <Info className="w-4 h-4 text-[var(--color-focus)] shrink-0 mt-0.5" />
+          <p className="text-xs font-body text-[var(--color-muted)]">
+            Perubahan dikirim langsung ke perangkat via TR-069. Setelah disimpan, tunggu <strong className="text-[var(--color-ink)]">30–60 detik</strong> lalu sambungkan kembali ke WiFi dengan nama/password baru.
           </p>
         </div>
-      </CyberCard>
+      </div>
 
       {/* nPerf Speedtest Widget */}
-      <CyberCard className="p-4 sm:p-5 border-cyan-500/20 bg-card/85">
-        <h2 className="text-sm font-bold text-cyan-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Radio className="w-5 h-5 text-cyan-400" />
+      <div className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-6">
+        <h2 className="text-[10px] font-mono font-bold text-[var(--color-focus)] uppercase tracking-wider mb-4 flex items-center gap-2">
+          <Radio className="w-5 h-5 text-[var(--color-focus)]" />
           Uji Kecepatan Internet (nPerf)
         </h2>
         {!loadSpeedtest ? (
-          <div className="flex flex-col items-center justify-center p-8 border border-dashed border-slate-800 rounded-xl bg-slate-950/50">
-            <Radio className="w-12 h-12 text-cyan-400/50 animate-pulse mb-3" />
-            <p className="text-sm text-slate-300 font-semibold mb-2">Uji Kecepatan Koneksi Anda</p>
-            <p className="text-xs text-slate-500 text-center max-w-sm mb-4">Mulai pengujian kecepatan internet nPerf secara langsung. Ini akan memakan kuota/bandwidth internet Anda selama proses pengetesan.</p>
-            <CyberButton
+          <div className="flex flex-col items-center justify-center p-8 border border-dashed border-[var(--color-rule)] rounded-[var(--radius-sm)] bg-[var(--color-paper-2)]">
+            <Radio className="w-12 h-12 text-[var(--color-muted)] animate-pulse mb-3" />
+            <p className="text-sm text-[var(--color-ink)] font-display font-medium mb-2">Uji Kecepatan Koneksi Anda</p>
+            <p className="text-xs font-body text-[var(--color-muted)] text-center max-w-sm mb-6">Mulai pengujian kecepatan internet nPerf secara langsung. Ini akan memakan kuota/bandwidth internet Anda selama proses pengetesan.</p>
+            <button
               onClick={() => setLoadSpeedtest(true)}
-              variant="cyan"
-              size="sm"
+              className="bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 transition-opacity py-3 px-6 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider"
             >
               Mulai Tes Kecepatan
-            </CyberButton>
+            </button>
           </div>
         ) : (
-          <div className="w-full overflow-hidden rounded-xl bg-slate-950 border border-slate-800">
+          <div className="w-full overflow-hidden rounded-[var(--radius-sm)] border border-[var(--color-rule)]">
             <iframe
               src="https://speedtest.nperf.com/iframe?lang=id"
               width="100%"
@@ -569,10 +569,8 @@ export default function CustomerWiFiPage() {
             />
           </div>
         )}
-      </CyberCard>
+      </div>
 
     </div>
   );
 }
-
-
