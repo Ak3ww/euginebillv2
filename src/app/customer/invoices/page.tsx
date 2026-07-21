@@ -92,157 +92,21 @@ export default function CustomerInvoicesPage() {
   const totalOutstanding = invoices.filter(inv => inv.status === 'PENDING' || inv.status === 'OVERDUE').reduce((sum, inv) => sum + inv.amount, 0);
   const overdueCount = invoices.filter(inv => inv.status === 'OVERDUE').length;
 
-  /* ─── PDF Download via html2pdf.js ─── */
-  const downloadPdf = async (inv: Invoice) => {
+  /* ─── Direct PDF Download ─── */
+  const downloadPdf = (inv: Invoice) => {
     setDownloadingId(inv.id);
     try {
-      const token = localStorage.getItem('customer_token');
-      const res = await fetch(`/api/customer/me`, { headers: { Authorization: `Bearer ${token}` } });
-      const meData = await res.json();
-      const user = meData.data || {};
-
-      const serviceName = inv.profileName || (inv.invoiceType === 'INSTALLATION' ? 'Biaya Instalasi' : 'Layanan Internet');
-      const dateLabel = inv.status === 'PAID'
-        ? `Dibayar: ${new Date(inv.paidAt!).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })}`
-        : `Jatuh Tempo: ${new Date(inv.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })}`;
-      const statusLabel = inv.status === 'PAID' ? 'LUNAS' : inv.status === 'OVERDUE' ? 'JATUH TEMPO' : 'BELUM DIBAYAR';
-      const statusColor = inv.status === 'PAID' ? '#059669' : inv.status === 'OVERDUE' ? '#DC2626' : '#D97706';
-      const statusBg = inv.status === 'PAID' ? '#ecfdf5' : inv.status === 'OVERDUE' ? '#fef2f2' : '#fffbeb';
-      const printDate = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' });
-
-      const html = `
-<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="UTF-8"/>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 13px; color: #1a1c20; background: #fff; }
-  .page { width: 210mm; min-height: 148mm; padding: 32px 40px; }
-
-  .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; border-bottom: 2px solid #002c60; margin-bottom: 24px; }
-  .brand { display: flex; flex-direction: column; gap: 2px; }
-  .brand-name { font-size: 22px; font-weight: 700; color: #002c60; letter-spacing: -0.5px; }
-  .brand-sub { font-size: 11px; color: #737781; }
-  .inv-meta { text-align: right; }
-  .inv-number { font-family: 'Courier New', monospace; font-size: 14px; font-weight: 700; color: #1b437c; }
-  .inv-date { font-size: 11px; color: #737781; margin-top: 4px; }
-
-  .status-badge { display: inline-block; padding: 5px 14px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid ${statusColor}; background: ${statusBg}; color: ${statusColor}; margin-bottom: 24px; }
-
-  .section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #737781; margin-bottom: 6px; }
-
-  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
-  .info-block {}
-  .info-value { font-size: 14px; font-weight: 600; color: #1a1c20; margin-top: 2px; }
-
-  .line-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-  .line-table th { padding: 8px 12px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #737781; background: #f9f9fe; border-bottom: 1px solid #E2E8F0; text-align: left; }
-  .line-table td { padding: 12px 12px; font-size: 13px; border-bottom: 1px solid #E2E8F0; }
-  .line-table tr:last-child td { border-bottom: none; }
-  .text-right { text-align: right; }
-  .amount-cell { font-family: 'Courier New', monospace; font-weight: 700; font-size: 14px; color: #002c60; }
-
-  .total-row { background: #002c60; color: #fff; }
-  .total-row td { padding: 14px 12px; font-weight: 700; font-size: 15px; }
-
-  .footer { border-top: 1px solid #E2E8F0; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; }
-  .footer-note { font-size: 10px; color: #737781; max-width: 60%; line-height: 1.5; }
-  .print-date { font-size: 10px; color: #c3c6d1; font-family: 'Courier New', monospace; }
-
-  .paid-stamp { position: absolute; top: 60px; right: 40px; transform: rotate(-15deg); border: 3px solid #059669; border-radius: 8px; padding: 4px 16px; color: #059669; font-weight: 900; font-size: 18px; letter-spacing: 4px; opacity: 0.15; pointer-events: none; }
-</style>
-</head>
-<body>
-<div class="page" style="position:relative;">
-  ${inv.status === 'PAID' ? '<div class="paid-stamp">LUNAS</div>' : ''}
-
-  <div class="header">
-    <div class="brand">
-      <div class="brand-name">EugineBill</div>
-      <div class="brand-sub">Penyedia Layanan Internet</div>
-    </div>
-    <div class="inv-meta">
-      <div class="inv-number">${inv.invoiceNumber}</div>
-      <div class="inv-date">Dicetak: ${printDate}</div>
-    </div>
-  </div>
-
-  <div class="status-badge">${statusLabel}</div>
-
-  <div class="info-grid">
-    <div class="info-block">
-      <div class="section-label">Pelanggan</div>
-      <div class="info-value">${user.name || '-'}</div>
-      <div style="font-size:11px;color:#737781;margin-top:2px;">${user.customerId || user.username || '-'}</div>
-    </div>
-    <div class="info-block">
-      <div class="section-label">Tanggal</div>
-      <div class="info-value">${dateLabel}</div>
-    </div>
-  </div>
-
-  <table class="line-table">
-    <thead>
-      <tr>
-        <th>Deskripsi Layanan</th>
-        <th>Tipe</th>
-        <th class="text-right">Jumlah</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><strong>${serviceName}</strong></td>
-        <td style="color:#737781;font-size:12px;">${inv.invoiceType === 'INSTALLATION' ? 'Instalasi' : 'Bulanan'}</td>
-        <td class="text-right amount-cell">${formatCurrency(inv.amount)}</td>
-      </tr>
-    </tbody>
-    <tfoot>
-      <tr class="total-row">
-        <td colspan="2">TOTAL</td>
-        <td class="text-right">${formatCurrency(inv.amount)}</td>
-      </tr>
-    </tfoot>
-  </table>
-
-  <div class="footer">
-    <div class="footer-note">
-      ${inv.status === 'PAID'
-        ? `Pembayaran diterima melalui ${inv.paymentSource || 'sistem'}. Terima kasih telah membayar tepat waktu.`
-        : 'Harap lakukan pembayaran sebelum tanggal jatuh tempo. Hubungi kami jika ada pertanyaan.'}
-    </div>
-    <div class="print-date">EugineBill · ${printDate}</div>
-  </div>
-</div>
-</body>
-</html>`;
-
-      const container = document.createElement('div');
-      container.innerHTML = html;
-      container.style.position = 'absolute';
-      container.style.left = '-9999px';
-      document.body.appendChild(container);
-
-      // @ts-ignore
-      const html2pdf = (await import('html2pdf.js')).default;
-      await html2pdf()
-        .set({
-          margin: 0,
-          filename: `${inv.invoiceNumber}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' },
-          pagebreak: { mode: 'avoid-all' },
-        })
-        .from(container.firstElementChild)
-        .save();
-
-      document.body.removeChild(container);
+      const link = document.createElement('a');
+      link.href = `/invoice/${inv.invoiceNumber}/pdf`;
+      link.download = `Invoice-${inv.invoiceNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       toast('success', 'PDF diunduh', `${inv.invoiceNumber}.pdf`);
-    } catch (err) {
+    } catch {
       toast('error', 'Gagal mengunduh PDF', 'Silakan coba lagi.');
     } finally {
-      setDownloadingId(null);
+      setTimeout(() => setDownloadingId(null), 1000);
     }
   };
 

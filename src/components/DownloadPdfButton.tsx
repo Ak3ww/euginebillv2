@@ -7,7 +7,12 @@ export default function DownloadPdfButton({ invoiceNumber }: { invoiceNumber: st
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleDownload = () => {
-    window.open(`/invoice/${invoiceNumber}/pdf`, '_blank');
+    const a = document.createElement('a');
+    a.href = `/invoice/${invoiceNumber}/pdf`;
+    a.download = `Invoice-${invoiceNumber}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   return (

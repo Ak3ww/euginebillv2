@@ -73,7 +73,10 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
     return () => clearInterval(tick);
   }, []);
 
-  // â”€â”€ Persist notifications to localStorage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const clearedAtRef = useRef<string>('');
+  const deletedIdsRef = useRef<Set<string>>(new Set());
+
+  // ── Persist notifications to localStorage ──────────────────────────────
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -83,6 +86,8 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
         if (Array.isArray(parsed.history)) setNotifHistory(parsed.history);
         if (typeof parsed.unread === 'number') setUnreadCount(parsed.unread);
         if (parsed.lastChecked) lastCheckedRef.current = parsed.lastChecked;
+        if (parsed.clearedAt) clearedAtRef.current = parsed.clearedAt;
+        if (Array.isArray(parsed.deletedIds)) deletedIdsRef.current = new Set(parsed.deletedIds);
       }
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -96,16 +101,31 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
         history: notifHistory,
         unread: unreadCount,
         lastChecked: lastCheckedRef.current,
+        clearedAt: clearedAtRef.current,
+        deletedIds: Array.from(deletedIdsRef.current),
       }));
     } catch { /* ignore */ }
   }, [notifHistory, unreadCount]);
 
   const handleClearAllNotifications = () => {
+    const nowStr = new Date().toISOString();
+    clearedAtRef.current = nowStr;
+    lastCheckedRef.current = nowStr;
     setNotifHistory([]);
     setUnreadCount(0);
+    try {
+      localStorage.setItem('customer_notifications', JSON.stringify({
+        history: [],
+        unread: 0,
+        lastChecked: nowStr,
+        clearedAt: nowStr,
+        deletedIds: Array.from(deletedIdsRef.current),
+      }));
+    } catch { /* ignore */ }
   };
 
   const handleDeleteNotification = (id: string) => {
+    deletedIdsRef.current.add(id);
     setNotifHistory(prev => prev.filter(n => n.id !== id));
   };
 
@@ -115,12 +135,10 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
     const token = typeof window !== 'undefined' ? localStorage.getItem('customer_token') : null;
     if (!token) return;
     try {
-      // Use lastCheckedRef unconditionally to avoid spam, unless we really want history.
-      // If we just want history on fresh login, we can do it once.
-      let url = `/api/customer/notifications?since=${encodeURIComponent(lastCheckedRef.current)}`;
-      if (isInitialPollRef.current && notifHistory.length === 0) {
-          url = `/api/customer/notifications`; // fetch recent on first load if no history
-      }
+      const sinceParam = lastCheckedRef.current || clearedAtRef.current;
+      const url = sinceParam
+        ? `/api/customer/notifications?since=${encodeURIComponent(sinceParam)}`
+        : `/api/customer/notifications`;
       
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return;
@@ -133,10 +151,17 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
 
       lastCheckedRef.current = new Date().toISOString();
       localStorage.setItem('customer_notif_last_checked', lastCheckedRef.current);
-      const events = data.events;
+      const events: any[] = data.events;
+
+      // Filter out deleted and pre-cleared events
+      const validEvents = events.filter(e => {
+        if (deletedIdsRef.current.has(e.id)) return false;
+        if (clearedAtRef.current && e.timestamp && new Date(e.timestamp) <= new Date(clearedAtRef.current)) return false;
+        return true;
+      });
 
       // Dedup
-      const newEvents = events.filter(e => !shownEventIdsRef.current.has(e.id));
+      const newEvents = validEvents.filter(e => !shownEventIdsRef.current.has(e.id));
       if (newEvents.length === 0) return;
 
       setUnreadCount(prev => prev + newEvents.length);
@@ -176,7 +201,7 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
     } catch {
       // silently ignore
     }
-  }, [notifHistory.length]);
+  }, []);
 
   useEffect(() => {
     // Load from cache immediately to prevent logo flash / layout shift

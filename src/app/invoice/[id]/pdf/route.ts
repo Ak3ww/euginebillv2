@@ -123,7 +123,7 @@ export async function GET(
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="Invoice-${invoice.invoiceNumber}.pdf"`,
+        'Content-Disposition': `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`,
       },
     });
 
