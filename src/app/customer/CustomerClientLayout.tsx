@@ -112,10 +112,11 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
     const token = typeof window !== 'undefined' ? localStorage.getItem('customer_token') : null;
     if (!token) return;
     try {
-      const res = await fetch(
-        `/api/customer/notifications?since=${encodeURIComponent(lastCheckedRef.current)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const url = notifHistory.length > 0 && lastCheckedRef.current
+        ? `/api/customer/notifications?since=${encodeURIComponent(lastCheckedRef.current)}`
+        : `/api/customer/notifications`;
+
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return;
       const data = await res.json();
       if (!data.success || !Array.isArray(data.events) || data.events.length === 0) return;

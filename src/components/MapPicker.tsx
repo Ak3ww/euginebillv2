@@ -182,7 +182,7 @@ export default function MapPicker({
           console.error('GPS Error:', err);
           showError('Gagal mendapatkan lokasi GPS. Pastikan izin lokasi diaktifkan.');
         },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
       showError('Browser tidak mendukung GPS');
