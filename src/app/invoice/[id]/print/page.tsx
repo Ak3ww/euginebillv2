@@ -130,9 +130,9 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
       total: baseAmt 
     });
   }
-
   inv.items = items;
-  inv.additionalFees = parsedFees;
+  // Jika invoiceType ADDON, parsedFees sudah dimasukkan ke items array, maka jangan diduplikasi
+  inv.additionalFees = rawInvoice.invoiceType === 'ADDON' ? [] : parsedFees;
 
   inv.amountFormatted = formatCurrency(rawInvoice.amount);
   const fmtCurr = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
