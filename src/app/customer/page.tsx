@@ -154,88 +154,54 @@ export default function CustomerDashboard() {
 
     return (
     <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6">
-      {/* Hero Section - Credit Card Style */}
-      <section className="mb-8 flex justify-center md:justify-start">
-        <div 
-          className="relative overflow-hidden bg-cover bg-center bg-no-repeat rounded-3xl p-6 md:p-8 shadow-2xl border border-white/10 w-full md:w-[480px] aspect-[1.6/1] flex flex-col justify-between group transition-transform duration-500 hover:scale-[1.02]" 
-          style={{ backgroundImage: 'url(/images/customer_card_bg.png)' }}
-        >
-          {/* Glassmorphism overlays */}
-          <div className="absolute inset-0 bg-gradient-to-br from-black/40 to-[var(--color-accent)]/70 mix-blend-multiply"></div>
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent"></div>
-          
-          {/* Card Shine Effect */}
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-1000 bg-gradient-to-tr from-transparent via-white to-transparent -translate-x-full group-hover:translate-x-full ease-in-out"></div>
-
-          <div className="relative z-10 flex justify-between items-start">
-            {/* Sim Card Chip */}
-            <div className="w-12 h-9 rounded-md bg-gradient-to-br from-yellow-200/60 to-yellow-500/40 border border-yellow-200/30 flex items-center justify-center relative overflow-hidden backdrop-blur-sm shadow-sm">
-              <div className="absolute w-full h-[1px] bg-yellow-200/20 top-1/2"></div>
-              <div className="absolute h-full w-[1px] bg-yellow-200/20 left-1/3"></div>
-              <div className="absolute h-full w-[1px] bg-yellow-200/20 right-1/3"></div>
-            </div>
-
-            {/* Contactless Icon */}
-            <div className="text-white/80">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
-                <path d="M8.5 14c-.6-1.5-1.5-3.3-1.5-5.5 0-2.2.9-4 1.5-5.5"></path>
-                <path d="M11.5 16c-.9-2-2.5-4.5-2.5-7.5 0-3 1.6-5.5 2.5-7.5"></path>
-                <path d="M14.5 18c-1.2-2.5-3.5-5.7-3.5-9.5 0-3.8 2.3-7 3.5-9.5"></path>
-                <path d="M17.5 20c-1.5-3-4.5-7-4.5-11.5 0-4.5 3-8.5 4.5-11.5"></path>
-              </svg>
-            </div>
-          </div>
-
-          <div className="relative z-10 mt-auto">
-            {/* Card Number (Customer ID) */}
-            <div className="font-mono text-2xl md:text-3xl text-white tracking-[0.2em] mb-4 drop-shadow-md font-medium" style={{ textShadow: '1px 1px 3px rgba(0,0,0,0.5)' }}>
-              {(user.customerId || user.username).toString().replace(/(.{4})/g, '$1 ').trim()}
-            </div>
-
-            <div className="flex justify-between items-end">
-              {/* Cardholder Name */}
-              <div>
-                <div className="text-[9px] font-mono text-white/60 uppercase tracking-widest mb-1">Nama Pelanggan</div>
-                <div className="font-display text-lg md:text-xl text-white tracking-wider uppercase drop-shadow-sm font-semibold truncate max-w-[200px] md:max-w-[280px]">
-                  {user.name}
-                </div>
-              </div>
-
-              {/* Status / "Valid Thru" */}
-              <div className="text-right">
-                <div className="text-[9px] font-mono text-white/60 uppercase tracking-widest mb-1">Status</div>
-                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full backdrop-blur-md shadow-sm border border-white/20 ${user.status === 'ISOLATED' || isExpired ? 'bg-red-500/40 text-red-100' : 'bg-emerald-500/40 text-emerald-100'}`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
-                  <span className="font-mono text-[10px] uppercase font-bold tracking-wider drop-shadow-sm">
-                    {user.status === 'ISOLATED' || isExpired ? 'Terisolir' : 'Aktif'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Bento Grid Layout */}
       <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-5">
         
-        {/* Sub/Expiry Module */}
-        <div className={`relative overflow-hidden col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} bg-gradient-to-br from-[var(--color-focus)]/10 to-[var(--color-paper)] border border-[var(--color-rule)] border-l-4 border-l-[var(--color-focus)] rounded-[var(--radius-lg)] p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-sm`}>
-          <span className="material-symbols-outlined text-5xl text-[var(--color-focus)]/20 absolute top-4 right-4">router</span>
-          <div>
-            <h3 className="font-mono text-[10px] text-[var(--color-muted)] font-bold uppercase tracking-wider mb-2">Paket Langganan</h3>
-            <div className="text-3xl font-display font-medium text-[var(--color-focus)]">{user.profile?.name || 'Loading...'}</div>
-            <div className="text-sm font-body text-[var(--color-ink-2)] mt-2 flex items-center gap-2">
-              <span className="material-symbols-outlined text-[16px] text-[var(--color-focus)]">speed</span>
-              Up to {user.profile?.downloadSpeed || 0}Mbps Download / Upload
+        {/* Paket Langganan + Info Pelanggan Module */}
+        <div className={`relative overflow-hidden col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} bg-gradient-to-br from-[var(--color-focus)]/10 to-[var(--color-paper)] border border-[var(--color-rule)] border-l-4 border-l-[var(--color-focus)] rounded-[var(--radius-lg)] p-6 shadow-sm`}>
+          {/* Watermark */}
+          <span className="material-symbols-outlined text-[120px] text-[var(--color-focus)]/8 absolute -bottom-4 -right-4 select-none">router</span>
+          
+          {/* Top row: ID + Status */}
+          <div className="flex items-center justify-between mb-4">
+            <span className="font-mono text-[10px] text-[var(--color-muted)] uppercase tracking-widest">
+              ID: <span className="text-[var(--color-ink)] font-bold tracking-[0.2em]">{(user.customerId || user.username).toString()}</span>
+            </span>
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border font-mono text-[10px] uppercase font-bold tracking-wider ${
+              user.status === 'ISOLATED' || isExpired 
+                ? 'bg-[var(--color-error)]/10 border-[var(--color-error)]/20 text-[var(--color-error)]' 
+                : 'bg-[var(--color-success)]/10 border-[var(--color-success)]/20 text-[var(--color-success)]'
+            }`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
+              {user.status === 'ISOLATED' || isExpired ? 'Terisolir' : 'Aktif'}
             </div>
           </div>
-          <div className="w-full md:w-px md:h-16 bg-[var(--color-rule)] md:mx-4 hidden md:block"></div>
-          <div>
-            <h3 className="font-mono text-[10px] text-[var(--color-muted)] font-bold uppercase tracking-wider mb-2">Jatuh Tempo</h3>
-            <div className="text-2xl font-display font-medium text-[var(--color-ink)]">{formattedDueDate}</div>
-            <div className={`inline-block mt-2 px-2 py-1 bg-[var(--color-paper-3)] rounded font-mono text-[10px] uppercase font-bold tracking-wider border border-[var(--color-rule)] ${isExpired ? 'text-[var(--color-error)]' : 'text-[var(--color-warning)]'}`}>
-              {isExpired ? 'Kedaluwarsa' : `Tersisa ${daysLeft} Hari`}
+
+          {/* Customer Name */}
+          <div className="font-display text-2xl md:text-3xl font-medium text-[var(--color-ink)] truncate mb-5">
+            {user.name}
+          </div>
+
+          {/* Bottom row: Package + Due Date */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <h3 className="font-mono text-[10px] text-[var(--color-muted)] font-bold uppercase tracking-wider mb-1">Paket Langganan</h3>
+              <div className="text-lg font-display font-medium text-[var(--color-focus)]">{user.profile?.name || '-'}</div>
+              <div className="text-xs font-body text-[var(--color-ink-2)] mt-1 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px] text-[var(--color-focus)]">speed</span>
+                Hingga {user.profile?.downloadSpeed || 0} Mbps
+              </div>
+            </div>
+            <div className="md:w-px md:h-12 bg-[var(--color-rule)] hidden md:block self-stretch"></div>
+            <div>
+              <h3 className="font-mono text-[10px] text-[var(--color-muted)] font-bold uppercase tracking-wider mb-1">Jatuh Tempo</h3>
+              <div className="text-lg font-display font-medium text-[var(--color-ink)]">{formattedDueDate}</div>
+              <div className={`inline-block mt-1.5 px-2 py-0.5 rounded font-mono text-[10px] uppercase font-bold tracking-wider border border-[var(--color-rule)] ${
+                isExpired ? 'text-[var(--color-error)] bg-[var(--color-error)]/5' : 'text-[var(--color-warning)] bg-[var(--color-warning)]/5'
+              }`}>
+                {isExpired ? 'Kedaluwarsa' : `Tersisa ${daysLeft} Hari`}
+              </div>
             </div>
           </div>
         </div>

@@ -66,7 +66,13 @@ export default function CustomerInvoicesPage() {
         return;
       }
 
-      setInvoices(data.data.invoices);
+      const raw: typeof invoices = data.data.invoices;
+      // Belum bayar selalu tampil di atas
+      const sorted = [
+        ...raw.filter(inv => inv.status === 'PENDING' || inv.status === 'OVERDUE'),
+        ...raw.filter(inv => inv.status !== 'PENDING' && inv.status !== 'OVERDUE'),
+      ];
+      setInvoices(sorted);
       setPagination(data.data.pagination);
     } catch {
       if (!silent) toast('error', 'Error', 'Terjadi kesalahan. Silakan coba lagi.');
@@ -99,8 +105,8 @@ export default function CustomerInvoicesPage() {
       {/* Header & Filters */}
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-display font-medium text-[var(--color-ink)] mb-2">Invoices</h2>
-          <p className="text-sm font-body text-[var(--color-ink-2)]">Manage your billing history and pending payments.</p>
+          <h2 className="text-3xl font-display font-medium text-[var(--color-ink)] mb-2">Tagihan</h2>
+          <p className="text-sm font-body text-[var(--color-ink-2)]">Riwayat tagihan dan pembayaran Anda.</p>
         </div>
         
         {/* Tabs/Pills */}
