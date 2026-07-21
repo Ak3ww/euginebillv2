@@ -165,12 +165,12 @@ export default function CustomerDashboard() {
         
         {/* Paket Langganan + Info Pelanggan Module */}
         <div 
-          className={`relative overflow-hidden bg-cover bg-center bg-no-repeat group col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} border border-[var(--color-rule)] border-l-4 border-l-[var(--color-focus)] rounded-[var(--radius-lg)] p-6 shadow-sm transition-transform duration-500`}
+          className={`relative overflow-hidden bg-[var(--color-focus)] bg-cover bg-center bg-no-repeat group col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} border border-[var(--color-rule)] border-l-4 border-l-[var(--color-focus)] rounded-[var(--radius-lg)] p-6 shadow-sm transition-transform duration-500`}
           style={{ backgroundImage: 'url(/images/customer_card_bg.png)' }}
         >
-          {/* Glassmorphism overlays */}
-          <div className="absolute inset-0 bg-gradient-to-br from-black/60 to-[var(--color-focus)]/70 mix-blend-multiply"></div>
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent"></div>
+          {/* Dark Overlays for Text Contrast */}
+          <div className="absolute inset-0 bg-gradient-to-br from-black/80 to-[var(--color-focus)]/80"></div>
+          <div className="absolute inset-0 bg-gradient-to-tr from-black/40 to-transparent"></div>
           
           {/* Card Shine Effect */}
           <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-1000 bg-gradient-to-tr from-transparent via-white to-transparent -translate-x-full group-hover:translate-x-full ease-in-out"></div>
