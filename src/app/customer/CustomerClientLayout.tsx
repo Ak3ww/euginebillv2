@@ -231,6 +231,7 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
   };
 
   // Re-check auth token whenever pathname changes (e.g. after login/logout)
+
   useEffect(() => {
     setAuthenticated(!!localStorage.getItem('customer_token'));
   }, [pathname]);

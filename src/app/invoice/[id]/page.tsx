@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import Link from 'next/link';
 import { Printer, CreditCard } from 'lucide-react';
-
+import DownloadPdfButton from '@/components/DownloadPdfButton';
 export const metadata = {
   title: 'Invoice',
 };
@@ -124,7 +124,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
       
       <style dangerouslySetInnerHTML={{ __html: '@media print { @page { size: A4; margin: 10mm; } .no-print { display: none !important; } }' }} />
 
-      <div className="w-full max-w-3xl bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden flex flex-col relative h-fit print:w-[210mm] print:shadow-none print:border-none print:rounded-none print:bg-white">
+      <div id="invoice-capture-area" className="w-full max-w-3xl bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden flex flex-col relative h-fit print:w-[210mm] print:shadow-none print:border-none print:rounded-none print:bg-white">
         <div className="bg-gradient-to-r from-[var(--color-focus)] to-[var(--color-accent)] p-6 print:hidden" />
         
         <div className="p-6 sm:p-8 print:p-0 flex-1 mt-4 print:mt-0 relative">
@@ -302,10 +302,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
             Cetak
           </Link>
           
-          <a href={`/invoice/${inv.invoice.number}/pdf`} download={`Invoice-${inv.invoice.number}.pdf`} className="flex-1 max-w-[150px] bg-[var(--color-paper-2)] text-[var(--color-ink)] border border-[var(--color-rule)] font-bold text-[13px] py-3 rounded-xl hover:bg-[var(--color-paper)] transition-colors flex items-center justify-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            Simpan PDF
-          </a>
+          <DownloadPdfButton invoiceNumber={inv.invoice.number} />
           
           {inv.invoice.status !== 'PAID' && (inv.paymentToken || inv.paymentLink) && (
             <Link

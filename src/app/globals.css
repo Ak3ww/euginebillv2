@@ -77,14 +77,18 @@
   --font-data-mono: var(--font-mono);
   --font-display-lg: var(--font-hanken);
 
-/* Hallmark Custom Tokens (Enterprise Red/Black/White) */
-  --color-paper: oklch(99% 0 0);
-  --color-ink: oklch(15% 0 0);
-  --color-accent: oklch(55% 0.22 20);
-  --color-accent-hover: oklch(48% 0.22 20);
-  --color-rule: oklch(90% 0 0);
-  --color-graphite: oklch(25% 0 0);
-  --color-muted: oklch(55% 0 0);
+  /* Hallmark Custom Tokens (Enterprise Oceanic Blue) */
+  --color-paper: #ffffff;
+  --color-paper-2: #f9f9fe;
+  --color-paper-3: #f4f3f9;
+  --color-ink: #1a1c20;
+  --color-ink-2: #434750;
+  --color-accent: #1b437c;
+  --color-accent-hover: #002c60;
+  --color-rule: #E2E8F0;
+  --color-graphite: #2f3035;
+  --color-muted: #737781;
+  --color-focus: #002c60;
 
   /* Extended Breakpoints */
   --breakpoint-2xsm: 375px;

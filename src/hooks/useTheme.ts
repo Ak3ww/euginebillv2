@@ -4,17 +4,11 @@ import { useState, useCallback, useLayoutEffect } from 'react';
 
 // Helper to get initial theme synchronously (reduces flash on first paint)
 const getInitialTheme = (): boolean => {
-  if (typeof window === 'undefined') return true; // default dark on server
-  const stored = window.localStorage.getItem('theme');
-  const prefersDark =
-    window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  return stored ? stored === 'dark' : prefersDark;
+  return false; // Force light mode globally as requested
 };
 
 export function useTheme() {
-  // Use stable initial value (true = dark) to match server render.
-  // Real value is applied in useLayoutEffect after mount, avoiding hydration mismatch.
-  const [isDark, setIsDark] = useState<boolean>(true);
+  const [isDark, setIsDark] = useState<boolean>(false);
 
   const runWithoutTransitions = useCallback((fn: () => void) => {
     const html = document.documentElement;
@@ -37,18 +31,12 @@ export function useTheme() {
   }, []);
 
   const applyTheme = useCallback((next: boolean) => {
-    runWithoutTransitions(() => {
-      const html = document.documentElement;
-      html.classList.toggle('dark', next);
-      html.style.colorScheme = next ? 'dark' : 'light';
-      window.localStorage.setItem('theme', next ? 'dark' : 'light');
-      setIsDark(next);
-    });
-  }, [runWithoutTransitions]);
+    // Disabled dark mode as requested
+  }, []);
 
   const toggleTheme = useCallback(() => {
-    applyTheme(!isDark);
-  }, [applyTheme, isDark]);
+    // Disabled dark mode as requested
+  }, []);
 
   return { isDark, toggleTheme };
 }
