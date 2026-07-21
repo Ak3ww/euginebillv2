@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -13,6 +13,7 @@ import {
   UserPlus,
   LogOut,
   Menu,
+  ClipboardList,
   X,
   Wrench,
   Phone,
@@ -52,6 +53,11 @@ const MENU_ITEMS: MenuItem[] = [
     titleKey: 'techPortal.dashboard',
     icon: <LayoutDashboard className="w-4 h-4" />,
     href: '/technician/dashboard',
+  },
+  {
+    titleKey: 'Surat Tugas',
+    icon: <ClipboardList className="w-4 h-4" />,
+    href: '/technician/work-orders',
   },
   {
     titleKey: 'techPortal.tickets',

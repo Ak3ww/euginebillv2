@@ -1977,6 +1977,13 @@ model workOrder {
   updatedAt       DateTime    @updatedAt
   technician      technician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
 
+  linkedUserId      String?
+  customer          pppoeUser?  @relation(fields: [linkedUserId], references: [id], onDelete: SetNull)
+  equipmentChecklist Json?
+  isPrepared         Boolean    @default(false)
+  reportData         Json?
+  reportPhotos       Json?
+
   @@index([technicianId])
   @@index([status])
   @@index([priority])
