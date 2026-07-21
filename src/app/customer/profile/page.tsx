@@ -245,224 +245,188 @@ export default function CustomerProfilePage() {
   const isPhoneChanged = editPhone.trim() !== (customer.phone || '');
 
   return (
-    <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 min-h-screen">
-      <button 
-        onClick={() => router.push('/customer')}
-        className="flex items-center gap-1.5 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors font-mono text-[10px] uppercase tracking-wider font-bold mb-6"
-      >
-        <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-        Kembali
-      </button>
-      <div className="max-w-[800px] mx-auto space-y-bento-gap">
-        
-        {/* Page Title */}
-        <div className="mb-6">
-          <h2 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">Profil Akun</h2>
-          <p className="font-body-md text-body-md text-on-surface-variant mt-1">Kelola data pribadi dan pengaturan keamanan Anda.</p>
+  <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8">
+    {/* Back button */}
+    <button
+      onClick={() => router.push('/customer')}
+      className="flex items-center gap-1.5 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors font-mono text-[10px] uppercase tracking-wider font-bold mb-6"
+    >
+      <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+      Kembali
+    </button>
+
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+      {/* Profile Header Card */}
+      <div className="md:col-span-4 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 shadow-sm flex flex-col items-center text-center py-8">
+        <div className="w-20 h-20 rounded-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] flex items-center justify-center text-3xl font-display font-bold mb-4">
+          {customer.name?.charAt(0)?.toUpperCase() || 'P'}
         </div>
+        <h2 className="text-xl font-display font-semibold text-[var(--color-ink)]">{customer.name || '-'}</h2>
+        <p className="font-mono text-[10px] text-[var(--color-muted)] uppercase tracking-wider mt-1">{customer.customerId || customer.username}</p>
+        <span className={`mt-3 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider ${customer.status === 'ISOLATED' ? 'bg-[var(--color-error-bg)] text-[var(--color-error)]' : 'bg-[var(--color-success-bg)] text-[var(--color-success)]'}`}>
+          {customer.status === 'ISOLATED' ? 'Terisolir' : 'Pelanggan Aktif'}
+        </span>
+      </div>
 
-        {/* Bento Card: Profile Header */}
-        <div className="bg-surface-container-lowest border border-hairline-border rounded-lg p-6 flex flex-col md:flex-row items-center gap-6 shadow-[0_4px_12px_rgba(0,0,0,0.02)]">
-          <div className="relative group cursor-pointer">
-            <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-hairline-border flex items-center justify-center bg-surface-container-high text-primary">
-              <span className="material-symbols-outlined text-4xl">person</span>
-            </div>
-          </div>
+      {/* Forms Column */}
+      <div className="md:col-span-8 flex flex-col gap-5">
+        {/* Personal Info */}
+        <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 shadow-sm">
+          <h3 className="text-base font-display font-semibold text-[var(--color-ink)] mb-5">Informasi Pribadi</h3>
           
-          <div className="text-center md:text-left flex-1">
-            <h3 className="font-headline-md text-headline-md font-bold text-on-surface">{customer.name}</h3>
-            <p className="font-data-mono text-data-mono text-on-surface-variant mt-1">ID: {customer.customerId || customer.username}</p>
-            <div className="mt-3 flex items-center justify-center md:justify-start gap-2">
-              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full font-label-caps text-label-caps ${customer.status === 'ISOLATED' ? 'bg-status-isolated/10 text-status-isolated border border-status-isolated/20' : 'bg-status-active/10 text-status-active border border-status-active/20'}`}>
-                <span className="material-symbols-outlined text-[14px]">
-                  {customer.status === 'ISOLATED' ? 'error' : 'check_circle'}
-                </span> 
-                {customer.status === 'ISOLATED' ? 'Terisolir' : 'Aktif'}
-              </span>
+          <form className="flex flex-col gap-4" onSubmit={handleSaveProfile}>
+            {/* Name */}
+            <div>
+              <label className="block text-xs font-mono font-bold tracking-wider text-[var(--color-ink-2)] uppercase mb-1.5">Nama Lengkap</label>
+              <input
+                type="text"
+                value={editName}
+                readOnly
+                className="w-full px-4 py-2.5 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] text-[var(--color-ink)] font-mono text-sm opacity-70 cursor-not-allowed"
+                placeholder="Nama lengkap Anda"
+              />
+              <p className="text-[10px] text-[var(--color-muted)] font-mono mt-1">Nama hanya dapat diubah oleh Admin.</p>
             </div>
-          </div>
-        </div>
-
-        {/* Bento Card: Personal Information */}
-        <div className="bg-surface-container-lowest border border-hairline-border rounded-lg p-6 shadow-[0_4px_12px_rgba(0,0,0,0.02)]">
-          <div className="flex items-center gap-2 mb-6 border-b border-hairline-border pb-4">
-            <span className="material-symbols-outlined text-primary">person</span>
-            <h3 className="font-body-lg text-body-lg font-semibold text-on-surface">Informasi Pribadi</h3>
-          </div>
-          
-          <form className="space-y-6" onSubmit={handleSaveProfile}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Name Input */}
-              <div className="flex flex-col gap-1.5">
-                <label className="font-label-caps text-label-caps text-on-surface-variant uppercase">Nama Lengkap</label>
-                <input 
-                  type="text" 
-                  value={editName}
-                  readOnly
-                  className="w-full px-4 py-2.5 bg-surface-container border border-hairline-border rounded-DEFAULT font-body-md text-body-md text-on-surface-variant opacity-70 cursor-not-allowed" 
-                />
-                <p className="text-[10px] text-on-surface-variant mt-1">Nama hanya dapat diubah oleh Admin.</p>
-              </div>
-              
-              {/* Email Input */}
-              <div className="flex flex-col gap-1.5">
-                <label className="font-label-caps text-label-caps text-on-surface-variant uppercase">Email</label>
-                <input 
-                  type="email" 
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-surface border border-hairline-border rounded-DEFAULT font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" 
-                />
-              </div>
+            {/* Email */}
+            <div>
+              <label className="block text-xs font-mono font-bold tracking-wider text-[var(--color-ink-2)] uppercase mb-1.5">Email</label>
+              <input
+                type="email"
+                value={editEmail}
+                onChange={e => setEditEmail(e.target.value)}
+                className="w-full px-4 py-2.5 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] text-[var(--color-ink)] font-mono text-sm focus:outline-none focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 transition-colors"
+                placeholder="alamat@email.com"
+              />
             </div>
-
-            {/* Phone Number & OTP Section */}
-            <div className="bg-surface-container-low p-5 rounded-DEFAULT border border-hairline-border space-y-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="font-label-caps text-label-caps text-on-surface-variant uppercase">Nomor WhatsApp</label>
-                <div className="flex gap-3">
-                  <div className="flex-1 relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-data-mono text-data-mono"></span>
-                    <input 
-                      type="tel" 
-                      value={editPhone}
-                      onChange={(e) => {
-                        setEditPhone(e.target.value);
-                        setOtpRequested(false);
-                      }}
-                      className="w-full px-4 py-2.5 bg-surface border border-hairline-border rounded-DEFAULT font-data-mono text-data-mono text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" 
-                    />
-                  </div>
-                  {isPhoneChanged && (
-                    <button 
-                      type="button"
-                      onClick={handleSendOtp}
-                      disabled={sendingOtp}
-                      className="shrink-0 px-4 py-2.5 bg-surface text-primary border border-primary rounded-DEFAULT font-label-caps text-label-caps uppercase hover:bg-primary-container hover:text-on-primary-container transition-colors active:scale-95 disabled:opacity-50 cursor-pointer"
-                    >
-                      {sendingOtp ? 'Mengirim...' : 'Kirim OTP'}
-                    </button>
-                  )}
-                </div>
+            {/* Phone + OTP */}
+            <div>
+              <label className="block text-xs font-mono font-bold tracking-wider text-[var(--color-ink-2)] uppercase mb-1.5">Nomor Telepon</label>
+              <div className="flex gap-2">
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={e => {
+                    setEditPhone(e.target.value);
+                    setOtpRequested(false);
+                  }}
+                  className="w-full flex-1 px-4 py-2.5 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] text-[var(--color-ink)] font-mono text-sm focus:outline-none focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 transition-colors"
+                  placeholder="08xxxxxxxxxx"
+                />
+                {isPhoneChanged && (
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={sendingOtp}
+                    className="px-4 py-2.5 bg-[var(--color-paper)] text-[var(--color-focus)] border border-[var(--color-focus)] rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider whitespace-nowrap hover:bg-[var(--color-paper-3)] transition-colors disabled:opacity-50"
+                  >
+                    {sendingOtp ? 'Mengirim...' : 'Kirim OTP'}
+                  </button>
+                )}
               </div>
-              
               {otpRequested && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-label-caps text-label-caps text-on-surface-variant uppercase">Kode OTP</label>
-                  <input 
-                    type="text" 
+                <div className="mt-2">
+                  <input
+                    type="text"
                     value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder="Masukkan 6-digit kode" 
-                    className="w-full max-w-[200px] px-4 py-2.5 bg-surface border border-hairline-border rounded-DEFAULT font-data-mono text-data-mono text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors tracking-widest"
+                    onChange={e => setOtpCode(e.target.value)}
+                    className="w-full max-w-[200px] px-4 py-2.5 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] text-[var(--color-ink)] font-mono text-sm focus:outline-none focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 transition-colors tracking-widest"
+                    placeholder="Masukkan kode OTP"
+                    maxLength={6}
                   />
-                  <p className="font-label-caps text-label-caps text-on-surface-variant mt-1 lowercase">Cek pesan WhatsApp Anda untuk melihat kode OTP.</p>
+                  <p className="font-mono text-[10px] text-[var(--color-muted)] mt-1">Cek pesan WhatsApp Anda untuk melihat kode OTP.</p>
                 </div>
               )}
             </div>
-
-            <div className="flex justify-end pt-2">
-              <button 
-                type="submit"
-                disabled={saving}
-                className="px-6 py-2.5 bg-primary text-on-primary rounded-DEFAULT font-label-caps text-label-caps uppercase hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
-              >
-                {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-6 py-3 bg-[var(--color-accent)] text-[var(--color-accent-ink)] rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider w-full md:w-auto md:self-end mt-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
+            </button>
           </form>
         </div>
 
-        {/* Bento Card: Security */}
-        <div className="bg-surface-container-lowest border border-hairline-border rounded-lg p-6 shadow-[0_4px_12px_rgba(0,0,0,0.02)]">
-          <div className="flex items-center gap-2 mb-6 border-b border-hairline-border pb-4">
-            <span className="material-symbols-outlined text-status-warning">lock</span>
-            <h3 className="font-body-lg text-body-lg font-semibold text-on-surface">Keamanan</h3>
-          </div>
-          
-          <form className="space-y-5" onSubmit={handleUpdatePassword}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="flex flex-col gap-1.5 relative">
-                <label className="font-label-caps text-label-caps text-on-surface-variant uppercase">Password Baru</label>
-                <div className="relative">
-                  <input 
-                    type={showPassword ? 'text' : 'password'}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••••" 
-                    className="w-full pl-4 pr-10 py-2.5 bg-surface border border-hairline-border rounded-DEFAULT font-data-mono text-data-mono text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" 
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">
-                      {showPassword ? 'visibility' : 'visibility_off'}
-                    </span>
-                  </button>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5 relative">
-                <label className="font-label-caps text-label-caps text-on-surface-variant uppercase">Ulangi Password</label>
-                <div className="relative">
-                  <input 
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••" 
-                    className="w-full pl-4 pr-10 py-2.5 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] font-mono text-sm text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 transition-colors" 
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">
-                      {showConfirmPassword ? 'visibility' : 'visibility_off'}
-                    </span>
-                  </button>
-                </div>
+        {/* Security / Password */}
+        <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 shadow-sm">
+          <h3 className="text-base font-display font-semibold text-[var(--color-ink)] mb-5">Keamanan</h3>
+          <form className="flex flex-col gap-4" onSubmit={handleUpdatePassword}>
+            <div>
+              <label className="block text-xs font-mono font-bold tracking-wider text-[var(--color-ink-2)] uppercase mb-1.5">Password Baru</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  className="w-full pl-4 pr-12 py-2.5 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] text-[var(--color-ink)] font-mono text-sm focus:outline-none focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 transition-colors"
+                  placeholder="Masukkan password baru"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                </button>
               </div>
             </div>
-            
+            <div>
+              <label className="block text-xs font-mono font-bold tracking-wider text-[var(--color-ink-2)] uppercase mb-1.5">Ulangi Password</label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  className="w-full pl-4 pr-12 py-2.5 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] text-[var(--color-ink)] font-mono text-sm focus:outline-none focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 transition-colors"
+                  placeholder="Ulangi password baru"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">{showConfirmPassword ? 'visibility_off' : 'visibility'}</span>
+                </button>
+              </div>
+            </div>
+
             {passwordOtpRequested && (
-              <div className="flex flex-col gap-1.5 mt-4 p-4 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-[var(--radius-sm)]">
-                <label className="font-mono text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider">Kode OTP</label>
+              <div className="mt-2 p-4 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-[var(--radius-sm)]">
+                <label className="block text-xs font-mono font-bold tracking-wider text-[var(--color-ink-2)] uppercase mb-1.5">Kode OTP</label>
                 <input 
                   type="text" 
                   value={passwordOtp}
                   onChange={(e) => setPasswordOtp(e.target.value)}
                   placeholder="Masukkan 6-digit kode" 
-                  className="w-full max-w-[240px] px-4 py-2.5 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] font-mono text-sm text-[var(--color-ink)] placeholder:text-[var(--color-muted)]/50 focus:outline-none focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 transition-colors tracking-widest"
+                  className="w-full max-w-[240px] px-4 py-2.5 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] text-[var(--color-ink)] font-mono text-sm placeholder:text-[var(--color-muted)]/50 focus:outline-none focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 transition-colors tracking-widest"
                 />
                 <p className="font-mono text-[10px] text-[var(--color-muted)] mt-1">Cek pesan WhatsApp Anda untuk melihat kode OTP.</p>
               </div>
             )}
             
-            <div className="flex justify-end pt-4 gap-3">
+            <div className="flex gap-3 mt-2 md:justify-end">
               {!passwordOtpRequested && (
-                <button 
+                <button
                   type="button"
                   onClick={handleSendPasswordOtp}
                   disabled={sendingPasswordOtp || changingPassword}
-                  className="px-6 py-2.5 bg-[var(--color-paper)] text-[var(--color-focus)] border border-[var(--color-focus)] rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider hover:bg-[var(--color-paper-3)] transition-colors disabled:opacity-50 cursor-pointer"
+                  className="px-6 py-3 bg-[var(--color-paper)] text-[var(--color-focus)] border border-[var(--color-focus)] rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider w-full md:w-auto hover:bg-[var(--color-paper-3)] transition-colors disabled:opacity-50"
                 >
                   {sendingPasswordOtp ? 'Mengirim...' : 'Kirim OTP'}
                 </button>
               )}
-              <button 
+              <button
                 type="submit"
                 disabled={changingPassword || !passwordOtpRequested}
-                className="px-6 py-2.5 bg-[var(--color-accent)] text-[var(--color-accent-ink)] rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+                className="px-6 py-3 bg-[var(--color-accent)] text-[var(--color-accent-ink)] rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider w-full md:w-auto hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {changingPassword ? 'Memperbarui...' : 'Simpan Password'}
+                {changingPassword ? 'Memperbarui...' : 'Ubah Password'}
               </button>
             </div>
           </form>
         </div>
-
       </div>
-    </main>
-  );
+    </div>
+  </main>
+);
 }

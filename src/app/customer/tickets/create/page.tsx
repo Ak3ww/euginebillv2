@@ -191,232 +191,139 @@ export default function CreateTicketPage() {
     }
   };
 
-  if (success) {
-    return (
-      <div className="flex items-center justify-center p-4 py-12 animate-in fade-in duration-700">
-        <div className="p-8 max-w-md w-full text-center bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm">
-          <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
-          <h2 className="text-xl font-display font-medium text-[var(--color-ink)] mb-2">
-            {t('ticket.ticketCreated')}
-          </h2>
-          <p className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-4">
-            {t('ticket.ticketNumberIs')}:
-          </p>
-          <div className="bg-green-500/10 border border-green-500/20 rounded p-4 mb-6">
-            <span className="text-xl font-mono font-bold text-green-600 tracking-wider">
-              #{ticketNumber}
-            </span>
-          </div>
-          <p className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-widest mb-6">
-            {t('ticket.whatsappNotificationSent')}
-          </p>
-          <p className="text-xs font-mono font-bold text-[var(--color-accent)] animate-pulse">
-            {t('ticket.redirectingToTicket')}...
-          </p>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
-    <div className="max-w-3xl mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 space-y-6 animate-in fade-in duration-700">
-      {/* Header */}
-      <div className="flex items-center gap-4 pb-4 border-b border-[var(--color-rule)]">
-        <Link
-          href="/customer/tickets"
-          className="text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
-        >
-          <ArrowLeft size={20} />
-        </Link>
-        <div>
-          <h1 className="text-xl lg:text-2xl font-display font-medium text-[var(--color-ink)]">
-            {t('ticket.createTicket')}
-          </h1>
-          <p className="text-[10px] font-mono text-[var(--color-muted)] uppercase mt-1">
-            {t('ticket.createTicketDescription')}
-          </p>
+    <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8">
+      <button
+        onClick={() => router.push('/customer/tickets')}
+        className="flex items-center gap-1.5 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors font-mono text-[10px] uppercase tracking-wider font-bold mb-6"
+      >
+        <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+        Kembali ke Tiket
+      </button>
+
+      {success ? (
+        <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 shadow-sm max-w-md mx-auto text-center py-12">
+          <div className="w-16 h-16 rounded-full bg-[var(--color-success-bg,oklch(95%_0.04_145))] text-[var(--color-success,oklch(60%_0.14_145))] flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-display font-semibold text-[var(--color-ink)] mb-2">Tiket Berhasil Dibuat!</h2>
+          <p className="text-sm font-body text-[var(--color-ink-2)] mb-1">Nomor tiket Anda:</p>
+          <p className="font-mono text-lg font-bold text-[var(--color-accent)] mb-6">{ticketNumber}</p>
+          <button
+            onClick={() => router.push('/customer/tickets')}
+            className="bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 px-4 py-3 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider w-full"
+          >
+            Lihat Tiket Saya
+          </button>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+          <div className="md:col-span-8">
+            <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 shadow-sm">
+              <h2 className="text-2xl font-display font-semibold text-[var(--color-ink)] mb-6">Buat Tiket Bantuan</h2>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                {/* Subject */}
+                <div>
+                  <label className="block text-xs font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">Subjek <span className="text-[var(--color-error)]">*</span></label>
+                  <input
+                    type="text"
+                    value={formData.subject}
+                    onChange={e => setFormData({ ...formData, subject: e.target.value })}
+                    className={`w-full bg-[var(--color-paper)] border rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono ${errors.subject ? 'border-[var(--color-error)] focus:border-[var(--color-error)] focus:ring-1 focus:ring-[var(--color-error)]/20' : 'border-[var(--color-rule)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20'}`}
+                    placeholder="Deskripsikan masalah Anda secara singkat"
+                    maxLength={200}
+                  />
+                  {errors.subject && <p className="text-[var(--color-error)] text-xs mt-1">{errors.subject}</p>}
+                </div>
 
-      <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm p-6">
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Customer Name */}
-          <div>
-            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">
-              {t('ticket.customerName')} <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.customerName}
-              onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-              className={`w-full bg-[var(--color-paper)] border rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono ${
-                errors.customerName ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-[var(--color-rule)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20'
-              }`}
-              placeholder={t('ticket.enterYourName')}
-            />
-            {errors.customerName && (
-              <p className="text-[10px] font-mono text-red-500 uppercase mt-1.5">{errors.customerName}</p>
-            )}
-          </div>
+                {/* Category */}
+                <div>
+                  <label className="block text-xs font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">Kategori</label>
+                  <select
+                    value={formData.categoryId}
+                    onChange={e => setFormData({ ...formData, categoryId: e.target.value })}
+                    className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 text-sm font-mono text-[var(--color-ink)] outline-none transition-all focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 uppercase"
+                  >
+                    <option value="">-- Pilih kategori --</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-          {/* Customer Phone */}
-          <div>
-            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">
-              {t('ticket.customerPhone')} <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.customerPhone}
-              onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-              className={`w-full bg-[var(--color-paper)] border rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono ${
-                errors.customerPhone ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-[var(--color-rule)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20'
-              }`}
-              placeholder="+62..."
-            />
-            {errors.customerPhone && (
-              <p className="text-[10px] font-mono text-red-500 uppercase mt-1.5">{errors.customerPhone}</p>
-            )}
-          </div>
+                {/* Description */}
+                <div>
+                  <label className="block text-xs font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">Deskripsi <span className="text-[var(--color-error)]">*</span></label>
+                  <textarea
+                    value={formData.description}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    className={`w-full bg-[var(--color-paper)] border rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono min-h-[120px] resize-y ${errors.description ? 'border-[var(--color-error)] focus:border-[var(--color-error)] focus:ring-1 focus:ring-[var(--color-error)]/20' : 'border-[var(--color-rule)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20'}`}
+                    placeholder="Jelaskan masalah secara detail: kapan mulai terjadi, apa yang sudah dicoba, dll."
+                    rows={5}
+                  />
+                  {errors.description && <p className="text-[var(--color-error)] text-xs mt-1">{errors.description}</p>}
+                </div>
 
-          {/* Customer Email */}
-          <div>
-            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">
-              {t('ticket.customerEmail')}
-            </label>
-            <input
-              type="email"
-              value={formData.customerEmail}
-              onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-              className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20"
-              placeholder="name@domain.com"
-            />
-          </div>
+                {/* Location */}
+                <div>
+                  <label className="block text-xs font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">Lokasi (Opsional)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.locationTag}
+                      onChange={e => setFormData({ ...formData, locationTag: e.target.value })}
+                      className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 flex-1"
+                      placeholder="Masukkan alamat atau nama lokasi"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleGetGPS}
+                      disabled={gpsLoading}
+                      className="bg-[var(--color-paper-2)] border border-[var(--color-rule)] text-[var(--color-ink)] hover:bg-[var(--color-paper-3)] px-4 py-2.5 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider whitespace-nowrap flex items-center gap-2"
+                    >
+                      {gpsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
+                      GPS
+                    </button>
+                  </div>
+                </div>
 
-          {/* Subject */}
-          <div>
-            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">
-              {t('ticket.subject')} <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.subject}
-              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-              className={`w-full bg-[var(--color-paper)] border rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono ${
-                errors.subject ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-[var(--color-rule)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20'
-              }`}
-              placeholder={t('ticket.subjectPlaceholder')}
-            />
-            {errors.subject && (
-              <p className="text-[10px] font-mono text-red-500 uppercase mt-1.5">{errors.subject}</p>
-            )}
-          </div>
-
-          {/* Category */}
-          <div>
-            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">
-              {t('ticket.category')}
-            </label>
-            <select
-              value={formData.categoryId}
-              onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-              className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 text-sm font-mono text-[var(--color-ink)] outline-none transition-all focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 uppercase"
-            >
-              <option value="">{t('ticket.selectCategory')}</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2">
-              {t('ticket.description')} <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={6}
-              className={`w-full bg-[var(--color-paper)] border rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono resize-none ${
-                errors.description ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500/20' : 'border-[var(--color-rule)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20'
-              }`}
-              placeholder={t('ticket.descriptionPlaceholder')}
-            />
-            {errors.description && (
-              <p className="text-[10px] font-mono text-red-500 uppercase mt-1.5">{errors.description}</p>
-            )}
-            <p className="text-[9px] font-mono text-[var(--color-muted)] uppercase mt-1.5 tracking-widest">
-              {t('ticket.minCharacters')}: 10
-            </p>
-          </div>
-
-          {/* Location Tag */}
-          <div>
-            <label className="block text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <MapPin size={12} />
-              LOKASI / ALAMAT RUMAH
-            </label>
-            <input
-              type="text"
-              value={formData.locationTag}
-              onChange={(e) => setFormData({ ...formData, locationTag: e.target.value })}
-              className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none transition-all font-mono focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20"
-              placeholder="Contoh: Jl. Merdeka No. 10..."
-            />
-            <div className="flex items-center gap-3 mt-3">
-              <button
-                type="button"
-                onClick={handleGetGPS}
-                disabled={gpsLoading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-paper)] border border-[var(--color-rule)] hover:border-[var(--color-focus)]/50 text-[10px] font-mono font-bold text-[var(--color-ink)] rounded-[var(--radius-sm)] transition-colors disabled:opacity-50 uppercase tracking-wider"
-              >
-                {gpsLoading ? (
-                  <><Loader2 size={12} className="animate-spin" /> MENDAPATKAN LOKASI…</>
-                ) : (
-                  <><Navigation size={12} /> AMBIL KOORDINAT GPS</>
-                )}
-              </button>
-              {formData.latitude && formData.longitude && (
-                <span className="text-[10px] font-mono font-bold text-green-600 uppercase">
-                  📍 {formData.latitude}, {formData.longitude}
-                </span>
-              )}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 px-4 py-3 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider w-full mt-2 flex items-center justify-center gap-2"
+                >
+                  {loading
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Mengirim...</>
+                    : <><Send className="w-4 h-4" /> Kirim Tiket</>}
+                </button>
+              </form>
             </div>
           </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-rule)] mt-6">
-            <Link href="/customer/tickets">
-              <button
-                type="button"
-                className="px-6 py-2 bg-[var(--color-paper)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] text-[var(--color-ink)] text-[10px] font-mono font-bold rounded-[var(--radius-sm)] transition-colors uppercase tracking-wider"
-              >
-                {t('ticket.cancel')}
-              </button>
-            </Link>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex items-center gap-2 px-6 py-2 bg-[var(--color-accent)] hover:bg-[var(--color-accent)]-hover text-[var(--color-accent-ink)] text-[10px] font-mono font-bold rounded-[var(--radius-sm)] transition-colors disabled:opacity-50 uppercase tracking-wider"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" />
-                  {t('ticket.creating')}...
-                </>
-              ) : (
-                <>
-                  <Send size={14} />
-                  {t('ticket.submitTicket')}
-                </>
-              )}
-            </button>
+          {/* Info sidebar */}
+          <div className="md:col-span-4">
+            <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 shadow-sm">
+              <h3 className="text-sm font-display font-semibold text-[var(--color-ink)] mb-4">Tips Membuat Tiket</h3>
+              <ul className="flex flex-col gap-3">
+                {[
+                  'Jelaskan masalah sejelas mungkin',
+                  'Sebutkan kapan masalah pertama kali muncul',
+                  'Lampirkan foto jika diperlukan',
+                  'Pastikan nomor telepon Anda aktif',
+                ].map((tip, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-full bg-[var(--color-accent)]/10 text-[var(--color-accent)] flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">{i+1}</span>
+                    <span className="text-sm font-body text-[var(--color-ink-2)]">{tip}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      )}
+    </main>
   );
 }
 

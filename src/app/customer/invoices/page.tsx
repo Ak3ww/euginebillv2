@@ -94,161 +94,145 @@ export default function CustomerInvoicesPage() {
   const overdueCount = invoices.filter(inv => inv.status === 'OVERDUE').length;
 
   return (
-    <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6">
-      <button 
-        onClick={() => router.push('/customer')}
-        className="flex items-center gap-1.5 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors font-mono text-[10px] uppercase tracking-wider font-bold mb-6"
-      >
-        <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-        Kembali
-      </button>
-      {/* Header & Filters */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-display font-medium text-[var(--color-ink)] mb-2">Tagihan</h2>
-          <p className="text-sm font-body text-[var(--color-ink-2)]">Riwayat tagihan dan pembayaran Anda.</p>
-        </div>
-        
-        {/* Tabs/Pills */}
-        <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
-          <button 
-            onClick={() => setStatusFilter('all')}
-            className={`px-4 py-2 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider whitespace-nowrap transition-colors border ${statusFilter === 'all' ? 'bg-[var(--color-accent)] text-[var(--color-accent-ink)] border-[var(--color-accent)]' : 'bg-[var(--color-paper)] text-[var(--color-ink)] border-[var(--color-rule)] hover:bg-[var(--color-paper-3)]'}`}
-          >
-            Semua
-          </button>
-          <button 
-            onClick={() => setStatusFilter('unpaid')}
-            className={`px-4 py-2 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider whitespace-nowrap transition-colors border ${statusFilter === 'unpaid' ? 'bg-[var(--color-accent)] text-[var(--color-accent-ink)] border-[var(--color-accent)]' : 'bg-[var(--color-paper)] text-[var(--color-ink)] border-[var(--color-rule)] hover:bg-[var(--color-paper-3)]'}`}
-          >
-            Belum Bayar
-          </button>
-          <button 
-            onClick={() => setStatusFilter('overdue')}
-            className={`px-4 py-2 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider whitespace-nowrap transition-colors border ${statusFilter === 'overdue' ? 'bg-[var(--color-accent)] text-[var(--color-accent-ink)] border-[var(--color-accent)]' : 'bg-[var(--color-paper)] text-[var(--color-ink)] border-[var(--color-rule)] hover:bg-[var(--color-paper-3)]'}`}
-          >
-            Jatuh Tempo
-          </button>
-          <button 
-            onClick={() => setStatusFilter('paid')}
-            className={`px-4 py-2 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider whitespace-nowrap transition-colors border ${statusFilter === 'paid' ? 'bg-[var(--color-accent)] text-[var(--color-accent-ink)] border-[var(--color-accent)]' : 'bg-[var(--color-paper)] text-[var(--color-ink)] border-[var(--color-rule)] hover:bg-[var(--color-paper-3)]'}`}
-          >
-            Lunas
-          </button>
-        </div>
+  <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8">
+    {/* Back Button */}
+    <button
+      onClick={() => router.push('/customer')}
+      className="flex items-center gap-1.5 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors font-mono text-[10px] uppercase tracking-wider font-bold mb-6"
+    >
+      <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+      Kembali
+    </button>
+
+    {/* Header */}
+    <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div>
+        <h2 className="text-2xl md:text-[32px] font-display font-semibold text-[var(--color-ink)] mb-1">Tagihan</h2>
+        <p className="text-sm font-body text-[var(--color-ink-2)]">Riwayat tagihan dan pembayaran Anda.</p>
       </div>
+      {/* Status Filter Pills */}
+      <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
+        {([['all', 'Semua'], ['unpaid', 'Belum Bayar'], ['overdue', 'Jatuh Tempo'], ['paid', 'Lunas']] as [StatusFilter, string][]).map(([val, label]) => (
+          <button
+            key={val}
+            onClick={() => setStatusFilter(val)}
+            className={`px-4 py-2 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider whitespace-nowrap transition-colors border ${
+              statusFilter === val
+                ? 'bg-[var(--color-accent)] text-[var(--color-accent-ink)] border-[var(--color-accent)]'
+                : 'bg-[var(--color-paper)] text-[var(--color-ink-2)] border-[var(--color-rule)] hover:bg-[var(--color-paper-3)]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
 
-      {/* Bento Grid for Invoices */}
-      <div className="grid grid-cols-1 md:grid-cols-8 lg:grid-cols-12 gap-5">
-        
-        {/* Summary Module */}
-        <div className="md:col-span-8 lg:col-span-4 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 flex flex-col justify-between shadow-sm">
-          <div>
-            <h3 className="font-mono text-[10px] text-[var(--color-muted)] font-bold uppercase tracking-wider mb-2">Total Outstanding</h3>
-            <div className="text-4xl font-display font-medium text-[var(--color-ink)]">{formatCurrency(totalOutstanding)}</div>
-            {overdueCount > 0 && (
-              <p className="font-body text-sm text-[var(--color-error)] mt-1 flex items-center gap-1">
-                <span className="material-symbols-outlined text-[18px]">error</span>
-                {overdueCount} Invoices Overdue
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* List Module */}
-        <div className="md:col-span-8 lg:col-span-8 flex flex-col gap-4">
-          {loading ? (
-            <div className="p-8 flex justify-center items-center">
-              <Loader2 className="w-8 h-8 animate-spin text-[var(--color-focus)]" />
-            </div>
-          ) : invoices.length === 0 ? (
-            <div className="p-8 text-center text-[var(--color-muted)] text-sm">
-              Tidak ada tagihan ditemukan.
-            </div>
-          ) : (
-            invoices.map((inv) => {
-              const isUnpaid = inv.status === 'PENDING';
-              const isOverdue = inv.status === 'OVERDUE';
-              const isPaid = inv.status === 'PAID';
-
-              let borderColor = 'border-[var(--color-rule)]';
-              let iconBg = 'bg-[var(--color-paper-3)]';
-              let iconColor = 'text-[var(--color-muted)]';
-              let badgeBg = 'bg-[var(--color-paper-3)]';
-              let badgeColor = 'text-[var(--color-ink-2)]';
-              let badgeText = 'Belum Bayar';
-
-              if (isOverdue) {
-                borderColor = 'border-[var(--color-error)]';
-                iconBg = 'bg-[var(--color-error-bg)]';
-                iconColor = 'text-[var(--color-error)]';
-                badgeBg = 'bg-[var(--color-error-bg)]';
-                badgeColor = 'text-[var(--color-error)] border border-[var(--color-error)]';
-                badgeText = 'Jatuh Tempo';
-              } else if (isPaid) {
-                iconBg = 'bg-[var(--color-success-bg)]';
-                iconColor = 'text-[var(--color-success)]';
-                badgeBg = 'bg-[var(--color-success-bg)]';
-                badgeColor = 'text-[var(--color-success)] border border-[var(--color-success)]';
-                badgeText = 'Lunas';
-              }
-
-              return (
-                <div key={inv.id} className={`bg-[var(--color-paper)] border ${borderColor} rounded-[var(--radius-lg)] p-6 hover:shadow-md transition-shadow`}>
-                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                    <div className="flex items-start gap-4">
-                      <div className={`w-12 h-12 rounded-[var(--radius-sm)] ${iconBg} ${iconColor} flex items-center justify-center shrink-0`}>
-                        <span className="material-symbols-outlined">{isPaid ? 'check_circle' : 'receipt_long'}</span>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-sm text-[var(--color-muted)]">{inv.invoiceNumber}</span>
-                          <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider ${badgeBg} ${badgeColor}`}>
-                            {badgeText}
-                          </span>
-                        </div>
-                        <h4 className="font-display text-lg font-medium text-[var(--color-ink)]">{inv.profileName || (inv.invoiceType === 'INSTALLATION' ? 'Biaya Instalasi' : 'Layanan Internet')}</h4>
-                        <p className="font-body text-sm text-[var(--color-ink-2)] mt-1">
-                          {isPaid 
-                            ? `Dibayar pada: ${new Date(inv.paidAt!).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })}` 
-                            : `Jatuh Tempo: ${new Date(inv.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })}`}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col sm:items-end gap-3 border-t sm:border-t-0 border-[var(--color-rule)] pt-4 sm:pt-0">
-                      <div className="font-display text-xl font-bold text-[var(--color-ink)]">{formatCurrency(inv.amount)}</div>
-                      {isPaid ? (
-                        <button 
-                          onClick={() => window.open(`/invoice/${inv.invoiceNumber}/print`, '_blank')}
-                          className="bg-transparent border border-[var(--color-rule)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)] px-4 py-2 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider transition-colors flex items-center justify-center gap-2"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">download</span> Lihat Receipt
-                        </button>
-                      ) : (
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => router.push(`/invoice/${inv.invoiceNumber}`)}
-                            className="bg-transparent border border-[var(--color-rule)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)] px-4 py-2 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">visibility</span> Lihat Invoice
-                          </button>
-                          <button 
-                            onClick={() => router.push(`/pay/${inv.paymentToken}`)}
-                            className="bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 px-4 py-2 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider transition-opacity whitespace-nowrap flex items-center justify-center gap-2"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">payment</span> Bayar
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+    {/* Summary + List Grid */}
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+      {/* Summary Module */}
+      <div className="md:col-span-4 bento-card flex flex-col justify-between">
+        <div>
+          <p className="section-header">Total Belum Dibayar</p>
+          <div className="text-3xl font-display font-semibold text-[var(--color-ink)] mt-1">{formatCurrency(totalOutstanding)}</div>
+          {overdueCount > 0 && (
+            <p className="text-sm font-body text-[var(--color-error)] mt-2 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[16px]">error</span>
+              {overdueCount} Tagihan Jatuh Tempo
+            </p>
           )}
         </div>
       </div>
-    </main>
-  );
+
+      {/* Invoice List */}
+      <div className="md:col-span-8 flex flex-col gap-4">
+        {loading ? (
+          <div className="p-8 flex justify-center items-center">
+            <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent)]" />
+          </div>
+        ) : invoices.length === 0 ? (
+          <div className="bento-card p-8 text-center">
+            <span className="material-symbols-outlined text-[48px] text-[var(--color-muted)] block mb-3">receipt_long</span>
+            <p className="text-sm font-body text-[var(--color-muted)]">Tidak ada tagihan ditemukan.</p>
+          </div>
+        ) : (
+          invoices.map((inv) => {
+            const isUnpaid = inv.status === 'PENDING';
+            const isOverdue = inv.status === 'OVERDUE';
+            const isPaid = inv.status === 'PAID';
+
+            return (
+              <div
+                key={inv.id}
+                className={`bento-card hover:shadow-md transition-shadow ${
+                  isOverdue ? 'border-l-[3px] border-l-[var(--color-error)]' :
+                  isUnpaid ? 'border-l-[3px] border-l-[var(--color-warning)]' :
+                  'border-l-[3px] border-l-[var(--color-success)]'
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className={`w-10 h-10 rounded-[var(--radius-sm)] flex items-center justify-center shrink-0 ${
+                      isPaid ? 'bg-[var(--color-success-bg)] text-[var(--color-success)]' :
+                      isOverdue ? 'bg-[var(--color-error-bg)] text-[var(--color-error)]' :
+                      'bg-[var(--color-warning-bg)] text-[var(--color-warning)]'
+                    }`}>
+                      <span className="material-symbols-outlined text-[20px]">{isPaid ? 'check_circle' : 'receipt_long'}</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono text-xs text-[var(--color-muted)]">{inv.invoiceNumber}</span>
+                        <span className={`badge ${
+                          isPaid ? 'badge-paid' : isOverdue ? 'badge-overdue' : 'badge-pending'
+                        }`}>
+                          {isPaid ? 'Lunas' : isOverdue ? 'Jatuh Tempo' : 'Menunggu'}
+                        </span>
+                      </div>
+                      <h4 className="font-display text-base font-semibold text-[var(--color-ink)]">
+                        {inv.profileName || (inv.invoiceType === 'INSTALLATION' ? 'Biaya Instalasi' : 'Layanan Internet')}
+                      </h4>
+                      <p className="font-body text-sm text-[var(--color-ink-2)] mt-0.5">
+                        {isPaid
+                          ? `Dibayar: ${new Date(inv.paidAt!).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })}`
+                          : `Jatuh Tempo: ${new Date(inv.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:items-end gap-3 border-t sm:border-t-0 border-[var(--color-rule)] pt-4 sm:pt-0">
+                    <div className="font-display text-lg font-bold text-[var(--color-ink)]">{formatCurrency(inv.amount)}</div>
+                    {isPaid ? (
+                      <button
+                        onClick={() => window.open(`/invoice/${inv.invoiceNumber}/print`, '_blank')}
+                        className="btn-secondary whitespace-nowrap"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">download</span> Unduh Kwitansi
+                      </button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => router.push(`/invoice/${inv.invoiceNumber}`)}
+                          className="btn-secondary whitespace-nowrap"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">visibility</span> Lihat
+                        </button>
+                        {inv.paymentToken && (
+                          <button
+                            onClick={() => router.push(`/pay/${inv.paymentToken}`)}
+                            className="btn-primary whitespace-nowrap"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">payment</span> Bayar
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  </main>
+);
 }

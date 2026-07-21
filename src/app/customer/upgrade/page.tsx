@@ -203,10 +203,14 @@ export default function UpgradePackagePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-10 h-10 animate-spin text-red-600" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin" />
+          <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-muted)]">Memuat paket...</p>
+        </div>
       </div>
     );
   }
+
 
     return (
     <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 min-h-screen">

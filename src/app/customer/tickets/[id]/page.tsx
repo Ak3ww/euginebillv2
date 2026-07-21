@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useToast } from '@/components/cyberpunk/CyberToast';
 import { ArrowLeft, Send, User, Clock } from 'lucide-react';
 import { formatWIB } from '@/lib/timezone';
 
@@ -36,6 +37,7 @@ interface TicketDetail {
 
 export default function TicketDetailPage() {
  const { t } = useTranslation();
+ const { addToast } = useToast();
  const toast = (type: 'success' | 'error' | 'info', msg: string) =>
  addToast({ type, title: type === 'success' ? 'Berhasil' : 'Gagal', description: msg, duration: type === 'error' ? 8000 : 5000 });
  const params = useParams();
@@ -171,177 +173,136 @@ export default function TicketDetailPage() {
  return colors[senderType] || colors.SYSTEM;
  };
 
- if (loading) {
- return (
- <div className="min-h-screen flex items-center justify-center">
- <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
- </div>
- );
- }
+  return (
+    <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8">
+      <button
+        onClick={() => router.push('/customer/tickets')}
+        className="flex items-center gap-1.5 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors font-mono text-[10px] uppercase tracking-wider font-bold mb-6"
+      >
+        <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+        Kembali ke Tiket
+      </button>
 
- if (!ticket) {
- return (
- <div className="min-h-screen flex items-center justify-center p-4">
- <div className="text-center bg-[var(--color-paper)] border border-[var(--color-rule)] p-8 rounded-[var(--radius-lg)] shadow-sm">
- <h2 className="text-lg font-display font-medium text-[var(--color-ink)] mb-2 uppercase tracking-widest">
- {t('ticket.ticketNotFound')}
- </h2>
- <Link
- href="/customer/tickets"
- className="text-[10px] font-mono font-bold text-[var(--color-accent)] hover:text-[var(--color-focus)] uppercase tracking-wider"
- >
- {t('ticket.backToTickets')}
- </Link>
- </div>
- </div>
- );
- }
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : !ticket ? (
+        <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 shadow-sm text-center py-12">
+          <p className="text-sm font-body text-[var(--color-muted)]">Tiket tidak ditemukan.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+          {/* Ticket info sidebar */}
+          <div className="md:col-span-4 flex flex-col gap-5">
+            <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 shadow-sm">
+              <p className="font-mono text-[10px] text-[var(--color-muted)] uppercase tracking-wider font-bold mb-2">Detail Tiket</p>
+              <h2 className="text-base font-display font-semibold text-[var(--color-ink)] mt-2 mb-4">{ticket.subject}</h2>
+              <div className="flex flex-col gap-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-body text-[var(--color-muted)]">Nomor</span>
+                  <span className="font-mono text-xs text-[var(--color-ink)]">{ticket.ticketNumber}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-body text-[var(--color-muted)]">Status</span>
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${
+                    ticket.status === 'OPEN' ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-focus)]/20' :
+                    (ticket.status === 'IN_PROGRESS' || ticket.status === 'WAITING_CUSTOMER') ? 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20' :
+                    'bg-green-500/10 text-green-600 border border-green-500/20'
+                  }`}>
+                    {ticket.status === 'OPEN' ? 'Terbuka' :
+                     ticket.status === 'IN_PROGRESS' ? 'Diproses' :
+                     ticket.status === 'WAITING_CUSTOMER' ? 'Menunggu Jawaban' :
+                     ticket.status === 'RESOLVED' ? 'Selesai' : 'Ditutup'}
+                  </span>
+                </div>
+                {ticket.category && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-body text-[var(--color-muted)]">Kategori</span>
+                    <span className="font-mono text-xs text-[var(--color-ink)]">{ticket.category.name}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-body text-[var(--color-muted)]">Dibuat</span>
+                  <span className="font-mono text-xs text-[var(--color-ink-2)]">{formatWIB(ticket.createdAt, 'dd MMM yyyy HH:mm')}</span>
+                </div>
+              </div>
+              <div className="border-t border-[var(--color-rule)] mt-4 pt-4">
+                <p className="font-mono text-[10px] text-[var(--color-muted)] uppercase tracking-wider font-bold mb-2">Deskripsi</p>
+                <p className="text-sm font-body text-[var(--color-ink-2)] leading-relaxed">{ticket.description}</p>
+              </div>
+            </div>
+          </div>
 
- const isClosed = ticket.status === 'CLOSED';
-
- return (
- <div className="max-w-4xl mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 space-y-6 animate-in fade-in duration-700">
- {/* Header */}
- <div className="flex items-center gap-4 pb-4 border-b border-[var(--color-rule)]">
- <Link
- href="/customer/tickets"
- className="text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors flex-shrink-0"
- >
- <ArrowLeft size={20} />
- </Link>
- <div className="flex-1 min-w-0">
- <div className="flex flex-wrap items-center gap-2 mb-2">
- <span className="text-[10px] font-mono font-bold text-[var(--color-ink)] tracking-wide">
- #{ticket.ticketNumber}
- </span>
- <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${getStatusColor(ticket.status)}`}>
- {t(`ticket.status_${ticket.status}`)}
- </span>
- <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${getPriorityColor(ticket.priority)}`}>
- {t(`ticket.priority_${ticket.priority}`)}
- </span>
- {ticket.category && (
- <span
- className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-muted/10 border"
- style={{ color: ticket.category.color, borderColor: ticket.category.color + '40' }}
- >
- {ticket.category.name}
- </span>
- )}
- </div>
- <h2 className="text-xl lg:text-2xl font-display font-medium text-[var(--color-ink)] truncate mb-1">
- {ticket.subject}
- </h2>
- <p className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider">
- {t('ticket.created')}: {formatWIB(ticket.createdAt, 'dd MMM yyyy HH:mm')}
- </p>
- </div>
- </div>
-
- {/* Initial Description */}
- <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden">
- <div className="p-4 border-b border-[var(--color-rule)] bg-muted/5">
- <h3 className="text-[10px] font-mono font-bold text-[var(--color-ink)] uppercase tracking-widest">
- {t('ticket.description')}
- </h3>
- </div>
- <div className="p-5">
- <p className="text-sm font-mono text-[var(--color-ink)] whitespace-pre-wrap leading-relaxed">
- {ticket.description}
- </p>
- </div>
- </div>
-
- {/* Messages */}
- <div className="space-y-4">
- {messages.map((msg) => (
- <div
- key={msg.id}
- className={`bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden transition-all ${
- msg.senderType === 'SYSTEM' ? 'opacity-80' : ''
- }`}
- >
- <div className={`p-4 ${msg.senderType === 'SYSTEM' ? 'bg-muted/5' : ''}`}>
- <div className="flex items-start gap-4">
- <div className={`flex-shrink-0 w-8 h-8 rounded border flex items-center justify-center ${
- msg.senderType === 'CUSTOMER' ? 'bg-[var(--color-accent)]/10 border-[var(--color-focus)]/20 text-[var(--color-accent)]' : 
- msg.senderType === 'ADMIN' ? 'bg-green-500/10 border-green-500/20 text-green-600' :
- msg.senderType === 'TECHNICIAN' ? 'bg-purple-500/10 border-purple-500/20 text-purple-600' :
- 'bg-muted/10 border-[var(--color-rule)] text-[var(--color-muted)]'
- }`}>
- <User size={14} />
- </div>
- <div className="flex-1 min-w-0 pt-0.5">
- <div className="flex items-center gap-2 mb-2 flex-wrap">
- <span className="text-xs font-display font-medium text-[var(--color-ink)]">
- {msg.senderName}
- </span>
- <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${getSenderBadgeColor(msg.senderType)}`}>
- {t(`ticket.senderType_${msg.senderType}`)}
- </span>
- <div className="flex items-center gap-1.5 text-[9px] font-mono text-[var(--color-muted)] uppercase tracking-wider">
- <Clock size={10} />
- {formatWIB(msg.createdAt, 'dd MMM HH:mm')}
- </div>
- </div>
- <p className="text-sm font-mono text-[var(--color-ink)] whitespace-pre-wrap leading-relaxed mt-3">
- {msg.message}
- </p>
- </div>
- </div>
- </div>
- </div>
- ))}
- </div>
-
- {/* Reply Form */}
- {!isClosed && (
- <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden">
- <div className="p-4 border-b border-[var(--color-rule)] bg-muted/5">
- <h3 className="text-[10px] font-mono font-bold text-[var(--color-ink)] uppercase tracking-widest">
- {t('ticket.addReply')}
- </h3>
- </div>
- <form onSubmit={handleReply} className="p-5">
- <textarea
- value={replyText}
- onChange={(e) => setReplyText(e.target.value)}
- rows={4}
- className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-3 text-sm font-mono text-[var(--color-ink)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 outline-none transition-all resize-y mb-4"
- placeholder={t('ticket.replyPlaceholder')}
- disabled={sending}
- />
- <div className="flex justify-end">
- <button
- type="submit"
- disabled={sending || !replyText.trim()}
- className="flex items-center gap-2 px-6 py-2 bg-[var(--color-accent)] hover:opacity-90 text-[var(--color-accent-ink)] text-[10px] font-mono font-bold rounded-[var(--radius-sm)] transition-colors disabled:opacity-50 uppercase tracking-wider"
- >
- {sending ? (
- <>
- <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
- {t('ticket.sending')}...
- </>
- ) : (
- <>
- <Send size={14} />
- {t('ticket.sendReply')}
- </>
- )}
- </button>
- </div>
- </form>
- </div>
- )}
-
- {isClosed && (
- <div className="bg-muted/5 border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-6 text-center">
- <p className="text-[10px] font-mono font-bold text-[var(--color-muted)] uppercase tracking-widest">
- {t('ticket.ticketClosed')}
- </p>
- </div>
- )}
- </div>
- );
+          {/* Chat */}
+          <div className="md:col-span-8">
+            <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] p-0 shadow-sm overflow-hidden flex flex-col">
+              <div className="px-6 py-4 border-b border-[var(--color-rule)] bg-[var(--color-paper-2)]">
+                <h3 className="text-sm font-display font-semibold text-[var(--color-ink)]">Percakapan</h3>
+              </div>
+              <div className="flex flex-col gap-4 p-6 min-h-[300px]">
+                {messages.length === 0 ? (
+                  <p className="text-sm text-center text-[var(--color-muted)] py-8">Belum ada pesan.</p>
+                ) : (
+                  messages.filter(m => !m.isInternal).map(msg => (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col max-w-[80%] ${
+                        msg.senderType === 'CUSTOMER' ? 'self-end items-end' :
+                        msg.senderType === 'SYSTEM' ? 'self-center items-center max-w-full' :
+                        'self-start items-start'
+                      }`}
+                    >
+                      <div className={`px-4 py-3 rounded-[var(--radius-md)] text-sm font-body leading-relaxed ${
+                        msg.senderType === 'CUSTOMER'
+                          ? 'bg-[var(--color-accent)] text-white rounded-br-none'
+                          : msg.senderType === 'SYSTEM'
+                          ? 'bg-[var(--color-paper-3)] text-[var(--color-ink-2)] text-center text-xs font-mono rounded-[var(--radius-sm)] border border-[var(--color-rule)]'
+                          : 'bg-[var(--color-paper-3)] text-[var(--color-ink)] rounded-bl-none border border-[var(--color-rule)]'
+                      }`}>
+                        {msg.message}
+                      </div>
+                      <span className="font-mono text-[10px] text-[var(--color-muted)] mt-1 px-1">
+                        {msg.senderName} · {formatWIB(msg.createdAt, 'dd MMM HH:mm')}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* Reply box */}
+              {(ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS' || ticket.status === 'WAITING_CUSTOMER') && (
+                <div className="border-t border-[var(--color-rule)] p-4 bg-[var(--color-paper-2)]">
+                  <form onSubmit={handleReply} className="flex gap-3">
+                    <textarea
+                      value={replyText}
+                      onChange={e => setReplyText(e.target.value)}
+                      placeholder="Tulis balasan..."
+                      rows={2}
+                      className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 text-sm font-mono text-[var(--color-ink)] focus:border-[var(--color-focus)] focus:ring-1 focus:ring-[var(--color-focus)]/20 outline-none transition-all resize-none flex-1"
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                          e.preventDefault();
+                          handleReply(e as unknown as React.FormEvent);
+                        }
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={sending || !replyText.trim()}
+                      className="bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 px-4 py-3 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider h-fit flex items-center justify-center min-w-[50px]"
+                    >
+                      {sending
+                        ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        : <Send className="w-4 h-4" />}
+                    </button>
+                  </form>
+                  <p className="font-mono text-[10px] text-[var(--color-muted)] mt-2">Ctrl+Enter untuk kirim</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+  );
 }
-

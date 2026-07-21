@@ -263,29 +263,29 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
       {/* Desktop Sidebar (Hidden on Mobile) */}
       <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 bg-[var(--color-paper)] border-r border-[var(--color-rule)] z-40 transition-colors duration-200 shrink-0">
         <div className="p-6">
-          <h1 className="text-2xl font-display font-bold text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
+          <h1 className="text-2xl font-display font-semibold text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
         </div>
         
         <div className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
-          <button onClick={() => router.push('/customer')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-body text-sm font-medium", isActive('/customer') && pathname === '/customer' ? "bg-[var(--color-focus)]/10 text-[var(--color-focus)]" : "text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] hover:text-[var(--color-focus)]")}>
+          <button onClick={() => router.push('/customer')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer') && pathname === '/customer' ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
             <Home className="w-5 h-5" /> Beranda
           </button>
-          <button onClick={() => router.push('/customer/invoices')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-body text-sm font-medium", isActive('/customer/invoices') ? "bg-[var(--color-focus)]/10 text-[var(--color-focus)]" : "text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] hover:text-[var(--color-focus)]")}>
+          <button onClick={() => router.push('/customer/invoices')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer/invoices') ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
             <FileText className="w-5 h-5" /> Tagihan
           </button>
-          <button onClick={() => router.push('/customer/wifi')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-body text-sm font-medium", isActive('/customer/wifi') ? "bg-[var(--color-focus)]/10 text-[var(--color-focus)]" : "text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] hover:text-[var(--color-focus)]")}>
+          <button onClick={() => router.push('/customer/wifi')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer/wifi') ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
             <Wifi className="w-5 h-5" /> WiFi
           </button>
-          <button onClick={() => router.push('/customer/tickets')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-body text-sm font-medium", isActive('/customer/tickets') ? "bg-[var(--color-focus)]/10 text-[var(--color-focus)]" : "text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] hover:text-[var(--color-focus)]")}>
-            <MessageSquare className="w-5 h-5" /> Tiket
+          <button onClick={() => router.push('/customer/tickets')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer/tickets') ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
+            <MessageSquare className="w-5 h-5" /> Bantuan
           </button>
         </div>
 
         <div className="p-4 border-t border-[var(--color-rule)] space-y-2">
-           <button onClick={() => router.push('/customer/profile')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-body text-sm font-medium", isActive('/customer/profile') ? "bg-[var(--color-focus)]/10 text-[var(--color-focus)]" : "text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink)]")}>
+           <button onClick={() => router.push('/customer/profile')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer/profile') ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
              <User className="w-5 h-5" /> Profil Saya
            </button>
-           <button onClick={() => { localStorage.removeItem('customer_token'); router.push('/customer/login'); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-body text-sm font-medium text-red-500 hover:bg-red-500/10">
+           <button onClick={() => { localStorage.removeItem('customer_token'); router.push('/customer/login'); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium text-[var(--color-error)] hover:bg-[var(--color-error-bg)]">
              <LogOut className="w-5 h-5" /> Keluar
            </button>
         </div>
@@ -294,31 +294,30 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         
-        
         {/* Desktop Top Header */}
-        <header className="hidden md:flex w-full top-0 sticky bg-[var(--color-paper)]/80 backdrop-blur-md border-b border-[var(--color-rule)] justify-between items-center px-8 h-16 z-30">
+        <header className="hidden md:flex w-full sticky top-0 bg-[var(--color-paper)] border-b border-[var(--color-rule)] justify-between items-center px-8 h-16 z-50">
           <div className="text-sm font-medium text-[var(--color-muted)]">
             Selamat datang, <strong className="text-[var(--color-ink)]">{authenticated ? customerName : ''}</strong>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} className="p-2 text-[var(--color-muted)] hover:bg-[var(--color-paper-3)] rounded-full transition-colors relative">
+            <button onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} className="p-2 text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)] rounded-full transition-colors relative">
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--color-error)] rounded-full animate-pulse border border-white"></span>}
             </button>
-            <div className="w-7 h-7 rounded-full bg-[var(--color-paper-3)] border border-[var(--color-rule)] flex items-center justify-center text-[var(--color-ink)] font-bold text-xs">
+            <div className="w-7 h-7 rounded-full bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-accent-ink)] font-bold text-xs">
               {authenticated ? customerName.charAt(0).toUpperCase() : 'U'}
             </div>
-            <button onClick={toggleTheme} className="text-[var(--color-muted)] p-2 rounded-full hover:bg-[var(--color-paper-3)] transition-colors">
+            <button onClick={toggleTheme} className="text-[var(--color-ink-2)] p-2 rounded-full hover:bg-[var(--color-paper-3)] transition-colors">
               {isDark ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5" />}
             </button>
           </div>
           
           {bellOpen && (
-            <div className="absolute top-16 right-8 w-80 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
+            <div className="absolute top-16 right-8 w-80 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm z-50 overflow-hidden flex flex-col">
               <div className="p-3 border-b border-[var(--color-rule)] flex justify-between items-center bg-[var(--color-paper-2)]">
-                <span className="font-bold text-sm">Notifikasi</span>
+                <span className="font-display font-semibold text-sm">Notifikasi</span>
                 {notifHistory.length > 0 && (
-                  <button onClick={handleClearAllNotifications} className="text-xs text-[var(--color-focus)] hover:underline">Bersihkan</button>
+                  <button onClick={handleClearAllNotifications} className="text-xs text-[var(--color-accent)] hover:underline font-medium">Bersihkan</button>
                 )}
               </div>
               <div className="max-h-80 overflow-y-auto">
@@ -330,10 +329,10 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
                 ) : (
                   notifHistory.map(n => (
                     <div key={n.id} className="p-3 border-b border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors relative group">
-                      <div className="text-xs font-bold mb-1">{n.title}</div>
+                      <div className="text-xs font-semibold mb-1">{n.title}</div>
                       <div className="text-[11px] text-[var(--color-ink-2)] leading-relaxed">{n.message}</div>
                       <div className="text-[9px] text-[var(--color-muted)] mt-1">{new Date(n.timestamp).toLocaleString('id-ID')}</div>
-                      <button onClick={() => handleDeleteNotification(n.id)} className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-50 p-1 rounded transition-all">
+                      <button onClick={() => handleDeleteNotification(n.id)} className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-[var(--color-error)] hover:bg-[var(--color-error-bg)] p-1 rounded transition-all">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
@@ -345,26 +344,24 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Mobile Top App Bar */}
-        <header className="md:hidden w-full top-0 sticky bg-[var(--color-paper)] border-b border-[var(--color-rule)] flex justify-between items-center px-[var(--space-md)] h-16 z-40">
+        <header className="md:hidden w-full sticky top-0 bg-[var(--color-paper)] border-b border-[var(--color-rule)] flex justify-between items-center px-4 h-16 z-50">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[var(--color-paper-3)] border border-[var(--color-rule)] flex items-center justify-center text-[var(--color-ink)] font-bold text-sm">
+              <div className="w-8 h-8 rounded-full bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-accent-ink)] font-bold text-sm">
                 {authenticated ? customerName.charAt(0).toUpperCase() : 'U'}
               </div>
             </div>
-          <h1 className="text-lg font-display font-bold text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
-          <button onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} className="text-[var(--color-muted)] transition-colors duration-200 active:opacity-70 p-2 rounded-full hover:bg-[var(--color-paper-3)] relative">
-            
+          <h1 className="text-lg font-display font-semibold text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
+          <button onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} className="text-[var(--color-ink-2)] transition-colors duration-200 active:opacity-70 p-2 rounded-full hover:bg-[var(--color-paper-3)] relative">
             <Bell className="w-5 h-5" />
-            {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)]"></span>}
-          
+            {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)] border border-white"></span>}
           </button>
 
           {bellOpen && (
-            <div className="absolute top-12 right-0 w-80 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
+            <div className="absolute top-16 right-4 w-80 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm z-50 overflow-hidden flex flex-col">
               <div className="p-3 border-b border-[var(--color-rule)] flex justify-between items-center bg-[var(--color-paper-2)]">
-                <span className="font-bold text-sm">Notifikasi</span>
+                <span className="font-display font-semibold text-sm">Notifikasi</span>
                 {notifHistory.length > 0 && (
-                  <button onClick={handleClearAllNotifications} className="text-xs text-[var(--color-focus)] hover:underline">Bersihkan</button>
+                  <button onClick={handleClearAllNotifications} className="text-xs text-[var(--color-accent)] hover:underline font-medium">Bersihkan</button>
                 )}
               </div>
               <div className="max-h-80 overflow-y-auto">
@@ -376,10 +373,10 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
                 ) : (
                   notifHistory.map(n => (
                     <div key={n.id} className="p-3 border-b border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors relative group">
-                      <div className="text-xs font-bold mb-1">{n.title}</div>
+                      <div className="text-xs font-semibold mb-1">{n.title}</div>
                       <div className="text-[11px] text-[var(--color-ink-2)] leading-relaxed">{n.message}</div>
                       <div className="text-[9px] text-[var(--color-muted)] mt-1">{new Date(n.timestamp).toLocaleString('id-ID')}</div>
-                      <button onClick={() => handleDeleteNotification(n.id)} className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-50 p-1 rounded transition-all">
+                      <button onClick={() => handleDeleteNotification(n.id)} className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-[var(--color-error)] hover:bg-[var(--color-error-bg)] p-1 rounded transition-all">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
@@ -388,31 +385,34 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           )}
-
         </header>
 
-        <div className="flex-1 pb-16 md:pb-0">
+        <div className="flex-1 pb-20 md:pb-0">
           {children}
         </div>
         
         {/* Bottom Navigation Bar (Mobile) */}
         <nav className="fixed bottom-0 w-full z-50 bg-[var(--color-paper)] border-t border-[var(--color-rule)] md:hidden">
           <div className="flex justify-around items-center pt-2 pb-safe px-2 h-16 pb-2">
-            <button onClick={() => router.push('/customer')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer') && pathname === '/customer' ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
+            <button onClick={() => router.push('/customer')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer') && pathname === '/customer' ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
               <Home className="w-6 h-6" />
-              <span className="font-mono text-[10px] mt-1 uppercase">Home</span>
+              <span className="font-mono text-[10px] mt-1 uppercase tracking-wider">Beranda</span>
             </button>
-            <button onClick={() => router.push('/customer/invoices')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/invoices') ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
+            <button onClick={() => router.push('/customer/invoices')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/invoices') ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
               <FileText className="w-6 h-6" />
-              <span className="font-mono text-[10px] mt-1 uppercase">Tagihan</span>
+              <span className="font-mono text-[10px] mt-1 uppercase tracking-wider">Tagihan</span>
             </button>
-            <button onClick={() => router.push('/customer/wifi')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/wifi') ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
+            <button onClick={() => router.push('/customer/wifi')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/wifi') ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
               <Wifi className="w-6 h-6" />
-              <span className="font-mono text-[10px] mt-1 uppercase">WiFi</span>
+              <span className="font-mono text-[10px] mt-1 uppercase tracking-wider">WiFi</span>
             </button>
-            <button onClick={() => router.push('/customer/tickets')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/tickets') ? "text-[var(--color-focus)]" : "text-[var(--color-muted)]")}>
+            <button onClick={() => router.push('/customer/tickets')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/tickets') ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
               <MessageSquare className="w-6 h-6" />
-              <span className="font-mono text-[10px] mt-1 uppercase">Tiket</span>
+              <span className="font-mono text-[10px] mt-1 uppercase tracking-wider">Bantuan</span>
+            </button>
+            <button onClick={() => router.push('/customer/profile')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/profile') ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
+              <User className="w-6 h-6" />
+              <span className="font-mono text-[10px] mt-1 uppercase tracking-wider">Profil</span>
             </button>
           </div>
         </nav>

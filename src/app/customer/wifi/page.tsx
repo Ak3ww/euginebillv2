@@ -226,351 +226,275 @@ export default function CustomerWiFiPage() {
     }
   };
 
-  // --- Loading state -----------------------------------------------------------
-  if (loading) {
-    return (
-      <div className="p-4 lg:p-6 flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="animate-spin w-10 h-10 border-2 border-[var(--color-focus)] border-t-transparent rounded-full mx-auto" />
-          <p className="mt-3 text-[var(--color-muted)] text-sm font-mono">Memuat info perangkat…</p>
-        </div>
-      </div>
-    );
-  }
-
-  // --- GenieACS not configured -------------------------------------------------
-  if (noGenieACS) {
-    return (
-      <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 space-y-4">
-        <div className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-6 text-center py-12">
-          <ServerCrash className="w-16 h-16 mx-auto text-[var(--color-muted)] mb-4" />
-          <h3 className="text-lg font-display text-[var(--color-ink)] mb-2">GenieACS belum dikonfigurasi</h3>
-          <p className="text-sm text-[var(--color-muted)] font-body max-w-sm mx-auto">
-            Fitur pengaturan WiFi memerlukan GenieACS TR-069. Hubungi admin untuk mengaktifkan fitur ini.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // --- Device not found ---------------------------------------------------------
-  if (noDevice || !device) {
-    return (
-      <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 space-y-4">
-        <div className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-6 text-center py-12">
-          <WifiOff className="w-16 h-16 mx-auto text-[var(--color-muted)] mb-4" />
-          <h3 className="text-lg font-display text-[var(--color-ink)] mb-2">Perangkat tidak ditemukan</h3>
-          <p className="text-sm font-body text-[var(--color-muted)] max-w-sm mx-auto mb-6">
-            Pastikan ONT/router sudah terdaftar dan terhubung ke GenieACS.
-          </p>
-          <button onClick={handleRefresh} disabled={refreshing} className="bg-[var(--color-paper-2)] text-[var(--color-ink)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors py-2 px-4 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider inline-flex items-center justify-center">
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Coba Lagi
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // --- Main view ---------------------------------------------------------------
   return (
-    <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8 space-y-4 sm:space-y-5 w-full">
-      <button onClick={() => router.push('/customer')} className="flex items-center gap-1.5 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors font-mono text-[10px] uppercase tracking-wider font-bold mb-6">
-        <span className="material-symbols-outlined text-[16px]">arrow_back</span>Kembali
+    <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8">
+      {/* Back */}
+      <button
+        onClick={() => router.push('/customer')}
+        className="flex items-center gap-1.5 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors font-mono text-[10px] uppercase tracking-wider font-bold mb-6"
+      >
+        <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+        Kembali
       </button>
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
         <div>
-          <h1 className="text-lg font-display text-[var(--color-ink)] flex items-center gap-2">
-            <Wifi className="w-5 h-5 text-[var(--color-focus)]" />
-            Pengaturan WiFi
-          </h1>
-          <p className="text-xs font-body text-[var(--color-muted)] mt-0.5">Kelola SSID dan password WiFi perangkat Anda</p>
+          <h2 className="text-2xl md:text-[32px] font-display font-semibold text-[var(--color-ink)]">Pengaturan Wi-Fi</h2>
+          <p className="text-sm font-body text-[var(--color-ink-2)] mt-1">Kelola konfigurasi jaringan dan perangkat yang terhubung.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleReboot}
-            disabled={rebooting}
-            title="Reboot Modem/ONT"
-            className="p-2 rounded-[var(--radius-sm)] border border-[var(--color-rule)] text-[var(--color-muted)] hover:text-[var(--color-error)] hover:border-[var(--color-error)] transition-colors disabled:opacity-40"
-          >
-            <Power className={`w-4 h-4 ${rebooting ? 'animate-pulse text-[var(--color-error)]' : ''}`} />
-          </button>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            title="Perbarui Data"
-            className="p-2 rounded-[var(--radius-sm)] border border-[var(--color-rule)] text-[var(--color-muted)] hover:text-[var(--color-focus)] hover:border-[var(--color-focus)] transition-colors"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
-
-      {/* Device Info Card */}
-      <div className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-[var(--color-paper-2)] flex items-center justify-center border border-[var(--color-rule)]">
-            <Router className="w-5 h-5 text-[var(--color-focus)]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-display font-medium text-[var(--color-ink)] truncate">{device.model || 'Perangkat ONT'}</p>
-            <p className="text-xs font-body text-[var(--color-muted)]">{device.manufacturer || 'Router'}</p>
-          </div>
-          <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-1 rounded-[var(--radius-sm)] ${
-            device.status?.toLowerCase() === 'online'
-              ? 'bg-[var(--color-success)]/10 text-[var(--color-success)] border border-[var(--color-success)]/20'
-              : 'bg-[var(--color-error)]/10 text-[var(--color-error)] border border-[var(--color-error)]/20'
+        {/* Router Status */}
+        {device && (
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${
+            device.status === 'online'
+              ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success-border)]'
+              : 'bg-[var(--color-error-bg)] text-[var(--color-error)] border-[var(--color-error-border)]'
           }`}>
-            {device.status?.toUpperCase() === 'ONLINE' ? 'ONLINE' : 'OFFLINE'}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 text-sm font-body">
-          {device.serialNumber && device.serialNumber !== '-' && (
-            <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)]">Serial</span>
-              <p className="text-[var(--color-ink)] font-mono truncate">{device.serialNumber}</p>
-            </div>
-          )}
-          {device.softwareVersion && device.softwareVersion !== '-' && (
-            <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)]">Firmware</span>
-              <p className="text-[var(--color-ink)] truncate">{device.softwareVersion}</p>
-            </div>
-          )}
-          {device.uptime && device.uptime !== '-' && (
-            <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)]">Uptime</span>
-              <p className="text-[var(--color-ink)]">{device.uptime}</p>
-            </div>
-          )}
-          {device.signalStrength?.rxPower && device.signalStrength.rxPower !== '-' && (
-            <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)]">RX Power</span>
-              <p className="text-[var(--color-ink)]">{device.signalStrength.rxPower}</p>
-            </div>
-          )}
-          <div>
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)]">Jaringan WiFi</span>
-            <p className="text-[var(--color-ink)]">{device.wlanConfigs.length} WLAN</p>
-          </div>
-          {device.connectedHosts.length > 0 && (
-            <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)]">Perangkat terhubung</span>
-              <p className="text-[var(--color-ink)]">{device.connectedHosts.length}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* WLAN Cards */}
-      {device.wlanConfigs.map((wlan) => {
-        const isEditing = editing?.wlanIndex === wlan.index;
-        const bandLabel = wlan.band === '5GHz' ? '5 GHz' : '2.4 GHz';
-
-        return (
-          <div key={wlan.index} className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-6">
-            {/* WLAN Header */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 rounded-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] flex items-center justify-center">
-                <Radio className={`w-5 h-5 ${wlan.enabled ? 'text-[var(--color-success)]' : 'text-[var(--color-muted)]'}`} />
-              </div>
-              <div className="flex-1">
-                <p className="font-display font-medium text-[var(--color-ink)] text-sm">WiFi {bandLabel}</p>
-                <p className="text-xs font-body text-[var(--color-muted)] truncate">{wlan.ssid || '(SSID belum dikonfigurasi)'}</p>
-              </div>
-              <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-1 rounded-[var(--radius-sm)] border ${
-                wlan.enabled
-                  ? 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/20'
-                  : 'bg-[var(--color-error)]/10 text-[var(--color-error)] border-[var(--color-error)]/20'
-              }`}>
-                {wlan.enabled ? 'Aktif' : 'Mati'}
-              </span>
-            </div>
-
-            <div className="border-t border-[var(--color-rule)] pt-4">
-              {!isEditing ? (
-                // -- View mode ---------------------------------------------
-                <div className="space-y-3 font-body">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Wifi className="w-4 h-4 text-[var(--color-muted)] shrink-0" />
-                    <span className="text-[var(--color-ink)]">{wlan.ssid || '—'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)] w-16">Keamanan</span>
-                    <span className="text-[var(--color-ink)] text-xs">{wlan.security !== '-' ? wlan.security : 'WPA2-PSK'}</span>
-                  </div>
-                  {wlan.totalAssociations > 0 && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Monitor className="w-4 h-4 text-[var(--color-muted)] shrink-0" />
-                      <span className="text-[var(--color-muted)] text-xs">{wlan.totalAssociations} perangkat terhubung</span>
-                    </div>
-                  )}
-                  <div className="mt-5 pt-1">
-                    <button
-                      onClick={() => startEdit(wlan)}
-                      disabled={!!editing && !isEditing}
-                      className="w-full bg-[var(--color-paper-2)] text-[var(--color-ink)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors py-2 px-4 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider inline-flex justify-center items-center"
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Edit WiFi Ini
-                    </button>
-                  </div>
-                  {/* Connected devices for this WLAN */}
-                  {(() => {
-                    const wlanDevices = device.connectedHosts.filter(h => h.associatedDevice === String(wlan.index));
-                    if (wlanDevices.length === 0) return null;
-                    return (
-                      <div className="mt-4 pt-4 border-t border-[var(--color-rule)]">
-                        <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)] mb-3">Perangkat terhubung ke SSID ini:</p>
-                        <div className="space-y-2">
-                          {wlanDevices.map((host, i) => (
-                            <div key={i} className="flex items-center gap-3 p-2 rounded-[var(--radius-sm)] bg-[var(--color-paper-2)] border border-[var(--color-rule)]">
-                              <div className="w-8 h-8 rounded-full bg-[var(--color-success)]/10 flex items-center justify-center shrink-0 border border-[var(--color-success)]/20">
-                                <Monitor className="w-4 h-4 text-[var(--color-success)]" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-[var(--color-ink)] truncate font-display">
-                                  {host.hostname && host.hostname !== '-' ? host.hostname : host.macAddress}
-                                </p>
-                                <p className="text-xs font-mono text-[var(--color-muted)]">
-                                  {host.ipAddress !== '-' ? host.ipAddress : host.macAddress}
-                                  {host.signalStrength && host.signalStrength !== '-' ? ` · ${host.signalStrength}` : ''}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              ) : (
-                // -- Edit mode ---------------------------------------------
-                <div className="space-y-4">
-                  {/* SSID */}
-                  <div>
-                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)] mb-1.5">
-                      Nama WiFi (SSID)
-                    </label>
-                    <input
-                      type="text"
-                      value={editing.ssid}
-                      onChange={(e) => setEditing({ ...editing, ssid: e.target.value })}
-                      maxLength={32}
-                      autoComplete="off"
-                      placeholder="Nama WiFi baru"
-                      className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 text-sm font-mono text-[var(--color-ink)] outline-none focus:border-[var(--color-focus)] transition-colors"
-                    />
-                    <p className="text-[10px] font-mono text-[var(--color-muted)] mt-1.5">{editing.ssid.length}/32 karakter</p>
-                  </div>
-
-                  {/* Password */}
-                  <div>
-                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-muted)] mb-1.5">
-                      Password WiFi
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={editing.showPassword ? 'text' : 'password'}
-                        value={editing.password}
-                        onChange={(e) => setEditing({ ...editing, password: e.target.value })}
-                        maxLength={63}
-                        autoComplete="new-password"
-                        placeholder="Kosongkan jika tidak ingin mengubah"
-                        className="w-full bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-sm)] px-4 py-2.5 pr-10 text-sm font-mono text-[var(--color-ink)] outline-none focus:border-[var(--color-focus)] transition-colors"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setEditing({ ...editing, showPassword: !editing.showPassword })}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
-                      >
-                        {editing.showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    <p className="text-[10px] font-mono text-[var(--color-muted)] mt-1.5">8–63 karakter. Kosongkan jika tidak ingin mengubah password.</p>
-                  </div>
-
-                  {/* Action buttons */}
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      onClick={cancelEdit}
-                      disabled={saving}
-                      className="flex-1 bg-[var(--color-paper-2)] text-[var(--color-ink)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors py-3 px-4 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider disabled:opacity-40"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="flex-1 bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 transition-opacity py-3 px-4 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider inline-flex items-center justify-center disabled:opacity-40"
-                    >
-                      {saving ? (
-                        <div className="flex items-center gap-2">
-                          <div className="animate-spin w-4 h-4 border-2 border-[var(--color-accent-ink)]/30 border-t-[var(--color-accent-ink)] rounded-full" />
-                          Menyimpan…
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Save className="w-4 h-4" />
-                          Simpan
-                        </div>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Info Box */}
-      <div className="bg-[var(--color-paper-2)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-6">
-        <div className="flex items-start gap-3">
-          <Info className="w-4 h-4 text-[var(--color-focus)] shrink-0 mt-0.5" />
-          <p className="text-xs font-body text-[var(--color-muted)]">
-            Perubahan dikirim langsung ke perangkat via TR-069. Setelah disimpan, tunggu <strong className="text-[var(--color-ink)]">30–60 detik</strong> lalu sambungkan kembali ke WiFi dengan nama/password baru.
-          </p>
-        </div>
-      </div>
-
-      {/* nPerf Speedtest Widget */}
-      <div className="bg-[var(--color-paper)] rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm p-6">
-        <h2 className="text-[10px] font-mono font-bold text-[var(--color-focus)] uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Radio className="w-5 h-5 text-[var(--color-focus)]" />
-          Uji Kecepatan Internet (nPerf)
-        </h2>
-        {!loadSpeedtest ? (
-          <div className="flex flex-col items-center justify-center p-8 border border-dashed border-[var(--color-rule)] rounded-[var(--radius-sm)] bg-[var(--color-paper-2)]">
-            <Radio className="w-12 h-12 text-[var(--color-muted)] animate-pulse mb-3" />
-            <p className="text-sm text-[var(--color-ink)] font-display font-medium mb-2">Uji Kecepatan Koneksi Anda</p>
-            <p className="text-xs font-body text-[var(--color-muted)] text-center max-w-sm mb-6">Mulai pengujian kecepatan internet nPerf secara langsung. Ini akan memakan kuota/bandwidth internet Anda selama proses pengetesan.</p>
-            <button
-              onClick={() => setLoadSpeedtest(true)}
-              className="bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 transition-opacity py-3 px-6 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider"
-            >
-              Mulai Tes Kecepatan
-            </button>
-          </div>
-        ) : (
-          <div className="w-full overflow-hidden rounded-[var(--radius-sm)] border border-[var(--color-rule)]">
-            <iframe
-              src="https://speedtest.nperf.com/iframe?lang=id"
-              width="100%"
-              height="550px"
-              frameBorder="0"
-              scrolling="no"
-              style={{ border: 'none' }}
-              allow="geolocation"
-              loading="eager"
-            />
+            <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
+            <span className="font-mono text-[10px] font-bold uppercase tracking-wider">
+              {device.status === 'online' ? 'Router Online' : 'Router Offline'}
+            </span>
           </div>
         )}
       </div>
 
-    </div>
+      {/* Loading */}
+      {loading ? (
+        <div className="flex justify-center items-center py-24">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin" />
+            <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-muted)]">Memuat data router...</p>
+          </div>
+        </div>
+      ) : noGenieACS ? (
+        <div className="bento-card text-center py-16">
+          <span className="material-symbols-outlined text-[48px] text-[var(--color-muted)] block mb-3">cloud_off</span>
+          <h3 className="font-display text-lg font-semibold text-[var(--color-ink)] mb-2">GenieACS Tidak Tersedia</h3>
+          <p className="text-sm font-body text-[var(--color-ink-2)]">Manajemen router tidak tersedia saat ini.</p>
+        </div>
+      ) : noDevice ? (
+        <div className="bento-card text-center py-16">
+          <span className="material-symbols-outlined text-[48px] text-[var(--color-muted)] block mb-3">router</span>
+          <h3 className="font-display text-lg font-semibold text-[var(--color-ink)] mb-2">Perangkat Tidak Ditemukan</h3>
+          <p className="text-sm font-body text-[var(--color-ink-2)]">Tidak ada router yang terhubung ke akun Anda.</p>
+        </div>
+      ) : device ? (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+
+          {/* Network Config — 8 cols */}
+          <section className="md:col-span-8 bento-card">
+            <div className="flex items-center justify-between border-b border-[var(--color-rule)] pb-4 mb-5">
+              <h3 className="text-base font-display font-semibold text-[var(--color-ink)] flex items-center gap-2">
+                <Wifi className="w-5 h-5 text-[var(--color-muted)]" />
+                Detail Jaringan
+              </h3>
+              <span className="font-mono text-xs text-[var(--color-muted)]">{device.model}</span>
+            </div>
+
+            {/* WLAN bands */}
+            {device.wlanConfigs?.map((wlan) => (
+              <div key={wlan.index} className="mb-5 last:mb-0">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="section-header">{wlan.band || (wlan.index === 0 ? '2.4 GHz' : '5 GHz')} — {wlan.ssid}</p>
+                  <span className={`badge ${
+                    wlan.enabled ? 'badge-active' : 'badge-resolved'
+                  }`}>
+                    {wlan.enabled ? 'Aktif' : 'Nonaktif'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* SSID */}
+                  <div>
+                    <label className="form-label">Nama Jaringan (SSID)</label>
+                    {editing?.wlanIndex === wlan.index ? (
+                      <input
+                        type="text"
+                        value={editing.ssid}
+                        onChange={e => setEditing({ ...editing, ssid: e.target.value })}
+                        className="form-input"
+                      />
+                    ) : (
+                      <div className="px-4 py-3 border border-[var(--color-rule)] rounded-[var(--radius-sm)] bg-[var(--color-paper-3)] font-body text-sm text-[var(--color-ink)] flex items-center justify-between">
+                        <span>{wlan.ssid}</span>
+                        <span className="material-symbols-outlined text-[16px] text-[var(--color-success)]">verified</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Password */}
+                  <div>
+                    <label className="form-label">Password Wi-Fi</label>
+                    {editing?.wlanIndex === wlan.index ? (
+                      <div className="relative">
+                        <input
+                          type={editing.showPassword ? 'text' : 'password'}
+                          value={editing.password}
+                          onChange={e => setEditing({ ...editing, password: e.target.value })}
+                          className="form-input pr-12"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEditing({ ...editing, showPassword: !editing.showPassword })}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">{editing.showPassword ? 'visibility_off' : 'visibility'}</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="px-4 py-3 border border-[var(--color-rule)] rounded-[var(--radius-sm)] bg-[var(--color-paper-3)] font-mono text-sm text-[var(--color-ink-2)]">••••••••••</div>
+                    )}
+                  </div>
+                </div>
+                {/* Actions */}
+                <div className="flex gap-2 mt-4">
+                  {editing?.wlanIndex === wlan.index ? (
+                    <>
+                      <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="btn-primary"
+                      >
+                        {saving
+                          ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Menyimpan...</>
+                          : <><Save className="w-4 h-4" /> Simpan</>}
+                      </button>
+                      <button onClick={cancelEdit} className="btn-secondary">
+                        <X className="w-4 h-4" /> Batal
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => startEdit(wlan)}
+                      className="btn-secondary"
+                    >
+                      <Pencil className="w-4 h-4" /> Ubah Nama/Password
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Reboot */}
+            <div className="border-t border-[var(--color-rule)] pt-4 mt-5">
+              <button
+                onClick={handleReboot}
+                disabled={rebooting}
+                className="btn-secondary w-full sm:w-auto text-[var(--color-error)] border-[var(--color-error-border)] hover:bg-[var(--color-error-bg)]"
+              >
+                {rebooting
+                  ? <><div className="w-4 h-4 border-2 border-[var(--color-error)] border-t-transparent rounded-full animate-spin" /> Melakukan Reboot...</>
+                  : <><RefreshCw className="w-4 h-4" /> Reboot Router</>}
+              </button>
+            </div>
+          </section>
+
+          {/* Right column — stats */}
+          <section className="md:col-span-4 flex flex-col gap-5">
+            {/* Signal */}
+            <div className="bento-card">
+              <p className="section-header">Sinyal Optik</p>
+              <div className="flex flex-col gap-3 mt-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-body text-[var(--color-ink-2)]">RX Power</span>
+                  <span className="font-mono text-sm font-medium text-[var(--color-ink)]">{device.signalStrength?.rxPower || '-'} dBm</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-body text-[var(--color-ink-2)]">TX Power</span>
+                  <span className="font-mono text-sm font-medium text-[var(--color-ink)]">{device.signalStrength?.txPower || '-'} dBm</span>
+                </div>
+                {device.signalStrength?.temperature && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-body text-[var(--color-ink-2)]">Suhu</span>
+                    <span className="font-mono text-sm font-medium text-[var(--color-ink)]">{device.signalStrength.temperature}°C</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Device count */}
+            <div className="bento-card">
+              <p className="section-header">Perangkat Terhubung</p>
+              <div className="text-4xl font-display font-bold text-[var(--color-focus)] mt-1">
+                {device.connectedHosts?.filter(h => h.active).length || 0}
+              </div>
+              <p className="text-sm font-body text-[var(--color-ink-2)] mt-1">perangkat aktif</p>
+            </div>
+
+            {/* Device info */}
+            <div className="bento-card">
+              <p className="section-header">Info Perangkat</p>
+              <div className="flex flex-col gap-2 mt-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-[var(--color-muted)]">Model</span>
+                  <span className="font-mono text-xs text-[var(--color-ink)]">{device.model}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-[var(--color-muted)]">Uptime</span>
+                  <span className="font-mono text-xs text-[var(--color-ink)]">{device.uptime || '-'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-[var(--color-muted)]">Versi FW</span>
+                  <span className="font-mono text-xs text-[var(--color-ink)] truncate max-w-[120px]">{device.softwareVersion || '-'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Refresh */}
+            <button
+              onClick={loadDevice}
+              disabled={refreshing}
+              className="btn-secondary w-full"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Memperbarui...' : 'Perbarui Data'}
+            </button>
+          </section>
+
+          {/* Connected devices table */}
+          {device.connectedHosts?.length > 0 && (
+            <section className="md:col-span-12 bento-card p-0 overflow-hidden">
+              <div className="px-6 py-4 border-b border-[var(--color-rule)] bg-[var(--color-paper-2)] flex items-center justify-between">
+                <h3 className="text-sm font-display font-semibold text-[var(--color-ink)]">Perangkat Aktif</h3>
+                <span className="font-mono text-[10px] text-[var(--color-muted)] uppercase tracking-wider">{device.connectedHosts.filter(h => h.active).length} online</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="hairline-table">
+                  <thead>
+                    <tr>
+                      <th>Nama Perangkat</th>
+                      <th>IP Address</th>
+                      <th>MAC Address</th>
+                      <th>Band</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {device.connectedHosts.map((host, i) => (
+                      <tr key={i}>
+                        <td>
+                          <div className="font-body text-sm text-[var(--color-ink)] flex items-center gap-2">
+                            <Monitor className="w-4 h-4 text-[var(--color-muted)] shrink-0" />
+                            {host.hostname || 'Perangkat Tidak Dikenal'}
+                          </div>
+                        </td>
+                        <td className="font-mono text-xs text-[var(--color-ink-2)]">{host.ipAddress || '-'}</td>
+                        <td className="font-mono text-xs text-[var(--color-ink-2)]">{host.macAddress}</td>
+                        <td>
+                          <span className="badge badge-open">{host.associatedDevice?.includes('5') ? '5GHz' : '2.4GHz'}</span>
+                        </td>
+                        <td>
+                          <span className={`badge ${host.active ? 'badge-active' : 'badge-resolved'}`}>
+                            {host.active ? 'Aktif' : 'Tidak Aktif'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+        </div>
+      ) : null}
+    </main>
   );
 }
