@@ -33,7 +33,7 @@ export default function DownloadPdfButton({
         return;
       }
 
-      // 2. Fallback to client-side DOM capture if server fetch failed (e.g., offline mode)
+      // 2. Fallback to client-side DOM capture if server fetch failed
       const element = document.getElementById('invoice-capture-area');
       if (element) {
         await downloadVisibleInvoiceAsPdf(element, `Invoice-${invoiceNumber}.pdf`);
@@ -42,7 +42,6 @@ export default function DownloadPdfButton({
       }
     } catch (err) {
       console.error('PDF download error:', err);
-      // Client-side fallback retry
       try {
         const element = document.getElementById('invoice-capture-area');
         if (element) {
@@ -68,19 +67,28 @@ export default function DownloadPdfButton({
   }, [autoTrigger, handleDownload]);
 
   return (
-    <div className="flex flex-col items-center flex-1 max-w-[160px]">
+    <div className="flex flex-col items-center flex-1 max-w-[170px]">
       <button 
         onClick={handleDownload}
         disabled={isDownloading}
-        className="w-full bg-white text-gray-800 border border-gray-300 font-bold text-[13px] py-3 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
+        className="w-full bg-white text-gray-800 border border-gray-300 font-bold text-[13px] py-3 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm cursor-pointer"
       >
-        {isDownloading ? <Loader2 className="w-4 h-4 animate-spin text-blue-600" /> : <Download className="w-4 h-4 text-gray-700" />}
-        {isDownloading ? 'Mengolah...' : 'Unduh PDF'}
+        {isDownloading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin text-blue-600 shrink-0" />
+            <span className="text-blue-600">Membuat PDF...</span>
+          </>
+        ) : (
+          <>
+            <Download className="w-4 h-4 text-gray-700 shrink-0" />
+            <span>Unduh PDF</span>
+          </>
+        )}
       </button>
       {error && (
         <button 
           onClick={handleDownload}
-          className="mt-1 text-[10px] text-red-500 hover:text-red-700 underline"
+          className="mt-1.5 text-[10px] text-red-500 hover:text-red-700 underline"
         >
           {error}
         </button>

@@ -35,6 +35,28 @@ function getChromeExecutablePath(): string | null {
 }
 
 /**
+ * Convert local image paths (/uploads/logos/...) or URLs into base64 Data URIs
+ */
+function resolveLogoDataUrl(logoPath: string | null | undefined): string | null {
+  if (!logoPath) return null;
+  if (logoPath.startsWith('data:image')) return logoPath;
+  try {
+    const cleanPath = logoPath.replace(/^\//, '');
+    const localFilePath = path.join(process.cwd(), 'public', cleanPath);
+    if (fs.existsSync(localFilePath)) {
+      const fileBuffer = fs.readFileSync(localFilePath);
+      const ext = path.extname(localFilePath).replace('.', '') || 'png';
+      const mime = ext === 'svg' ? 'image/svg+xml' : `image/${ext}`;
+      return `data:${mime};base64,${fileBuffer.toString('base64')}`;
+    }
+  } catch {}
+  if (logoPath.startsWith('http://') || logoPath.startsWith('https://')) {
+    return logoPath;
+  }
+  return null;
+}
+
+/**
  * Attempt to render PDF using Chromium / Puppeteer for 100% pixel-perfect HTML rendering (htmldocs approach)
  */
 async function renderPuppeteerPdf(htmlContent: string): Promise<Buffer | null> {
@@ -194,10 +216,11 @@ export async function GET(
       } catch {}
     }
 
-    // Company logo processing
+    // Resolve company logo to base64 Data URI
+    const logoDataUrl = resolveLogoDataUrl(company?.logo);
     let logoHtml = '';
-    if (company?.logo) {
-      logoHtml = `<div style="width: 56px; height: 56px; border-radius: 12px; background: #f9fafb; border: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: center; padding: 4px; flex-shrink: 0;"><img src="${company.logo}" style="max-height: 44px; max-width: 44px; object-fit: contain;" /></div>`;
+    if (logoDataUrl) {
+      logoHtml = `<div style="width: 56px; height: 56px; border-radius: 12px; background: #f9fafb; border: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: center; padding: 4px; flex-shrink: 0;"><img src="${logoDataUrl}" style="max-height: 44px; max-width: 44px; object-fit: contain;" /></div>`;
     }
 
     // Status Badge HTML
@@ -259,11 +282,18 @@ export async function GET(
   </style>
 </head>
 <body>
-  <div style="width: 210mm; min-height: 297mm; background: #ffffff; margin: 0 auto; box-sizing: border-box; position: relative;">
-    <!-- Top Oceanic Blue Brand Banner -->
-    <div style="height: 14px; background: linear-gradient(to right, #002c60, #1b437c); width: 100%;"></div>
+  <div style="width: 210mm; min-height: 297mm; background: #ffffff; margin: 0 auto; box-sizing: border-box; position: relative; overflow: hidden;">
+    <!-- Full-Color Translucent Background Watermark Logo -->
+    ${logoDataUrl ? `
+      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; opacity: 0.06; pointer-events: none; z-index: 0; overflow: hidden;">
+        <img src="${logoDataUrl}" style="width: 75%; max-width: 600px; object-fit: contain; transform: rotate(-12deg) scale(1.2);" />
+      </div>
+    ` : ''}
 
-    <div style="padding: 32px;">
+    <!-- Top Oceanic Blue Brand Banner -->
+    <div style="height: 14px; background: linear-gradient(to right, #002c60, #1b437c); width: 100%; position: relative; z-index: 10;"></div>
+
+    <div style="padding: 32px; position: relative; z-index: 10;">
       <!-- Header Section -->
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
         <div style="display: flex; align-items: center; gap: 14px;">
@@ -380,6 +410,17 @@ export async function GET(
     let currentY = 18;
     let companyNameY = currentY + 4;
     let textLeftMargin = 14;
+
+    if (logoDataUrl) {
+      try {
+        doc.setFillColor(249, 250, 251);
+        doc.setDrawColor(229, 231, 235);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(14, currentY, 18, 18, 2, 2, 'FD');
+        doc.addImage(logoDataUrl, 'PNG', 15.5, currentY + 1.5, 15, 15);
+        textLeftMargin = 36;
+      } catch {}
+    }
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
