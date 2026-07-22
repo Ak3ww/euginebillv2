@@ -1,6 +1,51 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
+let canvasCtx: CanvasRenderingContext2D | null = null;
+function getCanvasCtx() {
+  if (!canvasCtx && typeof document !== 'undefined') {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    canvasCtx = canvas.getContext('2d');
+  }
+  return canvasCtx;
+}
+
+function parseColorToRgb(colorExpr: string): string {
+  const ctx = getCanvasCtx();
+  if (!ctx) return '#000000';
+  try {
+    ctx.fillStyle = '#000000';
+    ctx.fillStyle = colorExpr;
+    const res = ctx.fillStyle;
+    return res && res !== '#000000' ? res : '#000000';
+  } catch {
+    return '#000000';
+  }
+}
+
+/**
+ * Sanitize CSS strings by converting modern unsupported color functions
+ * (lab, oklch, oklab, lch, color, color-mix) into browser-evaluated standard rgb()/hex colors.
+ * This prevents html2canvas from crashing with "Attempting to parse an unsupported color function".
+ */
+export function sanitizeCssString(str: string): string {
+  if (!str || typeof str !== 'string') return str;
+  if (!/(?:lab|oklch|oklab|lch|color|color-mix)\(/i.test(str)) {
+    return str;
+  }
+  let current = str;
+  let iterations = 0;
+  while (/(?:lab|oklch|oklab|lch|color|color-mix)\(/i.test(current) && iterations < 10) {
+    iterations++;
+    current = current.replace(/(?:lab|oklch|oklab|lch|color|color-mix)\((?:[^()]*|\([^()]*\))*\)/gi, (match) => {
+      return parseColorToRgb(match);
+    });
+  }
+  return current;
+}
+
 /**
  * Convert all <img> elements inside an element to base64 data URIs.
  * This prevents html2canvas from tainting the canvas due to CORS restrictions.
@@ -80,13 +125,6 @@ async function waitForImages(element: HTMLElement): Promise<void> {
 
 /**
  * Download the visible invoice element as a pixel-perfect PDF.
- * 
- * Strategy:
- * 1. Deep-clone the target element into an offscreen container
- * 2. Force a fixed width (794px = A4 at 96dpi) so output is consistent across devices
- * 3. Convert images to base64 and SVGs to rasterized images
- * 4. Capture with html2canvas at 2x scale for crisp output
- * 5. Fit into A4 PDF pages (with multi-page support for long invoices)
  */
 export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename: string) {
   // 1. Create offscreen container with fixed A4-proportional width
@@ -114,20 +152,30 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
   clone.style.border = 'none';
   container.appendChild(clone);
 
-  // 3. Copy all computed styles from original to clone (deep)
-  // This ensures Tailwind's computed values are baked into the clone
+  // 3. Copy all computed styles from original to clone (deep) & sanitize colors
   copyComputedStyles(element, clone);
 
-  // 4. Convert images and SVGs
+  // 4. Sanitize inline styles on all cloned nodes
+  const allCloneElements = Array.from(clone.querySelectorAll('*'));
+  allCloneElements.concat(clone).forEach((el) => {
+    const htmlEl = el as HTMLElement;
+    if (htmlEl.style && htmlEl.style.cssText) {
+      if (/(?:lab|oklch|oklab|lch|color|color-mix)\(/i.test(htmlEl.style.cssText)) {
+        htmlEl.style.cssText = sanitizeCssString(htmlEl.style.cssText);
+      }
+    }
+  });
+
+  // 5. Convert images and SVGs
   await convertImagesToBase64(clone);
   convertSvgsToImages(clone);
   await waitForImages(clone);
 
-  // 5. Small delay for layout reflow
+  // 6. Small delay for layout reflow
   await new Promise((resolve) => setTimeout(resolve, 100));
 
   try {
-    // 6. Capture with html2canvas
+    // 7. Capture with html2canvas (with onclone sanitizer)
     const canvas = await html2canvas(clone, {
       scale: 2,
       useCORS: true,
@@ -136,9 +184,29 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
       logging: false,
       width: FIXED_WIDTH,
       windowWidth: FIXED_WIDTH,
+      onclone: (clonedDoc) => {
+        // Sanitize any style tags inside clonedDoc
+        const styleElements = Array.from(clonedDoc.querySelectorAll('style'));
+        styleElements.forEach((styleEl) => {
+          if (styleEl.textContent && /(?:lab|oklch|oklab|lch|color|color-mix)\(/i.test(styleEl.textContent)) {
+            styleEl.textContent = sanitizeCssString(styleEl.textContent);
+          }
+        });
+
+        // Sanitize inline styles inside clonedDoc
+        const allNodes = Array.from(clonedDoc.querySelectorAll('*'));
+        allNodes.forEach((node) => {
+          const htmlNode = node as HTMLElement;
+          if (htmlNode.style && htmlNode.style.cssText) {
+            if (/(?:lab|oklch|oklab|lch|color|color-mix)\(/i.test(htmlNode.style.cssText)) {
+              htmlNode.style.cssText = sanitizeCssString(htmlNode.style.cssText);
+            }
+          }
+        });
+      },
     });
 
-    // 7. Create PDF
+    // 8. Create PDF
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -165,7 +233,6 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
         const srcY = page * pageHeightPx;
         const srcH = Math.min(pageHeightPx, canvas.height - srcY);
 
-        // Create a sub-canvas for this page
         const pageCanvas = document.createElement('canvas');
         pageCanvas.width = canvas.width;
         pageCanvas.height = srcH;
@@ -184,21 +251,21 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
 
     pdf.save(filename);
   } finally {
-    // 8. Clean up offscreen container
-    document.body.removeChild(container);
+    // 9. Clean up offscreen container
+    if (document.body.contains(container)) {
+      document.body.removeChild(container);
+    }
   }
 }
 
 /**
  * Recursively copy computed styles from source to target elements.
- * This is critical because html2canvas on a cloned element won't 
- * have access to the original's stylesheet-computed styles.
+ * Automatically sanitizes unsupported color formats.
  */
 function copyComputedStyles(source: Element, target: Element) {
   const sourceStyles = window.getComputedStyle(source);
   const targetEl = target as HTMLElement;
   
-  // Copy key visual properties
   const props = [
     'backgroundColor', 'backgroundImage', 'background',
     'color', 'fontSize', 'fontFamily', 'fontWeight', 'fontStyle',
@@ -219,14 +286,11 @@ function copyComputedStyles(source: Element, target: Element) {
 
   props.forEach((prop) => {
     try {
-      const value = sourceStyles.getPropertyValue(
-        prop.replace(/([A-Z])/g, '-$1').toLowerCase()
-      );
+      const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+      let value = sourceStyles.getPropertyValue(cssProp);
       if (value) {
-        targetEl.style.setProperty(
-          prop.replace(/([A-Z])/g, '-$1').toLowerCase(),
-          value
-        );
+        value = sanitizeCssString(value);
+        targetEl.style.setProperty(cssProp, value);
       }
     } catch {
       // Skip properties that can't be read/set
