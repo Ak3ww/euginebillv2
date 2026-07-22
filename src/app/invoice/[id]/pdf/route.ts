@@ -322,10 +322,10 @@ export async function GET(
 </head>
 <body>
   <div style="width: 210mm; min-height: 297mm; height: 297mm; background: #ffffff; margin: 0 auto; box-sizing: border-box; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;">
-    <!-- Full-Color Translucent Background Watermark Logo (62% width, 18% Opacity) -->
+    <!-- Full-Color Translucent Background Watermark Logo (Positioned Higher Up) -->
     ${logoDataUrl ? `
       <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; opacity: 0.18; pointer-events: none; z-index: 0; overflow: hidden;">
-        <img src="${logoDataUrl}" style="width: 62%; max-width: 480px; object-fit: contain; transform: rotate(-12deg);" />
+        <img src="${logoDataUrl}" style="width: 62%; max-width: 480px; object-fit: contain; transform: translateY(-100px) rotate(-12deg);" />
       </div>
     ` : ''}
 

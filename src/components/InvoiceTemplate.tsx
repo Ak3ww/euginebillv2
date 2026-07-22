@@ -69,13 +69,13 @@ export default function InvoiceTemplate({ data }: { data: InvoiceTemplateData })
       />
 
       <div className="p-8 sm:p-12 flex-1 relative flex flex-col justify-between">
-        {/* Full-Color Translucent Background Watermark Logo (Larger size & 18% Opacity) */}
+        {/* Full-Color Translucent Background Watermark Logo (Positioned Higher Up) */}
         {data.company.logo && (
           <div className="absolute inset-0 flex items-center justify-center opacity-[0.18] pointer-events-none z-0 overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
               src={data.company.logo} 
-              className="w-[62%] max-w-[480px] object-contain -rotate-12" 
+              className="w-[62%] max-w-[480px] object-contain -rotate-12 -translate-y-24" 
               alt="Watermark" 
             />
           </div>
