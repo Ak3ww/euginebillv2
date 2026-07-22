@@ -1,34 +1,48 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-let canvasCtx: CanvasRenderingContext2D | null = null;
-function getCanvasCtx() {
-  if (!canvasCtx && typeof document !== 'undefined') {
+/**
+ * Convert any CSS color expression (including modern lab, oklch, oklab, lch, color, color-mix)
+ * to exact sRGB integers rgb(r, g, b) or rgba(r, g, b, a) using Canvas 2D 8-bit pixel buffer.
+ * This guarantees html2canvas never sees any unsupported color function.
+ */
+function parseColorToRgb(colorExpr: string): string {
+  if (!colorExpr || typeof colorExpr !== 'string') return colorExpr;
+  const trimmed = colorExpr.trim();
+  if (trimmed === 'transparent') return 'rgba(0, 0, 0, 0)';
+  if (trimmed === 'none' || trimmed === 'inherit' || trimmed === 'initial') return trimmed;
+
+  try {
     const canvas = document.createElement('canvas');
     canvas.width = 1;
     canvas.height = 1;
-    canvasCtx = canvas.getContext('2d');
-  }
-  return canvasCtx;
-}
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return 'rgb(0, 0, 0)';
 
-function parseColorToRgb(colorExpr: string): string {
-  const ctx = getCanvasCtx();
-  if (!ctx) return '#000000';
-  try {
-    ctx.fillStyle = '#000000';
-    ctx.fillStyle = colorExpr;
-    const res = ctx.fillStyle;
-    return res && res !== '#000000' ? res : '#000000';
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = trimmed;
+    ctx.fillRect(0, 0, 1, 1);
+
+    const data = ctx.getImageData(0, 0, 1, 1).data;
+    const r = data[0];
+    const g = data[1];
+    const b = data[2];
+    const a = data[3];
+
+    if (a === 255) {
+      return `rgb(${r}, ${g}, ${b})`;
+    } else {
+      const alpha = Number((a / 255).toFixed(2));
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
   } catch {
-    return '#000000';
+    return 'rgb(0, 0, 0)';
   }
 }
 
 /**
- * Sanitize CSS strings by converting modern unsupported color functions
- * (lab, oklch, oklab, lch, color, color-mix) into browser-evaluated standard rgb()/hex colors.
- * This prevents html2canvas from crashing with "Attempting to parse an unsupported color function".
+ * Replace all occurrences of lab(...), oklch(...), oklab(...), lch(...), color(...), color-mix(...)
+ * with exact rgb(...)/rgba(...) strings evaluated via 8-bit canvas pixel data.
  */
 export function sanitizeCssString(str: string): string {
   if (!str || typeof str !== 'string') return str;
@@ -175,7 +189,7 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
   await new Promise((resolve) => setTimeout(resolve, 100));
 
   try {
-    // 7. Capture with html2canvas (with onclone sanitizer)
+    // 7. Capture with html2canvas (with document stylesheet stripping & onclone sanitizer)
     const canvas = await html2canvas(clone, {
       scale: 2,
       useCORS: true,
@@ -185,15 +199,13 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
       width: FIXED_WIDTH,
       windowWidth: FIXED_WIDTH,
       onclone: (clonedDoc) => {
-        // Sanitize any style tags inside clonedDoc
-        const styleElements = Array.from(clonedDoc.querySelectorAll('style'));
-        styleElements.forEach((styleEl) => {
-          if (styleEl.textContent && /(?:lab|oklch|oklab|lch|color|color-mix)\(/i.test(styleEl.textContent)) {
-            styleEl.textContent = sanitizeCssString(styleEl.textContent);
-          }
-        });
+        // Remove all external <link rel="stylesheet"> and <style> elements from clonedDoc
+        // because all computed styles are already baked inline on every element node.
+        // This prevents html2canvas from reading & crashing on raw Next.js/Tailwind CSS files with lab() rules.
+        const styleNodes = Array.from(clonedDoc.querySelectorAll('link[rel="stylesheet"], style'));
+        styleNodes.forEach((node) => node.remove());
 
-        // Sanitize inline styles inside clonedDoc
+        // Double check inline styles on clonedDoc nodes
         const allNodes = Array.from(clonedDoc.querySelectorAll('*'));
         allNodes.forEach((node) => {
           const htmlNode = node as HTMLElement;
