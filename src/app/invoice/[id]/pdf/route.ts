@@ -35,24 +35,59 @@ function getChromeExecutablePath(): string | null {
 }
 
 /**
- * Convert local image paths (/uploads/logos/...) or URLs into base64 Data URIs
+ * Convert local image paths (/uploads/logos/...) or URLs into base64 Data URIs asynchronously
+ * Checks multiple local disk paths AND HTTP localhost fallback
  */
-function resolveLogoDataUrl(logoPath: string | null | undefined): string | null {
+async function resolveLogoDataUrlAsync(logoPath: string | null | undefined): Promise<string | null> {
   if (!logoPath) return null;
   if (logoPath.startsWith('data:image')) return logoPath;
+
+  const cleanPath = logoPath.replace(/^\//, '');
+
+  // 1. Try local disk paths
+  const possibleLocalPaths = [
+    path.join(process.cwd(), 'public', cleanPath),
+    path.join(process.cwd(), cleanPath),
+    path.join(process.cwd(), '.next', 'standalone', 'public', cleanPath),
+    path.join(process.cwd(), '..', 'public', cleanPath),
+  ];
+
+  for (const p of possibleLocalPaths) {
+    try {
+      if (fs.existsSync(p)) {
+        const fileBuffer = fs.readFileSync(p);
+        const ext = path.extname(p).replace('.', '') || 'png';
+        const mime = ext === 'svg' ? 'image/svg+xml' : `image/${ext}`;
+        return `data:${mime};base64,${fileBuffer.toString('base64')}`;
+      }
+    } catch {}
+  }
+
+  // 2. If logoPath is full HTTP URL, fetch it
+  if (logoPath.startsWith('http://') || logoPath.startsWith('https://')) {
+    try {
+      const res = await fetch(logoPath);
+      if (res.ok) {
+        const ab = await res.arrayBuffer();
+        const buf = Buffer.from(ab);
+        const contentType = res.headers.get('content-type') || 'image/png';
+        return `data:${contentType};base64,${buf.toString('base64')}`;
+      }
+    } catch {}
+  }
+
+  // 3. Fallback: fetch from localhost Next.js server
   try {
-    const cleanPath = logoPath.replace(/^\//, '');
-    const localFilePath = path.join(process.cwd(), 'public', cleanPath);
-    if (fs.existsSync(localFilePath)) {
-      const fileBuffer = fs.readFileSync(localFilePath);
-      const ext = path.extname(localFilePath).replace('.', '') || 'png';
-      const mime = ext === 'svg' ? 'image/svg+xml' : `image/${ext}`;
-      return `data:${mime};base64,${fileBuffer.toString('base64')}`;
+    const port = process.env.PORT || '3000';
+    const res = await fetch(`http://127.0.0.1:${port}/${cleanPath}`);
+    if (res.ok) {
+      const ab = await res.arrayBuffer();
+      const buf = Buffer.from(ab);
+      const contentType = res.headers.get('content-type') || 'image/png';
+      return `data:${contentType};base64,${buf.toString('base64')}`;
     }
   } catch {}
-  if (logoPath.startsWith('http://') || logoPath.startsWith('https://')) {
-    return logoPath;
-  }
+
   return null;
 }
 
@@ -212,33 +247,33 @@ export async function GET(
     let qrDataUrl = '';
     if (paymentLink) {
       try {
-        qrDataUrl = await QRCode.toDataURL(paymentLink, { width: 140, margin: 1 });
+        qrDataUrl = await QRCode.toDataURL(paymentLink, { width: 160, margin: 1 });
       } catch {}
     }
 
-    // Resolve company logo to base64 Data URI
-    const logoDataUrl = resolveLogoDataUrl(company?.logo);
+    // Async resolve company logo to base64 Data URI
+    const logoDataUrl = await resolveLogoDataUrlAsync(company?.logo);
     let logoHtml = '';
     if (logoDataUrl) {
-      logoHtml = `<div style="width: 56px; height: 56px; border-radius: 12px; background: #f9fafb; border: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: center; padding: 4px; flex-shrink: 0;"><img src="${logoDataUrl}" style="max-height: 44px; max-width: 44px; object-fit: contain;" /></div>`;
+      logoHtml = `<div style="width: 64px; height: 64px; border-radius: 14px; background: #f9fafb; border: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: center; padding: 6px; flex-shrink: 0;"><img src="${logoDataUrl}" style="max-height: 52px; max-width: 52px; object-fit: contain;" /></div>`;
     }
 
     // Status Badge HTML
     const statusBadgeHtml = isPaid
-      ? `<span style="display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7;">✓ SUDAH BAYAR</span>`
+      ? `<span style="display: inline-block; padding: 5px 14px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7;">✓ SUDAH BAYAR</span>`
       : isOverdue
-      ? `<span style="display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;">⚠️ TERLAMBAT</span>`
-      : `<span style="display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;">BELUM BAYAR</span>`;
+      ? `<span style="display: inline-block; padding: 5px 14px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;">⚠️ TERLAMBAT</span>`
+      : `<span style="display: inline-block; padding: 5px 14px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;">BELUM BAYAR</span>`;
 
     // Table rows HTML
     const allTableItems = [
-      ...items.map((it) => `<tr><td style="padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 11px; color: #1f2937;">${it.description}</td><td style="padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 11px; text-align: center; color: #1f2937;">${it.quantity}</td><td style="padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 11px; text-align: right; color: #1f2937;">${formatCurrency(it.price)}</td><td style="padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 11px; text-align: right; color: #1f2937;">${formatCurrency(it.total)}</td></tr>`),
-      ...parsedFees.map((fee: any) => `<tr><td style="padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 11px; color: #1f2937;">${fee.name || fee.description || 'Biaya Tambahan'}</td><td style="padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 11px; text-align: center; color: #1f2937;">1</td><td style="padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 11px; text-align: right; color: #1f2937;">${formatCurrency(fee.amount || fee.price || 0)}</td><td style="padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 11px; text-align: right; color: #1f2937;">${formatCurrency(fee.amount || fee.price || 0)}</td></tr>`),
+      ...items.map((it) => `<tr><td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-size: 12px; color: #1f2937;">${it.description}</td><td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-size: 12px; text-align: center; color: #1f2937;">${it.quantity}</td><td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-size: 12px; text-align: right; color: #1f2937;">${formatCurrency(it.price)}</td><td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-size: 12px; text-align: right; color: #1f2937;">${formatCurrency(it.total)}</td></tr>`),
+      ...parsedFees.map((fee: any) => `<tr><td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-size: 12px; color: #1f2937;">${fee.name || fee.description || 'Biaya Tambahan'}</td><td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-size: 12px; text-align: center; color: #1f2937;">1</td><td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-size: 12px; text-align: right; color: #1f2937;">${formatCurrency(fee.amount || fee.price || 0)}</td><td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-size: 12px; text-align: right; color: #1f2937;">${formatCurrency(fee.amount || fee.price || 0)}</td></tr>`),
     ];
 
     if (hasTax) {
-      allTableItems.push(`<tr><td colspan="3" style="padding: 8px 14px; text-align: right; font-size: 11px; color: #6b7280; background: #f9fafb;">Subtotal</td><td style="padding: 8px 14px; text-align: right; font-size: 11px; color: #6b7280; background: #f9fafb;">${formatCurrency(baseAmt)}</td></tr>`);
-      allTableItems.push(`<tr><td colspan="3" style="padding: 8px 14px; text-align: right; font-size: 11px; color: #6b7280; background: #f9fafb;">PPN ${taxRateNum}%</td><td style="padding: 8px 14px; text-align: right; font-size: 11px; color: #6b7280; background: #f9fafb;">${formatCurrency(taxAmt)}</td></tr>`);
+      allTableItems.push(`<tr><td colspan="3" style="padding: 10px 16px; text-align: right; font-size: 12px; color: #6b7280; background: #f9fafb;">Subtotal</td><td style="padding: 10px 16px; text-align: right; font-size: 12px; color: #6b7280; background: #f9fafb;">${formatCurrency(baseAmt)}</td></tr>`);
+      allTableItems.push(`<tr><td colspan="3" style="padding: 10px 16px; text-align: right; font-size: 12px; color: #6b7280; background: #f9fafb;">PPN ${taxRateNum}%</td><td style="padding: 10px 16px; text-align: right; font-size: 12px; color: #6b7280; background: #f9fafb;">${formatCurrency(taxAmt)}</td></tr>`);
     }
 
     const tableRowsHtml = allTableItems.join('');
@@ -247,20 +282,23 @@ export async function GET(
     let bottomSectionHtml = '';
     if (isPaid) {
       bottomSectionHtml = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 28px;">
-          <div style="display: inline-block; padding: 10px 24px; border: 4px solid #10b981; border-radius: 12px; text-align: center;">
-            <div style="font-size: 22px; font-weight: 900; color: #10b981; letter-spacing: 4px;">L U N A S</div>
-            <div style="font-size: 10px; color: #6b7280; margin-top: 2px;">Dibayar pada ${paidAtStr || '-'}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 32px;">
+          <div style="display: inline-block; padding: 12px 28px; border: 4px solid #10b981; border-radius: 14px; text-align: center;">
+            <div style="font-size: 24px; font-weight: 900; color: #10b981; letter-spacing: 5px;">L U N A S</div>
+            <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">Dibayar pada ${paidAtStr || '-'}</div>
           </div>
           ${qrDataUrl ? `
             <div style="display: flex; flex-direction: column; items-center: center; text-align: center;">
-              <img src="${qrDataUrl}" style="width: 72px; height: 72px; border-radius: 8px; border: 1px solid #e5e7eb; padding: 2px;" />
-              <div style="font-size: 8px; color: #9ca3af; margin-top: 4px;">Scan untuk e-receipt</div>
+              <img src="${qrDataUrl}" style="width: 80px; height: 80px; border-radius: 10px; border: 1px solid #e5e7eb; padding: 3px;" />
+              <div style="font-size: 9px; color: #9ca3af; margin-top: 4px;">Scan untuk e-receipt</div>
             </div>
           ` : ''}
         </div>
       `;
     }
+
+    const companyName = company?.name || 'Eugine Media Group';
+    const poweredBy = company?.poweredBy || 'EugineBill Billing Network';
 
     // Build complete HTML document matching htmldocs standard
     const htmlDocument = `<!DOCTYPE html>
@@ -285,22 +323,22 @@ export async function GET(
   <div style="width: 210mm; min-height: 297mm; background: #ffffff; margin: 0 auto; box-sizing: border-box; position: relative; overflow: hidden;">
     <!-- Full-Color Translucent Background Watermark Logo -->
     ${logoDataUrl ? `
-      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; opacity: 0.06; pointer-events: none; z-index: 0; overflow: hidden;">
-        <img src="${logoDataUrl}" style="width: 75%; max-width: 600px; object-fit: contain; transform: rotate(-12deg) scale(1.2);" />
+      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; opacity: 0.07; pointer-events: none; z-index: 0; overflow: hidden;">
+        <img src="${logoDataUrl}" style="width: 80%; max-width: 650px; object-fit: contain; transform: rotate(-12deg) scale(1.25);" />
       </div>
     ` : ''}
 
     <!-- Top Oceanic Blue Brand Banner -->
-    <div style="height: 14px; background: linear-gradient(to right, #002c60, #1b437c); width: 100%; position: relative; z-index: 10;"></div>
+    <div style="height: 16px; background: linear-gradient(to right, #002c60, #1b437c); width: 100%; position: relative; z-index: 10;"></div>
 
-    <div style="padding: 32px; position: relative; z-index: 10;">
+    <div style="padding: 36px 40px; position: relative; z-index: 10;">
       <!-- Header Section -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
           ${logoHtml}
           <div>
-            <div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.2;">${company?.name || 'EugineBill'}</div>
-            <div style="font-size: 11px; color: #6b7280; margin-top: 4px; line-height: 1.5;">
+            <div style="font-size: 22px; font-weight: 800; color: #111827; line-height: 1.2;">${companyName}</div>
+            <div style="font-size: 11.5px; color: #6b7280; margin-top: 4px; line-height: 1.5;">
               ${company?.address ? `<div>${company.address.replace(/<[^>]*>?/gm, '')}</div>` : ''}
               ${company?.phone ? `<div>Telp: ${company.phone}</div>` : ''}
               ${company?.email ? `<div>${company.email}</div>` : ''}
@@ -309,67 +347,67 @@ export async function GET(
         </div>
 
         <div style="text-align: right;">
-          <div style="font-size: 26px; font-weight: 900; color: #111827; letter-spacing: 2px; line-height: 1;">INVOICE</div>
-          <div style="font-size: 13px; font-weight: 700; color: #dc2626; margin: 4px 0;">${invoice.invoiceNumber}</div>
+          <div style="font-size: 30px; font-weight: 900; color: #111827; letter-spacing: 3px; line-height: 1;">INVOICE</div>
+          <div style="font-size: 14px; font-weight: 700; color: #dc2626; margin: 4px 0;">${invoice.invoiceNumber}</div>
           <div style="margin-top: 6px;">${statusBadgeHtml}</div>
         </div>
       </div>
 
-      <hr style="border: none; border-top: 3px solid #000000; margin: 16px 0;" />
+      <hr style="border: none; border-top: 3px solid #000000; margin: 20px 0;" />
 
       <!-- Grid 1: DARI vs KEPADA -->
-      <div style="display: flex; gap: 16px; margin-bottom: 16px;">
-        <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px;">
-          <div style="font-size: 9.5px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Dari</div>
-          <div style="font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 2px;">${company?.name || 'EugineBill'}</div>
-          ${company?.address ? `<div style="font-size: 11px; color: #4b5563;">${company.address.replace(/<[^>]*>?/gm, '')}</div>` : ''}
-          ${company?.phone ? `<div style="font-size: 11px; color: #4b5563;">Telp: ${company.phone}</div>` : ''}
+      <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+        <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;">
+          <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Dari</div>
+          <div style="font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 3px;">${companyName}</div>
+          ${company?.address ? `<div style="font-size: 12px; color: #4b5563;">${company.address.replace(/<[^>]*>?/gm, '')}</div>` : ''}
+          ${company?.phone ? `<div style="font-size: 12px; color: #4b5563;">Telp: ${company.phone}</div>` : ''}
         </div>
-        <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px;">
-          <div style="font-size: 9.5px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Kepada</div>
-          <div style="font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 2px;">${invoice.customerName || invoice.user?.name || 'Pelanggan'}</div>
-          <div style="font-size: 11px; color: #4b5563;"><span style="color: #9ca3af;">ID Pelanggan: </span>${invoice.customerUsername || invoice.user?.customerId || invoice.user?.username || '-'}</div>
-          <div style="font-size: 11px; color: #4b5563;"><span style="color: #9ca3af;">Telp: </span>${invoice.customerPhone || invoice.user?.phone || '-'}</div>
+        <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;">
+          <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Kepada</div>
+          <div style="font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 3px;">${invoice.customerName || invoice.user?.name || 'Pelanggan'}</div>
+          <div style="font-size: 12px; color: #4b5563;"><span style="color: #9ca3af;">ID Pelanggan: </span>${invoice.customerUsername || invoice.user?.customerId || invoice.user?.username || '-'}</div>
+          <div style="font-size: 12px; color: #4b5563;"><span style="color: #9ca3af;">Telp: </span>${invoice.customerPhone || invoice.user?.phone || '-'}</div>
         </div>
       </div>
 
       <!-- Grid 2: DETAIL INVOICE vs STATUS PEMBAYARAN -->
-      <div style="display: flex; gap: 16px; margin-bottom: 20px;">
-        <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px;">
-          <div style="font-size: 9.5px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Detail Invoice</div>
-          <div style="font-size: 11px; color: #374151; margin-bottom: 2px;"><span style="color: #9ca3af;">No Invoice: </span><strong>${invoice.invoiceNumber}</strong></div>
-          <div style="font-size: 11px; color: #374151; margin-bottom: 2px;"><span style="color: #9ca3af;">Tanggal: </span>${createdDateStr}</div>
-          <div style="font-size: 11px; color: #374151;"><span style="color: #9ca3af;">Jatuh Tempo: </span>${dueDateStr}</div>
+      <div style="display: flex; gap: 20px; margin-bottom: 24px;">
+        <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;">
+          <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Detail Invoice</div>
+          <div style="font-size: 12px; color: #374151; margin-bottom: 3px;"><span style="color: #9ca3af;">No Invoice: </span><strong>${invoice.invoiceNumber}</strong></div>
+          <div style="font-size: 12px; color: #374151; margin-bottom: 3px;"><span style="color: #9ca3af;">Tanggal: </span>${createdDateStr}</div>
+          <div style="font-size: 12px; color: #374151;"><span style="color: #9ca3af;">Jatuh Tempo: </span>${dueDateStr}</div>
         </div>
-        <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px;">
-          <div style="font-size: 9.5px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Status Pembayaran</div>
-          <div style="font-size: 11px; color: #374151; margin-bottom: 2px;"><span style="color: #9ca3af;">Status: </span><strong>${isPaid ? '✓ LUNAS' : isOverdue ? '⚠️ TERLAMBAT' : 'BELUM BAYAR'}</strong></div>
+        <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;">
+          <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Status Pembayaran</div>
+          <div style="font-size: 12px; color: #374151; margin-bottom: 3px;"><span style="color: #9ca3af;">Status: </span><strong>${isPaid ? '✓ LUNAS' : isOverdue ? '⚠️ TERLAMBAT' : 'BELUM BAYAR'}</strong></div>
           ${paidAtStr ? `
-            <div style="font-size: 11px; color: #374151; margin-bottom: 2px;"><span style="color: #9ca3af;">Dibayar pada: </span>${paidAtStr}</div>
-            <div style="font-size: 11px; color: #374151;"><span style="color: #9ca3af;">Via: </span>${paidViaText || 'Payment Gateway'}</div>
+            <div style="font-size: 12px; color: #374151; margin-bottom: 3px;"><span style="color: #9ca3af;">Dibayar pada: </span>${paidAtStr}</div>
+            <div style="font-size: 12px; color: #374151;"><span style="color: #9ca3af;">Via: </span>${paidViaText || 'Payment Gateway'}</div>
           ` : `
-            <div style="font-size: 11px; color: #374151;"><span style="color: #9ca3af;">Metode: </span>Transfer Bank / Online Payment</div>
+            <div style="font-size: 12px; color: #374151;"><span style="color: #9ca3af;">Metode: </span>Transfer Bank / Online Payment</div>
           `}
         </div>
       </div>
 
       <!-- RINCIAN LAYANAN Table -->
-      <div style="font-size: 9.5px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Rincian Layanan</div>
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+      <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Rincian Layanan</div>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
         <thead>
           <tr>
-            <th style="background: #000000; color: #ffffff; padding: 10px 14px; text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase; border-top-left-radius: 8px;">Deskripsi</th>
-            <th style="background: #000000; color: #ffffff; padding: 10px 14px; text-align: center; font-size: 10.5px; font-weight: 700; text-transform: uppercase; width: 60px;">Qty</th>
-            <th style="background: #000000; color: #ffffff; padding: 10px 14px; text-align: right; font-size: 10.5px; font-weight: 700; text-transform: uppercase; width: 120px;">Harga</th>
-            <th style="background: #000000; color: #ffffff; padding: 10px 14px; text-align: right; font-size: 10.5px; font-weight: 700; text-transform: uppercase; width: 130px; border-top-right-radius: 8px;">Total</th>
+            <th style="background: #000000; color: #ffffff; padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; border-top-left-radius: 8px;">Deskripsi</th>
+            <th style="background: #000000; color: #ffffff; padding: 12px 16px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; width: 70px;">Qty</th>
+            <th style="background: #000000; color: #ffffff; padding: 12px 16px; text-align: right; font-size: 11px; font-weight: 700; text-transform: uppercase; width: 140px;">Harga</th>
+            <th style="background: #000000; color: #ffffff; padding: 12px 16px; text-align: right; font-size: 11px; font-weight: 700; text-transform: uppercase; width: 150px; border-top-right-radius: 8px;">Total</th>
           </tr>
         </thead>
         <tbody>
           ${tableRowsHtml}
           <!-- Highlighted Red Total Box -->
           <tr>
-            <td colspan="3" style="text-align: right; font-weight: 700; font-size: 12.5px; background: #fef2f2; border-top: 2px solid #dc2626; padding: 10px 14px; color: #111827;">TOTAL</td>
-            <td style="text-align: right; font-weight: 700; font-size: 12.5px; background: #fef2f2; border-top: 2px solid #dc2626; padding: 10px 14px; color: #dc2626;">${formatCurrency(invoice.amount)}</td>
+            <td colspan="3" style="text-align: right; font-weight: 700; font-size: 14px; background: #fef2f2; border-top: 2px solid #dc2626; padding: 12px 16px; color: #111827;">TOTAL</td>
+            <td style="text-align: right; font-weight: 700; font-size: 14px; background: #fef2f2; border-top: 2px solid #dc2626; padding: 12px 16px; color: #dc2626;">${formatCurrency(invoice.amount)}</td>
           </tr>
         </tbody>
       </table>
@@ -377,9 +415,14 @@ export async function GET(
       <!-- Stamp LUNAS & QR Code -->
       ${bottomSectionHtml}
 
-      <!-- Footer -->
-      <div style="margin-top: 36px; text-align: center; color: #9ca3af; font-size: 9.5px; border-top: 1px solid #e5e7eb; padding-top: 14px;">
-        Terima kasih atas kepercayaan Anda &mdash; ${company?.name || 'EugineBill'}
+      <!-- Professional Legal & Electronic Invoice Disclaimer Footer -->
+      <div style="margin-top: 48px; text-align: center; color: #9ca3af; font-size: 10px; border-top: 1px solid #e5e7eb; padding-top: 16px; line-height: 1.6;">
+        <div style="color: #6b7280; font-weight: 500; margin-bottom: 4px;">
+          Dokumen ini diterbitkan secara elektronik oleh ${companyName} dan sah sebagai bukti transaksi resmi tanpa memerlukan tanda tangan basah.
+        </div>
+        <div>
+          &copy; 2026 ${companyName}. All Rights Reserved. ${poweredBy ? `Support by ${poweredBy}` : ''}
+        </div>
       </div>
     </div>
   </div>
@@ -425,7 +468,7 @@ export async function GET(
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(26, 28, 32);
-    doc.text(company?.name || 'EugineBill', textLeftMargin, companyNameY);
+    doc.text(companyName, textLeftMargin, companyNameY);
 
     doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
@@ -487,7 +530,7 @@ export async function GET(
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(26, 28, 32);
-    doc.text(company?.name || 'EugineBill', 18, currentY + 10);
+    doc.text(companyName, 18, currentY + 10);
 
     doc.roundedRect(107, currentY, boxW, boxH, 2.5, 2.5, 'FD');
 
@@ -592,12 +635,13 @@ export async function GET(
 
     doc.setDrawColor(229, 231, 235);
     doc.setLineWidth(0.3);
-    doc.line(14, 275, 196, 275);
+    doc.line(14, 270, 196, 270);
 
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(156, 163, 175);
-    doc.text(`Terima kasih atas kepercayaan Anda — ${company?.name || 'EugineBill'}`, 105, 281, { align: 'center' });
+    doc.setTextColor(107, 114, 128);
+    doc.text(`Dokumen ini diterbitkan secara elektronik oleh ${companyName} dan sah tanpa memerlukan tanda tangan basah.`, 105, 275, { align: 'center' });
+    doc.text(`© 2026 ${companyName}. All Rights Reserved.`, 105, 280, { align: 'center' });
 
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
 
