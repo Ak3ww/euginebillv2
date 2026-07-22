@@ -298,7 +298,7 @@ export async function GET(
     }
 
     const companyName = company?.name || 'Eugine Media Group';
-    const poweredBy = company?.poweredBy || 'EugineBill Billing Network';
+    const poweredBy = company?.poweredBy || 'EugineBill';
 
     // Build complete HTML document matching htmldocs standard
     const htmlDocument = `<!DOCTYPE html>
@@ -321,10 +321,10 @@ export async function GET(
 </head>
 <body>
   <div style="width: 210mm; min-height: 297mm; background: #ffffff; margin: 0 auto; box-sizing: border-box; position: relative; overflow: hidden;">
-    <!-- Full-Color Translucent Background Watermark Logo -->
+    <!-- Full-Color Translucent Background Watermark Logo (Vibrant & Perfectly Balanced) -->
     ${logoDataUrl ? `
-      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; opacity: 0.07; pointer-events: none; z-index: 0; overflow: hidden;">
-        <img src="${logoDataUrl}" style="width: 80%; max-width: 650px; object-fit: contain; transform: rotate(-12deg) scale(1.25);" />
+      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; opacity: 0.13; pointer-events: none; z-index: 0; overflow: hidden;">
+        <img src="${logoDataUrl}" style="width: 50%; max-width: 380px; object-fit: contain; transform: rotate(-12deg);" />
       </div>
     ` : ''}
 
@@ -415,13 +415,13 @@ export async function GET(
       <!-- Stamp LUNAS & QR Code -->
       ${bottomSectionHtml}
 
-      <!-- Professional Legal & Electronic Invoice Disclaimer Footer -->
-      <div style="margin-top: 48px; text-align: center; color: #9ca3af; font-size: 10px; border-top: 1px solid #e5e7eb; padding-top: 16px; line-height: 1.6;">
-        <div style="color: #6b7280; font-weight: 500; margin-bottom: 4px;">
-          Dokumen ini diterbitkan secara elektronik oleh ${companyName} dan sah sebagai bukti transaksi resmi tanpa memerlukan tanda tangan basah.
+      <!-- Sleek Minimal Footer -->
+      <div style="margin-top: 36px; text-align: center; color: #9ca3af; font-size: 9.5px; border-top: 1px solid #e5e7eb; padding-top: 14px; line-height: 1.6;">
+        <div style="color: #6b7280; font-weight: 400; margin-bottom: 2px;">
+          Dokumen ini diterbitkan secara elektronik &amp; sah tanpa memerlukan tanda tangan basah.
         </div>
-        <div>
-          &copy; 2026 ${companyName}. All Rights Reserved. ${poweredBy ? `Support by ${poweredBy}` : ''}
+        <div style="font-family: monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #9ca3af;">
+          &copy; 2026 ${companyName} &bull; All Rights Reserved ${poweredBy ? `&bull; Powered by ${poweredBy}` : ''}
         </div>
       </div>
     </div>
@@ -635,13 +635,13 @@ export async function GET(
 
     doc.setDrawColor(229, 231, 235);
     doc.setLineWidth(0.3);
-    doc.line(14, 270, 196, 270);
+    doc.line(14, 275, 196, 275);
 
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(107, 114, 128);
-    doc.text(`Dokumen ini diterbitkan secara elektronik oleh ${companyName} dan sah tanpa memerlukan tanda tangan basah.`, 105, 275, { align: 'center' });
-    doc.text(`© 2026 ${companyName}. All Rights Reserved.`, 105, 280, { align: 'center' });
+    doc.text(`Dokumen ini diterbitkan secara elektronik & sah tanpa memerlukan tanda tangan basah.`, 105, 280, { align: 'center' });
+    doc.text(`© 2026 ${companyName} • All Rights Reserved`, 105, 285, { align: 'center' });
 
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
 

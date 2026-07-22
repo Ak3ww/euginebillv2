@@ -69,13 +69,13 @@ export default function InvoiceTemplate({ data }: { data: InvoiceTemplateData })
       />
 
       <div className="p-8 sm:p-12 flex-1 relative flex flex-col justify-between">
-        {/* Full-Color Translucent Background Watermark Logo (Rich Colored Background) */}
+        {/* Full-Color Translucent Background Watermark Logo (Perfect Size & Vibrant Color) */}
         {data.company.logo && (
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.07] pointer-events-none z-0 overflow-hidden">
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.13] pointer-events-none z-0 overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
               src={data.company.logo} 
-              className="w-[85%] max-w-[700px] object-contain -rotate-12 scale-125" 
+              className="w-[50%] max-w-[380px] object-contain -rotate-12" 
               alt="Watermark" 
             />
           </div>
@@ -233,13 +233,13 @@ export default function InvoiceTemplate({ data }: { data: InvoiceTemplateData })
             )}
           </div>
 
-          {/* Professional Electronic Invoice Disclaimer & Copyright Footer */}
-          <div className="mt-12 text-center text-gray-400 text-[10px] border-t border-gray-200 pt-4 leading-relaxed">
-            <p className="mb-1 font-medium text-gray-500">
-              Dokumen ini diterbitkan secara elektronik oleh {data.company.name} dan sah sebagai bukti transaksi resmi tanpa memerlukan tanda tangan basah.
+          {/* Sleek Minimal Footer */}
+          <div className="mt-8 pt-4 border-t border-gray-200 text-center text-gray-400 text-[9.5px] leading-relaxed flex flex-col items-center gap-1">
+            <p className="font-normal text-gray-500">
+              Dokumen ini diterbitkan secara elektronik &amp; sah tanpa memerlukan tanda tangan basah.
             </p>
-            <p className="text-gray-400">
-              &copy; 2026 {data.company.name}. All Rights Reserved. {data.company.poweredBy ? `Support by ${data.company.poweredBy}` : ''}
+            <p className="font-mono text-[9px] uppercase tracking-wider text-gray-400">
+              &copy; 2026 {data.company.name} &bull; All Rights Reserved {data.company.poweredBy ? `&bull; Powered by ${data.company.poweredBy}` : ''}
             </p>
           </div>
         </div>
