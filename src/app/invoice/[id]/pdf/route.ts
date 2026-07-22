@@ -300,7 +300,7 @@ export async function GET(
     const companyName = company?.name || 'Eugine Media Group';
     const poweredBy = company?.poweredBy || 'EugineBill';
 
-    // Build complete HTML document matching htmldocs standard (With Flexbox layout pinning footer to paper bottom)
+    // Build complete HTML document matching htmldocs standard (Clean layout without watermark)
     const htmlDocument = `<!DOCTYPE html>
 <html>
 <head>
@@ -322,13 +322,6 @@ export async function GET(
 </head>
 <body>
   <div style="width: 210mm; min-height: 297mm; height: 297mm; background: #ffffff; margin: 0 auto; box-sizing: border-box; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;">
-    <!-- Full-Color Translucent Background Watermark Logo (Positioned Higher Up) -->
-    ${logoDataUrl ? `
-      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; opacity: 0.18; pointer-events: none; z-index: 0; overflow: hidden;">
-        <img src="${logoDataUrl}" style="width: 62%; max-width: 480px; object-fit: contain; transform: translateY(-100px) rotate(-12deg);" />
-      </div>
-    ` : ''}
-
     <!-- Top Oceanic Blue Brand Banner -->
     <div style="height: 16px; background: linear-gradient(to right, #002c60, #1b437c); width: 100%; position: relative; z-index: 10; shrink: 0;"></div>
 
