@@ -304,6 +304,11 @@ add list=payment-gateways address=partner.bri.co.id comment="EugineBill - BRI Pa
 add list=payment-gateways address=qris.id comment="EugineBill - QRIS"
 add list=payment-gateways address=api.qris.id comment="EugineBill - QRIS API"
 
+# QRIN Gateway
+add list=payment-gateways address=qrin.web.id comment="EugineBill - QRIN Web"
+add list=payment-gateways address=api.qrin.web.id comment="EugineBill - QRIN API"
+add list=payment-gateways address=qrin.id comment="EugineBill - QRIN Domain"
+
 # EugineBill - NOTE: Jalankan script ini ulang setiap 7 hari agar IP tetap update
 # EugineBill - atau gunakan RouterOS Scheduler untuk auto-refresh`;
 
