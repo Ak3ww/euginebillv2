@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
         username: username || '',  // Empty string for gateway type
         password: password || '',  // Empty string for gateway type
         port: portInt,
-        apiPort: null,
+        apiPort: parseInt(apiPort) || 8729,
         secret: secret || 'secret123',
         // server: NULL - untuk FreeRADIUS virtual_server name
         ports: 1812, // RADIUS auth port
@@ -234,9 +234,9 @@ export async function POST(request: NextRequest) {
       router,
       message: isGateway ? 'Gateway added successfully' : 'Router added and connection test successful',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Add router error:', error);
-    return NextResponse.json({ error: 'Failed to add router' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to add router' }, { status: 500 });
   }
 }
 

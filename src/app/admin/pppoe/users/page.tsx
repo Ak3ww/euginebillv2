@@ -388,10 +388,14 @@ export default function PppoeUsersPage() {
       setRouters(routersData.routers || []);
       setAreas(areasData.areas || []);
 
-      // Load invoice counts for all users
+      // Load invoice counts for all users (using POST to avoid URL 414 too large error)
       if (loadedUsers.length > 0) {
-        const userIds = loadedUsers.map((u: PppoeUser) => u.id).join(',');
-        const invoiceRes = await fetch(`/api/invoices/counts?userIds=${userIds}`);
+        const userIds = loadedUsers.map((u: PppoeUser) => u.id);
+        const invoiceRes = await fetch('/api/invoices/counts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userIds }),
+        });
         const invoiceData = await invoiceRes.json();
         if (invoiceData.success) {
           setInvoiceCounts(invoiceData.counts || {});
