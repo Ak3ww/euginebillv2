@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
@@ -54,6 +55,20 @@ export async function GET(
       day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta'
     }) : null;
 
+    // Payment method text
+    const approvedManual = invoice.manualPayments?.find((mp: any) => mp.status === 'APPROVED');
+    const anyManual = invoice.manualPayments?.[0];
+    const destinationBank = approvedManual?.destinationBank || anyManual?.destinationBank || null;
+
+    const paidViaText = (() => {
+      if (!invoice.paidAt) return null;
+      if (approvedManual || invoice.payments?.some((p: any) => p.method === 'manual_transfer' || p.method === 'manual')) {
+        return `Transfer Manual ${destinationBank ? `(ke ${destinationBank})` : ''}`;
+      }
+      if (invoice.payments?.length > 0) return 'Payment Gateway';
+      return 'Dikonfirmasi Admin';
+    })();
+
     // Additional fees parsing
     const parsedFees = (() => {
       try {
@@ -66,60 +81,91 @@ export async function GET(
     })();
 
     // Items
+    const baseAmt = invoice.baseAmount ?? invoice.amount;
+    const taxRateNum = invoice.taxRate ? Number(invoice.taxRate) : 0;
+    const hasTax = taxRateNum > 0;
+    const taxAmt = hasTax ? invoice.amount - baseAmt : 0;
+
     let items: any[] = [];
     if (invoice.type === 'INSTALLATION') {
       items.push({ description: 'Biaya Pemasangan', quantity: 1, price: invoice.amount, total: invoice.amount });
     } else if (invoice.type === 'TOPUP') {
       items.push({ description: 'Top Up Saldo', quantity: 1, price: invoice.amount, total: invoice.amount });
+    } else if (invoice.invoiceType === 'ADDON' && parsedFees.length > 0) {
+      // Addon fees only
     } else {
       const profileName = invoice.user?.profile?.name || 'Paket Internet';
       items.push({
         description: `Langganan Internet (${new Date(invoice.dueDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}) - ${profileName}`,
         quantity: 1,
-        price: invoice.amount,
-        total: invoice.amount
+        price: baseAmt,
+        total: baseAmt
       });
     }
 
-    // Tax calculation
-    const taxRateNum = Number(company?.taxRate || 0);
-    const hasTax = taxRateNum > 0;
-    const baseAmt = hasTax ? Math.round(invoice.amount / (1 + taxRateNum / 100)) : invoice.amount;
-    const taxAmt = hasTax ? invoice.amount - baseAmt : 0;
-
+    // Initialize A4 PDF document
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4'
     });
 
-    let currentY = 15;
+    // 1. Oceanic Blue Top Brand Banner (0 to 210mm width, 10mm height)
+    doc.setFillColor(0, 44, 96); // Oceanic Blue (#002c60)
+    doc.rect(0, 0, 210, 10, 'F');
 
-    // 1. Company Name & Contact Header (Left Side)
-    doc.setFontSize(18);
+    let currentY = 18;
+
+    // 2. Company Logo & Info (Left) vs INVOICE Title (Right)
+    let companyNameY = currentY + 4;
+    let textLeftMargin = 14;
+
+    // Try fetching company logo if available
+    if (company?.logo) {
+      try {
+        const logoRes = await fetch(company.logo, { mode: 'cors' });
+        if (logoRes.ok) {
+          const logoArrayBuffer = await logoRes.arrayBuffer();
+          const logoBuffer = Buffer.from(logoArrayBuffer);
+          const logoBase64 = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+          
+          // Draw logo box border
+          doc.setFillColor(249, 250, 251);
+          doc.setDrawColor(229, 231, 235);
+          doc.setLineWidth(0.3);
+          doc.roundedRect(14, currentY, 18, 18, 2, 2, 'FD');
+          doc.addImage(logoBase64, 'PNG', 15.5, currentY + 1.5, 15, 15);
+          textLeftMargin = 36;
+        }
+      } catch {
+        // Fallback if logo fetch fails
+      }
+    }
+
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(26, 28, 32);
-    doc.text(company?.name || 'EugineBill', 14, currentY + 4);
+    doc.text(company?.name || 'EugineBill', textLeftMargin, companyNameY);
 
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(115, 119, 129);
-    let contactY = currentY + 9;
+    let contactY = companyNameY + 4.5;
     if (company?.address) {
       const cleanAddr = company.address.replace(/<[^>]*>?/gm, '');
-      doc.text(cleanAddr.substring(0, 50), 14, contactY);
-      contactY += 4.5;
+      doc.text(cleanAddr.substring(0, 50), textLeftMargin, contactY);
+      contactY += 4;
     }
     if (company?.phone) {
-      doc.text(`Telp: ${company.phone}`, 14, contactY);
-      contactY += 4.5;
+      doc.text(`Telp: ${company.phone}`, textLeftMargin, contactY);
+      contactY += 4;
     }
     if (company?.email) {
-      doc.text(company.email, 14, contactY);
-      contactY += 4.5;
+      doc.text(company.email, textLeftMargin, contactY);
+      contactY += 4;
     }
 
-    // Right Side: INVOICE Title, Number & Status Badge (Exact web invoice match!)
+    // Right Side: INVOICE Title, Number & Status Badge
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(26, 28, 32);
@@ -147,7 +193,7 @@ export async function GET(
 
     currentY = Math.max(contactY, currentY + 22);
 
-    // Thick Black HR Line (Exact Web Invoice Match!)
+    // Thick Black HR Line
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.8);
     doc.line(14, currentY, 196, currentY);
@@ -158,14 +204,14 @@ export async function GET(
     const boxH = 24;
 
     // DARI Box
-    doc.setFillColor(255, 255, 255);
-    doc.setDrawColor(226, 232, 240);
+    doc.setFillColor(249, 250, 251);
+    doc.setDrawColor(229, 231, 235);
     doc.setLineWidth(0.3);
     doc.roundedRect(14, currentY, boxW, boxH, 2.5, 2.5, 'FD');
 
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(115, 119, 129);
+    doc.setTextColor(156, 163, 175);
     doc.text('DARI', 18, currentY + 5);
 
     doc.setFontSize(9);
@@ -175,7 +221,7 @@ export async function GET(
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(67, 71, 80);
+    doc.setTextColor(75, 85, 99);
     if (company?.address) doc.text(company.address.replace(/<[^>]*>?/gm, '').substring(0, 42), 18, currentY + 14.5);
     if (company?.phone) doc.text(`Telp: ${company.phone}`, 18, currentY + 19);
 
@@ -184,7 +230,7 @@ export async function GET(
 
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(115, 119, 129);
+    doc.setTextColor(156, 163, 175);
     doc.text('KEPADA', 111, currentY + 5);
 
     doc.setFontSize(9);
@@ -195,7 +241,7 @@ export async function GET(
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(67, 71, 80);
+    doc.setTextColor(75, 85, 99);
     const custId = invoice.customerUsername || invoice.user?.customerId || invoice.user?.username || '-';
     doc.text(`ID Pelanggan: ${custId}`, 111, currentY + 14.5);
     const custPhone = invoice.customerPhone || invoice.user?.phone || '-';
@@ -208,12 +254,12 @@ export async function GET(
 
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(115, 119, 129);
+    doc.setTextColor(156, 163, 175);
     doc.text('DETAIL INVOICE', 18, currentY + 5);
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(67, 71, 80);
+    doc.setTextColor(75, 85, 99);
     doc.text(`No Invoice: ${invoice.invoiceNumber}`, 18, currentY + 10);
     doc.text(`Tanggal: ${createdDateStr}`, 18, currentY + 14.5);
     doc.text(`Jatuh Tempo: ${dueDateStr}`, 18, currentY + 19);
@@ -222,17 +268,16 @@ export async function GET(
 
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(115, 119, 129);
+    doc.setTextColor(156, 163, 175);
     doc.text('STATUS PEMBAYARAN', 111, currentY + 5);
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(67, 71, 80);
+    doc.setTextColor(75, 85, 99);
     doc.text(`Status: ${isPaid ? '✓ LUNAS' : isOverdue ? '⚠️ TERLAMBAT' : 'BELUM BAYAR'}`, 111, currentY + 10);
     if (paidAtStr) {
       doc.text(`Dibayar pada: ${paidAtStr}`, 111, currentY + 14.5);
-      const paidViaText = invoice.paymentSource || 'Payment Gateway';
-      doc.text(`Via: ${paidViaText}`, 111, currentY + 19);
+      doc.text(`Via: ${paidViaText || 'Payment Gateway'}`, 111, currentY + 19);
     } else {
       doc.text('Metode: Transfer Bank / Online Payment', 111, currentY + 14.5);
     }
@@ -242,17 +287,17 @@ export async function GET(
     // Section Header: RINCIAN LAYANAN
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(115, 119, 129);
+    doc.setTextColor(156, 163, 175);
     doc.text('RINCIAN LAYANAN', 14, currentY);
     currentY += 3;
 
-    // Rincian Layanan Table (Exact Web Invoice styling: Black Header!)
+    // Table Body
     const tableBody = [
       ...items.map((item: any) => [
         item.description,
         item.quantity.toString(),
-        formatCurrency(hasTax ? baseAmt : item.price),
-        formatCurrency(hasTax ? baseAmt : item.total)
+        formatCurrency(item.price),
+        formatCurrency(item.total)
       ]),
       ...parsedFees.map((fee: any) => [
         fee.name || fee.description || 'Biaya Tambahan',
@@ -273,7 +318,7 @@ export async function GET(
       startY: currentY,
       theme: 'plain',
       headStyles: {
-        fillColor: [0, 0, 0], // Black background (Exact Web Invoice Match!)
+        fillColor: [0, 0, 0], // Black Header (100% Web Match!)
         textColor: [255, 255, 255],
         fontSize: 8.5,
         fontStyle: 'bold',
@@ -289,14 +334,14 @@ export async function GET(
       styles: {
         fontSize: 8.5,
         cellPadding: 3,
-        lineColor: [226, 232, 240],
+        lineColor: [229, 231, 235],
         lineWidth: 0.3
       }
     });
 
     currentY = (doc as any).lastAutoTable.finalY + 4;
 
-    // TOTAL ROW Box (Red Banner - Exact Web Invoice Match!)
+    // TOTAL ROW Box (Red Banner - 100% Web Match!)
     doc.setFillColor(254, 242, 242); // bg-red-50
     doc.setDrawColor(220, 38, 38);   // border-red-600
     doc.setLineWidth(0.8);
@@ -314,7 +359,7 @@ export async function GET(
 
     currentY += 18;
 
-    // LUNAS Stamp (Emerald Green Box - Exact Web Invoice Match!)
+    // LUNAS Stamp & QR Code Section
     if (isPaid) {
       doc.setDrawColor(16, 185, 129); // emerald-500
       doc.setLineWidth(1.2);
@@ -329,16 +374,30 @@ export async function GET(
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(115, 119, 129);
       doc.text(`Dibayar pada ${paidAtStr || '-'}`, 46.5, currentY + 14, { align: 'center' });
+
+      // Generate QR code for receipt link if available
+      const paymentLink = invoice.paymentLink || (invoice.paymentToken ? `/pay/${invoice.paymentToken}` : null);
+      if (paymentLink) {
+        try {
+          const qrDataUrl = await QRCode.toDataURL(paymentLink, { width: 120, margin: 1 });
+          doc.addImage(qrDataUrl, 'PNG', 90, currentY, 18, 18);
+          doc.setFontSize(7);
+          doc.setTextColor(156, 163, 175);
+          doc.text('Scan untuk e-receipt', 99, currentY + 21, { align: 'center' });
+        } catch {
+          // QR generation error fallback
+        }
+      }
     }
 
     // Print Footer Note
-    doc.setDrawColor(226, 232, 240);
+    doc.setDrawColor(229, 231, 235);
     doc.setLineWidth(0.3);
     doc.line(14, 275, 196, 275);
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(115, 119, 129);
+    doc.setTextColor(156, 163, 175);
     doc.text(`Terima kasih atas kepercayaan Anda — ${company?.name || 'EugineBill'}`, 105, 281, { align: 'center' });
 
     // Output PDF buffer

@@ -4,7 +4,6 @@ import html2canvas from 'html2canvas';
 /**
  * Convert any CSS color expression (including modern lab, oklch, oklab, lch, color, color-mix)
  * to exact sRGB integers rgb(r, g, b) or rgba(r, g, b, a) using Canvas 2D 8-bit pixel buffer.
- * This guarantees html2canvas never sees any unsupported color function.
  */
 function parseColorToRgb(colorExpr: string): string {
   if (!colorExpr || typeof colorExpr !== 'string') return colorExpr;
@@ -62,7 +61,6 @@ export function sanitizeCssString(str: string): string {
 
 /**
  * Convert all <img> elements inside an element to base64 data URIs.
- * This prevents html2canvas from tainting the canvas due to CORS restrictions.
  */
 async function convertImagesToBase64(element: HTMLElement) {
   const images = Array.from(element.querySelectorAll('img'));
@@ -92,8 +90,6 @@ async function convertImagesToBase64(element: HTMLElement) {
 
 /**
  * Convert all <svg> elements to <img> with data URI src.
- * html2canvas has poor SVG support, so rasterizing them ensures
- * QR codes and icons render correctly in the PDF.
  */
 function convertSvgsToImages(element: HTMLElement) {
   const svgs = Array.from(element.querySelectorAll('svg'));
@@ -141,11 +137,12 @@ async function waitForImages(element: HTMLElement): Promise<void> {
 }
 
 /**
- * Download the visible invoice element as a 1:1 pixel-perfect PDF.
+ * Download the visible invoice element as a 1:1 pixel-perfect A4 PDF.
  */
 export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename: string) {
-  // 1. Create offscreen container with fixed A4-proportional width (794px = 210mm at 96dpi)
-  const FIXED_WIDTH = 794;
+  const FIXED_WIDTH = 794; // Standard A4 width in px at 96 DPI
+
+  // 1. Create offscreen container set to 794px desktop width
   const container = document.createElement('div');
   container.style.cssText = `
     position: fixed;
@@ -158,11 +155,12 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
   `;
   document.body.appendChild(container);
 
-  // 2. Deep-clone the element into the offscreen container
+  // 2. Deep-clone the target element into the 794px container
   const clone = element.cloneNode(true) as HTMLElement;
   clone.style.cssText = `
     width: ${FIXED_WIDTH}px !important;
     max-width: ${FIXED_WIDTH}px !important;
+    min-width: ${FIXED_WIDTH}px !important;
     box-sizing: border-box !important;
     margin: 0 !important;
     border: none !important;
@@ -172,21 +170,18 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
   `;
   container.appendChild(clone);
 
-  // 3. Copy all computed styles from original to clone & sanitize colors
-  copyComputedStyles(element, clone);
-
-  // 4. Convert images and SVGs
+  // 3. Convert images and SVGs to base64
   await convertImagesToBase64(clone);
   convertSvgsToImages(clone);
   await waitForImages(clone);
 
-  // 5. Small delay for reflow
-  await new Promise((resolve) => setTimeout(resolve, 150));
+  // 4. Reflow delay
+  await new Promise((resolve) => setTimeout(resolve, 200));
 
   try {
-    // 6. Capture with html2canvas (inlining & sanitizing stylesheets for 1:1 fidelity)
+    // 5. Capture with html2canvas (inlining & sanitizing CSS for exact 1:1 desktop A4 rendering)
     const canvas = await html2canvas(clone, {
-      scale: 2, // 2x high-resolution capture for ultra-crisp output
+      scale: 2, // 2x high-resolution capture for crisp text
       useCORS: true,
       allowTaint: false,
       backgroundColor: '#ffffff',
@@ -194,8 +189,8 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
       width: FIXED_WIDTH,
       windowWidth: FIXED_WIDTH,
       onclone: async (clonedDoc) => {
-        // Fetch and inline all external stylesheets so fonts, Tailwind utility classes,
-        // gradients, and layout rules are 100% preserved while removing any lab/oklch colors
+        // Fetch and inline all external stylesheets so Tailwind desktop breakpoint rules (sm:, md:),
+        // fonts, table borders, gradients, and logos are 100% preserved
         const linkSheets = Array.from(clonedDoc.querySelectorAll('link[rel="stylesheet"]'));
         await Promise.all(
           linkSheets.map(async (link) => {
@@ -209,7 +204,7 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
               styleEl.textContent = sanitizedCss;
               link.parentNode?.replaceChild(styleEl, link);
             } catch {
-              // Silently ignore failed stylesheet fetches
+              // Ignore failed stylesheet fetches
             }
           })
         );
@@ -222,7 +217,7 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
           }
         });
 
-        // Sanitize all inline styles across all nodes
+        // Sanitize inline styles across all nodes
         const allNodes = Array.from(clonedDoc.querySelectorAll('*'));
         allNodes.forEach((node) => {
           const htmlNode = node as HTMLElement;
@@ -235,7 +230,7 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
       },
     });
 
-    // 7. Create PDF
+    // 6. Create PDF
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -280,57 +275,9 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
 
     pdf.save(filename);
   } finally {
-    // 8. Clean up offscreen container
+    // 7. Clean up offscreen container
     if (document.body.contains(container)) {
       document.body.removeChild(container);
     }
-  }
-}
-
-/**
- * Recursively copy computed styles from source to target elements.
- * Automatically sanitizes unsupported color formats.
- */
-function copyComputedStyles(source: Element, target: Element) {
-  const sourceStyles = window.getComputedStyle(source);
-  const targetEl = target as HTMLElement;
-  
-  const props = [
-    'backgroundColor', 'backgroundImage', 'background',
-    'color', 'fontSize', 'fontFamily', 'fontWeight', 'fontStyle',
-    'lineHeight', 'letterSpacing', 'textTransform', 'textDecoration',
-    'padding', 'margin', 'border', 'borderRadius',
-    'display', 'flexDirection', 'alignItems', 'justifyContent', 'gap',
-    'gridTemplateColumns', 'gridColumn', 'gridRow',
-    'width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight',
-    'overflow', 'opacity', 'boxShadow',
-    'borderTop', 'borderBottom', 'borderLeft', 'borderRight',
-    'borderColor', 'borderWidth', 'borderStyle',
-    'textAlign', 'verticalAlign', 'whiteSpace',
-    'position', 'top', 'right', 'bottom', 'left',
-    'transform', 'transformOrigin',
-    'flexWrap', 'flexGrow', 'flexShrink', 'flexBasis',
-    'tableLayout', 'borderCollapse', 'borderSpacing',
-  ];
-
-  props.forEach((prop) => {
-    try {
-      const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
-      let value = sourceStyles.getPropertyValue(cssProp);
-      if (value) {
-        value = sanitizeCssString(value);
-        targetEl.style.setProperty(cssProp, value);
-      }
-    } catch {
-      // Skip properties that can't be read/set
-    }
-  });
-
-  // Recurse into children
-  const sourceChildren = source.children;
-  const targetChildren = target.children;
-  const len = Math.min(sourceChildren.length, targetChildren.length);
-  for (let i = 0; i < len; i++) {
-    copyComputedStyles(sourceChildren[i], targetChildren[i]);
   }
 }

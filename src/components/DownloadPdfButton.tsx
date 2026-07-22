@@ -18,18 +18,41 @@ export default function DownloadPdfButton({
     setIsDownloading(true);
     setError(null);
     try {
+      // 1. Try vector server PDF generation first (100% 1:1 match, crisp text, instant download)
+      const res = await fetch(`/invoice/${invoiceNumber}/pdf`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Invoice-${invoiceNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      // 2. Fallback to client-side DOM capture if server fetch failed (e.g., offline mode)
       const element = document.getElementById('invoice-capture-area');
       if (element) {
         await downloadVisibleInvoiceAsPdf(element, `Invoice-${invoiceNumber}.pdf`);
       } else {
-        // Element not in DOM — navigate to invoice page with autoDownload flag
-        // Uses location.href (same-tab) to keep WebView compatibility
         window.location.href = `/invoice/${invoiceNumber}?autoDownload=true`;
-        return; // Don't reset isDownloading since we're navigating away
       }
     } catch (err) {
       console.error('PDF download error:', err);
-      setError('Gagal mengunduh PDF. Coba lagi.');
+      // Client-side fallback retry
+      try {
+        const element = document.getElementById('invoice-capture-area');
+        if (element) {
+          await downloadVisibleInvoiceAsPdf(element, `Invoice-${invoiceNumber}.pdf`);
+        } else {
+          setError('Gagal mengunduh PDF. Coba lagi.');
+        }
+      } catch {
+        setError('Gagal mengunduh PDF. Coba lagi.');
+      }
     } finally {
       setIsDownloading(false);
     }
@@ -37,10 +60,9 @@ export default function DownloadPdfButton({
 
   useEffect(() => {
     if (autoTrigger) {
-      // Wait 1500ms for the page + images + fonts to fully render
       const timer = setTimeout(() => {
         handleDownload();
-      }, 1500);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [autoTrigger, handleDownload]);
