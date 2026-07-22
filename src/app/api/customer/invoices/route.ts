@@ -3,7 +3,11 @@ import { prisma } from '@/server/db/client';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    const token = 
+      request.headers.get('authorization')?.replace('Bearer ', '') ||
+      request.cookies.get('customer-token')?.value ||
+      request.cookies.get('customer_token')?.value ||
+      request.cookies.get('token')?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -32,7 +36,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
-    const status = searchParams.get('status'); // paid, unpaid, overdue
+    const status = searchParams.get('status');
     const skip = (page - 1) * limit;
 
     // Build where clause
@@ -70,6 +74,7 @@ export async function GET(request: NextRequest) {
         paymentLink: true,
         createdAt: true,
         invoiceType: true,
+        additionalFees: true,
         user: {
           select: {
             profile: { select: { name: true, price: true } },
@@ -103,53 +108,54 @@ export async function GET(request: NextRequest) {
 
     const total = await prisma.invoice.count({ where });
 
+    const formattedInvoices = invoices.map(inv => {
+      const gatewayPayment = inv.payments[0] ?? null;
+      const manualPayment = inv.manualPayments[0] ?? null;
+
+      let paymentSource: string | null = null;
+      if (gatewayPayment && inv.status === 'PAID') {
+        paymentSource = 'gateway';
+      } else if (manualPayment?.status === 'APPROVED') {
+        paymentSource = 'manual';
+      } else if (inv.status === 'PAID' && !gatewayPayment && !manualPayment) {
+        paymentSource = 'admin';
+      }
+
+      let profileName = inv.user?.profile?.name || null;
+      if (inv.invoiceType === 'ADDON' && inv.additionalFees) {
+        try {
+          const fees = typeof inv.additionalFees === 'string' ? JSON.parse(inv.additionalFees) : inv.additionalFees;
+          if (fees && fees.items && fees.items.length > 0) {
+            profileName = fees.items[0].name;
+          }
+        } catch {}
+      }
+
+      return {
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        amount: Number(inv.amount),
+        status: inv.status,
+        dueDate: inv.dueDate.toISOString(),
+        paidAt: inv.paidAt?.toISOString() || null,
+        paymentToken: inv.paymentToken,
+        paymentLink: inv.paymentLink,
+        createdAt: inv.createdAt.toISOString(),
+        invoiceType: inv.invoiceType || 'MONTHLY',
+        profileName,
+        paymentSource,
+        manualPaymentStatus: manualPayment?.status?.toLowerCase() || null,
+        manualPaymentBank: manualPayment?.bankName || null,
+        payments: inv.payments,
+      };
+    });
+
     return NextResponse.json({
       success: true,
+      invoices: formattedInvoices,
+      total,
       data: {
-        invoices: invoices.map(inv => {
-          const gatewayPayment = inv.payments[0] ?? null;
-          const manualPayment = inv.manualPayments[0] ?? null;
-
-          // Determine payment source
-          let paymentSource: string | null = null;
-          if (gatewayPayment && inv.status === 'PAID') {
-            paymentSource = 'gateway';
-          } else if (manualPayment?.status === 'APPROVED') {
-            paymentSource = 'manual';
-          } else if (inv.status === 'PAID' && !gatewayPayment && !manualPayment) {
-            paymentSource = 'admin';
-          }
-
-            let profileName = inv.user?.profile?.name || null;
-            if (inv.invoiceType === 'ADDON' && inv.additionalFees) {
-              try {
-                const fees = typeof inv.additionalFees === 'string' ? JSON.parse(inv.additionalFees) : inv.additionalFees;
-                if (fees && fees.items && fees.items.length > 0) {
-                  profileName = fees.items[0].name;
-                }
-              } catch (e) {
-                // fallback
-              }
-            }
-
-            return {
-              id: inv.id,
-              invoiceNumber: inv.invoiceNumber,
-              amount: Number(inv.amount),
-              status: inv.status,
-              dueDate: inv.dueDate.toISOString(),
-              paidAt: inv.paidAt?.toISOString() || null,
-              paymentToken: inv.paymentToken,
-              paymentLink: inv.paymentLink,
-              createdAt: inv.createdAt.toISOString(),
-              invoiceType: inv.invoiceType || 'MONTHLY',
-              profileName,
-            paymentSource,
-            manualPaymentStatus: manualPayment?.status?.toLowerCase() || null,
-            manualPaymentBank: manualPayment?.bankName || null,
-            payments: inv.payments,
-          };
-        }),
+        invoices: formattedInvoices,
         pagination: {
           page,
           limit,
