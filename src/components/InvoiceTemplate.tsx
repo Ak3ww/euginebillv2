@@ -69,13 +69,13 @@ export default function InvoiceTemplate({ data }: { data: InvoiceTemplateData })
       />
 
       <div className="p-8 sm:p-12 flex-1 relative flex flex-col justify-between">
-        {/* Full-Color Translucent Background Watermark Logo (Perfect Size & Vibrant Color) */}
+        {/* Full-Color Translucent Background Watermark Logo (Larger size & 18% Opacity) */}
         {data.company.logo && (
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.13] pointer-events-none z-0 overflow-hidden">
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.18] pointer-events-none z-0 overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
               src={data.company.logo} 
-              className="w-[50%] max-w-[380px] object-contain -rotate-12" 
+              className="w-[62%] max-w-[480px] object-contain -rotate-12" 
               alt="Watermark" 
             />
           </div>
@@ -233,8 +233,8 @@ export default function InvoiceTemplate({ data }: { data: InvoiceTemplateData })
             )}
           </div>
 
-          {/* Sleek Minimal Footer */}
-          <div className="mt-8 pt-4 border-t border-gray-200 text-center text-gray-400 text-[9.5px] leading-relaxed flex flex-col items-center gap-1">
+          {/* Sleek Minimal Footer — Pinned to Paper Bottom */}
+          <div className="mt-12 pt-4 border-t border-gray-200 text-center text-gray-400 text-[9.5px] leading-relaxed flex flex-col items-center gap-1 shrink-0">
             <p className="font-normal text-gray-500">
               Dokumen ini diterbitkan secara elektronik &amp; sah tanpa memerlukan tanda tangan basah.
             </p>

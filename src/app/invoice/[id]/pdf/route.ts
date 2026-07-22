@@ -300,7 +300,7 @@ export async function GET(
     const companyName = company?.name || 'Eugine Media Group';
     const poweredBy = company?.poweredBy || 'EugineBill';
 
-    // Build complete HTML document matching htmldocs standard
+    // Build complete HTML document matching htmldocs standard (With Flexbox layout pinning footer to paper bottom)
     const htmlDocument = `<!DOCTYPE html>
 <html>
 <head>
@@ -308,7 +308,8 @@ export async function GET(
   <style>
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
-    body {
+    html, body {
+      height: 100%;
       margin: 0;
       padding: 0;
       background-color: #ffffff;
@@ -320,103 +321,105 @@ export async function GET(
   </style>
 </head>
 <body>
-  <div style="width: 210mm; min-height: 297mm; background: #ffffff; margin: 0 auto; box-sizing: border-box; position: relative; overflow: hidden;">
-    <!-- Full-Color Translucent Background Watermark Logo (Vibrant & Perfectly Balanced) -->
+  <div style="width: 210mm; min-height: 297mm; height: 297mm; background: #ffffff; margin: 0 auto; box-sizing: border-box; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;">
+    <!-- Full-Color Translucent Background Watermark Logo (62% width, 18% Opacity) -->
     ${logoDataUrl ? `
-      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; opacity: 0.13; pointer-events: none; z-index: 0; overflow: hidden;">
-        <img src="${logoDataUrl}" style="width: 50%; max-width: 380px; object-fit: contain; transform: rotate(-12deg);" />
+      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; opacity: 0.18; pointer-events: none; z-index: 0; overflow: hidden;">
+        <img src="${logoDataUrl}" style="width: 62%; max-width: 480px; object-fit: contain; transform: rotate(-12deg);" />
       </div>
     ` : ''}
 
     <!-- Top Oceanic Blue Brand Banner -->
-    <div style="height: 16px; background: linear-gradient(to right, #002c60, #1b437c); width: 100%; position: relative; z-index: 10;"></div>
+    <div style="height: 16px; background: linear-gradient(to right, #002c60, #1b437c); width: 100%; position: relative; z-index: 10; shrink: 0;"></div>
 
-    <div style="padding: 36px 40px; position: relative; z-index: 10;">
-      <!-- Header Section -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
-        <div style="display: flex; align-items: center; gap: 16px;">
-          ${logoHtml}
-          <div>
-            <div style="font-size: 22px; font-weight: 800; color: #111827; line-height: 1.2;">${companyName}</div>
-            <div style="font-size: 11.5px; color: #6b7280; margin-top: 4px; line-height: 1.5;">
-              ${company?.address ? `<div>${company.address.replace(/<[^>]*>?/gm, '')}</div>` : ''}
-              ${company?.phone ? `<div>Telp: ${company.phone}</div>` : ''}
-              ${company?.email ? `<div>${company.email}</div>` : ''}
+    <div style="padding: 36px 40px; position: relative; z-index: 10; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <!-- Header Section -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            ${logoHtml}
+            <div>
+              <div style="font-size: 22px; font-weight: 800; color: #111827; line-height: 1.2;">${companyName}</div>
+              <div style="font-size: 11.5px; color: #6b7280; margin-top: 4px; line-height: 1.5;">
+                ${company?.address ? `<div>${company.address.replace(/<[^>]*>?/gm, '')}</div>` : ''}
+                ${company?.phone ? `<div>Telp: ${company.phone}</div>` : ''}
+                ${company?.email ? `<div>${company.email}</div>` : ''}
+              </div>
             </div>
+          </div>
+
+          <div style="text-align: right;">
+            <div style="font-size: 30px; font-weight: 900; color: #111827; letter-spacing: 3px; line-height: 1;">INVOICE</div>
+            <div style="font-size: 14px; font-weight: 700; color: #dc2626; margin: 4px 0;">${invoice.invoiceNumber}</div>
+            <div style="margin-top: 6px;">${statusBadgeHtml}</div>
           </div>
         </div>
 
-        <div style="text-align: right;">
-          <div style="font-size: 30px; font-weight: 900; color: #111827; letter-spacing: 3px; line-height: 1;">INVOICE</div>
-          <div style="font-size: 14px; font-weight: 700; color: #dc2626; margin: 4px 0;">${invoice.invoiceNumber}</div>
-          <div style="margin-top: 6px;">${statusBadgeHtml}</div>
+        <hr style="border: none; border-top: 3px solid #000000; margin: 20px 0;" />
+
+        <!-- Grid 1: DARI vs KEPADA -->
+        <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+          <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;">
+            <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Dari</div>
+            <div style="font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 3px;">${companyName}</div>
+            ${company?.address ? `<div style="font-size: 12px; color: #4b5563;">${company.address.replace(/<[^>]*>?/gm, '')}</div>` : ''}
+            ${company?.phone ? `<div style="font-size: 12px; color: #4b5563;">Telp: ${company.phone}</div>` : ''}
+          </div>
+          <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;">
+            <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Kepada</div>
+            <div style="font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 3px;">${invoice.customerName || invoice.user?.name || 'Pelanggan'}</div>
+            <div style="font-size: 12px; color: #4b5563;"><span style="color: #9ca3af;">ID Pelanggan: </span>${invoice.customerUsername || invoice.user?.customerId || invoice.user?.username || '-'}</div>
+            <div style="font-size: 12px; color: #4b5563;"><span style="color: #9ca3af;">Telp: </span>${invoice.customerPhone || invoice.user?.phone || '-'}</div>
+          </div>
         </div>
+
+        <!-- Grid 2: DETAIL INVOICE vs STATUS PEMBAYARAN -->
+        <div style="display: flex; gap: 20px; margin-bottom: 24px;">
+          <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;">
+            <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Detail Invoice</div>
+            <div style="font-size: 12px; color: #374151; margin-bottom: 3px;"><span style="color: #9ca3af;">No Invoice: </span><strong>${invoice.invoiceNumber}</strong></div>
+            <div style="font-size: 12px; color: #374151; margin-bottom: 3px;"><span style="color: #9ca3af;">Tanggal: </span>${createdDateStr}</div>
+            <div style="font-size: 12px; color: #374151;"><span style="color: #9ca3af;">Jatuh Tempo: </span>${dueDateStr}</div>
+          </div>
+          <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;">
+            <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Status Pembayaran</div>
+            <div style="font-size: 12px; color: #374151; margin-bottom: 3px;"><span style="color: #9ca3af;">Status: </span><strong>${isPaid ? '✓ LUNAS' : isOverdue ? '⚠️ TERLAMBAT' : 'BELUM BAYAR'}</strong></div>
+            ${paidAtStr ? `
+              <div style="font-size: 12px; color: #374151; margin-bottom: 3px;"><span style="color: #9ca3af;">Dibayar pada: </span>${paidAtStr}</div>
+              <div style="font-size: 12px; color: #374151;"><span style="color: #9ca3af;">Via: </span>${paidViaText || 'Payment Gateway'}</div>
+            ` : `
+              <div style="font-size: 12px; color: #374151;"><span style="color: #9ca3af;">Metode: </span>Transfer Bank / Online Payment</div>
+            `}
+          </div>
+        </div>
+
+        <!-- RINCIAN LAYANAN Table -->
+        <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Rincian Layanan</div>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+          <thead>
+            <tr>
+              <th style="background: #000000; color: #ffffff; padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; border-top-left-radius: 8px;">Deskripsi</th>
+              <th style="background: #000000; color: #ffffff; padding: 12px 16px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; width: 70px;">Qty</th>
+              <th style="background: #000000; color: #ffffff; padding: 12px 16px; text-align: right; font-size: 11px; font-weight: 700; text-transform: uppercase; width: 140px;">Harga</th>
+              <th style="background: #000000; color: #ffffff; padding: 12px 16px; text-align: right; font-size: 11px; font-weight: 700; text-transform: uppercase; width: 150px; border-top-right-radius: 8px;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHtml}
+            <!-- Highlighted Red Total Box -->
+            <tr>
+              <td colspan="3" style="text-align: right; font-weight: 700; font-size: 14px; background: #fef2f2; border-top: 2px solid #dc2626; padding: 12px 16px; color: #111827;">TOTAL</td>
+              <td style="text-align: right; font-weight: 700; font-size: 14px; background: #fef2f2; border-top: 2px solid #dc2626; padding: 12px 16px; color: #dc2626;">${formatCurrency(invoice.amount)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Stamp LUNAS & QR Code -->
+        ${bottomSectionHtml}
       </div>
 
-      <hr style="border: none; border-top: 3px solid #000000; margin: 20px 0;" />
-
-      <!-- Grid 1: DARI vs KEPADA -->
-      <div style="display: flex; gap: 20px; margin-bottom: 20px;">
-        <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;">
-          <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Dari</div>
-          <div style="font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 3px;">${companyName}</div>
-          ${company?.address ? `<div style="font-size: 12px; color: #4b5563;">${company.address.replace(/<[^>]*>?/gm, '')}</div>` : ''}
-          ${company?.phone ? `<div style="font-size: 12px; color: #4b5563;">Telp: ${company.phone}</div>` : ''}
-        </div>
-        <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;">
-          <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Kepada</div>
-          <div style="font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 3px;">${invoice.customerName || invoice.user?.name || 'Pelanggan'}</div>
-          <div style="font-size: 12px; color: #4b5563;"><span style="color: #9ca3af;">ID Pelanggan: </span>${invoice.customerUsername || invoice.user?.customerId || invoice.user?.username || '-'}</div>
-          <div style="font-size: 12px; color: #4b5563;"><span style="color: #9ca3af;">Telp: </span>${invoice.customerPhone || invoice.user?.phone || '-'}</div>
-        </div>
-      </div>
-
-      <!-- Grid 2: DETAIL INVOICE vs STATUS PEMBAYARAN -->
-      <div style="display: flex; gap: 20px; margin-bottom: 24px;">
-        <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;">
-          <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Detail Invoice</div>
-          <div style="font-size: 12px; color: #374151; margin-bottom: 3px;"><span style="color: #9ca3af;">No Invoice: </span><strong>${invoice.invoiceNumber}</strong></div>
-          <div style="font-size: 12px; color: #374151; margin-bottom: 3px;"><span style="color: #9ca3af;">Tanggal: </span>${createdDateStr}</div>
-          <div style="font-size: 12px; color: #374151;"><span style="color: #9ca3af;">Jatuh Tempo: </span>${dueDateStr}</div>
-        </div>
-        <div style="flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;">
-          <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Status Pembayaran</div>
-          <div style="font-size: 12px; color: #374151; margin-bottom: 3px;"><span style="color: #9ca3af;">Status: </span><strong>${isPaid ? '✓ LUNAS' : isOverdue ? '⚠️ TERLAMBAT' : 'BELUM BAYAR'}</strong></div>
-          ${paidAtStr ? `
-            <div style="font-size: 12px; color: #374151; margin-bottom: 3px;"><span style="color: #9ca3af;">Dibayar pada: </span>${paidAtStr}</div>
-            <div style="font-size: 12px; color: #374151;"><span style="color: #9ca3af;">Via: </span>${paidViaText || 'Payment Gateway'}</div>
-          ` : `
-            <div style="font-size: 12px; color: #374151;"><span style="color: #9ca3af;">Metode: </span>Transfer Bank / Online Payment</div>
-          `}
-        </div>
-      </div>
-
-      <!-- RINCIAN LAYANAN Table -->
-      <div style="font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Rincian Layanan</div>
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
-        <thead>
-          <tr>
-            <th style="background: #000000; color: #ffffff; padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; border-top-left-radius: 8px;">Deskripsi</th>
-            <th style="background: #000000; color: #ffffff; padding: 12px 16px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; width: 70px;">Qty</th>
-            <th style="background: #000000; color: #ffffff; padding: 12px 16px; text-align: right; font-size: 11px; font-weight: 700; text-transform: uppercase; width: 140px;">Harga</th>
-            <th style="background: #000000; color: #ffffff; padding: 12px 16px; text-align: right; font-size: 11px; font-weight: 700; text-transform: uppercase; width: 150px; border-top-right-radius: 8px;">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRowsHtml}
-          <!-- Highlighted Red Total Box -->
-          <tr>
-            <td colspan="3" style="text-align: right; font-weight: 700; font-size: 14px; background: #fef2f2; border-top: 2px solid #dc2626; padding: 12px 16px; color: #111827;">TOTAL</td>
-            <td style="text-align: right; font-weight: 700; font-size: 14px; background: #fef2f2; border-top: 2px solid #dc2626; padding: 12px 16px; color: #dc2626;">${formatCurrency(invoice.amount)}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <!-- Stamp LUNAS & QR Code -->
-      ${bottomSectionHtml}
-
-      <!-- Sleek Minimal Footer -->
-      <div style="margin-top: 36px; text-align: center; color: #9ca3af; font-size: 9.5px; border-top: 1px solid #e5e7eb; padding-top: 14px; line-height: 1.6;">
+      <!-- Sleek Minimal Footer — Pinned to Paper Bottom -->
+      <div style="margin-top: 36px; text-align: center; color: #9ca3af; font-size: 9.5px; border-top: 1px solid #e5e7eb; padding-top: 14px; line-height: 1.6; shrink: 0;">
         <div style="color: #6b7280; font-weight: 400; margin-bottom: 2px;">
           Dokumen ini diterbitkan secara elektronik &amp; sah tanpa memerlukan tanda tangan basah.
         </div>
