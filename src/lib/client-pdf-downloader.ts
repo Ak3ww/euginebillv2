@@ -106,8 +106,11 @@ function convertSvgsToImages(element: HTMLElement) {
       
       const img = document.createElement('img');
       img.src = dataUri;
-      img.style.width = svg.getAttribute('width') ? `${svg.getAttribute('width')}px` : `${svg.getBoundingClientRect().width}px`;
-      img.style.height = svg.getAttribute('height') ? `${svg.getAttribute('height')}px` : `${svg.getBoundingClientRect().height}px`;
+      const rect = svg.getBoundingClientRect();
+      const w = svg.getAttribute('width') || (rect.width ? `${rect.width}` : '100');
+      const h = svg.getAttribute('height') || (rect.height ? `${rect.height}` : '100');
+      img.style.width = w.endsWith('px') || w.endsWith('%') ? w : `${w}px`;
+      img.style.height = h.endsWith('px') || h.endsWith('%') ? h : `${h}px`;
       img.style.display = 'inline-block';
       
       svg.parentNode?.replaceChild(img, svg);
@@ -138,11 +141,11 @@ async function waitForImages(element: HTMLElement): Promise<void> {
 }
 
 /**
- * Download the visible invoice element as a pixel-perfect PDF.
+ * Download the visible invoice element as a 1:1 pixel-perfect PDF.
  */
 export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename: string) {
-  // 1. Create offscreen container with fixed A4-proportional width
-  const FIXED_WIDTH = 794; // A4 at 96dpi
+  // 1. Create offscreen container with fixed A4-proportional width (794px = 210mm at 96dpi)
+  const FIXED_WIDTH = 794;
   const container = document.createElement('div');
   container.style.cssText = `
     position: fixed;
@@ -157,55 +160,69 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
 
   // 2. Deep-clone the element into the offscreen container
   const clone = element.cloneNode(true) as HTMLElement;
-  clone.style.width = `${FIXED_WIDTH}px`;
-  clone.style.maxWidth = `${FIXED_WIDTH}px`;
-  clone.style.margin = '0';
-  clone.style.padding = '';
-  clone.style.boxShadow = 'none';
-  clone.style.borderRadius = '0';
-  clone.style.border = 'none';
+  clone.style.cssText = `
+    width: ${FIXED_WIDTH}px !important;
+    max-width: ${FIXED_WIDTH}px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background-color: #ffffff !important;
+  `;
   container.appendChild(clone);
 
-  // 3. Copy all computed styles from original to clone (deep) & sanitize colors
+  // 3. Copy all computed styles from original to clone & sanitize colors
   copyComputedStyles(element, clone);
 
-  // 4. Sanitize inline styles on all cloned nodes
-  const allCloneElements = Array.from(clone.querySelectorAll('*'));
-  allCloneElements.concat(clone).forEach((el) => {
-    const htmlEl = el as HTMLElement;
-    if (htmlEl.style && htmlEl.style.cssText) {
-      if (/(?:lab|oklch|oklab|lch|color|color-mix)\(/i.test(htmlEl.style.cssText)) {
-        htmlEl.style.cssText = sanitizeCssString(htmlEl.style.cssText);
-      }
-    }
-  });
-
-  // 5. Convert images and SVGs
+  // 4. Convert images and SVGs
   await convertImagesToBase64(clone);
   convertSvgsToImages(clone);
   await waitForImages(clone);
 
-  // 6. Small delay for layout reflow
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  // 5. Small delay for reflow
+  await new Promise((resolve) => setTimeout(resolve, 150));
 
   try {
-    // 7. Capture with html2canvas (with document stylesheet stripping & onclone sanitizer)
+    // 6. Capture with html2canvas (inlining & sanitizing stylesheets for 1:1 fidelity)
     const canvas = await html2canvas(clone, {
-      scale: 2,
+      scale: 2, // 2x high-resolution capture for ultra-crisp output
       useCORS: true,
       allowTaint: false,
       backgroundColor: '#ffffff',
       logging: false,
       width: FIXED_WIDTH,
       windowWidth: FIXED_WIDTH,
-      onclone: (clonedDoc) => {
-        // Remove all external <link rel="stylesheet"> and <style> elements from clonedDoc
-        // because all computed styles are already baked inline on every element node.
-        // This prevents html2canvas from reading & crashing on raw Next.js/Tailwind CSS files with lab() rules.
-        const styleNodes = Array.from(clonedDoc.querySelectorAll('link[rel="stylesheet"], style'));
-        styleNodes.forEach((node) => node.remove());
+      onclone: async (clonedDoc) => {
+        // Fetch and inline all external stylesheets so fonts, Tailwind utility classes,
+        // gradients, and layout rules are 100% preserved while removing any lab/oklch colors
+        const linkSheets = Array.from(clonedDoc.querySelectorAll('link[rel="stylesheet"]'));
+        await Promise.all(
+          linkSheets.map(async (link) => {
+            const href = (link as HTMLLinkElement).href;
+            if (!href) return;
+            try {
+              const res = await fetch(href);
+              const cssText = await res.text();
+              const sanitizedCss = sanitizeCssString(cssText);
+              const styleEl = clonedDoc.createElement('style');
+              styleEl.textContent = sanitizedCss;
+              link.parentNode?.replaceChild(styleEl, link);
+            } catch {
+              // Silently ignore failed stylesheet fetches
+            }
+          })
+        );
 
-        // Double check inline styles on clonedDoc nodes
+        // Sanitize all existing <style> elements
+        const existingStyles = Array.from(clonedDoc.querySelectorAll('style'));
+        existingStyles.forEach((styleEl) => {
+          if (styleEl.textContent) {
+            styleEl.textContent = sanitizeCssString(styleEl.textContent);
+          }
+        });
+
+        // Sanitize all inline styles across all nodes
         const allNodes = Array.from(clonedDoc.querySelectorAll('*'));
         allNodes.forEach((node) => {
           const htmlNode = node as HTMLElement;
@@ -218,7 +235,7 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
       },
     });
 
-    // 8. Create PDF
+    // 7. Create PDF
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -232,7 +249,7 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
 
     if (imgHeight <= A4_HEIGHT_MM) {
       // Single page
-      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
     } else {
       // Multi-page: slice the canvas into A4-height chunks
@@ -255,7 +272,7 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
           ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
         }
 
-        const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.92);
+        const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
         const pageImgHeight = (srcH * A4_WIDTH_MM) / canvas.width;
         pdf.addImage(pageImgData, 'JPEG', 0, 0, imgWidth, pageImgHeight);
       }
@@ -263,7 +280,7 @@ export async function downloadVisibleInvoiceAsPdf(element: HTMLElement, filename
 
     pdf.save(filename);
   } finally {
-    // 9. Clean up offscreen container
+    // 8. Clean up offscreen container
     if (document.body.contains(container)) {
       document.body.removeChild(container);
     }
