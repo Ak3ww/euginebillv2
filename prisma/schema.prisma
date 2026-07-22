@@ -560,6 +560,7 @@ model pppoeUser {
   invoices         invoice[]
   manualPayments   manualPayment[]
   tickets          ticket[]
+  workOrders       workOrder[]
   profile          pppoeProfile   @relation(fields: [profileId], references: [id])
   area             pppoeArea?     @relation(fields: [areaId], references: [id])
   router           router?        @relation(fields: [routerId], references: [id])
@@ -1924,10 +1925,12 @@ model inventoryMovement {
 model technician {
   id            String         @id @default(cuid())
   name          String
+  username      String?        @unique
+  password      String?
   phoneNumber   String         @unique
   email         String?
   isActive      Boolean        @default(true)
-  requireOtp    Boolean        @default(true)
+  requireOtp    Boolean        @default(false)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   lastLoginAt   DateTime?
@@ -1935,6 +1938,7 @@ model technician {
   workOrders    workOrder[]
   pushSubscriptions technicianPushSubscription[]
 
+  @@index([username])
   @@index([phoneNumber])
   @@index([isActive])
   @@map("technicians")

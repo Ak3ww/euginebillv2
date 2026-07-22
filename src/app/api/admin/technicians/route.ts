@@ -1,7 +1,8 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
+import bcrypt from 'bcryptjs';
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,6 +21,7 @@ export async function GET(req: NextRequest) {
     if (search) {
       where.OR = [
         { name: { contains: search } },
+        { username: { contains: search } },
         { phoneNumber: { contains: search } },
         { email: { contains: search } },
       ];
@@ -32,7 +34,17 @@ export async function GET(req: NextRequest) {
     // Get technicians with work order count
     const technicians = await prisma.technician.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        phoneNumber: true,
+        email: true,
+        isActive: true,
+        requireOtp: true,
+        createdAt: true,
+        updatedAt: true,
+        lastLoginAt: true,
         _count: {
           select: {
             workOrders: true,
@@ -56,11 +68,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, phoneNumber, email, isActive, requireOtp } = await req.json();
+    const { name, username, password, phoneNumber, email, isActive, requireOtp } = await req.json();
 
     if (!name || !phoneNumber) {
       return NextResponse.json(
-        { error: 'Name and phone number are required' },
+        { error: 'Nama dan Nomor WhatsApp wajib diisi' },
         { status: 400 }
       );
     }
@@ -74,33 +86,68 @@ export async function POST(req: NextRequest) {
       : '62' + normalizedPhone;
 
     // Check if phone number already exists
-    const existing = await prisma.technician.findUnique({
+    const existingPhone = await prisma.technician.findUnique({
       where: { phoneNumber: formattedPhone },
     });
 
-    if (existing) {
+    if (existingPhone) {
       return NextResponse.json(
-        { error: 'Phone number already registered' },
+        { error: 'Nomor WhatsApp sudah terdaftar' },
         { status: 400 }
       );
+    }
+
+    // Check username if provided
+    let cleanUsername = username ? username.trim() : null;
+    if (cleanUsername) {
+      const existingUser = await prisma.technician.findUnique({
+        where: { username: cleanUsername },
+      });
+      if (existingUser) {
+        return NextResponse.json(
+          { error: 'Username sudah digunakan' },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Default username to phone number if empty
+      cleanUsername = formattedPhone;
+    }
+
+    // Hash password if provided
+    let hashedPassword: string | null = null;
+    if (password && password.trim()) {
+      hashedPassword = await bcrypt.hash(password.trim(), 10);
     }
 
     // Create technician
     const technician = await prisma.technician.create({
       data: {
         name,
+        username: cleanUsername,
+        password: hashedPassword,
         phoneNumber: formattedPhone,
         email: email || null,
         isActive: isActive !== undefined ? isActive : true,
-        requireOtp: requireOtp !== undefined ? requireOtp : true,
+        requireOtp: requireOtp !== undefined ? requireOtp : false,
       },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        phoneNumber: true,
+        email: true,
+        isActive: true,
+        requireOtp: true,
+        createdAt: true,
+      }
     });
 
     return NextResponse.json(technician);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create technician error:', error);
     return NextResponse.json(
-      { error: 'Failed to create technician' },
+      { error: error.message || 'Gagal menambahkan teknisi' },
       { status: 500 }
     );
   }
@@ -108,11 +155,11 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const { id, name, phoneNumber, email, isActive, requireOtp } = await req.json();
+    const { id, name, username, password, phoneNumber, email, isActive, requireOtp } = await req.json();
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Technician ID is required' },
+        { error: 'ID teknisi wajib diisi' },
         { status: 400 }
       );
     }
@@ -124,7 +171,7 @@ export async function PUT(req: NextRequest) {
 
     if (!existing) {
       return NextResponse.json(
-        { error: 'Technician not found' },
+        { error: 'Teknisi tidak ditemukan' },
         { status: 404 }
       );
     }
@@ -136,6 +183,26 @@ export async function PUT(req: NextRequest) {
     if (email !== undefined) updateData.email = email || null;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (requireOtp !== undefined) updateData.requireOtp = requireOtp;
+
+    if (username !== undefined && username !== existing.username) {
+      const cleanUsername = username ? username.trim() : null;
+      if (cleanUsername) {
+        const userExists = await prisma.technician.findUnique({
+          where: { username: cleanUsername },
+        });
+        if (userExists && userExists.id !== id) {
+          return NextResponse.json(
+            { error: 'Username sudah digunakan' },
+            { status: 400 }
+          );
+        }
+        updateData.username = cleanUsername;
+      }
+    }
+
+    if (password && password.trim()) {
+      updateData.password = await bcrypt.hash(password.trim(), 10);
+    }
 
     if (phoneNumber !== undefined && phoneNumber !== existing.phoneNumber) {
       // Normalize phone number
@@ -153,7 +220,7 @@ export async function PUT(req: NextRequest) {
 
       if (phoneExists && phoneExists.id !== id) {
         return NextResponse.json(
-          { error: 'Phone number already registered' },
+          { error: 'Nomor WhatsApp sudah terdaftar' },
           { status: 400 }
         );
       }
@@ -165,13 +232,23 @@ export async function PUT(req: NextRequest) {
     const technician = await prisma.technician.update({
       where: { id },
       data: updateData,
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        phoneNumber: true,
+        email: true,
+        isActive: true,
+        requireOtp: true,
+        updatedAt: true,
+      }
     });
 
     return NextResponse.json(technician);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Update technician error:', error);
     return NextResponse.json(
-      { error: 'Failed to update technician' },
+      { error: error.message || 'Gagal memperbarui data teknisi' },
       { status: 500 }
     );
   }
@@ -184,7 +261,7 @@ export async function DELETE(req: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Technician ID is required' },
+        { error: 'ID teknisi wajib diisi' },
         { status: 400 }
       );
     }
@@ -201,7 +278,7 @@ export async function DELETE(req: NextRequest) {
 
     if (workOrderCount > 0) {
       return NextResponse.json(
-        { error: 'Cannot delete technician with active work orders' },
+        { error: 'Tidak dapat menghapus teknisi yang masih memiliki SPK aktif' },
         { status: 400 }
       );
     }
@@ -215,7 +292,7 @@ export async function DELETE(req: NextRequest) {
   } catch (error) {
     console.error('Delete technician error:', error);
     return NextResponse.json(
-      { error: 'Failed to delete technician' },
+      { error: 'Gagal menghapus teknisi' },
       { status: 500 }
     );
   }
