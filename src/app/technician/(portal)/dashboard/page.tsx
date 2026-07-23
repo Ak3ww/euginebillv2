@@ -180,7 +180,7 @@ export default function TechnicianDashboardPage() {
       {/* Quick Action Bar for Field Technicians */}
       <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
         <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mb-3">Aksi Cepat Lapangan</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             onClick={() => router.push('/technician/work-orders')}
             className="flex items-center gap-3 p-3 bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-xl transition-all text-left group"
@@ -195,41 +195,28 @@ export default function TechnicianDashboardPage() {
           </button>
 
           <button
-            onClick={() => router.push('/technician/register')}
+            onClick={() => router.push('/technician/tickets')}
+            className="flex items-center gap-3 p-3 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/20 rounded-xl transition-all text-left group"
+          >
+            <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+              <MessageSquare className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-foreground group-hover:text-blue-600">Tiket Gangguan</div>
+              <div className="text-[10px] text-muted-foreground">Tangani laporan pelanggan</div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => router.push('/technician/work-orders?status=COMPLETED')}
             className="flex items-center gap-3 p-3 bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/20 rounded-xl transition-all text-left group"
           >
             <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
-              <Plus className="w-5 h-5" />
+              <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xs font-bold text-foreground group-hover:text-emerald-600">Pasang Baru</div>
-              <div className="text-[10px] text-muted-foreground">Input dari lokasi</div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => router.push('/technician/isolated')}
-            className="flex items-center gap-3 p-3 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 rounded-xl transition-all text-left group"
-          >
-            <div className="w-9 h-9 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0">
-              <Shield className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-foreground group-hover:text-red-600">Cek Terisolir</div>
-              <div className="text-[10px] text-muted-foreground">Bantu buka isolir</div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => router.push('/technician/genieacs')}
-            className="flex items-center gap-3 p-3 bg-purple-500/5 hover:bg-purple-500/10 border border-purple-500/20 rounded-xl transition-all text-left group"
-          >
-            <div className="w-9 h-9 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
-              <Cpu className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-foreground group-hover:text-purple-600">Sinyal ONT</div>
-              <div className="text-[10px] text-muted-foreground">Cek Redaman Fiber</div>
+              <div className="text-xs font-bold text-foreground group-hover:text-emerald-600">Riwayat Tugas</div>
+              <div className="text-[10px] text-muted-foreground">{completedWOs.length} Tugas Selesai</div>
             </div>
           </button>
         </div>

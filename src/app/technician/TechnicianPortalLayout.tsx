@@ -64,36 +64,6 @@ const MENU_ITEMS: MenuItem[] = [
     icon: <Ticket className="w-4 h-4" />,
     href: '/technician/tickets',
   },
-  {
-    titleKey: 'techPortal.onlineUsers',
-    icon: <Wifi className="w-4 h-4" />,
-    href: '/technician/online',
-  },
-  {
-    titleKey: 'techPortal.offlineUsers',
-    icon: <WifiOff className="w-4 h-4" />,
-    href: '/technician/offline',
-  },
-  {
-    titleKey: 'techPortal.isolatedUsers',
-    icon: <Shield className="w-4 h-4" />,
-    href: '/technician/isolated',
-  },
-  {
-    titleKey: 'techPortal.customers',
-    icon: <Users className="w-4 h-4" />,
-    href: '/technician/customers',
-  },
-  {
-    titleKey: 'techPortal.register',
-    icon: <UserPlus className="w-4 h-4" />,
-    href: '/technician/register',
-  },
-  {
-    titleKey: 'techPortal.genieacs',
-    icon: <Cpu className="w-4 h-4" />,
-    href: '/technician/genieacs',
-  },
 ];
 
 /* â”€â”€â”€ Notification Bell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -723,7 +693,6 @@ function TechnicianPortalInner({ children }: { children: React.ReactNode }) {
             { href: '/technician/dashboard', label: 'Beranda', icon: LayoutDashboard },
             { href: '/technician/work-orders', label: 'SPK Tugas', icon: ClipboardList },
             { href: '/technician/tickets', label: 'Tiket', icon: Ticket },
-            { href: '/technician/isolated', label: 'Terisolir', icon: Shield },
             { href: '/technician/profile', label: 'Profil', icon: User },
           ].map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
