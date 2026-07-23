@@ -6,7 +6,7 @@ async function main() {
   console.log('🔍 Checking Routers in Database...\n');
 
   const routers = await prisma.router.findMany({
-    select: { id: true, name: true, ipAddress: true, isOnline: true }
+    select: { id: true, name: true, ipAddress: true, isActive: true }
   });
 
   console.log('📋 Existing Routers:');
