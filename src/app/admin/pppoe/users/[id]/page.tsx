@@ -1,15 +1,33 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatWIB } from '@/lib/timezone';
+import { useToast } from '@/components/cyberpunk/CyberToast';
 import {
   ArrowLeft, User, Wifi, WifiOff, Shield, ShieldOff, Ban, CheckCircle2,
   Phone, Mail, MapPin, Calendar, CreditCard, Copy, ExternalLink, RefreshCw,
   AlertTriangle, FileText, Clock, Zap, Check, Activity, Eye, EyeOff,
   Hash, MessageCircle, Download, Upload, Timer, Server,
-  ChevronDown, ChevronUp, Plus, SendHorizonal, Laptop, X, Edit3, Settings
+  ChevronDown, ChevronUp, Plus, SendHorizonal, Laptop, X, Edit3, Settings, Wrench, Camera
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface WorkOrder {
+  id: string;
+  issueType: string;
+  description: string;
+  priority: string;
+  status: string;
+  completedAt: string | null;
+  createdAt: string;
+  technician?: { id: string; name: string; phoneNumber: string } | null;
+  reportData?: any;
+  reportPhotos?: any;
+  equipmentChecklist?: any;
+}
 
 interface PppoeUserDetail {
   id: string;
@@ -32,6 +50,12 @@ interface PppoeUserDetail {
   profile: { id: string; name: string; groupName: string; price?: number };
   router?: { id: string; name: string; nasname: string } | null;
   area?: { id: string; name: string } | null;
+  odpAssignment?: {
+    odpId: string;
+    portNumber: number;
+    odp?: { name: string; locationName?: string; portCapacity?: number };
+  } | null;
+  workOrders?: WorkOrder[];
 }
 
 interface ActiveSession {
@@ -56,16 +80,8 @@ interface Invoice {
   paymentToken: string | null;
 }
 
-interface SessionRecord {
-  id: string;
-  startTime: string;
-  stopTime: string | null;
-  durationFormatted: string;
-  download: string;
-  upload: string;
-}
-
 function formatBytes(bytes: number) {
+  if (!bytes) return '0 B';
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
   if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(2)} MB`;
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(2)} KB`;
@@ -77,7 +93,7 @@ function formatDuration(seconds: number) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
-  if (h > 0) return `${h}j ${m}m`;
+  if (h > 0) return `${h}j ${m}m ${s}d`;
   if (m > 0) return `${m}m ${s}d`;
   return `${s}d`;
 }
@@ -85,750 +101,709 @@ function formatDuration(seconds: number) {
 export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [user, setUser]                     = useState<PppoeUserDetail | null>(null);
-  const [activeSession, setActiveSession]   = useState<ActiveSession | null>(null);
-  const [invoices, setInvoices]             = useState<Invoice[]>([]);
-  const [sessions, setSessions]             = useState<SessionRecord[]>([]);
-  const [loading, setLoading]               = useState(true);
-  const [copiedId, setCopiedId]             = useState<string | null>(null);
-  const [changingStatus, setChangingStatus] = useState(false);
-  const [showPassword, setShowPassword]     = useState(false);
-  const [showSessions, setShowSessions]     = useState(false);
-  const [sendingWA, setSendingWA]           = useState(false);
-  const [waResult, setWaResult]             = useState<string | null>(null);
+  const { addToast } = useToast();
 
-  // Redesign tabs state
-  const [activeTab, setActiveTab]           = useState<'info' | 'invoices' | 'sessions' | 'acs' | 'actions'>('info');
-  // Edit modal state
-  const [showEditModal, setShowEditModal]   = useState(false);
-  const [savingEdit, setSavingEdit]         = useState(false);
-  const [editForm, setEditForm]             = useState({
+  const [user, setUser] = useState<PppoeUserDetail | null>(null);
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
+
+  // Collapse / Expand Section States
+  const [expandPersonal, setExpandPersonal] = useState(true);
+  const [expandMikrotik, setExpandMikrotik] = useState(true);
+  const [expandHardware, setExpandHardware] = useState(true);
+  const [expandWorkOrders, setExpandWorkOrders] = useState(true);
+  const [expandInvoices, setExpandInvoices] = useState(false);
+
+  // Edit Personal / ODP Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
     name: '',
     phone: '',
     email: '',
     address: '',
-    password: '',
-    comment: ''
+    comment: '',
   });
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchData(); }, [id]);
+  // Create SPK Modal State
+  const [isSpkModalOpen, setIsSpkModalOpen] = useState(false);
+  const [spkSubmitting, setSpkSubmitting] = useState(false);
+  const [spkFormData, setSpkFormData] = useState({
+    issueType: 'REPAIR',
+    priority: 'HIGH',
+    description: 'Perbaikan / Pergantian Modem ONT untuk Pelanggan',
+    notes: '',
+  });
 
-  const fetchData = async () => {
+  const fetchUserDetail = async () => {
     setLoading(true);
     try {
-      const [userRes, invoicesRes, sessionsRes] = await Promise.all([
-        fetch(`/api/pppoe/users/${id}`),
-        fetch(`/api/invoices?userId=${id}&limit=20`),
-        fetch(`/api/pppoe/users/${id}/activity?type=sessions&limit=10`),
-      ]);
-      const userData     = await userRes.json();
-      const invoicesData = await invoicesRes.json();
-      const sessionsData = await sessionsRes.json();
-      if (userData.user)          setUser(userData.user);
-      if (userData.activeSession) setActiveSession(userData.activeSession);
-      if (invoicesData.invoices)  setInvoices(invoicesData.invoices);
-      if (sessionsData.sessions)  setSessions(sessionsData.sessions);
+      const res = await fetch(`/api/pppoe/users/${id}`);
+      const data = await res.json();
+      if (res.ok && data.user) {
+        setUser(data.user);
+        setActiveSession(data.activeSession || null);
+        setEditFormData({
+          name: data.user.name || '',
+          phone: data.user.phone || '',
+          email: data.user.email || '',
+          address: data.user.address || '',
+          comment: data.user.comment || '',
+        });
+      } else {
+        addToast({ type: 'error', title: 'Gagal', description: data.error || 'Pelanggan tidak ditemukan' });
+      }
+
+      // Fetch invoices
+      const invRes = await fetch(`/api/admin/invoices?userId=${id}`);
+      if (invRes.ok) {
+        const invData = await invRes.json();
+        setInvoices(invData.invoices || []);
+      }
     } catch (e) {
       console.error(e);
+      addToast({ type: 'error', title: 'Gagal', description: 'Gagal mengambil data pelanggan' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (!user) return;
-    setChangingStatus(true);
-    try {
-      const res = await fetch('/api/pppoe/users/status', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, status: newStatus }),
-      });
-      if (res.ok) setUser({ ...user, status: newStatus });
-    } finally {
-      setChangingStatus(false);
-    }
+  useEffect(() => {
+    fetchUserDetail();
+  }, [id]);
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(label);
+    addToast({ type: 'success', title: 'Tersalin', description: `${label} berhasil disalin ke clipboard` });
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const sendWANotification = async () => {
+  const handleUpdateStatus = async (newStatus: string) => {
     if (!user) return;
-    setSendingWA(true);
-    setWaResult(null);
+    setStatusLoading(true);
     try {
-      const res = await fetch('/api/pppoe/users/send-notification', {
-        method: 'POST',
+      const res = await fetch(`/api/pppoe/users/${user.id}/status`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds: [user.id], notificationType: 'invoice', notificationMethod: 'whatsapp' }),
+        body: JSON.stringify({ status: newStatus }),
       });
       const data = await res.json();
-      setWaResult(res.ok ? 'Notifikasi WA berhasil dikirim!' : (data.error || 'Gagal mengirim WA'));
+      if (res.ok) {
+        addToast({ type: 'success', title: 'Berhasil', description: `Status pelanggan diperbarui ke ${newStatus}` });
+        fetchUserDetail();
+      } else {
+        addToast({ type: 'error', title: 'Gagal', description: data.error || 'Gagal mengubah status' });
+      }
     } catch {
-      setWaResult('Gagal terhubung ke server');
+      addToast({ type: 'error', title: 'Gagal', description: 'Gagal terhubung ke server' });
     } finally {
-      setSendingWA(false);
-      setTimeout(() => setWaResult(null), 4000);
+      setStatusLoading(false);
     }
-  };
-
-  const openEditModal = () => {
-    if (!user) return;
-    setEditForm({
-      name: user.name || '',
-      phone: user.phone || '',
-      email: user.email || '',
-      address: user.address || '',
-      password: user.password || '',
-      comment: user.comment || ''
-    });
-    setShowEditModal(true);
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    setSavingEdit(true);
     try {
-      const res = await fetch(`/api/pppoe/users/${user.customerId || user.id}`, {
+      const res = await fetch(`/api/pppoe/users/${user.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(editFormData),
       });
+      const data = await res.json();
       if (res.ok) {
-        await fetchData();
-        setShowEditModal(false);
+        addToast({ type: 'success', title: 'Berhasil', description: 'Data pelanggan berhasil diperbarui!' });
+        setIsEditModalOpen(false);
+        fetchUserDetail();
+      } else {
+        addToast({ type: 'error', title: 'Gagal', description: data.error || 'Gagal memperbarui data' });
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      addToast({ type: 'error', title: 'Gagal', description: 'Gagal menghubungkan ke server' });
+    }
+  };
+
+  const handleCreateSpk = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setSpkSubmitting(true);
+    try {
+      const res = await fetch('/api/admin/work-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          linkedUserId: user.id,
+          customerName: user.name,
+          customerPhone: user.phone,
+          customerAddress: user.address || '-',
+          issueType: spkFormData.issueType,
+          priority: spkFormData.priority,
+          description: spkFormData.description,
+          notes: spkFormData.notes,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addToast({ type: 'success', title: 'Berhasil', description: 'Surat Tugas (SPK) berhasil diterbitkan!' });
+        setIsSpkModalOpen(false);
+        fetchUserDetail();
+      } else {
+        addToast({ type: 'error', title: 'Gagal', description: data.error || 'Gagal menerbitkan SPK' });
+      }
+    } catch {
+      addToast({ type: 'error', title: 'Gagal', description: 'Gagal terhubung ke server' });
     } finally {
-      setSavingEdit(false);
-    }
-  };
-
-  const copyLink = (link: string, key: string) => {
-    navigator.clipboard.writeText(link);
-    setCopiedId(key);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
-
-  const formatDate = (d: string) => formatWIB(d, 'd MMM yyyy');
-
-  const formatDateTime = (d: string) => formatWIB(d, 'd MMM yyyy HH:mm');
-
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'active':   return 'bg-success/15 text-success border-success/30';
-      case 'isolated': return 'bg-pink-500/15 text-pink-500 border-pink-500/30';
-      case 'blocked':  return 'bg-destructive/15 text-destructive border-destructive/30';
-      case 'stop':     return 'bg-gray-500/15 text-gray-500 border-gray-500/30';
-      default:         return 'bg-muted text-muted-foreground border-border';
-    }
-  };
-
-  const getInvStyle = (status: string) => {
-    switch (status) {
-      case 'PAID':    return 'bg-success/15 text-success';
-      case 'OVERDUE': return 'bg-destructive/15 text-destructive';
-      case 'PENDING': return 'bg-amber-500/15 text-amber-600 dark:text-amber-400';
-      default:        return 'bg-muted text-muted-foreground';
+      setSpkSubmitting(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+      <div className="p-12 text-center">
+        <RefreshCw className="w-8 h-8 animate-spin mx-auto text-primary mb-3" />
+        <p className="text-xs text-muted-foreground font-mono">Memuat profil pelanggan...</p>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="max-w-2xl mx-auto p-6 text-center">
-        <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-destructive" />
-        <p className="text-muted-foreground">User tidak ditemukan.</p>
-        <button onClick={() => router.back()} className="mt-4 px-4 py-2 bg-primary/10 border border-primary/30 rounded text-sm text-primary hover:bg-primary/20">
-          Kembali
+      <div className="p-8 max-w-lg mx-auto text-center space-y-4">
+        <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto" />
+        <h2 className="text-lg font-bold text-foreground">Pelanggan Tidak Ditemukan</h2>
+        <p className="text-xs text-muted-foreground">ID atau Username pelanggan tidak terdaftar di sistem EugineBill.</p>
+        <button onClick={() => router.push('/admin/pppoe/users')} className="px-4 py-2 bg-primary text-primary-foreground font-bold text-xs rounded-xl">
+          Kembali ke Daftar Pelanggan
         </button>
       </div>
     );
   }
 
-  const unpaidInvoices = invoices.filter(i => ['PENDING', 'OVERDUE'].includes(i.status));
-  const isExpired = user.expiredAt ? new Date(user.expiredAt) < new Date() : false;
-  
-  // Extract initials for avatar
-  const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'PP';
+  // Parse ODP & Hardware data from latest Work Order if available
+  const latestWo = user.workOrders && user.workOrders.length > 0 ? user.workOrders[0] : null;
+  const woReportData = latestWo?.reportData || {};
+  const odpName = user.odpAssignment?.odp?.name || woReportData.odpName || '-';
+  const odpPort = user.odpAssignment?.portNumber || woReportData.odpPort || '-';
+  const ontModel = woReportData.modemType || '-';
+  const ontSn = woReportData.sn || '-';
+  const ontMac = woReportData.mac || user.macAddress || '-';
+  const rxSignal = woReportData.rxSignal || '-';
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-12 text-foreground">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
 
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <button onClick={() => router.back()} className="p-2 rounded-lg hover:bg-muted/80 transition-colors text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-xl font-bold">Detail Pelanggan PPPoE</h1>
-          <p className="text-xs text-muted-foreground font-mono">ID: {user.customerId || user.id}</p>
-        </div>
-        <button onClick={fetchData} className="ml-auto p-2 rounded-lg hover:bg-muted/80 transition-colors text-muted-foreground hover:text-foreground" title="Refresh">
-          <RefreshCw className="w-4 h-4" />
-        </button>
-      </div>
+      {/* Back Button */}
+      <button
+        onClick={() => router.push('/admin/pppoe/users')}
+        className="flex items-center gap-1.5 text-xs font-mono font-bold text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar Pelanggan
+      </button>
 
-      {/* ── Premium Hero Card ────────────────────────────────────────────── */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg">
-        <div className="p-6 bg-gradient-to-r from-neutral-900 via-neutral-950 to-neutral-900 border-b border-border flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-primary/20 border border-primary/35 flex items-center justify-center font-bold text-xl text-primary shrink-0 shadow-inner">
-              {initials}
-            </div>
-            <div>
-              <div className="text-xl font-extrabold text-foreground flex items-center gap-2">
-                {user.name}
-                {activeSession && (
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse inline-block" title="Online" />
-                )}
-              </div>
-              <div className="text-xs font-mono text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                <Hash className="w-3.5 h-3.5" /> {user.customerId || '-'}
-                <span className="text-border">|</span>
-                <span>Username: {user.username}</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${getStatusStyle(user.status)}`}>
-              {user.status === 'active'   && <Shield className="w-3.5 h-3.5" />}
-              {user.status === 'isolated' && <ShieldOff className="w-3.5 h-3.5" />}
-              {user.status === 'blocked'  && <Ban className="w-3.5 h-3.5" />}
-              {user.status}
-            </span>
-            {user.syncedToRadius && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/30">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Tersinkron RADIUS
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="px-6 border-b border-border flex items-center gap-1 overflow-x-auto scrollbar-none bg-muted/20">
-          <button
-            onClick={() => setActiveTab('info')}
-            className={`px-4 py-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'info' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <User className="w-4 h-4" /> Profil Pelanggan
-          </button>
-          <button
-            onClick={() => setActiveTab('invoices')}
-            className={`px-4 py-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'invoices' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <FileText className="w-4 h-4" /> Riwayat Tagihan
-            {unpaidInvoices.length > 0 && (
-              <span className="w-2 h-2 rounded-full bg-destructive animate-ping" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('sessions')}
-            className={`px-4 py-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'sessions' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Activity className="w-4 h-4" /> Sesi Aktif
-          </button>
-          <button
-            onClick={() => setActiveTab('acs')}
-            className={`px-4 py-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'acs' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Settings className="w-4 h-4" /> Modem (ACS)
-          </button>
-          <button
-            onClick={() => setActiveTab('actions')}
-            className={`px-4 py-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'actions' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Zap className="w-4 h-4" /> Aksi & Kontrol
-          </button>
-        </div>
-
-        {/* Tab Contents */}
-        <div className="p-6">
+      {/* Header Profile Card */}
+      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           
-          {/* TAB: INFO PELANGGAN */}
-          {activeTab === 'info' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5 text-sm">
-                <div className="flex items-start gap-3">
-                  <User className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Nama Lengkap</div>
-                    <div className="font-semibold">{user.name}</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Phone className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">No. Telepon</div>
-                    <div>
-                      {user.phone ? (
-                        <a href={`tel:${user.phone}`} className="text-primary hover:underline">{user.phone}</a>
-                      ) : '-'}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Mail className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Email</div>
-                    <div>
-                      {user.email ? (
-                        <a href={`mailto:${user.email}`} className="text-primary hover:underline truncate max-w-xs block">{user.email}</a>
-                      ) : '-'}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Alamat</div>
-                    <div className="text-foreground/90">{user.address || '-'}</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Activity className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Paket Langganan</div>
-                    <div className="font-semibold">{user.profile?.name || '-'}</div>
-                    {user.profile?.price !== undefined && (
-                      <div className="text-xs text-primary font-bold">{formatCurrency(user.profile.price)} / bln</div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Server className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Router / NAS</div>
-                    <div>{user.router?.name || '-'} <span className="text-xs text-muted-foreground">({user.router?.nasname || '-'})</span></div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Area Layanan</div>
-                    <div>{user.area?.name || '-'}</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Calendar className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Tanggal Expired / Jatuh Tempo</div>
-                    <div className={isExpired ? 'text-destructive font-bold' : ''}>
-                      {user.expiredAt ? formatDate(user.expiredAt) : '-'}
-                      {isExpired && <span className="ml-1.5 text-xs bg-destructive/15 text-destructive px-1.5 py-0.5 rounded font-semibold">Tunggakan</span>}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Laptop className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">IP Address Statis</div>
-                    <div className="font-mono">{user.ipAddress || '-'}</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Laptop className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">MAC Address</div>
-                    <div className="font-mono text-xs">{user.macAddress || '-'}</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Shield className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Password PPPoE</div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-medium">{showPassword ? user.password : '••••••••'}</span>
-                      <button onClick={() => setShowPassword(!showPassword)} className="text-muted-foreground hover:text-foreground">
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                      <button onClick={() => copyLink(user.password, 'pwd')} className="text-muted-foreground hover:text-foreground">
-                        {copiedId === 'pwd' ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Clock className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Tanggal Pendaftaran</div>
-                    <div>{formatDate(user.createdAt)}</div>
-                  </div>
-                </div>
-                {user.comment && (
-                  <div className="flex items-start gap-3 col-span-1 md:col-span-2 bg-muted/10 p-3 rounded-lg border border-border/50">
-                    <MessageCircle className="w-4 h-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <div className="text-xs text-muted-foreground">Catatan Tambahan</div>
-                      <div className="text-foreground/90">{user.comment}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex justify-end pt-4 border-t border-border">
-                <button
-                  onClick={openEditModal}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 flex items-center gap-1.5 shadow-md"
-                >
-                  <Edit3 className="w-4 h-4" /> Edit Profil Pelanggan
-                </button>
-              </div>
+          <div className="flex items-start gap-4">
+            <div className={cn(
+              'w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold font-mono shrink-0 shadow-inner',
+              user.status === 'ISOLATED' ? 'bg-destructive/10 text-destructive border border-destructive/20' : 'bg-primary/10 text-primary border border-primary/20'
+            )}>
+              {user.name.slice(0, 2).toUpperCase()}
             </div>
-          )}
 
-          {/* TAB: RIWAYAT TAGIHAN */}
-          {activeTab === 'invoices' && (
-            <div className="space-y-6">
-              {/* Summary stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-muted/10 border border-border p-4 rounded-xl">
-                  <div className="text-xs text-muted-foreground">Total Invoice</div>
-                  <div className="text-lg font-bold mt-1">{invoices.length} Tagihan</div>
-                </div>
-                <div className="bg-destructive/5 border border-destructive/20 p-4 rounded-xl">
-                  <div className="text-xs text-destructive">Belum Lunas</div>
-                  <div className="text-lg font-bold text-destructive mt-1">
-                    {formatCurrency(unpaidInvoices.reduce((s, i) => s + Number(i.amount), 0))}
-                  </div>
-                </div>
-                <div className="bg-success/5 border border-success/20 p-4 rounded-xl">
-                  <div className="text-xs text-success">Sudah Lunas</div>
-                  <div className="text-lg font-bold text-success mt-1">
-                    {formatCurrency(invoices.filter(i => i.status === 'PAID').reduce((s, i) => s + Number(i.amount), 0))}
-                  </div>
-                </div>
-              </div>
-
-              {/* List */}
-              <div className="bg-muted/5 border border-border rounded-xl divide-y divide-border">
-                {invoices.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground text-sm">
-                    <FileText className="w-8 h-8 mx-auto mb-2 opacity-35" />
-                    Belum ada riwayat tagihan
-                  </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl font-bold font-display text-foreground">{user.name}</h1>
+                <span className={cn(
+                  'px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border',
+                  user.status === 'ISOLATED' ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                )}>
+                  {user.status === 'ISOLATED' ? 'Terisolir' : 'Aktif'}
+                </span>
+                {activeSession ? (
+                  <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-full font-mono text-[10px] font-bold uppercase flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Sesi Online
+                  </span>
                 ) : (
-                  invoices.map((inv) => {
-                    const payPath = inv.paymentToken ? `/pay/${inv.paymentToken}` : null;
-                    const payLinkAbsolute = inv.paymentToken
-                      ? `${typeof window !== 'undefined' ? window.location.origin : ''}/pay/${inv.paymentToken}`
-                      : inv.paymentLink;
-                    const isUnpaid = ['PENDING', 'OVERDUE'].includes(inv.status);
-                    return (
-                      <div key={inv.id} className="p-4 flex items-center justify-between gap-4 flex-wrap hover:bg-muted/10 transition-colors">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold">{inv.invoiceNumber}</span>
-                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${getInvStyle(inv.status)}`}>{inv.status}</span>
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
-                            <span>Jatuh Tempo: {formatDate(inv.dueDate)}</span>
-                            <span>Dibuat: {formatDate(inv.createdAt)}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 ml-auto">
-                          <span className={`font-bold text-sm ${isUnpaid ? 'text-destructive' : 'text-success'}`}>
-                            {formatCurrency(Number(inv.amount))}
-                          </span>
-                          {isUnpaid && payPath && (
-                            <div className="flex items-center gap-1.5 border border-border/80 rounded-lg p-1 bg-card">
-                              <button onClick={() => copyLink(payLinkAbsolute || payPath, inv.id)} title="Salin link bayar" className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
-                                {copiedId === inv.id ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
-                              </button>
-                              <a href={payPath} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded hover:bg-primary/10 text-primary">
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                            </div>
-                          )}
-                          {inv.status === 'PAID' && <CheckCircle2 className="w-4 h-4 text-success" />}
-                        </div>
-                      </div>
-                    );
-                  })
+                  <span className="px-2.5 py-0.5 bg-muted text-muted-foreground border border-border rounded-full font-mono text-[10px] font-bold uppercase">
+                    Offline
+                  </span>
                 )}
               </div>
-            </div>
-          )}
 
-          {/* TAB: SESI AKTIF */}
-          {activeTab === 'sessions' && (
-            <div className="space-y-6">
-              {activeSession ? (
-                <div className="bg-emerald-500/5 border border-emerald-500/30 rounded-2xl p-6">
-                  <div className="flex items-center gap-2 border-b border-emerald-500/20 pb-4 mb-4">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <Wifi className="w-5 h-5 text-emerald-500" />
-                    <h3 className="font-bold text-sm">Informasi Sesi Aktif</h3>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6 text-sm">
-                    <div>
-                      <div className="text-xs text-muted-foreground">IP Aktif</div>
-                      <div className="font-mono mt-0.5">{activeSession.framedipaddress}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground">Router NAS</div>
-                      <div className="font-mono mt-0.5">{activeSession.nasipaddress}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground">MAC Client</div>
-                      <div className="font-mono mt-0.5">{activeSession.callingstationid || '-'}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground">Durasi Sesi</div>
-                      <div className="mt-0.5">{formatDuration(activeSession.acctsessiontime || 0)}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground text-blue-400">Download (RX)</div>
-                      <div className="font-semibold text-blue-400 mt-0.5">{formatBytes(Number(activeSession.acctinputoctets || 0))}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground text-amber-400">Upload (TX)</div>
-                      <div className="font-semibold text-amber-400 mt-0.5">{formatBytes(Number(activeSession.acctoutputoctets || 0))}</div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-8 text-center text-muted-foreground bg-muted/5 border border-border rounded-xl">
-                  <WifiOff className="w-8 h-8 mx-auto mb-2 opacity-35" />
-                  Tidak ada sesi PPPoE aktif saat ini.
-                </div>
-              )}
-
-              {/* Sessions List */}
-              {sessions.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-bold text-sm flex items-center gap-1.5">
-                    <Activity className="w-4 h-4 text-primary" /> Riwayat Sesi PPPoE
-                  </h3>
-                  <div className="border border-border rounded-xl overflow-hidden divide-y divide-border bg-muted/5">
-                    {sessions.map((s) => (
-                      <div key={s.id} className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs hover:bg-muted/10">
-                        <div>
-                          <span className="text-muted-foreground block">Mulai</span>
-                          <span className="font-medium text-foreground/90">{s.startTime ? formatDateTime(s.startTime) : '—'}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block">Selesai</span>
-                          <span className={s.stopTime ? 'font-medium text-foreground/90' : 'font-bold text-emerald-500'}>
-                            {s.stopTime ? formatDateTime(s.stopTime) : 'Aktif'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block">Durasi</span>
-                          <span className="font-medium">{s.durationFormatted}</span>
-                        </div>
-                        <div className="flex gap-4 items-center">
-                          <div>
-                            <span className="text-blue-400 block">Download</span>
-                            <span className="font-semibold text-blue-400">↓ {s.download}</span>
-                          </div>
-                          <div>
-                            <span className="text-amber-400 block">Upload</span>
-                            <span className="font-semibold text-amber-400">↑ {s.upload}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB: MODEM (ACS) */}
-          {activeTab === 'acs' && (
-            <div className="space-y-6">
-              <div className="bg-card border border-border p-6 rounded-xl flex items-center gap-4">
-                <Settings className="w-8 h-8 text-primary" />
-                <div>
-                  <h3 className="font-bold text-sm">Manajemen Modem Terpusat (ACS)</h3>
-                  <p className="text-xs text-muted-foreground">Untuk melihat data signal, merubah SSID/WiFi password, dan reboot perangkat secara detail, silakan buka menu ACS terdedikasi.</p>
-                </div>
-                <a
-                  href={`/admin/acs?search=${user.username}`}
-                  className="ml-auto px-4 py-2 text-xs font-semibold border border-primary/30 text-primary bg-primary/5 hover:bg-primary/10 rounded-lg"
-                >
-                  Buka ACS Detail →
-                </a>
+              <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground mt-1.5 flex-wrap">
+                <span>ID: <strong className="text-primary font-bold">{user.customerId || user.id}</strong></span>
+                <span>•</span>
+                <span>Username: <strong className="text-foreground">{user.username}</strong></span>
+                <span>•</span>
+                <span>Paket: <strong className="text-foreground">{user.profile?.name || '-'}</strong></span>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* TAB: AKSI KONTROL */}
-          {activeTab === 'actions' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Status Switcher */}
-                <div className="border border-border p-5 rounded-2xl bg-muted/5 space-y-3">
-                  <h3 className="font-bold text-sm">Status Berlangganan</h3>
-                  <p className="text-xs text-muted-foreground">Merubah status secara instan akan memutus atau memulihkan koneksi router pelanggan secara langsung.</p>
-                  <div className="flex items-center gap-2 flex-wrap pt-2">
-                    {(['active', 'isolated', 'blocked', 'stop'] as const).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => handleStatusChange(s)}
-                        disabled={changingStatus || user.status === s}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all disabled:opacity-40
-                          ${user.status === s ? getStatusStyle(s) + ' cursor-default' : 'bg-card border-border text-muted-foreground hover:text-foreground'}`}
-                      >
-                        {s.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+          {/* Header Action Buttons */}
+          <div className="flex items-center gap-2 flex-wrap w-full md:w-auto border-t md:border-t-0 border-border pt-3 md:pt-0">
+            {user.phone && (
+              <a
+                href={`https://wa.me/${user.phone.replace(/[^0-9]/g, '').replace(/^0/, '62')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-2 bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20 border border-emerald-600/20 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" /> WA Pelanggan
+              </a>
+            )}
 
-                {/* Notifications & Tools */}
-                <div className="border border-border p-5 rounded-2xl bg-muted/5 space-y-4">
-                  <h3 className="font-bold text-sm">Aksi Cepat</h3>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {user.phone && (
-                      <button
-                        onClick={sendWANotification}
-                        disabled={sendingWA}
-                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-green-500/10 border border-green-500/35 rounded-lg text-green-600 dark:text-green-400 hover:bg-green-500/20 disabled:opacity-50"
-                      >
-                        {sendingWA ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <SendHorizonal className="w-3.5 h-3.5" />}
-                        Kirim Tagihan (WhatsApp)
-                      </button>
-                    )}
-                    {user.phone && (
-                      <a
-                        href={`https://wa.me/${user.phone.replace(/^0/, '62').replace(/\D/g, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-card border border-green-500/20 rounded-lg text-green-500 hover:bg-green-500/5"
-                      >
-                        <Phone className="w-3.5 h-3.5" /> Chat WA
-                      </a>
-                    )}
-                    <a
-                      href={`/admin/invoices/create?userId=${user.id}`}
-                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-primary/10 border border-primary/30 rounded-lg text-primary hover:bg-primary/20"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Buat Invoice Baru
-                    </a>
-                  </div>
-                  {waResult && (
-                    <div className={`text-xs p-3 rounded-lg border ${waResult.includes('berhasil') ? 'text-success bg-success/5 border-success/20' : 'text-destructive bg-destructive/5 border-destructive/20'}`}>
-                      {waResult}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+            <button
+              onClick={() => setIsSpkModalOpen(true)}
+              className="px-3 py-2 bg-primary text-primary-foreground hover:opacity-90 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 shadow-md transition-opacity"
+            >
+              <Wrench className="w-4 h-4" /> + Terbitkan SPK / Ganti Modem
+            </button>
+
+            <button
+              onClick={() => setIsEditModalOpen(true)}
+              className="px-3 py-2 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 transition-colors"
+            >
+              <Edit3 className="w-4 h-4 text-primary" /> Edit Data
+            </button>
+
+            {user.status === 'ISOLATED' ? (
+              <button
+                onClick={() => handleUpdateStatus('ACTIVE')}
+                disabled={statusLoading}
+                className="px-3 py-2 bg-emerald-600 text-white hover:opacity-90 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 transition-opacity"
+              >
+                <CheckCircle2 className="w-4 h-4" /> Un-Isolir Sesi
+              </button>
+            ) : (
+              <button
+                onClick={() => handleUpdateStatus('ISOLATED')}
+                disabled={statusLoading}
+                className="px-3 py-2 bg-amber-600 text-white hover:opacity-90 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 transition-opacity"
+              >
+                <Ban className="w-4 h-4" /> Isolir Sesi
+              </button>
+            )}
+          </div>
 
         </div>
       </div>
 
-      {/* ── Embedded Edit Modal ──────────────────────────────────────────── */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 border-b border-border bg-muted/40 flex items-center justify-between">
-              <h3 className="font-bold text-base flex items-center gap-2"><Edit3 className="w-5 h-5 text-primary" /> Edit Profil Pelanggan</h3>
-              <button onClick={() => setShowEditModal(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground">
+      {/* SECTION 1: Data Diri & Langganan (Collapsible) */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <button
+          onClick={() => setExpandPersonal(!expandPersonal)}
+          className="w-full px-6 py-4 bg-muted/40 hover:bg-muted/70 flex justify-between items-center transition-colors border-b border-border"
+        >
+          <div className="flex items-center gap-2.5">
+            <User className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-bold text-foreground font-display">Data Diri &amp; Paket Langganan</h2>
+          </div>
+          {expandPersonal ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+        </button>
+
+        {expandPersonal && (
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+            <div className="p-3 bg-background border border-border rounded-xl">
+              <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">ID Pelanggan</span>
+              <span className="font-mono font-bold text-primary mt-1 block">{user.customerId || user.id}</span>
+            </div>
+            <div className="p-3 bg-background border border-border rounded-xl">
+              <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Nama Lengkap</span>
+              <span className="font-bold text-foreground mt-1 block">{user.name}</span>
+            </div>
+            <div className="p-3 bg-background border border-border rounded-xl">
+              <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Nomor Telepon / WA</span>
+              <span className="font-mono font-bold text-foreground mt-1 block">{user.phone}</span>
+            </div>
+            <div className="p-3 bg-background border border-border rounded-xl">
+              <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Email</span>
+              <span className="font-mono text-foreground mt-1 block">{user.email || '-'}</span>
+            </div>
+            <div className="p-3 bg-background border border-border rounded-xl md:col-span-2">
+              <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Alamat Lengkap</span>
+              <span className="text-foreground mt-1 block leading-relaxed">{user.address || '-'}</span>
+            </div>
+            <div className="p-3 bg-background border border-border rounded-xl">
+              <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Paket Langganan</span>
+              <span className="font-bold text-primary mt-1 block">{user.profile?.name || '-'}</span>
+            </div>
+            <div className="p-3 bg-background border border-border rounded-xl">
+              <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Tanggal Pendaftaran</span>
+              <span className="font-mono text-foreground mt-1 block">{formatWIB(user.createdAt, 'dd/MM/yyyy HH:mm')}</span>
+            </div>
+            <div className="p-3 bg-background border border-border rounded-xl">
+              <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Tanggal Jatuh Tempo / Expired</span>
+              <span className="font-mono font-bold text-amber-600 dark:text-amber-400 mt-1 block">
+                {user.expiredAt ? formatWIB(user.expiredAt, 'dd/MM/yyyy') : 'Setiap Bulan'}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 2: Data MikroTik & RADIUS Live Session (Collapsible) */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <button
+          onClick={() => setExpandMikrotik(!expandMikrotik)}
+          className="w-full px-6 py-4 bg-muted/40 hover:bg-muted/70 flex justify-between items-center transition-colors border-b border-border"
+        >
+          <div className="flex items-center gap-2.5">
+            <Wifi className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-bold text-foreground font-display">Data Sesi MikroTik &amp; RADIUS Real-Time</h2>
+          </div>
+          {expandMikrotik ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+        </button>
+
+        {expandMikrotik && (
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+              <div className="p-3 bg-background border border-border rounded-xl">
+                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Router Site</span>
+                <span className="font-bold text-foreground mt-1 block">{user.router?.name || 'Default Router'}</span>
+              </div>
+              <div className="p-3 bg-background border border-border rounded-xl">
+                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Username PPPoE</span>
+                <span className="font-mono font-bold text-primary mt-1 block">{user.username}</span>
+              </div>
+              <div className="p-3 bg-background border border-border rounded-xl">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground">Password PPPoE</span>
+                  <button onClick={() => setShowPassword(!showPassword)} className="text-muted-foreground hover:text-foreground">
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <span className="font-mono font-bold text-foreground mt-1 block">
+                  {showPassword ? user.password : '••••••••'}
+                </span>
+              </div>
+              <div className="p-3 bg-background border border-border rounded-xl">
+                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">IP Address PPPoE</span>
+                <span className="font-mono font-bold text-foreground mt-1 block">{activeSession?.framedipaddress || user.ipAddress || '-'}</span>
+              </div>
+            </div>
+
+            {/* Sesi Live Active Detail */}
+            {activeSession ? (
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Sesi Terhubung (Live Active)
+                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground">NAS IP: {activeSession.nasipaddress}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground font-bold uppercase block">Uptime Sesi</span>
+                    <span className="font-mono font-bold text-foreground mt-0.5 block">{formatDuration(activeSession.acctsessiontime)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground font-bold uppercase block">Live Upload (TX)</span>
+                    <span className="font-mono font-bold text-blue-600 dark:text-blue-400 mt-0.5 block">↑ {formatBytes(activeSession.acctinputoctets)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground font-bold uppercase block">Live Download (RX)</span>
+                    <span className="font-mono font-bold text-purple-600 dark:text-purple-400 mt-0.5 block">↓ {formatBytes(activeSession.acctoutputoctets)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground font-bold uppercase block">MAC Address Sesi</span>
+                    <span className="font-mono font-bold text-foreground mt-0.5 block">{activeSession.callingstationid || '-'}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-muted/40 border border-border rounded-xl text-center text-xs text-muted-foreground">
+                Pelanggan saat ini tidak memiliki sesi aktif di Router MikroTik (Offline).
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 3: Data Perangkat & Infrastruktur Lapangan (ONT, ODP, ODC, Port) (Collapsible) */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <button
+          onClick={() => setExpandHardware(!expandHardware)}
+          className="w-full px-6 py-4 bg-muted/40 hover:bg-muted/70 flex justify-between items-center transition-colors border-b border-border"
+        >
+          <div className="flex items-center gap-2.5">
+            <Server className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-bold text-foreground font-display">Data Perangkat &amp; Infrastruktur Lapangan (ONT / ODP)</h2>
+          </div>
+          {expandHardware ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+        </button>
+
+        {expandHardware && (
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs">
+              <div className="p-3 bg-background border border-border rounded-xl">
+                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Nama ODP</span>
+                <span className="font-mono font-bold text-primary mt-1 block">{odpName}</span>
+              </div>
+              <div className="p-3 bg-background border border-border rounded-xl">
+                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Port ODP</span>
+                <span className="font-mono font-bold text-foreground mt-1 block">{odpPort !== '-' ? `Port ${odpPort}` : '-'}</span>
+              </div>
+              <div className="p-3 bg-background border border-border rounded-xl">
+                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Tipe / Model ONT</span>
+                <span className="font-mono font-bold text-foreground mt-1 block">{ontModel}</span>
+              </div>
+              <div className="p-3 bg-background border border-border rounded-xl">
+                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Serial Number (SN ONT)</span>
+                <span className="font-mono font-bold text-foreground mt-1 block">{ontSn}</span>
+              </div>
+              <div className="p-3 bg-background border border-border rounded-xl">
+                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">MAC Address ONT</span>
+                <span className="font-mono font-bold text-foreground mt-1 block">{ontMac}</span>
+              </div>
+              <div className="p-3 bg-background border border-border rounded-xl">
+                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Sinyal Redaman Rx</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-1 block">
+                  {rxSignal !== '-' ? `${rxSignal} dBm` : '-'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 4: Riwayat Pekerjaan & Pergantian Modem / SPK (Collapsible) */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <button
+          onClick={() => setExpandWorkOrders(!expandWorkOrders)}
+          className="w-full px-6 py-4 bg-muted/40 hover:bg-muted/70 flex justify-between items-center transition-colors border-b border-border"
+        >
+          <div className="flex items-center gap-2.5">
+            <Wrench className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-bold text-foreground font-display">Riwayat SPK &amp; Pergantian Modem</h2>
+          </div>
+          {expandWorkOrders ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+        </button>
+
+        {expandWorkOrders && (
+          <div className="p-6 space-y-4">
+            {(!user.workOrders || user.workOrders.length === 0) ? (
+              <div className="p-8 text-center text-xs text-muted-foreground bg-muted/20 border border-border rounded-xl">
+                <Wrench className="w-8 h-8 mx-auto opacity-40 mb-2" />
+                Belum ada riwayat Surat Tugas (SPK) atau pergantian modem untuk pelanggan ini.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {user.workOrders.map((wo) => (
+                  <div key={wo.id} className="p-4 bg-background border border-border rounded-xl shadow-sm space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-primary">#{wo.id.slice(-8).toUpperCase()}</span>
+                          <span className="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                            {wo.issueType.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-foreground mt-1 font-medium">{wo.description}</p>
+                      </div>
+                      <span className={cn('px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold uppercase border',
+                        wo.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                      )}>
+                        {wo.status}
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-muted-foreground flex items-center justify-between border-t border-border pt-2">
+                      <span>Teknisi: <strong className="text-foreground">{wo.technician?.name || 'Belum Ditunjuk'}</strong></span>
+                      <span className="font-mono">{formatWIB(wo.completedAt || wo.createdAt, 'dd/MM/yyyy HH:mm')}</span>
+                    </div>
+
+                    {/* Report Data / Photos if completed */}
+                    {wo.reportData && (
+                      <div className="bg-muted/40 p-3 rounded-lg grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                        <div><span className="text-muted-foreground font-bold block">SN ONT:</span> <span className="font-mono">{wo.reportData.sn || '-'}</span></div>
+                        <div><span className="text-muted-foreground font-bold block">Redaman Rx:</span> <span className="font-mono text-emerald-600 font-bold">{wo.reportData.rxSignal ? `${wo.reportData.rxSignal} dBm` : '-'}</span></div>
+                        <div><span className="text-muted-foreground font-bold block">ODP Name:</span> <span className="font-mono">{wo.reportData.odpName || '-'}</span></div>
+                        <div><span className="text-muted-foreground font-bold block">Kabel DW:</span> <span className="font-mono">{wo.reportData.dwRoll || '-'}</span></div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 5: Riwayat Tagihan & Transaksi (Collapsible) */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <button
+          onClick={() => setExpandInvoices(!expandInvoices)}
+          className="w-full px-6 py-4 bg-muted/40 hover:bg-muted/70 flex justify-between items-center transition-colors border-b border-border"
+        >
+          <div className="flex items-center gap-2.5">
+            <CreditCard className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-bold text-foreground font-display">Riwayat Tagihan &amp; Pembayaran ({invoices.length})</h2>
+          </div>
+          {expandInvoices ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+        </button>
+
+        {expandInvoices && (
+          <div className="p-6">
+            {invoices.length === 0 ? (
+              <div className="p-6 text-center text-xs text-muted-foreground">Belum ada tagihan diterbitkan.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted border-b border-border">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-mono font-bold uppercase">No. Invoice</th>
+                      <th className="px-3 py-2 text-left font-mono font-bold uppercase">Jumlah</th>
+                      <th className="px-3 py-2 text-left font-mono font-bold uppercase">Jatuh Tempo</th>
+                      <th className="px-3 py-2 text-left font-mono font-bold uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {invoices.map((inv) => (
+                      <tr key={inv.id} className="hover:bg-muted/40">
+                        <td className="px-3 py-2 font-mono font-bold text-primary">{inv.invoiceNumber}</td>
+                        <td className="px-3 py-2 font-mono font-bold">Rp {inv.amount.toLocaleString('id-ID')}</td>
+                        <td className="px-3 py-2 font-mono">{formatWIB(inv.dueDate, 'dd/MM/yyyy')}</td>
+                        <td className="px-3 py-2">
+                          <span className={cn('px-2 py-0.5 rounded font-mono text-[10px] font-bold uppercase',
+                            inv.status === 'PAID' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'
+                          )}>
+                            {inv.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Edit Personal Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-border pb-3">
+              <h3 className="text-base font-bold text-foreground">Edit Data Pelanggan</h3>
+              <button onClick={() => setIsEditModalOpen(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground font-semibold">Nama Lengkap</label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.name}
-                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                  className="w-full px-3 py-2 text-sm bg-muted/40 border border-border rounded-lg focus:outline-none focus:border-primary"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground font-semibold">No. Telepon</label>
-                  <input
-                    type="text"
-                    required
-                    value={editForm.phone}
-                    onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
-                    className="w-full px-3 py-2 text-sm bg-muted/40 border border-border rounded-lg focus:outline-none focus:border-primary"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground font-semibold">Email</label>
-                  <input
-                    type="email"
-                    value={editForm.email}
-                    onChange={e => setEditForm({ ...editForm, email: e.target.value })}
-                    className="w-full px-3 py-2 text-sm bg-muted/40 border border-border rounded-lg focus:outline-none focus:border-primary"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground font-semibold">Alamat Lengkap</label>
-                <textarea
-                  rows={2}
-                  value={editForm.address}
-                  onChange={e => setEditForm({ ...editForm, address: e.target.value })}
-                  className="w-full px-3 py-2 text-sm bg-muted/40 border border-border rounded-lg focus:outline-none focus:border-primary resize-none"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground font-semibold">Password PPPoE</label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.password}
-                  onChange={e => setEditForm({ ...editForm, password: e.target.value })}
-                  className="w-full px-3 py-2 text-sm bg-muted/40 border border-border rounded-lg focus:outline-none focus:border-primary font-mono"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground font-semibold">Catatan / Komentar</label>
-                <textarea
-                  rows={2}
-                  value={editForm.comment}
-                  onChange={e => setEditForm({ ...editForm, comment: e.target.value })}
-                  className="w-full px-3 py-2 text-sm bg-muted/40 border border-border rounded-lg focus:outline-none focus:border-primary resize-none"
-                />
-              </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-border mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
-                >
+            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-foreground mb-1">Nama Pelanggan</label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-foreground mb-1">Nomor WhatsApp / Telepon</label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.phone}
+                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                  className="w-full p-2.5 bg-background border border-input rounded-xl font-mono focus:ring-2 focus:ring-primary outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-foreground mb-1">Email</label>
+                <input
+                  type="email"
+                  value={editFormData.email}
+                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                  className="w-full p-2.5 bg-background border border-input rounded-xl font-mono focus:ring-2 focus:ring-primary outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-foreground mb-1">Alamat Lengkap</label>
+                <textarea
+                  rows={2}
+                  value={editFormData.address}
+                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                  className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none"
+                />
+              </div>
+              <div className="pt-2 flex gap-3">
+                <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-2 bg-muted text-foreground rounded-xl font-bold">
                   Batal
                 </button>
-                <button
-                  type="submit"
-                  disabled={savingEdit}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 flex items-center gap-1.5 disabled:opacity-50"
+                <button type="submit" className="flex-1 py-2 bg-primary text-primary-foreground rounded-xl font-bold">
+                  Simpan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Terbitkan SPK / Ganti Modem Modal */}
+      {isSpkModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-border pb-3">
+              <h3 className="text-base font-bold text-foreground">Terbitkan SPK / Ganti Modem</h3>
+              <button onClick={() => setIsSpkModalOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSpk} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-foreground mb-1">Tipe Pekerjaan</label>
+                <select
+                  value={spkFormData.issueType}
+                  onChange={(e) => setSpkFormData({ ...spkFormData, issueType: e.target.value })}
+                  className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none"
                 >
-                  {savingEdit && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                  Simpan Perubahan
+                  <option value="REPAIR">Perbaikan Gangguan (Repair)</option>
+                  <option value="DEVICE_ISSUE">Pergantian Modem ONT / Perangkat</option>
+                  <option value="MAINTENANCE">Pemeliharaan Jaringan (Maintenance)</option>
+                  <option value="DISMANTLE">Cabut Perangkat (Dismantle)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold text-foreground mb-1">Prioritas Penugasan</label>
+                <select
+                  value={spkFormData.priority}
+                  onChange={(e) => setSpkFormData({ ...spkFormData, priority: e.target.value })}
+                  className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none"
+                >
+                  <option value="LOW">Low (Rendah)</option>
+                  <option value="MEDIUM">Medium (Normal)</option>
+                  <option value="HIGH">High (Tinggi)</option>
+                  <option value="URGENT">Urgent (Darurat)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold text-foreground mb-1">Deskripsi &amp; Instruksi Teknis</label>
+                <textarea
+                  rows={2}
+                  value={spkFormData.description}
+                  onChange={(e) => setSpkFormData({ ...spkFormData, description: e.target.value })}
+                  className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none"
+                />
+              </div>
+              <div className="pt-2 flex gap-3">
+                <button type="button" onClick={() => setIsSpkModalOpen(false)} className="flex-1 py-2 bg-muted text-foreground rounded-xl font-bold">
+                  Batal
+                </button>
+                <button type="submit" disabled={spkSubmitting} className="flex-1 py-2 bg-primary text-primary-foreground rounded-xl font-bold flex items-center justify-center gap-1.5">
+                  {spkSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Wrench className="w-4 h-4" />} Terbitkan SPK
                 </button>
               </div>
             </form>

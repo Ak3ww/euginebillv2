@@ -126,11 +126,10 @@ export async function listPppoeUsers(params: { status?: string | null }) {
 // ─── Get one ──────────────────────────────────────────────────────────────────
 
 export async function getPppoeUserById(id: string) {
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   const user = await prisma.pppoeUser.findFirst({
     where: {
       OR: [
-        ...(isUuid ? [{ id: id }] : []),
+        { id: id },
         { customerId: id },
         { username: id }
       ]
@@ -139,6 +138,8 @@ export async function getPppoeUserById(id: string) {
       profile: true,
       router: true,
       area: { select: { id: true, name: true } },
+      odpAssignment: { include: { odp: true } },
+      workOrders: { orderBy: { createdAt: 'desc' }, include: { technician: { select: { id: true, name: true, phoneNumber: true } } } },
     },
   });
 

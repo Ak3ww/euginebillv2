@@ -33,12 +33,10 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     
-    // Find user by customerId or UUID
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     const existing = await prisma.pppoeUser.findFirst({
       where: {
         OR: [
-          ...(isUuid ? [{ id }] : []),
+          { id },
           { customerId: id },
           { username: id },
         ]
