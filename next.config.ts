@@ -145,6 +145,20 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: '/teknisi',
+        destination: '/technician/login',
+        permanent: false,
+      },
+      {
+        source: '/teknisi/:path*',
+        destination: '/technician/:path*',
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
