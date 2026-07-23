@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { 
   Power, RefreshCw, Wifi, Search, Download, Trash2, RotateCcw, 
-  ArrowUpDown, Filter, Router as RouterIcon, ShieldAlert, CheckCircle2, User, Globe
+  ArrowUpDown, Filter, Router as RouterIcon, ShieldAlert, CheckCircle2, User, Globe, ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -507,10 +507,30 @@ export default function PPPoESessionsPage() {
                         />
                       </td>
                       <td className="px-3 py-3 font-mono text-[11px] font-bold text-primary">
-                        {session.user?.customerId || '-'}
+                        {session.user?.id ? (
+                          <a 
+                            href={`/admin/pppoe/users/${session.user.customerId || session.user.id}`}
+                            className="hover:underline text-primary font-bold"
+                          >
+                            {session.user.customerId || '-'}
+                          </a>
+                        ) : (
+                          session.user?.customerId || '-'
+                        )}
                       </td>
                       <td className="px-3 py-3 font-bold text-foreground">
-                        {session.user?.name || '-'}
+                        {session.user?.id ? (
+                          <a 
+                            href={`/admin/pppoe/users/${session.user.customerId || session.user.id}`}
+                            className="hover:underline text-foreground hover:text-primary transition-colors inline-flex items-center gap-1 font-bold group"
+                            title="Lihat Profil Detail Pelanggan"
+                          >
+                            <span>{session.user.name}</span>
+                            <ExternalLink className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors" />
+                          </a>
+                        ) : (
+                          session.user?.name || '-'
+                        )}
                       </td>
                       <td className="px-3 py-3 font-mono text-[11px] text-foreground">
                         {session.username}
