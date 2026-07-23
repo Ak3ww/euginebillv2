@@ -306,7 +306,7 @@ export async function createPppoeUser(
       macAddress: macAddress || null,
       comment: comment || null,
       expiredAt: finalExpiredAt,
-      status: 'active',
+      status: (data as any).status || 'PENDING_INSTALLATION',
       subscriptionType: subscriptionType || 'POSTPAID',
       billingDay: validBillingDay,
       idCardNumber: idCardNumber || null,

@@ -755,6 +755,37 @@ export default function PppoeUsersPage() {
     } catch (error) { console.error('Status error:', error); await showError(t('common.failed')); }
   };
 
+  const handleCompleteInstallation = async (user: PppoeUser) => {
+    const confirmed = await showConfirm(
+      `Selesaikan pemasangan untuk ${user.name} (${user.username})?\nSistem akan memverifikasi invoice dan mengirimkan notifikasi WhatsApp tagihan ke pelanggan.`,
+      '🔧 Selesaikan Pemasangan'
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/pppoe/users/${user.id}/complete-installation`, { method: 'POST' });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        await showSuccess(data.message, 'Pemasangan Selesai');
+        loadData();
+      } else if (data.hasInvoice === false) {
+        const createInv = await showConfirm(
+          `${data.error}\n\nApakah Anda ingin menerbitkan invoice untuk pelanggan ini sekarang?`,
+          'Buat Invoice Sekarang'
+        );
+        if (createInv) {
+          router.push(`/admin/invoices?new=true&userId=${user.id}`);
+        }
+      } else {
+        await showError(data.error || 'Gagal menyelesaikan pemasangan');
+      }
+    } catch (err) {
+      console.error('Complete installation error:', err);
+      await showError('Gagal terhubung ke server');
+    }
+  };
+
   const handleSyncToRadius = async (user: PppoeUser) => {
     try {
       const res = await fetch(`/api/pppoe/users/${user.id}/sync-radius`, { method: 'POST' });
@@ -1628,15 +1659,15 @@ export default function PppoeUsersPage() {
                           >
                             <ClipboardCheck className="h-3.5 w-3.5 pointer-events-none" />
                           </a>
-                          {/* Kirim Tagihan Pertama / Aktivasi */}
-                          {user.status === 'PENDING_INSTALLATION' && (
+                          {/* Selesaikan Pemasangan / Kirim Tagihan Pertama */}
+                          {(user.status === 'PENDING_INSTALLATION' || user.status === 'pending_installation') && (
                             <button
-                              onClick={() => handleActivateAndBill(user)}
-                              className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer focus:outline-none"
-                              aria-label="Aktivasi & Kirim Tagihan"
-                              title="Aktivasi & Kirim Tagihan"
+                              onClick={() => handleCompleteInstallation(user)}
+                              className="compact-action p-1.5 text-emerald-500 hover:bg-emerald-500/10 rounded cursor-pointer focus:outline-none"
+                              aria-label="Selesaikan Pemasangan & Kirim WA Tagihan"
+                              title="🔧 Selesaikan Pemasangan & Kirim WA Tagihan"
                             >
-                              <Send className="h-3.5 w-3.5 pointer-events-none" />
+                              <Wrench className="h-3.5 w-3.5 pointer-events-none" />
                             </button>
                           )}
                           {/* Sync ke RADIUS */}

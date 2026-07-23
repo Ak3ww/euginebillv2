@@ -227,6 +227,28 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
     }
   };
 
+  const handleCompleteInstallation = async () => {
+    if (!user) return;
+    setStatusLoading(true);
+    try {
+      const res = await fetch(`/api/pppoe/users/${user.id}/complete-installation`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addToast({ type: 'success', title: 'Pemasangan Selesai', description: data.message });
+        fetchUserDetail();
+      } else if (data.hasInvoice === false) {
+        addToast({ type: 'error', title: 'Tagihan Belum Ada', description: data.error });
+        router.push(`/admin/invoices?new=true&userId=${user.id}`);
+      } else {
+        addToast({ type: 'error', title: 'Gagal', description: data.error || 'Gagal menyelesaikan pemasangan' });
+      }
+    } catch {
+      addToast({ type: 'error', title: 'Gagal', description: 'Gagal terhubung ke server' });
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
   const handleCreateSpk = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -358,6 +380,16 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
               >
                 <MessageCircle className="w-4 h-4" /> WA Pelanggan
               </a>
+            )}
+
+            {(user.status === 'PENDING_INSTALLATION' || user.status === 'pending_installation') && (
+              <button
+                onClick={handleCompleteInstallation}
+                disabled={statusLoading}
+                className="px-3.5 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 shadow-md transition-all animate-pulse"
+              >
+                <Wrench className="w-4 h-4" /> 🔧 Selesaikan Pemasangan
+              </button>
             )}
 
             <button
