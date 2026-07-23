@@ -495,6 +495,17 @@ export async function sendInvoiceReminder(data: {
   }
 }
 
+export function formatPaymentMethodLabel(method?: string): string {
+  if (!method) return 'Otomatis';
+  const m = method.toUpperCase().trim();
+  if (m === 'CASH' || m === 'TUNAI' || m === 'KASIR') return 'Tunai / Kasir';
+  if (m === 'QRIS' || m === 'SP' || m.includes('QRIS')) return 'QRIS Instan';
+  if (m === 'TRANSFER' || m === 'MANUAL' || m === 'BANK_TRANSFER') return 'Transfer Bank Manual';
+  if (m === 'EWALLET' || m === 'SHOPEEPAY' || m === 'GOPAY' || m === 'OVO' || m === 'DANA') return 'E-Wallet';
+  if (m === 'VA' || m.includes('VA') || m.includes('VIRTUAL')) return 'Virtual Account Bank';
+  return method;
+}
+
 /**
  * Send payment success notification
  * Account activated
@@ -509,6 +520,7 @@ export async function sendPaymentSuccess(data: {
   area?: string;
   invoiceNumber: string;
   amount: number;
+  paymentMethod?: string;
   newExpiredAt?: Date | string | null;
 }) {
   try {
@@ -533,6 +545,8 @@ export async function sendPaymentSuccess(data: {
         })
       : '-';
 
+    const formattedPaymentMethod = formatPaymentMethodLabel(data.paymentMethod);
+
     // Prepare variables
     const variables = {
       customerName: data.customerName,
@@ -543,9 +557,10 @@ export async function sendPaymentSuccess(data: {
       area: data.area || '-',
       invoiceNumber: data.invoiceNumber,
       invoiceWebLink: `${company?.baseUrl || 'http://localhost:3000'}/invoice/${data.invoiceNumber}`,
-      invoiceWebLink: `${company?.baseUrl || 'http://localhost:3000'}/invoice/${data.invoiceNumber}`,
       invoicePdfLink: `${company?.baseUrl || 'http://localhost:3000'}/invoice/${data.invoiceNumber}`,
       amount: `Rp ${data.amount.toLocaleString('id-ID')}`,
+      paymentMethod: formattedPaymentMethod,
+      metodePembayaran: formattedPaymentMethod,
       expiredDate,
       companyName,
       companyPhone,
