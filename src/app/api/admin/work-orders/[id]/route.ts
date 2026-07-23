@@ -73,8 +73,34 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       data: updateData,
       include: {
         technician: { select: { id: true, name: true, phoneNumber: true } },
+        customer: true,
       },
     });
+
+    // If status changed to COMPLETED, trigger auto-billing WhatsApp notification
+    if (status === 'COMPLETED' && existing.status !== 'COMPLETED' && updated.linkedUserId) {
+      const invoice = await prisma.invoice.findFirst({
+        where: { userId: updated.linkedUserId, status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (invoice && updated.customer) {
+        const company = await prisma.company.findFirst();
+        const { sendInvoiceReminder } = await import('@/server/services/notifications/whatsapp-templates.service');
+        await sendInvoiceReminder({
+          phone: updated.customer.phone,
+          customerName: updated.customer.name,
+          customerId: updated.customer.customerId,
+          customerUsername: updated.customer.username,
+          invoiceNumber: invoice.invoiceNumber,
+          amount: invoice.amount,
+          dueDate: invoice.dueDate,
+          paymentLink: invoice.paymentToken ? `${process.env.NEXT_PUBLIC_APP_URL}/pay/${invoice.paymentToken}` : '',
+          companyName: company?.name || 'ISP',
+          companyPhone: company?.phone || '',
+        }).catch((e) => console.error('Failed to send WA Invoice on admin completion:', e));
+      }
+    }
 
     return NextResponse.json({
       success: true,
