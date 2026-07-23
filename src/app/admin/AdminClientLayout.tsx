@@ -302,7 +302,7 @@ const menuGroups: MenuGroup[] = [
       },
       {
         titleKey: 'Surat Tugas (SPK)',
-        icon: <ClipboardList className="w-4 h-4" />,
+        icon: <FileText className="w-4 h-4" />,
         href: '/admin/work-orders',
         requiredPermission: 'users.view',
       },

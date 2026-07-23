@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import {
-  ClipboardList, CheckCircle2, Clock, AlertTriangle, Filter, RefreshCw,
+  ClipboardCheck, CheckCircle2, Clock, AlertTriangle, Filter, RefreshCw,
   Loader2, MessageSquare, User, Phone, MapPin, Plus, Shield, Cpu, ChevronRight,
   Send, ExternalLink
 } from 'lucide-react';
@@ -171,7 +171,7 @@ export default function TechnicianDashboardPage() {
               <h3 className="text-2xl font-bold text-foreground mt-1">{workOrders.length + tickets.length}</h3>
             </div>
             <div className="p-3 rounded-xl bg-purple-500/10 text-purple-600">
-              <ClipboardList className="w-5 h-5" />
+              <ClipboardCheck className="w-5 h-5" />
             </div>
           </div>
         </div>
@@ -186,7 +186,7 @@ export default function TechnicianDashboardPage() {
             className="flex items-center gap-3 p-3 bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-xl transition-all text-left group"
           >
             <div className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
-              <ClipboardList className="w-5 h-5" />
+              <ClipboardCheck className="w-5 h-5" />
             </div>
             <div>
               <div className="text-xs font-bold text-foreground group-hover:text-primary">Surat Tugas (SPK)</div>
@@ -227,7 +227,7 @@ export default function TechnicianDashboardPage() {
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-              <ClipboardList className="w-5 h-5 text-primary" />
+              <ClipboardCheck className="w-5 h-5 text-primary" />
               Surat Perintah Kerja (SPK) Aktif
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">Tugas instalasi dan pemeliharaan yang perlu ditangani.</p>

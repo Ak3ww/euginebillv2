@@ -13,7 +13,7 @@ import {
   UserPlus,
   LogOut,
   Menu,
-  ClipboardList,
+  ClipboardCheck,
   X,
   Wrench,
   Phone,
@@ -56,7 +56,7 @@ const MENU_ITEMS: MenuItem[] = [
   },
   {
     titleKey: 'Surat Tugas',
-    icon: <ClipboardList className="w-4 h-4" />,
+    icon: <ClipboardCheck className="w-4 h-4" />,
     href: '/technician/work-orders',
   },
   {
@@ -691,7 +691,7 @@ function TechnicianPortalInner({ children }: { children: React.ReactNode }) {
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-xl border-t border-border px-2 py-2 flex items-center justify-around shadow-lg">
           {[
             { href: '/technician/dashboard', label: 'Beranda', icon: LayoutDashboard },
-            { href: '/technician/work-orders', label: 'SPK Tugas', icon: ClipboardList },
+            { href: '/technician/work-orders', label: 'SPK Tugas', icon: ClipboardCheck },
             { href: '/technician/tickets', label: 'Tiket', icon: Ticket },
             { href: '/technician/profile', label: 'Profil', icon: User },
           ].map((item) => {

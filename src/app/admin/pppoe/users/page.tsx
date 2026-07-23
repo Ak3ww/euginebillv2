@@ -9,7 +9,7 @@ import {
   Plus, Pencil, Trash2, Users, CheckCircle2, MapPin, Map, MoreVertical,
   Shield, ShieldOff, Ban, Download, Upload, Search, Filter, X, Eye, EyeOff, RefreshCcw, DollarSign, Loader2, Zap,
   UserPlus, RefreshCw, Clock, Bell, Send, Mail, ArrowUpDown, Printer, FileText,
-  Calendar, CreditCard, Camera, ImageIcon, Info, AlertTriangle, Wrench, CheckCircle, XCircle, ClipboardList,
+  Calendar, CreditCard, Camera, ImageIcon, Info, AlertTriangle, Wrench, CheckCircle, XCircle, ClipboardCheck,
 } from 'lucide-react';
 import MapPicker from '@/components/MapPicker';
 import { CameraPhotoInput } from '@/components/CameraPhotoInput';
@@ -1626,7 +1626,7 @@ export default function PppoeUsersPage() {
                             aria-label="Buat Surat Tugas (SPK)"
                             title="Buat Surat Tugas (SPK)"
                           >
-                            <ClipboardList className="h-3.5 w-3.5 pointer-events-none" />
+                            <ClipboardCheck className="h-3.5 w-3.5 pointer-events-none" />
                           </a>
                           {/* Kirim Tagihan Pertama / Aktivasi */}
                           {user.status === 'PENDING_INSTALLATION' && (

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ClipboardList, Search, Loader2, MapPin, Phone, User, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ClipboardCheck, Search, Loader2, MapPin, Phone, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -74,7 +74,7 @@ export default function WorkOrdersPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[var(--radius-lg)] border border-[var(--color-rule)] shadow-sm">
         <div>
           <h1 className="text-2xl font-display font-bold text-[var(--color-focus)] flex items-center gap-2">
-            <ClipboardList className="w-6 h-6" />
+            <ClipboardCheck className="w-6 h-6" />
             Surat Tugas
           </h1>
           <p className="text-sm text-[var(--color-muted)] mt-1">Daftar tugas instalasi dan pemeliharaan</p>

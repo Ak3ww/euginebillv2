@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  ClipboardList, Plus, Search, Filter, Loader2, MapPin, Phone, User, 
+  ClipboardCheck, Plus, Search, Filter, Loader2, MapPin, Phone, User, 
   Calendar, CheckCircle2, AlertTriangle, Clock, ChevronRight, X, Wrench 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -151,7 +151,7 @@ export default function AdminWorkOrdersPage() {
         <div>
           <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Manajemen SPK Teknisi</span>
           <h1 className="text-2xl font-bold font-display text-foreground mt-0.5 flex items-center gap-2">
-            <ClipboardList className="w-6 h-6 text-primary" />
+            <ClipboardCheck className="w-6 h-6 text-primary" />
             Surat Perintah Kerja (SPK)
           </h1>
           <p className="text-xs text-muted-foreground mt-1">Terbitkan dan pantau penugasan teknisi untuk pasang baru &amp; perbaikan.</p>
@@ -209,7 +209,7 @@ export default function AdminWorkOrdersPage() {
         </div>
       ) : filteredOrders.length === 0 ? (
         <div className="bg-card border border-border rounded-2xl p-12 text-center">
-          <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground opacity-40 mb-3" />
+          <ClipboardCheck className="w-12 h-12 mx-auto text-muted-foreground opacity-40 mb-3" />
           <h3 className="text-base font-bold text-foreground">Tidak Ada Surat Tugas</h3>
           <p className="text-xs text-muted-foreground mt-1">Belum ada SPK yang diterbitkan atau hasil pencarian tidak ditemukan.</p>
         </div>

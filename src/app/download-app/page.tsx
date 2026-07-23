@@ -83,12 +83,23 @@ export default function DownloadAppPage() {
               <CheckCircle2 className="w-5 h-5" /> Aplikasi Sudah Terpasang!
             </div>
           ) : (
-            <button
-              onClick={handleInstall}
-              className="w-full py-4 px-6 bg-primary text-primary-foreground hover:opacity-90 rounded-2xl font-mono text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-primary/30 transition-all active:scale-[0.98]"
-            >
-              <Download className="w-5 h-5" /> Install Aplikasi Sekarang
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={handleInstall}
+                className="w-full py-4 px-6 bg-primary text-primary-foreground hover:opacity-90 rounded-2xl font-mono text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-primary/30 transition-all active:scale-[0.98]"
+              >
+                <Smartphone className="w-5 h-5" /> Install Instan (PWA)
+              </button>
+
+              <a
+                href="/api/public/download-apk"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-3.5 px-6 bg-muted hover:bg-muted/80 border border-border text-foreground rounded-2xl font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+              >
+                <Download className="w-4 h-4 text-emerald-500" /> Download File APK Direct (.apk)
+              </a>
+            </div>
           )}
 
           {/* Features Highlights */}
