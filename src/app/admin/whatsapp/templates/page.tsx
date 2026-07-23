@@ -43,7 +43,7 @@ const templateConfig = {
   'payment-success': {
     title: '✅ Pembayaran Berhasil',
     description: 'Dikirim otomatis saat pembayaran invoice berhasil',
-    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{password}}', '{{phone}}', '{{email}}', '{{address}}', '{{profileName}}', '{{ipAddress}}', '{{expiredDate}}', '{{invoiceNumber}}', '{{invoicePdfLink}}', '{{amount}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}', '{{link_download_apk}}'],
+    variables: ['{{customerId}}', '{{customerName}}', '{{username}}', '{{password}}', '{{phone}}', '{{email}}', '{{address}}', '{{profileName}}', '{{ipAddress}}', '{{expiredDate}}', '{{invoiceNumber}}', '{{invoicePdfLink}}', '{{amount}}', '{{paymentMethod}}', '{{companyName}}', '{{companyPhone}}', '{{companyEmail}}', '{{companyAddress}}', '{{link_download_aplikasi}}'],
   },
   'maintenance-outage': {
     title: '⚠️ Informasi Gangguan',

@@ -14,6 +14,8 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
     link_download_aplikasi: variables.link_download_aplikasi || variables.link_download_apk || `${variables.baseUrl || ''}/download-app`,
     link_download_apk: variables.link_download_apk || variables.link_download_aplikasi || `${variables.baseUrl || ''}/download-app`,
     expiredAt: variables.expiredAt || variables.dueDate || variables.expiredDate || '-',
+    paymentMethod: variables.paymentMethod || variables.metodePembayaran || '-',
+    metodePembayaran: variables.metodePembayaran || variables.paymentMethod || '-',
   };
 
   const merged = { ...defaultVars, ...variables };

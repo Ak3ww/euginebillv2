@@ -144,7 +144,10 @@ export async function POST(request: NextRequest) {
         .replace(/\{\{companyEmail\}\}/gi, company?.email || '')
         .replace(/\{\{companyAddress\}\}/gi, company?.address || '')
         .replace(/\{\{alamatPerusahaan\}\}/gi, company?.address || '')
-        .replace(/\{\{link_download_apk\}\}/gi, `${baseUrl}/download-app`);
+        .replace(/\{\{paymentMethod\}\}/gi, latestInvoice?.paymentMethod || '-')
+        .replace(/\{\{metodePembayaran\}\}/gi, latestInvoice?.paymentMethod || '-')
+        .replace(/\{\{link_download_apk\}\}/gi, `${baseUrl}/download-app`)
+        .replace(/\{\{link_download_aplikasi\}\}/gi, `${baseUrl}/download-app`);
     };
 
     // Results tracking
