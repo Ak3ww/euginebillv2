@@ -7,9 +7,9 @@ export const dynamic = 'force-dynamic';
 // GET /api/admin/work-orders/[id] — Detail SPK with report & photos
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
-    const auth = await checkAuth(req);
-    if (!auth.valid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await checkAuth();
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const workOrder = await prisma.workOrder.findUnique({
@@ -34,9 +34,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 // PUT /api/admin/work-orders/[id] — Update SPK (Assign technician, status, notes)
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
-    const auth = await checkAuth(req);
-    if (!auth.valid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await checkAuth();
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const body = await req.json();
@@ -116,9 +116,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 // DELETE /api/admin/work-orders/[id] — Hapus / Batalkan SPK
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
-    const auth = await checkAuth(req);
-    if (!auth.valid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await checkAuth();
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     await prisma.workOrder.delete({ where: { id: params.id } });

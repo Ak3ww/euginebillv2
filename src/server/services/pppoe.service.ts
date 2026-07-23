@@ -431,6 +431,8 @@ export async function createPppoeUser(
     areaName = area?.name;
   }
 
+  // WhatsApp notification for admin-create-user is disabled by default for credential security
+  /*
   try {
     await sendAdminCreateUser({
       customerName: resolvedName,
@@ -445,6 +447,7 @@ export async function createPppoeUser(
   } catch (waError) {
     console.error('WhatsApp notification error:', waError);
   }
+  */
 
   if (email) {
     try {

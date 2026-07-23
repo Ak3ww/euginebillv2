@@ -7,9 +7,9 @@ export const dynamic = 'force-dynamic';
 // GET /api/admin/work-orders — List all work orders with filters
 export async function GET(req: Request) {
   try {
-    const auth = await checkAuth(req);
-    if (!auth.valid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await checkAuth();
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const { searchParams } = new URL(req.url);
@@ -74,9 +74,9 @@ export async function GET(req: Request) {
 // POST /api/admin/work-orders — Create a new Work Order (SPK)
 export async function POST(req: Request) {
   try {
-    const auth = await checkAuth(req);
-    if (!auth.valid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await checkAuth();
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const body = await req.json();

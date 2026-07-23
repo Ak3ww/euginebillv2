@@ -3,6 +3,9 @@ import { jwtVerify } from 'jose';
 import { prisma } from '@/server/db/client';
 import { TECH_JWT_SECRET } from '@/server/auth/technician-secret';
 
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/server/auth/config';
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -10,11 +13,14 @@ export async function GET(
   try {
     const { id } = await params;
     
-    // Verify token
-    const token = req.cookies.get('technician-token')?.value;
-    if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    const { payload } = await jwtVerify(token, TECH_JWT_SECRET);
-    if (!payload.id) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    // Verify authentication via NextAuth session or technician token cookie
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      const token = req.cookies.get('technician-token')?.value;
+      if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      const { payload } = await jwtVerify(token, TECH_JWT_SECRET);
+      if (!payload.id) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
 
     const wo = await prisma.workOrder.findUnique({
       where: { id },

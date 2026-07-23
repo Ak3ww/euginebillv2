@@ -1,38 +1,44 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { prisma } from '@/server/db/client';
 import { TECH_JWT_SECRET } from '@/server/auth/technician-secret';
 
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/server/auth/config';
+
 export async function GET(req: NextRequest) {
   try {
-    // Get token from cookie
-    const token = req.cookies.get('technician-token')?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      );
-    }
-
-    // Verify JWT
-    const secret = TECH_JWT_SECRET;
-
-    const { payload } = await jwtVerify(token, secret);
-    let technicianId: string;
+    let technicianId: string = '';
     let isAdminUser = false;
-    if (payload.type === 'admin_user') {
-      const adminUser = await prisma.adminUser.findUnique({
-        where: { id: payload.id as string },
-        select: { id: true, isActive: true, role: true },
-      });
-      if (!adminUser?.isActive || adminUser.role !== 'TECHNICIAN') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-      technicianId = adminUser.id;
+
+    // 1. Try NextAuth session first
+    const session = await getServerSession(authOptions);
+    if (session?.user) {
+      technicianId = (session.user as any).id;
       isAdminUser = true;
     } else {
-      technicianId = payload.id as string;
+      // 2. Try technician-token JWT cookie
+      const token = req.cookies.get('technician-token')?.value;
+      if (!token) {
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      }
+
+      const secret = TECH_JWT_SECRET;
+      const { payload } = await jwtVerify(token, secret);
+
+      if (payload.type === 'admin_user') {
+        const adminUser = await prisma.adminUser.findUnique({
+          where: { id: payload.id as string },
+          select: { id: true, isActive: true, role: true },
+        });
+        if (!adminUser?.isActive) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        technicianId = adminUser.id;
+        isAdminUser = true;
+      } else {
+        technicianId = payload.id as string;
+      }
     }
 
     // Get query parameters
