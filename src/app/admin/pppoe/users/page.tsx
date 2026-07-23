@@ -9,7 +9,7 @@ import {
   Plus, Pencil, Trash2, Users, CheckCircle2, MapPin, Map, MoreVertical,
   Shield, ShieldOff, Ban, Download, Upload, Search, Filter, X, Eye, EyeOff, RefreshCcw, DollarSign, Loader2, Zap,
   UserPlus, RefreshCw, Clock, Bell, Send, Mail, ArrowUpDown, Printer, FileText,
-  Calendar, CreditCard, Camera, ImageIcon, Info, AlertTriangle, Wrench, CheckCircle, XCircle,
+  Calendar, CreditCard, Camera, ImageIcon, Info, AlertTriangle, Wrench, CheckCircle, XCircle, ClipboardList,
 } from 'lucide-react';
 import MapPicker from '@/components/MapPicker';
 import { CameraPhotoInput } from '@/components/CameraPhotoInput';
@@ -1618,6 +1618,16 @@ export default function PppoeUsersPage() {
                           >
                             <Pencil className="h-3.5 w-3.5 pointer-events-none" />
                           </button>
+
+                          {/* Buat SPK / Surat Tugas */}
+                          <a
+                            href={`/admin/work-orders?new=true&userId=${user.id}&name=${encodeURIComponent(user.name)}&phone=${encodeURIComponent(user.phone || '')}&address=${encodeURIComponent(user.address || '')}`}
+                            className="compact-action p-1.5 text-purple-500 hover:bg-purple-500/10 rounded cursor-pointer focus:outline-none"
+                            aria-label="Buat Surat Tugas (SPK)"
+                            title="Buat Surat Tugas (SPK)"
+                          >
+                            <ClipboardList className="h-3.5 w-3.5 pointer-events-none" />
+                          </a>
                           {/* Kirim Tagihan Pertama / Aktivasi */}
                           {user.status === 'PENDING_INSTALLATION' && (
                             <button
