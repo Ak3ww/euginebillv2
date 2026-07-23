@@ -469,7 +469,6 @@ export default function PPPoESessionsPage() {
                   </th>
                   <SortHeader label="ID Pelanggan" field="customerId" />
                   <SortHeader label="Nama Pelanggan" field="name" />
-                  <SortHeader label="Username PPPoE" field="username" />
                   <SortHeader label="Waktu Terhubung" field="startTime" />
                   <SortHeader label="Uptime Live" field="duration" />
                   <SortHeader label="Upload (TX)" field="upload" />
@@ -477,20 +476,20 @@ export default function PPPoESessionsPage() {
                   <SortHeader label="Router Site" field="router" />
                   <SortHeader label="IP Address" field="ip" />
                   <SortHeader label="MAC Address" field="mac" />
-                  <th className="px-3 py-3 text-center text-[10px] font-mono font-bold text-muted-foreground uppercase">Aksi</th>
+                  <th className="px-3 py-3 text-center text-[10px] font-mono font-bold text-muted-foreground uppercase">Aksi Cepat</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {loading && sortedSessions.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-3 py-12 text-center text-muted-foreground">
+                    <td colSpan={11} className="px-3 py-12 text-center text-muted-foreground">
                       <RefreshCw className="w-6 h-6 animate-spin mx-auto text-primary mb-2" />
                       Memuat data sesi real-time...
                     </td>
                   </tr>
                 ) : sortedSessions.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-3 py-12 text-center text-muted-foreground">
+                    <td colSpan={11} className="px-3 py-12 text-center text-muted-foreground">
                       <Wifi className="w-8 h-8 mx-auto opacity-40 mb-2" />
                       Tidak ada sesi PPPoE online yang sesuai filter.
                     </td>
@@ -532,9 +531,6 @@ export default function PPPoESessionsPage() {
                           session.user?.name || '-'
                         )}
                       </td>
-                      <td className="px-3 py-3 font-mono text-[11px] text-foreground">
-                        {session.username}
-                      </td>
                       <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
                         {formatDateTime(session.startTime)}
                       </td>
@@ -559,14 +555,41 @@ export default function PPPoESessionsPage() {
                         {session.macAddress || '-'}
                       </td>
                       <td className="px-3 py-3 text-center">
-                        <button
-                          onClick={() => handleDisconnect([session.sessionId])}
-                          disabled={disconnecting}
-                          title="Putuskan Sesi PPPoE"
-                          className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
-                        >
-                          <Power className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          {/* Remove from Active Connection */}
+                          <button
+                            onClick={() => handleDisconnect([session.sessionId])}
+                            disabled={disconnecting}
+                            title="Putuskan & Hapus dari Sesi Aktif"
+                            className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            <Power className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* WhatsApp Direct Link */}
+                          {session.user?.phone && (
+                            <a
+                              href={`https://wa.me/${session.user.phone.replace(/[^0-9]/g, '').replace(/^0/, '62')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Chat WhatsApp Pelanggan"
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                            >
+                              <Globe className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+
+                          {/* User Detail Profile Link */}
+                          {session.user?.id && (
+                            <a
+                              href={`/admin/pppoe/users/${session.user.customerId || session.user.id}`}
+                              title="Buka Profil Pelanggan"
+                              className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                            >
+                              <User className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
