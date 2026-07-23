@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { WhatsAppService } from '@/server/services/notifications/whatsapp.service';
 import { EmailService } from '@/server/services/notifications/email.service';
 import { prisma } from '@/server/db/client';
@@ -143,7 +143,8 @@ export async function POST(request: NextRequest) {
         .replace(/\{\{teleponPerusahaan\}\}/gi, company?.phone || '')
         .replace(/\{\{companyEmail\}\}/gi, company?.email || '')
         .replace(/\{\{companyAddress\}\}/gi, company?.address || '')
-        .replace(/\{\{alamatPerusahaan\}\}/gi, company?.address || '');
+        .replace(/\{\{alamatPerusahaan\}\}/gi, company?.address || '')
+        .replace(/\{\{link_download_apk\}\}/gi, `${baseUrl}/download-app`);
     };
 
     // Results tracking

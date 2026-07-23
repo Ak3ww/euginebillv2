@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Download, X } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Download, X, Smartphone, CheckCircle2, Zap, Bell, ShieldCheck } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -9,6 +10,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function PwaInstallPrompt() {
+  const pathname = usePathname();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -18,7 +20,6 @@ export function PwaInstallPrompt() {
     if (
       window.matchMedia('(display-mode: standalone)').matches ||
       window.matchMedia('(display-mode: fullscreen)').matches ||
-      // iOS Safari
       (navigator as Navigator & { standalone?: boolean }).standalone === true
     ) {
       setInstalled(true);
@@ -47,7 +48,11 @@ export function PwaInstallPrompt() {
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      // Fallback for iOS or unsupported browsers: redirect to download guide
+      window.location.href = '/download-app';
+      return;
+    }
     await deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
@@ -61,45 +66,81 @@ export function PwaInstallPrompt() {
     sessionStorage.setItem('pwa-install-dismissed', '1');
   };
 
-  if (installed || dismissed || !deferredPrompt) return null;
+  // DO NOT show on Admin, Technician, or Agent portals
+  if (
+    !pathname ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/technician') ||
+    pathname.startsWith('/agent')
+  ) {
+    return null;
+  }
+
+  // Hide if already installed or dismissed
+  if (installed || dismissed) return null;
 
   return (
-    <div
-      role="banner"
-      className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[99998] w-[calc(100vw-32px)] max-w-sm
-        flex items-center gap-3 px-4 py-3
-        bg-gray-950/95 border border-cyan-500/40 rounded-2xl
-        shadow-[0_0_40px_rgba(6,182,212,0.25)] backdrop-blur-sm
-        animate-in slide-in-from-bottom-4 duration-300"
-    >
-      {/* Icon */}
-      <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
-        <Download className="w-4 h-4 text-cyan-400" />
+    <div className="fixed inset-0 z-[99999] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+      
+      {/* Modal Popup Container */}
+      <div className="relative w-full max-w-sm bg-card border-2 border-primary/30 rounded-3xl p-6 shadow-2xl space-y-5 text-center animate-in zoom-in-95 duration-300">
+        
+        {/* Close Button */}
+        <button
+          onClick={handleDismiss}
+          className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-full transition-colors"
+          aria-label="Tutup"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* App Icon Header */}
+        <div className="mx-auto w-20 h-20 bg-gradient-to-tr from-primary to-accent rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 border-2 border-white/20">
+          <Smartphone className="w-10 h-10 text-white" />
+        </div>
+
+        {/* Title & Description */}
+        <div className="space-y-1.5">
+          <h2 className="text-xl font-bold font-display text-foreground">Install Aplikasi Pelanggan</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Pasang aplikasi di layar utama HP Anda untuk akses internet cepat tanpa repot buka browser!
+          </p>
+        </div>
+
+        {/* Key Features Benefits List */}
+        <div className="bg-muted/40 border border-border rounded-2xl p-4 text-left space-y-2.5 text-xs">
+          <div className="flex items-start gap-2.5">
+            <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <span className="text-foreground font-medium">Buka portal &amp; bayar tagihan 1x klik</span>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <Bell className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+            <span className="text-foreground font-medium">Notifikasi pengingat &amp; status jaringan</span>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+            <span className="text-foreground font-medium">Aman, ringan, &amp; tanpa download file APK berat</span>
+          </div>
+        </div>
+
+        {/* Primary Action Button */}
+        <div className="space-y-2 pt-1">
+          <button
+            onClick={handleInstall}
+            className="w-full py-3.5 px-4 bg-primary text-primary-foreground hover:opacity-90 rounded-2xl font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-primary/30 transition-all active:scale-[0.98]"
+          >
+            <Download className="w-4 h-4" /> Install / Tambah ke Utama
+          </button>
+
+          <button
+            onClick={handleDismiss}
+            className="w-full py-2 text-xs font-mono font-bold text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Nanti Saja
+          </button>
+        </div>
+
       </div>
-
-      {/* Text */}
-      <div className="flex-1 min-w-0">
-        <p className="text-white text-sm font-medium leading-tight">Install Aplikasi</p>
-        <p className="text-gray-400 text-xs leading-tight mt-0.5 truncate">Tambah ke layar utama HP Anda</p>
-      </div>
-
-      {/* Install button */}
-      <button
-        onClick={handleInstall}
-        className="flex-shrink-0 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700
-          text-white rounded-lg font-medium text-xs transition-colors"
-      >
-        Install
-      </button>
-
-      {/* Dismiss */}
-      <button
-        onClick={handleDismiss}
-        aria-label="Tutup"
-        className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-gray-500 hover:text-gray-300 transition-colors"
-      >
-        <X className="w-4 h-4" />
-      </button>
     </div>
   );
 }
