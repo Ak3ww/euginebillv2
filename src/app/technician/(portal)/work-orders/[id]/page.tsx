@@ -66,11 +66,33 @@ export default function WorkOrderDetailPage() {
     }
   };
 
-  const handlePhotoUpload = (key: string, e: any) => {
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+
+  const handlePhotoUpload = async (key: string, e: any) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setPhotos(prev => ({ ...prev, [key]: url }));
+    if (!file) return;
+
+    setUploadingKey(key);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/technician/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setPhotos(prev => ({ ...prev, [key]: data.url }));
+        addToast({ type: 'success', title: `Foto ${key} berhasil diunggah` });
+      } else {
+        addToast({ type: 'error', title: 'Gagal mengunggah foto', description: data.error || 'Terjadi kesalahan' });
+      }
+    } catch {
+      addToast({ type: 'error', title: 'Gagal mengunggah foto', description: 'Kesalahan koneksi ke server' });
+    } finally {
+      setUploadingKey(null);
     }
   };
 
@@ -290,7 +312,12 @@ export default function WorkOrderDetailPage() {
                       key={i} 
                       className="relative aspect-[3/4] bg-background border-2 border-dashed border-border rounded-xl overflow-hidden group hover:border-primary transition-colors flex items-center justify-center"
                     >
-                      {photos[label] ? (
+                      {uploadingKey === label ? (
+                        <div className="flex flex-col items-center justify-center p-2 text-primary">
+                          <Loader2 className="w-6 h-6 animate-spin mb-1" />
+                          <span className="text-[10px] font-bold">Mengunggah...</span>
+                        </div>
+                      ) : photos[label] ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={photos[label]} alt={label} className="w-full h-full object-cover" />
                       ) : (
