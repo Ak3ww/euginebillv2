@@ -7,9 +7,18 @@ import { prisma } from '@/server/db/client';
  * Replace {{variable}} with actual values
  */
 function renderTemplate(template: string, variables: Record<string, any>): string {
+  if (!template || !template.trim()) return '';
   let rendered = template;
 
-  for (const [key, value] of Object.entries(variables)) {
+  const defaultVars: Record<string, any> = {
+    link_download_aplikasi: variables.link_download_aplikasi || variables.link_download_apk || `${variables.baseUrl || ''}/download-app`,
+    link_download_apk: variables.link_download_apk || variables.link_download_aplikasi || `${variables.baseUrl || ''}/download-app`,
+    expiredAt: variables.expiredAt || variables.dueDate || variables.expiredDate || '-',
+  };
+
+  const merged = { ...defaultVars, ...variables };
+
+  for (const [key, value] of Object.entries(merged)) {
     const regex = new RegExp(`{{${key}}}`, 'g');
     rendered = rendered.replace(regex, String(value ?? ''));
   }

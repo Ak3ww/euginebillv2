@@ -147,6 +147,31 @@ export default function WhatsAppTemplatesPage() {
     }
   };
 
+  const handleResetDefaults = async () => {
+    if (!confirm('Apakah Anda yakin ingin mengembalikan SELURUH 14 template ke Master Default V2.0 bawaan sistem? Template yang sudah diedit akan ditimpa.')) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/whatsapp/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reset_defaults' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showSuccess('14 Master Template berhasil di-reset ke versi baku V2.0!');
+        fetchTemplates();
+      } else {
+        showError(data.error || 'Gagal mereset template');
+      }
+    } catch {
+      showError('Gagal terhubung ke server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUpdate = async (type: string, message: string) => {
     const template = templates[type];
     if (!template) return;
@@ -436,15 +461,24 @@ export default function WhatsAppTemplatesPage() {
       <div className="relative z-10 space-y-6">
         <div className="max-w-6xl mx-auto space-y-3 sm:space-y-4">
         {/* Header */}
-        <div className="px-1 sm:px-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc] dark:drop-shadow-[0_0_30px_rgba(0,247,255,0.5)] flex items-center gap-2">
-            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span className="hidden sm:inline">{t('whatsapp.templatesTitle')}</span>
-            <span className="sm:hidden">{t('whatsapp.templateWhatsapp')}</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('whatsapp.templatesSubtitle')}</p>
+        <div className="px-1 sm:px-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc] dark:drop-shadow-[0_0_30px_rgba(0,247,255,0.5)] flex items-center gap-2">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span className="hidden sm:inline">{t('whatsapp.templatesTitle')}</span>
+              <span className="sm:hidden">{t('whatsapp.templateWhatsapp')}</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('whatsapp.templatesSubtitle')}</p>
+          </div>
+
+          <button
+            onClick={handleResetDefaults}
+            className="px-3.5 py-2 bg-amber-600/10 hover:bg-amber-600/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+          >
+            🔄 Reset ke Master Default V2.0
+          </button>
         </div>
 
         {/* Tabs - Wrapping on mobile */}
