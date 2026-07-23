@@ -1,10 +1,16 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { Power, RefreshCw, Wifi, Search, Download, Trash2, RotateCcw } from 'lucide-react';
+export const dynamic = 'force-dynamic';
+
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { 
+  Power, RefreshCw, Wifi, Search, Download, Trash2, RotateCcw, 
+  ArrowUpDown, Filter, Router as RouterIcon, ShieldAlert, CheckCircle2, User, Globe
+} from 'lucide-react';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatWIB } from '@/lib/timezone';
+import { cn } from '@/lib/utils';
 
 interface Session {
   id: string;
@@ -17,6 +23,8 @@ interface Session {
   startTime: string;
   lastUpdate: string | null;
   duration: number;
+  upload?: number;
+  download?: number;
   durationFormatted: string;
   uploadFormatted: string;
   downloadFormatted: string;
@@ -56,6 +64,7 @@ interface Router {
 export default function PPPoESessionsPage() {
   const { t } = useTranslation();
   const { addToast, confirm } = useToast();
+
   const [sessions, setSessions] = useState<Session[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [routers, setRouters] = useState<Router[]>([]);
@@ -64,11 +73,15 @@ export default function PPPoESessionsPage() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [routerFilter, setRouterFilter] = useState<string>('');
   const [searchFilter, setSearchFilter] = useState<string>('');
-  const [pagination, setPagination] = useState<Pagination>({ total: 0, page: 1, limit: 10, totalPages: 1 });
-  const [pageSize, setPageSize] = useState<number>(10);
+  const [pagination, setPagination] = useState<Pagination>({ total: 0, page: 1, limit: 25, totalPages: 1 });
+  const [pageSize, setPageSize] = useState<number>(25);
   const [now, setNow] = useState(() => Date.now());
   const [fetchedAt, setFetchedAt] = useState(() => Date.now());
   const [syncing, setSyncing] = useState(false);
+
+  // Sorting state
+  const [sortField, setSortField] = useState<string>('startTime');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // 1-second ticker for live uptime counter
   useEffect(() => {
@@ -76,8 +89,6 @@ export default function PPPoESessionsPage() {
     return () => clearInterval(ticker);
   }, []);
 
-  // Use server-computed duration (clock-independent) + elapsed seconds since last fetch.
-  // This avoids the clock-skew problem where NAS timestamps are ahead of VPS clock.
   const liveDuration = (serverDuration: number) => {
     const elapsed = Math.floor((now - fetchedAt) / 1000);
     return serverDuration + elapsed;
@@ -89,8 +100,8 @@ export default function PPPoESessionsPage() {
       const params = new URLSearchParams();
       params.set('page', page.toString());
       params.set('limit', pageSize.toString());
-      params.set('type', 'pppoe'); // Force PPPoE only
-      params.set('live', 'true'); // Merge live bytes dari MikroTik API
+      params.set('type', 'pppoe');
+      params.set('live', 'true');
       if (routerFilter) params.set('routerId', routerFilter);
       if (searchFilter) params.set('search', searchFilter);
 
@@ -108,19 +119,6 @@ export default function PPPoESessionsPage() {
       setLoading(false);
     }
   }, [pageSize, routerFilter, searchFilter]);
-
-  const formatDateTime = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    return formatWIB(dateStr, 'dd/MM/yyyy HH:mm');
-  };
-
-  // Format uptime to HH:MM:SS
-  const formatUptime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
 
   const fetchRouters = async () => {
     try {
@@ -140,9 +138,87 @@ export default function PPPoESessionsPage() {
     fetchSessions(1);
     const interval = setInterval(() => {
       fetchSessions(pagination.page);
-    }, 10000); // 10 detik — live bytes dari MikroTik API
+    }, 10000);
     return () => clearInterval(interval);
   }, [fetchSessions, pagination.page]);
+
+  const formatDateTime = (dateStr: string | null) => {
+    if (!dateStr) return '-';
+    return formatWIB(dateStr, 'dd/MM/yyyy HH:mm');
+  };
+
+  const formatUptime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection(['startTime', 'duration', 'upload', 'download'].includes(field) ? 'desc' : 'asc');
+    }
+  };
+
+  const sortedSessions = useMemo(() => {
+    return [...sessions].sort((a, b) => {
+      let valA: any = '';
+      let valB: any = '';
+
+      switch (sortField) {
+        case 'customerId':
+          valA = a.user?.customerId || '';
+          valB = b.user?.customerId || '';
+          break;
+        case 'name':
+          valA = (a.user?.name || '').toLowerCase();
+          valB = (b.user?.name || '').toLowerCase();
+          break;
+        case 'username':
+          valA = (a.username || '').toLowerCase();
+          valB = (b.username || '').toLowerCase();
+          break;
+        case 'startTime':
+          valA = new Date(a.startTime).getTime();
+          valB = new Date(b.startTime).getTime();
+          break;
+        case 'duration':
+          valA = liveDuration(a.duration);
+          valB = liveDuration(b.duration);
+          break;
+        case 'upload':
+          valA = a.upload || 0;
+          valB = b.upload || 0;
+          break;
+        case 'download':
+          valA = a.download || 0;
+          valB = b.download || 0;
+          break;
+        case 'router':
+          valA = (a.router?.name || '').toLowerCase();
+          valB = (b.router?.name || '').toLowerCase();
+          break;
+        case 'ip':
+          valA = a.framedIpAddress || '';
+          valB = b.framedIpAddress || '';
+          break;
+        case 'mac':
+          valA = a.macAddress || '';
+          valB = b.macAddress || '';
+          break;
+        default:
+          valA = new Date(a.startTime).getTime();
+          valB = new Date(b.startTime).getTime();
+      }
+
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [sessions, sortField, sortDirection, now, fetchedAt]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -203,7 +279,6 @@ export default function PPPoESessionsPage() {
       await fetchSessions(1);
       
       if (data.results?.pppoe?.success === false) {
-        // Find the first error message to display
         const errorResult = data.results.pppoe.results?.find((r: any) => !r.success);
         const errMsg = errorResult ? errorResult.error : 'Connection failed';
         addToast({ type: 'error', title: t('common.error'), description: `Gagal terhubung ke MikroTik: ${errMsg}` });
@@ -217,7 +292,8 @@ export default function PPPoESessionsPage() {
     }
   };
 
-  const handleExportExcel = async () => {    try {
+  const handleExportExcel = async () => {
+    try {
       const params = new URLSearchParams();
       params.set('format', 'excel');
       params.set('mode', 'active');
@@ -239,282 +315,274 @@ export default function PPPoESessionsPage() {
     }
   };
 
+  const SortHeader = ({ label, field }: { label: string; field: string }) => (
+    <th 
+      onClick={() => handleSort(field)}
+      className="px-3 py-2.5 text-left text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground select-none group"
+    >
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        <ArrowUpDown className={cn(
+          "w-3 h-3 transition-colors", 
+          sortField === field ? "text-primary opacity-100 font-bold" : "opacity-40 group-hover:opacity-100"
+        )} />
+      </div>
+    </th>
+  );
+
   return (
-    <div className="bg-background relative">
+    <div className="bg-background relative min-h-screen p-4 md:p-8 space-y-6">
+      
+      {/* Background Glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#bc13fe]/20 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#00f7ff]/20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-[#ff44cc]/20 rounded-full blur-3xl"></div>
-        <div className="hidden dark:block absolute inset-0 bg-[linear-gradient(rgba(188,19,254,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(188,19,254,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
-      </div>
-      <div className="relative z-10 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc] dark:drop-shadow-[0_0_30px_rgba(0,247,255,0.5)] flex items-center gap-2">
-            <Wifi className="w-4 h-4 sm:w-5 sm:h-5 text-[#00f7ff] flex-shrink-0" />
-            {t('sessions.pppoeSessions')}
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('sessions.monitorPppoe')}</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => handleDisconnect(Array.from(selectedSessions))}
-            disabled={selectedSessions.size === 0 || disconnecting}
-            className="px-3 py-1.5 text-xs font-medium bg-muted hover:bg-muted/80 text-foreground rounded-lg disabled:opacity-50 flex items-center gap-1.5 border border-border"
-          >
-            <Power className="w-3.5 h-3.5" />
-            {t('sessions.kickUserButton')}
-          </button>
-          <button
-            disabled={selectedSessions.size === 0}
-            className="px-3 py-1.5 text-xs font-medium bg-success hover:bg-success/90 text-success-foreground rounded-lg disabled:opacity-50 flex items-center gap-1.5"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            {t('sessions.deleteButton')}
-          </button>
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="px-3 py-1.5 text-xs font-medium bg-warning hover:bg-warning/90 text-warning-foreground rounded-lg flex items-center gap-1.5 disabled:opacity-50"
-          >
-            <RotateCcw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? t('common.loading') : t('sessions.resyncButton')}
-          </button>
-        </div>
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-        <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-2.5 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
-          <p className="text-[10px] sm:text-xs text-[#00f7ff] uppercase tracking-wide">{t('sessions.activeSessions')}</p>
-          <p className="text-lg sm:text-2xl font-bold text-foreground mt-1">{stats?.pppoe || 0}</p>
-        </div>
-        <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-2.5 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
-          <p className="text-[10px] sm:text-xs text-[#00f7ff] uppercase tracking-wide">↑ {t('sessions.totalUpload')}</p>
-          <p className="text-lg sm:text-2xl font-bold text-foreground mt-1">{stats?.totalUploadFormatted || '0 B'}</p>
-        </div>
-        <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-2.5 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
-          <p className="text-[10px] sm:text-xs text-[#00f7ff] uppercase tracking-wide">↓ {t('sessions.totalDownload')}</p>
-          <p className="text-lg sm:text-2xl font-bold text-foreground mt-1">{stats?.totalDownloadFormatted || '0 B'}</p>
-        </div>
-      </div>
+      <div className="relative z-10 space-y-6 max-w-7xl mx-auto">
+        
+        {/* Header & Main Actions */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card border border-border rounded-2xl p-6 shadow-sm">
+          <div>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Monitoring Real-Time</span>
+            <h1 className="text-2xl font-bold font-display text-foreground mt-0.5 flex items-center gap-2">
+              <Wifi className="w-6 h-6 text-primary" />
+              Monitoring Sesi PPPoE Online
+            </h1>
+            <p className="text-xs text-muted-foreground mt-1">Pantau sesi aktif, filter per MikroTik router, dan kelola koneksi pelanggan.</p>
+          </div>
 
-      {/* Table */}
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
-        {/* Filters */}
-        <div className="px-3 py-2 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-muted">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>{t('sessions.show')}</span>
-            <select 
-              value={pageSize} 
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleExportExcel}
+              className="px-3.5 py-2 text-xs font-bold bg-muted hover:bg-muted/80 text-foreground rounded-xl flex items-center gap-2 border border-border transition-colors"
+            >
+              <Download className="w-4 h-4 text-primary" /> Export Excel
+            </button>
+
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="px-3.5 py-2 text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 rounded-xl flex items-center gap-2 border border-primary/20 disabled:opacity-50 transition-colors"
+            >
+              <RotateCcw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Sinkronisasi...' : 'Sync Sesi Real-Time'}
+            </button>
+
+            {selectedSessions.size > 0 && (
+              <button
+                onClick={() => handleDisconnect(Array.from(selectedSessions))}
+                disabled={disconnecting}
+                className="px-3.5 py-2 text-xs font-bold bg-destructive text-destructive-foreground hover:opacity-90 rounded-xl flex items-center gap-2 shadow-md transition-opacity"
+              >
+                <Power className="w-4 h-4" /> Putuskan ({selectedSessions.size}) Sesi
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">Total Sesi PPPoE Aktif</span>
+            <p className="text-2xl font-bold font-display text-primary mt-1 flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              {stats?.pppoe || 0} Koneksi
+            </p>
+          </div>
+          <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">Total Live Upload (TX)</span>
+            <p className="text-2xl font-bold font-display text-foreground mt-1">↑ {stats?.totalUploadFormatted || '0 B'}</p>
+          </div>
+          <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">Total Live Download (RX)</span>
+            <p className="text-2xl font-bold font-display text-foreground mt-1">↓ {stats?.totalDownloadFormatted || '0 B'}</p>
+          </div>
+        </div>
+
+        {/* Filters & Table Control Bar */}
+        <div className="bg-card border border-border rounded-2xl p-4 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+          
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            {/* Router MikroTik Filter Dropdown */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <RouterIcon className="w-4 h-4 text-primary shrink-0" />
+              <select
+                value={routerFilter}
+                onChange={(e) => {
+                  setRouterFilter(e.target.value);
+                  fetchSessions(1);
+                }}
+                className="w-full sm:w-60 p-2 bg-background border border-input rounded-xl text-xs font-mono font-bold text-foreground focus:ring-2 focus:ring-primary outline-none"
+              >
+                <option value="">-- Semua Router MikroTik Site --</option>
+                {routers.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Search Input (Name, Username, IP, MAC) */}
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Cari nama, user, IP, MAC..."
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-background border border-input rounded-xl text-xs font-mono focus:ring-2 focus:ring-primary outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground self-end md:self-center">
+            <span>Tampilkan</span>
+            <select
+              value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
-              className="px-2 py-1 border border-border rounded text-xs bg-card"
+              className="px-2.5 py-1 bg-background border border-input rounded-lg text-xs font-bold text-foreground focus:ring-2 focus:ring-primary outline-none"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
             </select>
-            <span>{t('sessions.entries')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{t('sessions.search')}:</span>
-            <input
-              type="text"
-              placeholder={t('sessions.searchPlaceholder')}
-              value={searchFilter}
-              onChange={(e) => setSearchFilter(e.target.value)}
-              className="px-2 py-1 text-xs border border-border rounded bg-card w-full sm:w-40"
-            />
+            <span>data per halaman</span>
           </div>
         </div>
 
-        {/* Mobile Card View */}
-        <div className="block lg:hidden divide-y divide-border">
-          {sessions.length === 0 ? (
-            <div className="px-3 py-8 text-center text-muted-foreground text-xs">
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : t('sessions.noData')}
-            </div>
-          ) : (
-            sessions.map((session) => (
-              <div key={session.id} className="p-3 hover:bg-muted">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
+        {/* Table View */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+          
+          {/* Desktop Table View */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/60 border-b border-border">
+                <tr>
+                  <th className="px-3 py-3 text-left w-10">
                     <input
                       type="checkbox"
-                      checked={selectedSessions.has(session.sessionId)}
-                      onChange={(e) => handleSelectSession(session.sessionId, e.target.checked)}
+                      checked={selectedSessions.size === sortedSessions.length && sortedSessions.length > 0}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
                       className="rounded border-border w-3.5 h-3.5"
                     />
-                    <span className="font-mono text-xs font-medium text-foreground">
-                      {session.user?.customerId || '-'}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleDisconnect([session.sessionId])}
-                    disabled={disconnecting}
-                    className="p-1.5 text-destructive hover:bg-destructive/10 rounded disabled:opacity-50"
-                  >
-                    <Power className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="space-y-1.5 text-[11px]">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.customer')}:</span>
-                    <span className="font-medium text-foreground">{session.user?.name || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.username')}:</span>
-                    <span className="font-mono text-muted-foreground">{session.username}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.startTime')}:</span>
-                    <span className="text-muted-foreground">{formatDateTime(session.startTime)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.uptime')}:</span>
-                    <span className="font-medium text-info">{formatUptime(liveDuration(session.duration))}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.upload')}:</span>
-                    <span className="text-info">{session.uploadFormatted}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.download')}:</span>
-                    <span className="text-success">{session.downloadFormatted}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.router')}:</span>
-                    <span className="text-muted-foreground">{session.router?.name || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.server')}:</span>
-                    <span className="text-muted-foreground">{session.user?.profile || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.ipAddress')}:</span>
-                    <span className="font-mono text-muted-foreground">{session.framedIpAddress || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.macAddress')}:</span>
-                    <span className="font-mono text-[10px] text-muted-foreground">{session.macAddress || '-'}</span>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Desktop Table View */}
-        <div className="overflow-x-auto hidden lg:block">
-          <table className="w-full text-xs">
-            <thead className="bg-muted border-b border-border">
-              <tr>
-                <th className="px-2 py-2 text-left w-8">
-                  <input
-                    type="checkbox"
-                    checked={selectedSessions.size === sessions.length && sessions.length > 0}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="rounded border-border w-3.5 h-3.5"
-                  />
-                </th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">{t('sessions.serviceNumber')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">{t('sessions.customer')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">{t('sessions.username')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">{t('sessions.startTime')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">{t('sessions.lastUpdate')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">{t('sessions.uptime')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">↑ {t('sessions.upload')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">↓ {t('sessions.download')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">{t('sessions.router')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">{t('sessions.ipAddress')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">{t('sessions.macAddress')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {loading && sessions.length === 0 ? (
-                <tr>
-                  <td colSpan={12} className="px-3 py-8 text-center text-muted-foreground">
-                    <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
-                  </td>
+                  </th>
+                  <SortHeader label="ID Pelanggan" field="customerId" />
+                  <SortHeader label="Nama Pelanggan" field="name" />
+                  <SortHeader label="Username PPPoE" field="username" />
+                  <SortHeader label="Waktu Terhubung" field="startTime" />
+                  <SortHeader label="Uptime Live" field="duration" />
+                  <SortHeader label="Upload (TX)" field="upload" />
+                  <SortHeader label="Download (RX)" field="download" />
+                  <SortHeader label="Router Site" field="router" />
+                  <SortHeader label="IP Address" field="ip" />
+                  <SortHeader label="MAC Address" field="mac" />
+                  <th className="px-3 py-3 text-center text-[10px] font-mono font-bold text-muted-foreground uppercase">Aksi</th>
                 </tr>
-              ) : sessions.length === 0 ? (
-                <tr>
-                  <td colSpan={12} className="px-3 py-8 text-center text-muted-foreground">
-                    {t('sessions.noPppoeSessions')}
-                  </td>
-                </tr>
-              ) : (
-                sessions.map((session) => (
-                  <tr key={session.id} className="hover:bg-muted">
-                    <td className="px-2 py-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedSessions.has(session.sessionId)}
-                        onChange={(e) => handleSelectSession(session.sessionId, e.target.checked)}
-                        className="rounded border-border w-3.5 h-3.5"
-                      />
+              </thead>
+              <tbody className="divide-y divide-border">
+                {loading && sortedSessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="px-3 py-12 text-center text-muted-foreground">
+                      <RefreshCw className="w-6 h-6 animate-spin mx-auto text-primary mb-2" />
+                      Memuat data sesi real-time...
                     </td>
-                    <td className="px-2 py-2 font-mono text-[10px] text-foreground">{session.user?.customerId || '-'}</td>
-                    <td className="px-2 py-2 text-[10px] text-foreground">{session.user?.name || '-'}</td>
-                    <td className="px-2 py-2 font-mono text-[10px] text-muted-foreground">{session.username}</td>
-                    <td className="px-2 py-2 text-[10px] text-muted-foreground whitespace-nowrap">{formatDateTime(session.startTime)}</td>
-                    <td className="px-2 py-2 text-[10px] text-muted-foreground whitespace-nowrap">{formatDateTime(session.lastUpdate)}</td>
-                    <td className="px-2 py-2 text-[10px] font-medium text-info">{formatUptime(liveDuration(session.duration))}</td>
-                    <td className="px-2 py-2 text-[10px] text-success">{session.uploadFormatted}</td>
-                    <td className="px-2 py-2 text-[10px] text-info">{session.downloadFormatted}</td>
-                    <td className="px-2 py-2 text-[10px] text-muted-foreground">{session.router?.name || '-'}</td>
-                    <td className="px-2 py-2 font-mono text-[10px] text-muted-foreground">{session.framedIpAddress || '-'}</td>
-                    <td className="px-2 py-2 font-mono text-[10px] text-muted-foreground">{session.macAddress || '-'}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : sortedSessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="px-3 py-12 text-center text-muted-foreground">
+                      <Wifi className="w-8 h-8 mx-auto opacity-40 mb-2" />
+                      Tidak ada sesi PPPoE online yang sesuai filter.
+                    </td>
+                  </tr>
+                ) : (
+                  sortedSessions.map((session) => (
+                    <tr key={session.id} className="hover:bg-muted/50 transition-colors">
+                      <td className="px-3 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedSessions.has(session.sessionId)}
+                          onChange={(e) => handleSelectSession(session.sessionId, e.target.checked)}
+                          className="rounded border-border w-3.5 h-3.5"
+                        />
+                      </td>
+                      <td className="px-3 py-3 font-mono text-[11px] font-bold text-primary">
+                        {session.user?.customerId || '-'}
+                      </td>
+                      <td className="px-3 py-3 font-bold text-foreground">
+                        {session.user?.name || '-'}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-[11px] text-foreground">
+                        {session.username}
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(session.startTime)}
+                      </td>
+                      <td className="px-3 py-3 font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                        {formatUptime(liveDuration(session.duration))}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                        ↑ {session.uploadFormatted}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-purple-600 dark:text-purple-400 whitespace-nowrap">
+                        ↓ {session.downloadFormatted}
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <span className="px-2.5 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-[10px] font-mono font-bold uppercase">
+                          {session.router?.name || 'Default Router'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 font-mono text-foreground whitespace-nowrap">
+                        {session.framedIpAddress || '-'}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-[10px] text-muted-foreground whitespace-nowrap">
+                        {session.macAddress || '-'}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <button
+                          onClick={() => handleDisconnect([session.sessionId])}
+                          disabled={disconnecting}
+                          title="Putuskan Sesi PPPoE"
+                          className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          <Power className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Footer */}
+          <div className="px-4 py-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/40 text-xs font-mono">
+            <div className="text-muted-foreground">
+              Menampilkan {((pagination.page - 1) * pageSize) + 1} - {Math.min(pagination.page * pageSize, pagination.total)} dari {pagination.total} sesi aktif
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => fetchSessions(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="px-3 py-1.5 border border-border rounded-xl disabled:opacity-50 hover:bg-muted font-bold text-foreground"
+              >
+                Sebelumnya
+              </button>
+              <span className="px-3 py-1.5 bg-primary text-primary-foreground font-bold rounded-xl">
+                {pagination.page} / {pagination.totalPages || 1}
+              </span>
+              <button
+                onClick={() => fetchSessions(pagination.page + 1)}
+                disabled={pagination.page >= pagination.totalPages}
+                className="px-3 py-1.5 border border-border rounded-xl disabled:opacity-50 hover:bg-muted font-bold text-foreground"
+              >
+                Selanjutnya
+              </button>
+            </div>
+          </div>
+
         </div>
 
-        {/* Pagination Footer */}
-        <div className="px-3 py-2 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 bg-muted">
-          <div className="text-xs text-muted-foreground">
-            {t('sessions.showing')} {((pagination.page - 1) * pageSize) + 1} {t('sessions.to')} {Math.min(pagination.page * pageSize, pagination.total)} {t('sessions.of')} {pagination.total} {t('sessions.entries')}
-          </div>
-          <div className="flex items-center gap-1 flex-wrap justify-center">
-            <button
-              onClick={() => fetchSessions(pagination.page - 1)}
-              disabled={pagination.page === 1}
-              className="px-3 py-1 text-xs border border-border rounded disabled:opacity-50 hover:bg-muted/80 text-muted-foreground"
-            >
-              {t('common.previous')}
-            </button>
-            {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-              let pageNum = pagination.page - 2 + i;
-              if (pageNum < 1) pageNum = i + 1;
-              if (pageNum > pagination.totalPages) return null;
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => fetchSessions(pageNum)}
-                  className={`px-3 py-1 text-xs border rounded ${
-                    pageNum === pagination.page 
-                      ? 'bg-primary text-primary-foreground border-primary' 
-                      : 'border-border hover:bg-muted/80 text-muted-foreground'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-            <button
-              onClick={() => fetchSessions(pagination.page + 1)}
-              disabled={pagination.page === pagination.totalPages}
-              className="px-3 py-1 text-xs border border-border rounded disabled:opacity-50 hover:bg-muted/80 text-muted-foreground"
-            >
-              {t('common.next')}
-            </button>
-          </div>
-        </div>
-      </div>
       </div>
     </div>
   );
