@@ -41,7 +41,10 @@ async function main() {
 
   const assignedOtherCount = await prisma.pppoeUser.count({
     where: {
-      routerId: { notIn: [null, ''] }
+      AND: [
+        { routerId: { not: null } },
+        { routerId: { not: '' } }
+      ]
     }
   });
 
