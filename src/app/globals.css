@@ -96,9 +96,20 @@
   --breakpoint-3xl: 2000px;
 
   /* Typography Scale (TailAdmin) */
-  --text-title-2xl: 72px;
-  --text-title-2xl--line-height: 90px;
+  --text-title-xl: 60px;
   --text-title-xl--line-height: 72px;
+  --text-title-lg: 48px;
+  --text-title-lg--line-height: 60px;
+  --text-title-md: 36px;
+  --text-title-md--line-height: 44px;
+  --text-title-sm: 30px;
+  --text-title-sm--line-height: 38px;
+  --text-theme-xl: 20px;
+  --text-theme-xl--line-height: 30px;
+  --text-theme-sm: 14px;
+  --text-theme-sm--line-height: 20px;
+  --text-theme-xs: 12px;
+  --text-theme-xs--line-height: 18px;
 
   /* Brand palette (Oceanic Blue — #1b437c primary) */
   --color-brand-25: #f0f4fa;
