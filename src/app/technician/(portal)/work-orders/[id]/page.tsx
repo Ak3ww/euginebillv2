@@ -6,10 +6,11 @@ import {
   ArrowLeft, CheckCircle2, Loader2, MapPin, Phone, 
   Camera, CheckSquare, Wrench, Save, Send, ExternalLink,
   Navigation, ShieldCheck, ChevronRight, ChevronLeft, RefreshCw, Smartphone,
-  X, Image as ImageIcon, AlertCircle, FlipHorizontal
+  X, Image as ImageIcon, AlertCircle, FlipHorizontal, Timer, Award, Star, Zap, Trophy, Shield
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/cyberpunk/CyberToast';
+import { calculateTechnicianScore, PerformanceRating, EUGINEBILL_HQ } from '@/lib/geo-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,13 @@ export default function TechnicianWorkOrderWizardPage() {
 
   // Wizard Step State (1, 2, or 3)
   const [step, setStep] = useState<number>(1);
+
+  // Gamified Stopwatch Timer State
+  const [startTimeMs, setStartTimeMs] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+
+  // Performance Rating Modal State
+  const [ratingResult, setRatingResult] = useState<PerformanceRating | null>(null);
 
   // Step 1: Equipment Checklist
   const [checklist, setChecklist] = useState({
@@ -79,7 +87,7 @@ export default function TechnicianWorkOrderWizardPage() {
     fetchWo();
   }, [params.id]);
 
-  // Load Saved Draft Progress from LocalStorage
+  // Load Saved Draft Progress & Stopwatch from LocalStorage
   useEffect(() => {
     if (typeof window !== 'undefined' && wo) {
       try {
@@ -92,12 +100,31 @@ export default function TechnicianWorkOrderWizardPage() {
           if (parsed.reportData) setReportData(prev => ({ ...prev, ...parsed.reportData }));
           if (parsed.photos) setPhotos(prev => ({ ...prev, ...parsed.photos }));
           if (parsed.customerGeo) setCustomerGeo(parsed.customerGeo);
+          if (parsed.startTimeMs) setStartTimeMs(parsed.startTimeMs);
         }
       } catch (e) {
         console.error('Failed to load wizard draft:', e);
       }
     }
   }, [wo]);
+
+  // Stopwatch Interval Ticker
+  useEffect(() => {
+    if (!startTimeMs) return;
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startTimeMs) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startTimeMs]);
+
+  // Format Timer into HH:MM:SS
+  const formatTimer = (totalSecs: number) => {
+    const hours = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return hours > 0 ? `${pad(hours)}:${pad(mins)}:${pad(secs)}` : `${pad(mins)}:${pad(secs)}`;
+  };
 
   // Save Progress to LocalStorage on Change
   const saveProgress = (updatedStep?: number, updatedData?: any) => {
@@ -110,6 +137,7 @@ export default function TechnicianWorkOrderWizardPage() {
         reportData: updatedData?.reportData || reportData,
         photos: updatedData?.photos || photos,
         customerGeo,
+        startTimeMs: updatedData?.startTimeMs || startTimeMs,
       };
       localStorage.setItem(storageKey, JSON.stringify(draft));
     } catch (e) {
@@ -194,11 +222,23 @@ export default function TechnicianWorkOrderWizardPage() {
     return true;
   };
 
-  // Navigation Guard
+  // Navigation Guard & Stopwatch Start
   const handleNextStep = (targetStep: number) => {
     if (targetStep === 2) {
       if (!validateStep1()) return;
       setIsPrepared(true);
+
+      // Start Stopwatch if not started yet!
+      if (!startTimeMs) {
+        const now = Date.now();
+        setStartTimeMs(now);
+        saveProgress(2, { startTimeMs: now });
+        addToast({
+          type: 'success',
+          title: '⏱️ Stopwatch Lapangan Dimulai!',
+          description: 'Waktu perjalanan & pemasangan mulai dihitung otomatis.',
+        });
+      }
     } else if (targetStep === 3) {
       if (!validateStep2()) return;
     }
@@ -331,7 +371,6 @@ export default function TechnicianWorkOrderWizardPage() {
 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Convert Canvas to Blob
       canvas.toBlob(async (blob) => {
         if (!blob) {
           addToast({ type: 'error', title: 'Gagal mengambil gambar' });
@@ -403,7 +442,7 @@ export default function TechnicianWorkOrderWizardPage() {
     }
   };
 
-  // Submit Final Report & Complete Work Order
+  // Submit Final Report & Complete Work Order with Score Gamification
   const submitComplete = async () => {
     if (!validateStep3()) return;
 
@@ -411,13 +450,29 @@ export default function TechnicianWorkOrderWizardPage() {
 
     setSubmitting(true);
     try {
+      const endTime = Date.now();
+      const start = startTimeMs || (endTime - 1200000); // Fallback 20 mins if timer wasn't started
+
+      // Calculate Performance Score & Geodesic Distance
+      const rating = calculateTechnicianScore(
+        start,
+        endTime,
+        customerGeo.lat!,
+        customerGeo.lng!,
+        reportData.odpLat ? parseFloat(reportData.odpLat) : null,
+        reportData.odpLng ? parseFloat(reportData.odpLng) : null
+      );
+
       const res = await fetch(`/api/technician/work-orders/${params.id}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           isPrepared: true,
           equipmentChecklist: checklist,
-          reportData,
+          reportData: {
+            ...reportData,
+            performanceRating: rating,
+          },
           reportPhotos: photos,
           customerLat: customerGeo.lat,
           customerLng: customerGeo.lng,
@@ -429,14 +484,14 @@ export default function TechnicianWorkOrderWizardPage() {
         if (typeof window !== 'undefined') {
           localStorage.removeItem(storageKey);
         }
-        addToast({ type: 'success', title: '🎉 Pekerjaan Selesai!', description: 'Laporan SPK berhasil dikirim ke Admin.' });
-        router.push('/technician/work-orders');
+        // Show Score Celebration Overlay
+        setRatingResult(rating);
       } else {
         addToast({ type: 'error', title: 'Gagal Menyelesaikan SPK', description: data.error || 'Terjadi kesalahan' });
+        setSubmitting(false);
       }
     } catch {
       addToast({ type: 'error', title: 'Gagal Menyelesaikan SPK', description: 'Gagal terhubung ke server' });
-    } finally {
       setSubmitting(false);
     }
   };
@@ -459,13 +514,22 @@ export default function TechnicianWorkOrderWizardPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6 pb-24">
-      {/* Top Bar */}
-      <button 
-        onClick={() => router.push('/technician/work-orders')} 
-        className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar Pekerjaan
-      </button>
+      {/* Top Bar with Dynamic Stopwatch Ticker */}
+      <div className="flex justify-between items-center">
+        <button 
+          onClick={() => router.push('/technician/work-orders')} 
+          className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Kembali
+        </button>
+
+        {startTimeMs && (
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold shadow-sm animate-pulse">
+            <Timer className="w-4 h-4 text-emerald-500" />
+            <span>⏱️ {formatTimer(elapsedSeconds)}</span>
+          </div>
+        )}
+      </div>
 
       {/* Customer Brief Card */}
       <div className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-3">
@@ -954,6 +1018,83 @@ export default function TechnicianWorkOrderWizardPage() {
               </label>
             </div>
           )}
+        </div>
+      )}
+
+      {/* --- GAMIFIED PERFORMANCE RATING SCORE OVERLAY MODAL --- */}
+      {ratingResult && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-6 text-center animate-in zoom-in-95">
+            
+            {/* Header Badge & Trophy */}
+            <div className="space-y-2">
+              <div className="w-16 h-16 bg-amber-500/20 text-amber-500 rounded-full flex items-center justify-center mx-auto shadow-inner border border-amber-500/30">
+                <Trophy className="w-8 h-8 animate-bounce" />
+              </div>
+              <span className="inline-block px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-xs font-mono font-bold tracking-widest uppercase">
+                {ratingResult.badge}
+              </span>
+              <h2 className="text-2xl font-bold font-display text-foreground">{ratingResult.rankTitle}</h2>
+            </div>
+
+            {/* Stars */}
+            <div className="flex justify-center gap-1.5">
+              {[1, 2, 3, 4, 5].map((starIndex) => (
+                <Star
+                  key={starIndex}
+                  className={cn(
+                    'w-7 h-7',
+                    starIndex <= ratingResult.stars
+                      ? 'fill-amber-400 text-amber-400 drop-shadow-md'
+                      : 'text-muted border-border'
+                  )}
+                />
+              ))}
+            </div>
+
+            {/* Score Number Display */}
+            <div className="bg-muted/30 border border-border rounded-2xl p-4 space-y-1">
+              <span className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest">Skor Performa Efisiensi</span>
+              <div className="text-4xl font-extrabold font-mono text-emerald-500">
+                {ratingResult.score} <span className="text-xs text-muted-foreground font-normal">/ 100</span>
+              </div>
+            </div>
+
+            {/* Geodesic & Stopwatch Statistics */}
+            <div className="grid grid-cols-2 gap-3 text-left font-mono text-xs">
+              <div className="bg-background border border-border rounded-xl p-3 space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                  <Timer className="w-3 h-3 text-primary" /> Durasi Pengerjaan
+                </span>
+                <p className="font-bold text-foreground">{ratingResult.formattedDuration}</p>
+              </div>
+
+              <div className="bg-background border border-border rounded-xl p-3 space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-primary" /> Jarak HQ -> Rumah
+                </span>
+                <p className="font-bold text-foreground">{ratingResult.distOfficeToCustomerKm} KM</p>
+              </div>
+
+              <div className="bg-background border border-border rounded-xl p-3 space-y-1 col-span-2">
+                <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                  <Navigation className="w-3 h-3 text-primary" /> Jarak Kabel ODP -> Rumah
+                </span>
+                <p className="font-bold text-foreground">{ratingResult.distOdpToCustomerMeters} Meter</p>
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <button
+              onClick={() => {
+                setRatingResult(null);
+                router.push('/technician/work-orders');
+              }}
+              className="w-full py-3 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-lg hover:opacity-90 transition-opacity"
+            >
+              🎉 Selesai &amp; Kembali ke Daftar Pekerjaan
+            </button>
+          </div>
         </div>
       )}
 
