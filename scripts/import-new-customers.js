@@ -211,18 +211,34 @@ async function main() {
   // FreeRADIUS Sync for Both Users
   for (const u of [user1, user2]) {
     try {
-      await prisma.radcheck.upsert({
-        where: { username: u.username },
-        update: { attribute: 'Cleartext-Password', op: ':=', value: u.password },
-        create: { username: u.username, attribute: 'Cleartext-Password', op: ':=', value: u.password },
+      const existingRad = await prisma.radcheck.findFirst({
+        where: { username: u.username, attribute: 'Cleartext-Password' },
       });
+      if (existingRad) {
+        await prisma.radcheck.update({
+          where: { id: existingRad.id },
+          data: { value: u.password },
+        });
+      } else {
+        await prisma.radcheck.create({
+          data: { username: u.username, attribute: 'Cleartext-Password', op: ':=', value: u.password },
+        });
+      }
 
       if (profile20m.groupName) {
-        await prisma.radusergroup.upsert({
+        const existingGroup = await prisma.radusergroup.findFirst({
           where: { username: u.username },
-          update: { groupname: profile20m.groupName, priority: 0 },
-          create: { username: u.username, groupname: profile20m.groupName, priority: 0 },
         });
+        if (existingGroup) {
+          await prisma.radusergroup.update({
+            where: { id: existingGroup.id },
+            data: { groupname: profile20m.groupName },
+          });
+        } else {
+          await prisma.radusergroup.create({
+            data: { username: u.username, groupname: profile20m.groupName, priority: 0 },
+          });
+        }
       }
       console.log(`🔐 FreeRADIUS credentials synced for ${u.username}`);
     } catch (radErr) {
