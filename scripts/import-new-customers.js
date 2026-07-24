@@ -32,7 +32,8 @@ async function main() {
       OR: [
         { name: 'Kampung Pisang' },
         { name: 'KAMPUNG PISANG' },
-        { code: 'EMGKPS' },
+        { name: { contains: 'Pisang' } },
+        { name: { contains: 'PISANG' } },
       ],
     },
   });
@@ -42,16 +43,10 @@ async function main() {
       data: {
         id: crypto.randomUUID(),
         name: 'Kampung Pisang',
-        code: 'EMGKPS',
       },
     });
     console.log(`✅ Created Area: Kampung Pisang`);
   } else {
-    // Ensure name is clean
-    areaPisang = await prisma.pppoeArea.update({
-      where: { id: areaPisang.id },
-      data: { name: 'Kampung Pisang' },
-    });
     console.log(`✅ Found Area: ${areaPisang.name} (ID: ${areaPisang.id})`);
   }
 
@@ -61,7 +56,8 @@ async function main() {
       OR: [
         { name: 'Muara Beres' },
         { name: 'MUARA BERES' },
-        { code: 'EMGSKHT' },
+        { name: { contains: 'Muara' } },
+        { name: { contains: 'MUARA' } },
       ],
     },
   });
@@ -71,16 +67,10 @@ async function main() {
       data: {
         id: crypto.randomUUID(),
         name: 'Muara Beres',
-        code: 'EMGSKHT',
       },
     });
     console.log(`✅ Created Area: Muara Beres`);
   } else {
-    // Ensure name is clean
-    areaMuara = await prisma.pppoeArea.update({
-      where: { id: areaMuara.id },
-      data: { name: 'Muara Beres' },
-    });
     console.log(`✅ Found Area: ${areaMuara.name} (ID: ${areaMuara.id})`);
   }
 
@@ -148,8 +138,9 @@ async function main() {
         data: {
           id: crypto.randomUUID(),
           name: 'ODP KPS06-A01',
-          code: 'ODP-KPS06-A01',
-          totalPorts: 8,
+          latitude: 0.0,
+          longitude: 0.0,
+          portCount: 8,
         },
       });
     }
