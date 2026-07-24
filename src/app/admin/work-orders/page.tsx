@@ -95,6 +95,8 @@ export default function AdminWorkOrdersPage() {
           notes: '',
         });
         setIsModalOpen(true);
+        // Clean URL params so clicking back or re-rendering doesn't re-open modal!
+        window.history.replaceState(null, '', window.location.pathname);
       }
     }
   }, []);

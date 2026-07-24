@@ -4,14 +4,15 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { 
   ArrowLeft, CheckCircle2, Loader2, MapPin, Phone, 
-  Camera, CheckSquare, Wrench, Save, Send, ExternalLink
+  Camera, CheckSquare, Wrench, Save, Send, ExternalLink,
+  Navigation, ShieldCheck, ChevronRight, ChevronLeft, RefreshCw, Smartphone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 
 export const dynamic = 'force-dynamic';
 
-export default function WorkOrderDetailPage() {
+export default function TechnicianWorkOrderWizardPage() {
   const router = useRouter();
   const params = useParams();
   const { addToast } = useToast();
@@ -20,34 +21,90 @@ export default function WorkOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Form State
+  // Wizard Step State (1, 2, or 3)
+  const [step, setStep] = useState<number>(1);
+
+  // Step 1: Equipment Checklist
   const [checklist, setChecklist] = useState({
     modem: false,
     kabel: false,
     tang: false,
     konektor: false,
+    klem: false,
   });
   const [isPrepared, setIsPrepared] = useState(false);
 
+  // Step 2 & 3: Technical Report & GPS Data
   const [reportData, setReportData] = useState({
     odpName: '',
     port: '',
-    modemType: '',
+    odpLat: '',
+    odpLng: '',
+    modemType: 'ZTE / Huawei / FiberHome',
     sn: '',
     mac: '',
-    dwRoll: '',
-    paku: '',
-    solasi: '',
     rxSignal: '',
-    txSignal: '',
+    dwRoll: '',
+    klemCount: '',
+    shookCount: '',
     notes: '',
   });
 
+  // GPS Coordinates for Customer House
+  const [customerGeo, setCustomerGeo] = useState<{ lat: number | null; lng: number | null }>({
+    lat: null,
+    lng: null,
+  });
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [odpGeoLoading, setOdpGeoLoading] = useState(false);
+
+  // Photos State
   const [photos, setPhotos] = useState<Record<string, string>>({});
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+
+  const storageKey = `tech_spk_wizard_${params.id}`;
 
   useEffect(() => {
     fetchWo();
   }, [params.id]);
+
+  // Load Saved Draft Progress from LocalStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && wo) {
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.step) setStep(parsed.step);
+          if (parsed.checklist) setChecklist(parsed.checklist);
+          if (parsed.isPrepared) setIsPrepared(parsed.isPrepared);
+          if (parsed.reportData) setReportData(prev => ({ ...prev, ...parsed.reportData }));
+          if (parsed.photos) setPhotos(prev => ({ ...prev, ...parsed.photos }));
+          if (parsed.customerGeo) setCustomerGeo(parsed.customerGeo);
+        }
+      } catch (e) {
+        console.error('Failed to load wizard draft:', e);
+      }
+    }
+  }, [wo]);
+
+  // Save Progress to LocalStorage on Change
+  const saveProgress = (updatedStep?: number, updatedData?: any) => {
+    if (typeof window === 'undefined' || !params.id) return;
+    try {
+      const draft = {
+        step: updatedStep || step,
+        checklist,
+        isPrepared,
+        reportData: updatedData?.reportData || reportData,
+        photos: updatedData?.photos || photos,
+        customerGeo,
+      };
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+    } catch (e) {
+      console.error('Failed to save draft:', e);
+    }
+  };
 
   const fetchWo = async () => {
     try {
@@ -57,7 +114,15 @@ export default function WorkOrderDetailPage() {
         setWo(data.workOrder);
         if (data.workOrder.isPrepared) setIsPrepared(true);
         if (data.workOrder.equipmentChecklist) setChecklist(data.workOrder.equipmentChecklist);
-        if (data.workOrder.reportData) setReportData(data.workOrder.reportData);
+        if (data.workOrder.reportData) setReportData(prev => ({ ...prev, ...data.workOrder.reportData }));
+
+        // Initial customer coordinates if exists
+        if (data.workOrder.customer?.latitude && data.workOrder.customer?.longitude) {
+          setCustomerGeo({
+            lat: data.workOrder.customer.latitude,
+            lng: data.workOrder.customer.longitude,
+          });
+        }
       }
     } catch (e) {
       console.error(e);
@@ -66,8 +131,65 @@ export default function WorkOrderDetailPage() {
     }
   };
 
-  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  // Get Current Location via Geolocation API
+  const captureCustomerGps = () => {
+    if (!navigator.geolocation) {
+      addToast({ type: 'error', title: 'GPS Tidak Didukung', description: 'Browser HP Anda tidak mendukung Geolocation.' });
+      return;
+    }
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setCustomerGeo({ lat, lng });
+        setGeoLoading(false);
+        addToast({
+          type: 'success',
+          title: '📍 Tikor GPS Pelanggan Terekam',
+          description: `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`,
+        });
+        saveProgress(step);
+      },
+      (err) => {
+        setGeoLoading(false);
+        addToast({ type: 'error', title: 'Gagal Mengambil GPS', description: err.message || 'Pastikan Izin Akses Lokasi (GPS) Aktif!' });
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  };
 
+  const captureOdpGps = () => {
+    if (!navigator.geolocation) {
+      addToast({ type: 'error', title: 'GPS Tidak Didukung', description: 'Browser HP Anda tidak mendukung Geolocation.' });
+      return;
+    }
+    setOdpGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude.toFixed(6);
+        const lng = pos.coords.longitude.toFixed(6);
+        setReportData(prev => {
+          const updated = { ...prev, odpLat: lat, odpLng: lng };
+          saveProgress(step, { reportData: updated });
+          return updated;
+        });
+        setOdpGeoLoading(false);
+        addToast({
+          type: 'success',
+          title: '📍 Tikor GPS ODP Terekam',
+          description: `Lat: ${lat}, Lng: ${lng}`,
+        });
+      },
+      (err) => {
+        setOdpGeoLoading(false);
+        addToast({ type: 'error', title: 'Gagal Mengambil GPS ODP', description: err.message || 'Pastikan Izin Akses Lokasi (GPS) Aktif!' });
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  };
+
+  // Upload Photo File
   const handlePhotoUpload = async (key: string, e: any) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -84,42 +206,66 @@ export default function WorkOrderDetailPage() {
 
       const data = await res.json();
       if (res.ok && data.url) {
-        setPhotos(prev => ({ ...prev, [key]: data.url }));
-        addToast({ type: 'success', title: `Foto ${key} berhasil diunggah` });
+        const newPhotos = { ...photos, [key]: data.url };
+        setPhotos(newPhotos);
+        saveProgress(step, { photos: newPhotos });
+        addToast({ type: 'success', title: `Foto ${key} Berhasil Diunggah` });
       } else {
-        addToast({ type: 'error', title: 'Gagal mengunggah foto', description: data.error || 'Terjadi kesalahan' });
+        addToast({ type: 'error', title: 'Gagal Mengunggah Foto', description: data.error || 'Terjadi kesalahan' });
       }
     } catch {
-      addToast({ type: 'error', title: 'Gagal mengunggah foto', description: 'Kesalahan koneksi ke server' });
+      addToast({ type: 'error', title: 'Gagal Mengunggah Foto', description: 'Kesalahan koneksi ke server' });
     } finally {
       setUploadingKey(null);
     }
   };
 
+  const goToStep = (nextStep: number) => {
+    setStep(nextStep);
+    saveProgress(nextStep);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Submit Final Report & Complete Work Order
   const submitComplete = async () => {
-    if (!confirm('Apakah Anda yakin laporan ini sudah lengkap dan pemasangan selesai? Tagihan pertama akan otomatis terkirim via WhatsApp ke Pelanggan.')) return;
+    if (!photos['Foto ONT Menyala'] || !photos['Foto Rumah']) {
+      addToast({
+        type: 'error',
+        title: 'Foto Belum Lengkap',
+        description: 'Wajib mengunggah Foto ONT Menyala dan Foto Tampak Depan Rumah!',
+      });
+      return;
+    }
+
+    if (!confirm('Apakah Anda yakin laporan ini sudah tuntas & pekerjaan selesai? Progress akan dikirimkan ke Admin.')) return;
+
     setSubmitting(true);
     try {
-      const payload = {
-        isPrepared,
-        equipmentChecklist: checklist,
-        reportData,
-        reportPhotos: photos,
-      };
       const res = await fetch(`/api/technician/work-orders/${params.id}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          isPrepared: true,
+          equipmentChecklist: checklist,
+          reportData,
+          reportPhotos: photos,
+          customerLat: customerGeo.lat,
+          customerLng: customerGeo.lng,
+        }),
       });
+
       const data = await res.json();
-      if (data.success) {
-        addToast({ type: 'success', title: 'Berhasil', description: 'SPK selesai, Invoice terkirim ke WhatsApp Pelanggan!' });
+      if (res.ok && data.success) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(storageKey);
+        }
+        addToast({ type: 'success', title: 'Pekerjaan Selesai!', description: 'Laporan SPK berhasil dikirim ke Admin.' });
         router.push('/technician/work-orders');
       } else {
-        addToast({ type: 'error', title: 'Gagal', description: data.error || 'Terjadi kesalahan' });
+        addToast({ type: 'error', title: 'Gagal Menyelesaikan SPK', description: data.error || 'Terjadi kesalahan' });
       }
-    } catch (e) {
-      addToast({ type: 'error', title: 'Gagal', description: 'Gagal menghubungi server' });
+    } catch {
+      addToast({ type: 'error', title: 'Gagal Menyelesaikan SPK', description: 'Gagal terhubung ke server' });
     } finally {
       setSubmitting(false);
     }
@@ -135,235 +281,400 @@ export default function WorkOrderDetailPage() {
 
   if (!wo) {
     return (
-      <div className="p-8 text-center text-destructive">
+      <div className="p-8 text-center text-rose-500 font-bold">
         Surat Tugas tidak ditemukan
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-6 w-full max-w-4xl mx-auto space-y-6 pb-24">
+    <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6 pb-24">
+      {/* Top Bar */}
       <button 
-        onClick={() => router.back()} 
-        className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+        onClick={() => router.push('/technician/work-orders')} 
+        className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ArrowLeft className="w-4 h-4" /> Kembali ke SPK
+        <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar Pekerjaan
       </button>
 
-      {/* Header Info Card */}
-      <div className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      {/* Customer Brief Card */}
+      <div className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-3">
+        <div className="flex justify-between items-start">
           <div>
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Tugas #SPK-{wo.id.slice(-6).toUpperCase()}</span>
-            <h1 className="text-xl font-bold text-foreground mt-0.5">{wo.customerName}</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Tipe Pekerjaan: <strong className="text-foreground">{wo.issueType.replace('_', ' ')}</strong></p>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">ID SPK: #{wo.id.slice(-8).toUpperCase()}</span>
+            <h1 className="text-lg font-bold font-display text-foreground mt-0.5">{wo.customerName}</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Tipe Pekerjaan: <strong className="text-foreground font-mono">{wo.issueType?.replace('_', ' ')}</strong></p>
           </div>
-          <span className={cn('px-3 py-1 rounded-full font-mono text-xs uppercase tracking-wider font-bold border', 
+          <span className={cn('px-2.5 py-1 rounded-full font-mono text-[10px] uppercase font-bold border', 
             wo.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20')}>
             {wo.status}
           </span>
         </div>
 
-        <div className="space-y-2 pt-2 border-t border-border">
-          <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 p-3 rounded-xl">
-            <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-            <span className="leading-relaxed text-foreground">{wo.customerAddress}</span>
+        <div className="space-y-1.5 text-xs pt-2 border-t border-border">
+          <div className="flex items-start gap-1.5 text-muted-foreground">
+            <MapPin className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+            <span className="line-clamp-2 leading-relaxed text-foreground">{wo.customerAddress}</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 p-3 rounded-xl">
-            <Phone className="w-4 h-4 text-primary shrink-0" />
-            <span className="font-mono text-foreground font-bold">{wo.customerPhone}</span>
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Phone className="w-3.5 h-3.5 text-primary shrink-0" />
+            <a href={`tel:${wo.customerPhone}`} className="font-mono text-primary font-bold hover:underline">{wo.customerPhone}</a>
           </div>
-        </div>
-
-        {/* Action Buttons for Field Technician */}
-        <div className="flex gap-2 pt-2">
-          <a
-            href={`https://wa.me/${wo.customerPhone.replace(/\D/g, '')}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-opacity shadow-sm"
-          >
-            <Send className="w-4 h-4" /> Hubungi WhatsApp
-          </a>
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wo.customerAddress)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-opacity shadow-sm"
-          >
-            <MapPin className="w-4 h-4" /> Petunjuk Maps
-          </a>
         </div>
       </div>
 
-      {wo.status !== 'COMPLETED' && (
-        <>
-          {/* Phase 1: Checklist Persiapan Alat */}
-          <div className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-              <CheckSquare className="w-5 h-5 text-primary" />
-              1. Checklist Peralatan Lapangan
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {Object.keys(checklist).map((key) => (
-                <label key={key} className="flex items-center gap-3 p-3 border border-border rounded-xl cursor-pointer hover:bg-muted/40 transition-colors">
-                  <input 
-                    type="checkbox" 
-                    className="w-4 h-4 rounded border-input text-primary focus:ring-primary" 
-                    checked={checklist[key as keyof typeof checklist]}
-                    disabled={isPrepared}
-                    onChange={(e) => setChecklist({ ...checklist, [key]: e.target.checked })}
-                  />
-                  <span className="text-xs font-bold text-foreground capitalize">{key}</span>
-                </label>
-              ))}
-            </div>
-            {!isPrepared ? (
-              <button 
-                onClick={() => setIsPrepared(true)} 
-                className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold text-xs hover:opacity-90 transition-opacity"
+      {/* 3-STEP WIZARD PROGRESS BAR */}
+      <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
+        <div className="flex justify-between items-center relative">
+          <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-border -translate-y-1/2 z-0" />
+
+          {[
+            { id: 1, title: 'Persiapan', icon: '1' },
+            { id: 2, title: 'Titik ODP', icon: '2' },
+            { id: 3, title: 'Rumah & Final', icon: '3' },
+          ].map((s) => {
+            const isActive = step === s.id;
+            const isDone = step > s.id;
+            return (
+              <div 
+                key={s.id}
+                onClick={() => isDone && goToStep(s.id)}
+                className="relative z-10 flex flex-col items-center gap-1 cursor-pointer"
               >
-                Konfirmasi Persiapan Selesai
-              </button>
-            ) : (
-              <div className="w-full py-3 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-xl font-bold text-xs text-center flex items-center justify-center gap-2">
-                <CheckCircle2 className="w-4 h-4" /> Peralatan Telah Siap Lengkap
+                <div className={cn(
+                  'w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all shadow-md',
+                  isDone ? 'bg-emerald-600 text-white' :
+                  isActive ? 'bg-primary text-primary-foreground ring-4 ring-primary/20 scale-110' :
+                  'bg-muted text-muted-foreground border border-border'
+                )}>
+                  {isDone ? <CheckCircle2 className="w-5 h-5" /> : s.icon}
+                </div>
+                <span className={cn('text-[10px] font-bold uppercase tracking-wider', isActive ? 'text-primary' : 'text-muted-foreground')}>
+                  {s.title}
+                </span>
               </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* WIZARD STEP 1: PERSIAPAN & KEBERANGKATAN */}
+      {step === 1 && (
+        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
+          <div>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Langkah 1 dari 3</span>
+            <h2 className="text-base font-bold text-foreground font-display flex items-center gap-2 mt-0.5">
+              <CheckSquare className="w-5 h-5 text-primary" />
+              Ceklis Persiapan Peralatan Lapangan
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">Pastikan seluruh material &amp; alat kerja lengkap sebelum berangkat ke rumah pelanggan.</p>
+          </div>
+
+          <div className="space-y-2.5 pt-2">
+            {[
+              ['modem', 'Modem ONT Baru (ZTE / Huawei / FiberHome)'],
+              ['kabel', 'Kabel Dropwire (Roll DW 1 Core)'],
+              ['konektor', 'Fast Connector & Patch Cord SC/UPC'],
+              ['klem', 'Aksesoris (Klem Kabel DW, S-Hook, Paku Beton)'],
+              ['tang', 'Peralatan Lapangan (Tang Stripper, Cleaver, OPM, VFL)'],
+            ].map(([key, label]) => (
+              <label 
+                key={key} 
+                className="flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:bg-muted/40 transition-colors cursor-pointer"
+              >
+                <input 
+                  type="checkbox"
+                  checked={(checklist as any)[key]}
+                  onChange={(e) => {
+                    const updated = { ...checklist, [key]: e.target.checked };
+                    setChecklist(updated);
+                    saveProgress(1, { checklist: updated });
+                  }}
+                  className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                />
+                <span className="text-xs font-bold text-foreground">{label}</span>
+              </label>
+            ))}
+          </div>
+
+          <div className="pt-4 border-t border-border flex justify-end">
+            <button
+              onClick={() => {
+                setIsPrepared(true);
+                goToStep(2);
+              }}
+              className="w-full sm:w-auto px-6 py-3 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            >
+              🚀 Mulai Pekerjaan &amp; Berangkat <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* WIZARD STEP 2: PEKERJAAN LAPANGAN & FOTO ODP */}
+      {step === 2 && (
+        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-6">
+          <div>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Langkah 2 dari 3</span>
+            <h2 className="text-base font-bold text-foreground font-display flex items-center gap-2 mt-0.5">
+              <MapPin className="w-5 h-5 text-primary" />
+              Titik ODP &amp; Colok Port (Lokasi Tiang)
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">Dokumentasikan Box ODP &amp; Port yang digunakan saat penarikan kabel di tiang.</p>
+          </div>
+
+          {/* ODP Location GPS Capture */}
+          <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold text-foreground">📍 Koordinat GPS ODP Saat Ini</span>
+              <button
+                onClick={captureOdpGps}
+                disabled={odpGeoLoading}
+                className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg font-mono text-[10px] font-bold flex items-center gap-1.5 shadow-sm"
+              >
+                {odpGeoLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Navigation className="w-3.5 h-3.5" />}
+                {reportData.odpLat ? 'Update GPS ODP' : 'Ambil GPS ODP'}
+              </button>
+            </div>
+            {reportData.odpLat ? (
+              <div className="font-mono text-xs text-emerald-600 dark:text-emerald-400 font-bold bg-background p-2 rounded border border-border">
+                Lat: {reportData.odpLat}, Lng: {reportData.odpLng}
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground italic">Belum mengambil lokasi GPS tiang ODP.</p>
             )}
           </div>
 
-          {/* Phase 2: Laporan Pemasangan / Perbaikan */}
-          {isPrepared && (
-            <div className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-5">
-              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-                <Wrench className="w-5 h-5 text-primary" />
-                2. Laporan Laporan Lapangan &amp; Perangkat
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1">ODP Name &amp; Port</label>
-                  <input 
-                    type="text" 
-                    placeholder="Contoh: KMB01-C02 / Port 5" 
-                    value={reportData.odpName} 
-                    onChange={e => setReportData({...reportData, odpName: e.target.value})} 
-                    className="w-full p-2.5 bg-background border border-input rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1">Tipe Modem ONT</label>
-                  <input 
-                    type="text" 
-                    placeholder="Contoh: ZTE F670L" 
-                    value={reportData.modemType} 
-                    onChange={e => setReportData({...reportData, modemType: e.target.value})} 
-                    className="w-full p-2.5 bg-background border border-input rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1">Serial Number (SN)</label>
-                  <input 
-                    type="text" 
-                    placeholder="Contoh: ZTEGD0..." 
-                    value={reportData.sn} 
-                    onChange={e => setReportData({...reportData, sn: e.target.value})} 
-                    className="w-full p-2.5 bg-background border border-input rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1">MAC Address</label>
-                  <input 
-                    type="text" 
-                    placeholder="Contoh: 04:20:..." 
-                    value={reportData.mac} 
-                    onChange={e => setReportData({...reportData, mac: e.target.value})} 
-                    className="w-full p-2.5 bg-background border border-input rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1">Sinyal Redaman Rx (dBm)</label>
-                  <input 
-                    type="text" 
-                    placeholder="Contoh: -22.45" 
-                    value={reportData.rxSignal} 
-                    onChange={e => setReportData({...reportData, rxSignal: e.target.value})} 
-                    className="w-full p-2.5 bg-background border border-input rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1">Panjang Kabel (DW Roll)</label>
-                  <input 
-                    type="text" 
-                    placeholder="Contoh: 100 M" 
-                    value={reportData.dwRoll} 
-                    onChange={e => setReportData({...reportData, dwRoll: e.target.value})} 
-                    className="w-full p-2.5 bg-background border border-input rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary" 
-                  />
-                </div>
-              </div>
-
-              {/* Upload Foto Dokumentasi dari Kamera HP */}
-              <div className="border-t border-border pt-4">
-                <h3 className="text-xs font-bold text-foreground mb-3">Foto Dokumentasi Pemasangan (Kamera HP)</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {['Foto ONT Depan', 'Foto SN ONT', 'Foto ODP', 'Foto Redaman Sinyal', 'Foto Rumah'].map((label, i) => (
-                    <div 
-                      key={i} 
-                      className="relative aspect-[3/4] bg-background border-2 border-dashed border-border rounded-xl overflow-hidden group hover:border-primary transition-colors flex items-center justify-center"
-                    >
-                      {uploadingKey === label ? (
-                        <div className="flex flex-col items-center justify-center p-2 text-primary">
-                          <Loader2 className="w-6 h-6 animate-spin mb-1" />
-                          <span className="text-[10px] font-bold">Mengunggah...</span>
-                        </div>
-                      ) : photos[label] ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={photos[label]} alt={label} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center p-2 text-muted-foreground text-center">
-                          <Camera className="w-6 h-6 mb-1 text-primary opacity-80" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
-                        </div>
-                      )}
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        capture="environment" 
-                        onChange={(e) => handlePhotoUpload(label, e)} 
-                        className="absolute inset-0 opacity-0 cursor-pointer" 
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-border">
-                <button 
-                  onClick={submitComplete} 
-                  disabled={submitting} 
-                  className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-md disabled:opacity-50"
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Selesaikan Tugas &amp; Kirim Invoice WA Otomatis
-                </button>
-              </div>
+          {/* Inputs for ODP Name & Port */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label className="block font-bold text-foreground mb-1">Nama ODP *</label>
+              <input
+                type="text"
+                placeholder="Cth: ODP KPS06-A01"
+                value={reportData.odpName}
+                onChange={(e) => {
+                  const updated = { ...reportData, odpName: e.target.value };
+                  setReportData(updated);
+                  saveProgress(2, { reportData: updated });
+                }}
+                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
+              />
             </div>
-          )}
-        </>
-      )}
-
-      {wo.status === 'COMPLETED' && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 p-8 rounded-2xl text-center space-y-2">
-          <div className="w-16 h-16 bg-emerald-500/20 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
-            <CheckCircle2 className="w-8 h-8" />
+            <div>
+              <label className="block font-bold text-foreground mb-1">Nomor Port ODP *</label>
+              <input
+                type="text"
+                placeholder="Cth: Port 3"
+                value={reportData.port}
+                onChange={(e) => {
+                  const updated = { ...reportData, port: e.target.value };
+                  setReportData(updated);
+                  saveProgress(2, { reportData: updated });
+                }}
+                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
+              />
+            </div>
           </div>
-          <h2 className="text-lg font-bold text-emerald-600">Pekerjaan Selesai!</h2>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            Notifikasi WhatsApp otomatis berisi rincian invoice tagihan pertama telah dikirimkan ke pelanggan.
-          </p>
+
+          {/* Photo Upload: Box ODP & Port ODP */}
+          <div className="space-y-4 pt-2">
+            <label className="block text-xs font-bold text-foreground">📸 Foto Dokumentasi ODP</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {['Foto Box ODP', 'Foto Port ODP'].map((key) => (
+                <div key={key} className="bg-background border border-border rounded-xl p-3 flex flex-col items-center justify-center space-y-2">
+                  {photos[key] ? (
+                    <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border border-border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photos[key]} alt={key} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-full aspect-[4/3] bg-muted/30 border border-dashed border-border rounded-lg flex flex-col items-center justify-center text-muted-foreground p-4">
+                      <Camera className="w-8 h-8 opacity-40 mb-1" />
+                      <span className="text-[11px] font-bold">{key}</span>
+                    </div>
+                  )}
+
+                  <label className="w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-center font-mono text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5">
+                    {uploadingKey === key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                    {photos[key] ? 'Ganti Foto' : `Ambil ${key}`}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      capture="environment"
+                      onChange={(e) => handlePhotoUpload(key, e)} 
+                      className="hidden" 
+                    />
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-border flex justify-between gap-3">
+            <button
+              onClick={() => goToStep(1)}
+              className="px-4 py-2.5 bg-muted text-foreground font-bold text-xs rounded-xl flex items-center gap-1.5"
+            >
+              <ChevronLeft className="w-4 h-4" /> Kembali
+            </button>
+            <button
+              onClick={() => goToStep(3)}
+              className="px-6 py-2.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-md hover:opacity-90 transition-opacity flex items-center gap-1.5"
+            >
+              ➡️ Lanjut ke Penarikan Kabel &amp; Rumah Pelanggan <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
+
+      {/* WIZARD STEP 3: RUMAH PELANGGAN & FINALISASI */}
+      {step === 3 && (
+        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-6">
+          <div>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Langkah 3 dari 3</span>
+            <h2 className="text-base font-bold text-foreground font-display flex items-center gap-2 mt-0.5">
+              <Wrench className="w-5 h-5 text-primary" />
+              Instalasi Rumah Pelanggan &amp; Finalisasi
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">Lengkapi foto unit ONT terpasang, update koordinat pelanggan, dan rincian material.</p>
+          </div>
+
+          {/* Customer GPS Location Update */}
+          <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold text-foreground">📍 Titik GPS Rumah Pelanggan</span>
+              <button
+                onClick={captureCustomerGps}
+                disabled={geoLoading}
+                className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-mono text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:bg-emerald-700"
+              >
+                {geoLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Navigation className="w-3.5 h-3.5" />}
+                {customerGeo.lat ? 'Update GPS Pelanggan' : 'Ambil GPS Pelanggan'}
+              </button>
+            </div>
+            {customerGeo.lat ? (
+              <div className="font-mono text-xs text-emerald-600 dark:text-emerald-400 font-bold bg-background p-2 rounded border border-border">
+                Lat: {customerGeo.lat.toFixed(6)}, Lng: {customerGeo.lng?.toFixed(6)}
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground italic">Belum ada titik lokasi GPS rumah pelanggan.</p>
+            )}
+          </div>
+
+          {/* Hardware & Signal Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label className="block font-bold text-foreground mb-1">Serial Number (SN) ONT *</label>
+              <input
+                type="text"
+                placeholder="Cth: ZTEG12345678"
+                value={reportData.sn}
+                onChange={(e) => {
+                  const updated = { ...reportData, sn: e.target.value };
+                  setReportData(updated);
+                  saveProgress(3, { reportData: updated });
+                }}
+                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-foreground mb-1">Sinyal Redaman Rx (dBm) *</label>
+              <input
+                type="text"
+                placeholder="Cth: -19.5"
+                value={reportData.rxSignal}
+                onChange={(e) => {
+                  const updated = { ...reportData, rxSignal: e.target.value };
+                  setReportData(updated);
+                  saveProgress(3, { reportData: updated });
+                }}
+                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-foreground mb-1">Panjang Kabel DW (Meter)</label>
+              <input
+                type="text"
+                placeholder="Cth: 150"
+                value={reportData.dwRoll}
+                onChange={(e) => {
+                  const updated = { ...reportData, dwRoll: e.target.value };
+                  setReportData(updated);
+                  saveProgress(3, { reportData: updated });
+                }}
+                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-foreground mb-1">MAC Address (Opsional)</label>
+              <input
+                type="text"
+                placeholder="Cth: AA:BB:CC:DD:EE:FF"
+                value={reportData.mac}
+                onChange={(e) => {
+                  const updated = { ...reportData, mac: e.target.value };
+                  setReportData(updated);
+                  saveProgress(3, { reportData: updated });
+                }}
+                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
+              />
+            </div>
+          </div>
+
+          {/* Photo Upload: Foto ONT Menyala & Foto Rumah */}
+          <div className="space-y-4 pt-2">
+            <label className="block text-xs font-bold text-foreground">📸 Foto Instalasi Pelanggan *</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {['Foto ONT Menyala', 'Foto Rumah'].map((key) => (
+                <div key={key} className="bg-background border border-border rounded-xl p-3 flex flex-col items-center justify-center space-y-2">
+                  {photos[key] ? (
+                    <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border border-border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photos[key]} alt={key} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-full aspect-[4/3] bg-muted/30 border border-dashed border-border rounded-lg flex flex-col items-center justify-center text-muted-foreground p-4">
+                      <Camera className="w-8 h-8 opacity-40 mb-1" />
+                      <span className="text-[11px] font-bold">{key}</span>
+                    </div>
+                  )}
+
+                  <label className="w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-center font-mono text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5">
+                    {uploadingKey === key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                    {photos[key] ? 'Ganti Foto' : `Ambil ${key}`}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      capture="environment"
+                      onChange={(e) => handlePhotoUpload(key, e)} 
+                      className="hidden" 
+                    />
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-border flex justify-between gap-3">
+            <button
+              onClick={() => goToStep(2)}
+              className="px-4 py-2.5 bg-muted text-foreground font-bold text-xs rounded-xl flex items-center gap-1.5"
+            >
+              <ChevronLeft className="w-4 h-4" /> Kembali ke Step 2
+            </button>
+            <button
+              onClick={submitComplete}
+              disabled={submitting}
+              className="px-6 py-3 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-2"
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              ✅ Selesaikan Pekerjaan SPK
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

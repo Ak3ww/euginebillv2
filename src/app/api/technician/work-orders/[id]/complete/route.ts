@@ -4,6 +4,9 @@ import { prisma } from '@/server/db/client';
 import { TECH_JWT_SECRET } from '@/server/auth/technician-secret';
 import { sendInvoiceReminder } from '@/server/services/notifications/whatsapp-templates.service';
 
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/server/auth/config';
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -11,14 +14,25 @@ export async function POST(
   try {
     const { id } = await params;
     
-    // Verify token
-    const token = req.cookies.get('technician-token')?.value;
-    if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    const { payload } = await jwtVerify(token, TECH_JWT_SECRET);
-    if (!payload.id) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    // Verify token or NextAuth session
+    let authenticated = false;
+    const session = await getServerSession(authOptions);
+    if (session?.user) {
+      authenticated = true;
+    } else {
+      const token = req.cookies.get('technician-token')?.value;
+      if (token) {
+        const { payload } = await jwtVerify(token, TECH_JWT_SECRET);
+        if (payload.id) authenticated = true;
+      }
+    }
+
+    if (!authenticated) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
 
     const body = await req.json();
-    const { isPrepared, equipmentChecklist, reportData, reportPhotos } = body;
+    const { isPrepared, equipmentChecklist, reportData, reportPhotos, customerLat, customerLng } = body;
 
     // Fetch existing work order
     const wo = await prisma.workOrder.findUnique({
@@ -27,6 +41,21 @@ export async function POST(
     });
 
     if (!wo) return NextResponse.json({ error: 'Work order not found' }, { status: 404 });
+
+    // If customer coordinates provided and linkedUserId exists, update customer location
+    if (wo.linkedUserId && customerLat && customerLng) {
+      try {
+        await prisma.pppoeUser.update({
+          where: { id: wo.linkedUserId },
+          data: {
+            latitude: parseFloat(String(customerLat)),
+            longitude: parseFloat(String(customerLng)),
+          },
+        });
+      } catch (geoErr) {
+        console.error('Failed to update customer GPS location:', geoErr);
+      }
+    }
 
     // Update Work Order to COMPLETED and attach JSON reports
     const updated = await prisma.workOrder.update({
