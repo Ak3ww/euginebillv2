@@ -92,6 +92,7 @@ async function main() {
     areaId: areaPisang.id,
     routerId: routerCibinong?.id || null,
     createdAt: new Date('2026-07-22T00:00:00.000Z'),
+    expiredAt: new Date('2026-08-05T00:00:00.000Z'),
   };
 
   const existingCust1 = await prisma.pppoeUser.findFirst({
@@ -137,6 +138,7 @@ async function main() {
     areaId: areaMuara.id,
     routerId: routerCibinong?.id || null,
     createdAt: new Date('2026-07-21T00:00:00.000Z'),
+    expiredAt: new Date('2026-08-05T00:00:00.000Z'),
   };
 
   const existingCust2 = await prisma.pppoeUser.findFirst({
