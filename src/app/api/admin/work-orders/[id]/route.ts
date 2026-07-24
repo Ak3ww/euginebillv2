@@ -5,15 +5,18 @@ import { checkAuth } from '@/server/middleware/api-auth';
 export const dynamic = 'force-dynamic';
 
 // GET /api/admin/work-orders/[id] — Detail SPK with report & photos
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
   try {
+    const params = await props.params;
+    const { id } = params;
+
     const auth = await checkAuth();
     if (!auth.authorized) {
       return auth.response;
     }
 
     const workOrder = await prisma.workOrder.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         technician: { select: { id: true, name: true, phoneNumber: true, username: true } },
         customer: { select: { id: true, name: true, username: true, customerId: true, address: true, phone: true } },
@@ -32,8 +35,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 }
 
 // PUT /api/admin/work-orders/[id] — Update SPK (Assign technician, status, notes)
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, props: { params: Promise<{ id: string }> }) {
   try {
+    const params = await props.params;
+    const { id } = params;
+
     const auth = await checkAuth();
     if (!auth.authorized) {
       return auth.response;
@@ -42,7 +48,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     const body = await req.json();
     const { technicianId, status, priority, description, notes, scheduledDate } = body;
 
-    const existing = await prisma.workOrder.findUnique({ where: { id: params.id } });
+    const existing = await prisma.workOrder.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Surat Tugas tidak ditemukan' }, { status: 404 });
     }
@@ -69,7 +75,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 
     const updated = await prisma.workOrder.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
         technician: { select: { id: true, name: true, phoneNumber: true } },
@@ -114,14 +120,17 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 // DELETE /api/admin/work-orders/[id] — Hapus / Batalkan SPK
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, props: { params: Promise<{ id: string }> }) {
   try {
+    const params = await props.params;
+    const { id } = params;
+
     const auth = await checkAuth();
     if (!auth.authorized) {
       return auth.response;
     }
 
-    await prisma.workOrder.delete({ where: { id: params.id } });
+    await prisma.workOrder.delete({ where: { id } });
 
     return NextResponse.json({ success: true, message: 'Surat Tugas telah dihapus' });
   } catch (error) {
