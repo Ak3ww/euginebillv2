@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { 
   ArrowLeft, CheckCircle2, Loader2, MapPin, Phone, 
   Camera, CheckSquare, Wrench, Save, Send, ExternalLink,
-  Navigation, ShieldCheck, ChevronRight, ChevronLeft, RefreshCw, Smartphone
+  Navigation, ShieldCheck, ChevronRight, ChevronLeft, RefreshCw, Smartphone,
+  X, Image as ImageIcon, AlertCircle, FlipHorizontal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/cyberpunk/CyberToast';
@@ -58,9 +59,19 @@ export default function TechnicianWorkOrderWizardPage() {
   const [geoLoading, setGeoLoading] = useState(false);
   const [odpGeoLoading, setOdpGeoLoading] = useState(false);
 
-  // Photos State
+  // Photos State & Live Camera Viewfinder Modal
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+
+  // Live Camera Modal State
+  const [cameraModalKey, setCameraModalKey] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const storageKey = `tech_spk_wizard_${params.id}`;
 
@@ -131,6 +142,71 @@ export default function TechnicianWorkOrderWizardPage() {
     }
   };
 
+  // --- MANDATORY STEP VALIDATION FUNCTIONS ---
+  const validateStep1 = (): boolean => {
+    const allChecked = Object.values(checklist).every(Boolean);
+    if (!allChecked) {
+      addToast({
+        type: 'error',
+        title: '⚠️ Ceklis Belum Lengkap',
+        description: 'Wajib mencentang SEMUA 5 item peralatan sebelum berangkat!',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep2 = (): boolean => {
+    const missing: string[] = [];
+    if (!reportData.odpName.trim()) missing.push('Nama ODP');
+    if (!reportData.port.trim()) missing.push('Nomor Port ODP');
+    if (!reportData.odpLat || !reportData.odpLng) missing.push('Titik GPS ODP');
+    if (!photos['Foto Box ODP']) missing.push('Foto Box ODP');
+    if (!photos['Foto Port ODP']) missing.push('Foto Port ODP');
+
+    if (missing.length > 0) {
+      addToast({
+        type: 'error',
+        title: '⚠️ Data ODP Belum Lengkap',
+        description: `Wajib mengisi: ${missing.join(', ')}!`,
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep3 = (): boolean => {
+    const missing: string[] = [];
+    if (!reportData.sn.trim()) missing.push('Serial Number (SN) ONT');
+    if (!reportData.rxSignal.trim()) missing.push('Sinyal Redaman Rx (dBm)');
+    if (!customerGeo.lat || !customerGeo.lng) missing.push('Titik GPS Rumah Pelanggan');
+    if (!photos['Foto ONT Menyala']) missing.push('Foto ONT Menyala');
+    if (!photos['Foto Rumah']) missing.push('Foto Rumah');
+
+    if (missing.length > 0) {
+      addToast({
+        type: 'error',
+        title: '⚠️ Laporan Final Belum Lengkap',
+        description: `Wajib melengkapi: ${missing.join(', ')}!`,
+      });
+      return false;
+    }
+    return true;
+  };
+
+  // Navigation Guard
+  const handleNextStep = (targetStep: number) => {
+    if (targetStep === 2) {
+      if (!validateStep1()) return;
+      setIsPrepared(true);
+    } else if (targetStep === 3) {
+      if (!validateStep2()) return;
+    }
+    setStep(targetStep);
+    saveProgress(targetStep);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Get Current Location via Geolocation API
   const captureCustomerGps = () => {
     if (!navigator.geolocation) {
@@ -189,8 +265,114 @@ export default function TechnicianWorkOrderWizardPage() {
     );
   };
 
-  // Upload Photo File
-  const handlePhotoUpload = async (key: string, e: any) => {
+  // --- LIVE WEBRTC CAMERA CONTROLLER ---
+  const startCamera = async (mode: 'environment' | 'user' = facingMode) => {
+    setCameraLoading(true);
+    setCameraError(null);
+    stopCameraStream();
+
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Kamera langsung tidak didukung di browser ini. Gunakan tombol Unggah dari Galeri.');
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: mode },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (err: any) {
+      console.error('Camera Stream Error:', err);
+      setCameraError(err.message || 'Gagal mengakses kamera HP. Pastikan Izin Kamera Diizinkan di Pengaturan HP Anda.');
+    } finally {
+      setCameraLoading(false);
+    }
+  };
+
+  const stopCameraStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const openCameraModal = (key: string) => {
+    setCameraModalKey(key);
+    startCamera('environment');
+  };
+
+  const closeCameraModal = () => {
+    stopCameraStream();
+    setCameraModalKey(null);
+  };
+
+  // Capture Live Snapshot from Video Stream & Upload
+  const captureSnapshot = async () => {
+    if (!videoRef.current || !cameraModalKey) return;
+
+    setUploadingKey(cameraModalKey);
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current || document.createElement('canvas');
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas 2D rendering failed');
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Convert Canvas to Blob
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          addToast({ type: 'error', title: 'Gagal mengambil gambar' });
+          setUploadingKey(null);
+          return;
+        }
+
+        const file = new File([blob], `${cameraModalKey.replace(/\s+/g, '_')}_${Date.now()}.jpg`, {
+          type: 'image/jpeg',
+        });
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/technician/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (res.ok && data.url) {
+          const newPhotos = { ...photos, [cameraModalKey]: data.url };
+          setPhotos(newPhotos);
+          saveProgress(step, { photos: newPhotos });
+          addToast({ type: 'success', title: `📸 Foto ${cameraModalKey} Berhasil Diriwayat` });
+          closeCameraModal();
+        } else {
+          addToast({ type: 'error', title: 'Gagal Mengunggah Foto', description: data.error || 'Terjadi kesalahan' });
+        }
+        setUploadingKey(null);
+      }, 'image/jpeg', 0.85);
+
+    } catch (e: any) {
+      console.error(e);
+      addToast({ type: 'error', title: 'Gagal Mengambil Foto', description: e.message || 'Terjadi kesalahan' });
+      setUploadingKey(null);
+    }
+  };
+
+  // Upload Photo File from Gallery Fallback
+  const handlePhotoUploadFromGallery = async (key: string, e: any) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -210,6 +392,7 @@ export default function TechnicianWorkOrderWizardPage() {
         setPhotos(newPhotos);
         saveProgress(step, { photos: newPhotos });
         addToast({ type: 'success', title: `Foto ${key} Berhasil Diunggah` });
+        if (cameraModalKey) closeCameraModal();
       } else {
         addToast({ type: 'error', title: 'Gagal Mengunggah Foto', description: data.error || 'Terjadi kesalahan' });
       }
@@ -220,22 +403,9 @@ export default function TechnicianWorkOrderWizardPage() {
     }
   };
 
-  const goToStep = (nextStep: number) => {
-    setStep(nextStep);
-    saveProgress(nextStep);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   // Submit Final Report & Complete Work Order
   const submitComplete = async () => {
-    if (!photos['Foto ONT Menyala'] || !photos['Foto Rumah']) {
-      addToast({
-        type: 'error',
-        title: 'Foto Belum Lengkap',
-        description: 'Wajib mengunggah Foto ONT Menyala dan Foto Tampak Depan Rumah!',
-      });
-      return;
-    }
+    if (!validateStep3()) return;
 
     if (!confirm('Apakah Anda yakin laporan ini sudah tuntas & pekerjaan selesai? Progress akan dikirimkan ke Admin.')) return;
 
@@ -259,7 +429,7 @@ export default function TechnicianWorkOrderWizardPage() {
         if (typeof window !== 'undefined') {
           localStorage.removeItem(storageKey);
         }
-        addToast({ type: 'success', title: 'Pekerjaan Selesai!', description: 'Laporan SPK berhasil dikirim ke Admin.' });
+        addToast({ type: 'success', title: '🎉 Pekerjaan Selesai!', description: 'Laporan SPK berhasil dikirim ke Admin.' });
         router.push('/technician/work-orders');
       } else {
         addToast({ type: 'error', title: 'Gagal Menyelesaikan SPK', description: data.error || 'Terjadi kesalahan' });
@@ -338,7 +508,11 @@ export default function TechnicianWorkOrderWizardPage() {
             return (
               <div 
                 key={s.id}
-                onClick={() => isDone && goToStep(s.id)}
+                onClick={() => {
+                  if (s.id === 1 || (s.id === 2 && validateStep1()) || (s.id === 3 && validateStep1() && validateStep2())) {
+                    setStep(s.id);
+                  }
+                }}
                 className="relative z-10 flex flex-col items-center gap-1 cursor-pointer"
               >
                 <div className={cn(
@@ -362,12 +536,12 @@ export default function TechnicianWorkOrderWizardPage() {
       {step === 1 && (
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
           <div>
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Langkah 1 dari 3</span>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Langkah 1 dari 3 (Wajib)</span>
             <h2 className="text-base font-bold text-foreground font-display flex items-center gap-2 mt-0.5">
               <CheckSquare className="w-5 h-5 text-primary" />
               Ceklis Persiapan Peralatan Lapangan
             </h2>
-            <p className="text-xs text-muted-foreground mt-1">Pastikan seluruh material &amp; alat kerja lengkap sebelum berangkat ke rumah pelanggan.</p>
+            <p className="text-xs text-muted-foreground mt-1">Pastikan seluruh 5 material &amp; alat kerja tercentang sebelum dapat meluncur ke lokasi.</p>
           </div>
 
           <div className="space-y-2.5 pt-2">
@@ -380,7 +554,10 @@ export default function TechnicianWorkOrderWizardPage() {
             ].map(([key, label]) => (
               <label 
                 key={key} 
-                className="flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:bg-muted/40 transition-colors cursor-pointer"
+                className={cn(
+                  'flex items-center gap-3 p-3.5 rounded-xl border transition-colors cursor-pointer',
+                  (checklist as any)[key] ? 'bg-emerald-500/10 border-emerald-500/30 text-foreground' : 'bg-background border-border text-muted-foreground'
+                )}
               >
                 <input 
                   type="checkbox"
@@ -392,17 +569,14 @@ export default function TechnicianWorkOrderWizardPage() {
                   }}
                   className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
                 />
-                <span className="text-xs font-bold text-foreground">{label}</span>
+                <span className="text-xs font-bold">{label}</span>
               </label>
             ))}
           </div>
 
           <div className="pt-4 border-t border-border flex justify-end">
             <button
-              onClick={() => {
-                setIsPrepared(true);
-                goToStep(2);
-              }}
+              onClick={() => handleNextStep(2)}
               className="w-full sm:w-auto px-6 py-3 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
             >
               🚀 Mulai Pekerjaan &amp; Berangkat <ChevronRight className="w-4 h-4" />
@@ -415,7 +589,7 @@ export default function TechnicianWorkOrderWizardPage() {
       {step === 2 && (
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-6">
           <div>
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Langkah 2 dari 3</span>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Langkah 2 dari 3 (Wajib)</span>
             <h2 className="text-base font-bold text-foreground font-display flex items-center gap-2 mt-0.5">
               <MapPin className="w-5 h-5 text-primary" />
               Titik ODP &amp; Colok Port (Lokasi Tiang)
@@ -426,7 +600,7 @@ export default function TechnicianWorkOrderWizardPage() {
           {/* ODP Location GPS Capture */}
           <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-foreground">📍 Koordinat GPS ODP Saat Ini</span>
+              <span className="text-xs font-bold text-foreground">📍 Koordinat GPS ODP Saat Ini *</span>
               <button
                 onClick={captureOdpGps}
                 disabled={odpGeoLoading}
@@ -441,7 +615,7 @@ export default function TechnicianWorkOrderWizardPage() {
                 Lat: {reportData.odpLat}, Lng: {reportData.odpLng}
               </div>
             ) : (
-              <p className="text-[11px] text-muted-foreground italic">Belum mengambil lokasi GPS tiang ODP.</p>
+              <p className="text-[11px] text-rose-500 font-bold italic">⚠️ Wajib mengambil lokasi GPS tiang ODP saat berada di tiang!</p>
             )}
           </div>
 
@@ -479,7 +653,7 @@ export default function TechnicianWorkOrderWizardPage() {
 
           {/* Photo Upload: Box ODP & Port ODP */}
           <div className="space-y-4 pt-2">
-            <label className="block text-xs font-bold text-foreground">📸 Foto Dokumentasi ODP</label>
+            <label className="block text-xs font-bold text-foreground">📸 Foto Dokumentasi ODP *</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {['Foto Box ODP', 'Foto Port ODP'].map((key) => (
                 <div key={key} className="bg-background border border-border rounded-xl p-3 flex flex-col items-center justify-center space-y-2">
@@ -491,21 +665,27 @@ export default function TechnicianWorkOrderWizardPage() {
                   ) : (
                     <div className="w-full aspect-[4/3] bg-muted/30 border border-dashed border-border rounded-lg flex flex-col items-center justify-center text-muted-foreground p-4">
                       <Camera className="w-8 h-8 opacity-40 mb-1" />
-                      <span className="text-[11px] font-bold">{key}</span>
+                      <span className="text-[11px] font-bold text-rose-500">{key} *</span>
                     </div>
                   )}
 
-                  <label className="w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-center font-mono text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5">
-                    {uploadingKey === key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-                    {photos[key] ? 'Ganti Foto' : `Ambil ${key}`}
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment"
-                      onChange={(e) => handlePhotoUpload(key, e)} 
-                      className="hidden" 
-                    />
-                  </label>
+                  <div className="flex gap-2 w-full">
+                    <button
+                      onClick={() => openCameraModal(key)}
+                      className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm hover:opacity-90"
+                    >
+                      <Camera className="w-3.5 h-3.5" /> Kamera
+                    </button>
+                    <label className="flex-1 py-2 bg-muted text-foreground border border-border rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer hover:bg-muted/80">
+                      <ImageIcon className="w-3.5 h-3.5" /> Galeri
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => handlePhotoUploadFromGallery(key, e)} 
+                        className="hidden" 
+                      />
+                    </label>
+                  </div>
                 </div>
               ))}
             </div>
@@ -513,13 +693,13 @@ export default function TechnicianWorkOrderWizardPage() {
 
           <div className="pt-4 border-t border-border flex justify-between gap-3">
             <button
-              onClick={() => goToStep(1)}
+              onClick={() => setStep(1)}
               className="px-4 py-2.5 bg-muted text-foreground font-bold text-xs rounded-xl flex items-center gap-1.5"
             >
               <ChevronLeft className="w-4 h-4" /> Kembali
             </button>
             <button
-              onClick={() => goToStep(3)}
+              onClick={() => handleNextStep(3)}
               className="px-6 py-2.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-md hover:opacity-90 transition-opacity flex items-center gap-1.5"
             >
               ➡️ Lanjut ke Penarikan Kabel &amp; Rumah Pelanggan <ChevronRight className="w-4 h-4" />
@@ -532,7 +712,7 @@ export default function TechnicianWorkOrderWizardPage() {
       {step === 3 && (
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-6">
           <div>
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Langkah 3 dari 3</span>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Langkah 3 dari 3 (Wajib)</span>
             <h2 className="text-base font-bold text-foreground font-display flex items-center gap-2 mt-0.5">
               <Wrench className="w-5 h-5 text-primary" />
               Instalasi Rumah Pelanggan &amp; Finalisasi
@@ -543,7 +723,7 @@ export default function TechnicianWorkOrderWizardPage() {
           {/* Customer GPS Location Update */}
           <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-foreground">📍 Titik GPS Rumah Pelanggan</span>
+              <span className="text-xs font-bold text-foreground">📍 Titik GPS Rumah Pelanggan *</span>
               <button
                 onClick={captureCustomerGps}
                 disabled={geoLoading}
@@ -558,7 +738,7 @@ export default function TechnicianWorkOrderWizardPage() {
                 Lat: {customerGeo.lat.toFixed(6)}, Lng: {customerGeo.lng?.toFixed(6)}
               </div>
             ) : (
-              <p className="text-[11px] text-muted-foreground italic">Belum ada titik lokasi GPS rumah pelanggan.</p>
+              <p className="text-[11px] text-rose-500 font-bold italic">⚠️ Wajib mengambil lokasi GPS rumah pelanggan saat di lokasi!</p>
             )}
           </div>
 
@@ -636,21 +816,27 @@ export default function TechnicianWorkOrderWizardPage() {
                   ) : (
                     <div className="w-full aspect-[4/3] bg-muted/30 border border-dashed border-border rounded-lg flex flex-col items-center justify-center text-muted-foreground p-4">
                       <Camera className="w-8 h-8 opacity-40 mb-1" />
-                      <span className="text-[11px] font-bold">{key}</span>
+                      <span className="text-[11px] font-bold text-rose-500">{key} *</span>
                     </div>
                   )}
 
-                  <label className="w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-center font-mono text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5">
-                    {uploadingKey === key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-                    {photos[key] ? 'Ganti Foto' : `Ambil ${key}`}
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment"
-                      onChange={(e) => handlePhotoUpload(key, e)} 
-                      className="hidden" 
-                    />
-                  </label>
+                  <div className="flex gap-2 w-full">
+                    <button
+                      onClick={() => openCameraModal(key)}
+                      className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm hover:opacity-90"
+                    >
+                      <Camera className="w-3.5 h-3.5" /> Kamera
+                    </button>
+                    <label className="flex-1 py-2 bg-muted text-foreground border border-border rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer hover:bg-muted/80">
+                      <ImageIcon className="w-3.5 h-3.5" /> Galeri
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => handlePhotoUploadFromGallery(key, e)} 
+                        className="hidden" 
+                      />
+                    </label>
+                  </div>
                 </div>
               ))}
             </div>
@@ -658,7 +844,7 @@ export default function TechnicianWorkOrderWizardPage() {
 
           <div className="pt-4 border-t border-border flex justify-between gap-3">
             <button
-              onClick={() => goToStep(2)}
+              onClick={() => setStep(2)}
               className="px-4 py-2.5 bg-muted text-foreground font-bold text-xs rounded-xl flex items-center gap-1.5"
             >
               <ChevronLeft className="w-4 h-4" /> Kembali ke Step 2
@@ -672,6 +858,102 @@ export default function TechnicianWorkOrderWizardPage() {
               ✅ Selesaikan Pekerjaan SPK
             </button>
           </div>
+        </div>
+      )}
+
+      {/* --- LIVE WEBRTC CAMERA VIEWFINDER MODAL --- */}
+      {cameraModalKey && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-between p-4">
+          {/* Header */}
+          <div className="w-full flex justify-between items-center z-10 pt-2 px-2">
+            <div>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Kamera Lapangan</span>
+              <h3 className="text-sm font-bold text-white font-mono">{cameraModalKey}</h3>
+            </div>
+            <button 
+              onClick={closeCameraModal}
+              className="p-2 text-white/80 hover:text-white bg-white/10 rounded-full"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Video Viewfinder Container */}
+          <div className="relative w-full max-w-md aspect-[3/4] bg-black rounded-2xl overflow-hidden border border-white/20 my-auto flex items-center justify-center">
+            {cameraLoading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-white/80 bg-black/60 z-10 space-y-2">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <span className="text-xs font-mono">Membuka Kamera HP...</span>
+              </div>
+            )}
+
+            {cameraError ? (
+              <div className="p-6 text-center text-rose-400 space-y-3">
+                <AlertCircle className="w-10 h-10 mx-auto" />
+                <p className="text-xs font-mono leading-relaxed">{cameraError}</p>
+                <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground font-mono text-xs font-bold rounded-xl cursor-pointer">
+                  <ImageIcon className="w-4 h-4" /> Pilih dari Galeri
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => handlePhotoUploadFromGallery(cameraModalKey, e)} 
+                    className="hidden" 
+                  />
+                </label>
+              </div>
+            ) : (
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                muted
+                className="w-full h-full object-cover"
+              />
+            )}
+            <canvas ref={canvasRef} className="hidden" />
+          </div>
+
+          {/* Camera Controls */}
+          {!cameraError && (
+            <div className="w-full max-w-md flex items-center justify-around pb-4 pt-2">
+              {/* Switch Facing Mode */}
+              <button
+                onClick={() => {
+                  const newMode = facingMode === 'environment' ? 'user' : 'environment';
+                  setFacingMode(newMode);
+                  startCamera(newMode);
+                }}
+                className="p-3 text-white/80 hover:text-white bg-white/10 rounded-full font-mono text-xs flex flex-col items-center"
+                title="Putar Kamera"
+              >
+                <FlipHorizontal className="w-5 h-5" />
+              </button>
+
+              {/* Shutter Capture Button */}
+              <button
+                onClick={captureSnapshot}
+                disabled={uploadingKey !== null}
+                className="w-16 h-16 rounded-full bg-white border-4 border-primary shadow-2xl flex items-center justify-center active:scale-95 transition-transform"
+              >
+                {uploadingKey ? (
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-primary" />
+                )}
+              </button>
+
+              {/* Gallery Fallback Option */}
+              <label className="p-3 text-white/80 hover:text-white bg-white/10 rounded-full cursor-pointer flex flex-col items-center">
+                <ImageIcon className="w-5 h-5" />
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => handlePhotoUploadFromGallery(cameraModalKey, e)} 
+                  className="hidden" 
+                />
+              </label>
+            </div>
+          )}
         </div>
       )}
 
