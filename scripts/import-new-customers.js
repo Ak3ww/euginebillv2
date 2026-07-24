@@ -208,8 +208,20 @@ async function main() {
     console.log(`✨ Inserted Customer 2: ${user2.name} (${user2.username})`);
   }
 
-  // FreeRADIUS Sync for Both Users
+  // Double Sync (MikroTik PPP Secret + FreeRADIUS) for Both Users
   for (const u of [user1, user2]) {
+    // 1. MikroTik Direct API Secret Sync
+    try {
+      if (u.routerId) {
+        const { PPPSecretService } = require('../src/server/services/mikrotik/ppp-secret.service');
+        await PPPSecretService.syncSecret(u.id);
+        console.log(`🌐 MikroTik Secret synced directly to router for ${u.username}`);
+      }
+    } catch (mkErr) {
+      console.log(`ℹ️ MikroTik direct sync note for ${u.username}:`, mkErr.message);
+    }
+
+    // 2. FreeRADIUS Credentials Sync
     try {
       const existingRad = await prisma.radcheck.findFirst({
         where: { username: u.username, attribute: 'Cleartext-Password' },
