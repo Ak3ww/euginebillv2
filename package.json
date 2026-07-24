@@ -16,7 +16,7 @@
     "db:seed:company": "tsx prisma/seeds/seed-company.ts",
     "db:seed:templates": "tsx prisma/seeds/seed-isolation-templates.ts",
     "db:seed:reset-templates": "tsx prisma/seeds/seed-all.ts --force-templates",
-    "db:seed:new-customers": "node scripts/import-new-customers.js",
+    "db:seed:new-customers": "tsx scripts/import-new-customers.js",
     "db:push": "prisma db push && npm run db:fix-radius",
     "db:migrate": "prisma migrate dev && npm run db:fix-radius",
     "db:fix-radius": "mysql -u root your_database < prisma/migrations/fix_radacct_groupname/migration.sql",

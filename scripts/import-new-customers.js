@@ -213,9 +213,16 @@ async function main() {
     // 1. MikroTik Direct API Secret Sync
     try {
       if (u.routerId) {
-        const { PPPSecretService } = require('../src/server/services/mikrotik/ppp-secret.service');
-        await PPPSecretService.syncSecret(u.id);
-        console.log(`🌐 MikroTik Secret synced directly to router for ${u.username}`);
+        let PPPSecretService;
+        try {
+          PPPSecretService = require('../src/server/services/mikrotik/ppp-secret.service').PPPSecretService;
+        } catch {
+          PPPSecretService = require('../src/server/services/mikrotik/ppp-secret.service.ts').PPPSecretService;
+        }
+        if (PPPSecretService) {
+          await PPPSecretService.syncSecret(u.id);
+          console.log(`🌐 MikroTik Secret synced directly to router for ${u.username}`);
+        }
       }
     } catch (mkErr) {
       console.log(`ℹ️ MikroTik direct sync note for ${u.username}:`, mkErr.message);
