@@ -1084,8 +1084,31 @@ export default function TechnicianWorkOrderWizardPage() {
               </div>
             </div>
 
-            {/* Share & Action Buttons */}
-            <div className="space-y-2 pt-2">
+            {/* Generated Score Card Graphic Preview / Download */}
+            <div className="space-y-2.5 pt-2">
+              <button
+                onClick={async () => {
+                  if (!ratingResult || !wo) return;
+                  const { generateScoreCardCanvas } = await import('@/lib/score-card-canvas');
+                  const imgDataUrl = await generateScoreCardCanvas({
+                    spkId: wo.id,
+                    customerName: wo.customerName,
+                    issueType: wo.issueType || 'Pasang Baru',
+                    rating: ratingResult,
+                  });
+
+                  // Trigger Automatic Image Download
+                  const link = document.createElement('a');
+                  link.download = `ScoreCard_SPK_${wo.id.slice(-6).toUpperCase()}.png`;
+                  link.href = imgDataUrl;
+                  link.click();
+                  addToast({ type: 'success', title: '🖼️ Gambar Score Card Diunduh!', description: 'Siap dikirim ke WhatsApp / Galeri HP' });
+                }}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2"
+              >
+                🖼️ Unduh Gambar Score Card (PNG)
+              </button>
+
               <button
                 onClick={() => {
                   if (!ratingResult || !wo) return;
@@ -1109,7 +1132,7 @@ ${ratingResult.badge}
                 }}
                 className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2"
               >
-                💬 Bagikan ke WhatsApp Group
+                💬 Bagikan Teks ke WhatsApp Group
               </button>
 
               <button
