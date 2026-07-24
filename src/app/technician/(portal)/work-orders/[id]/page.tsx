@@ -1084,16 +1084,44 @@ export default function TechnicianWorkOrderWizardPage() {
               </div>
             </div>
 
-            {/* Action Button */}
-            <button
-              onClick={() => {
-                setRatingResult(null);
-                router.push('/technician/work-orders');
-              }}
-              className="w-full py-3 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-lg hover:opacity-90 transition-opacity"
-            >
-              🎉 Selesai &amp; Kembali ke Daftar Pekerjaan
-            </button>
+            {/* Share & Action Buttons */}
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => {
+                  if (!ratingResult || !wo) return;
+                  const starsStr = '⭐'.repeat(ratingResult.stars);
+                  const text = `🏆 *SKOR PERFORMA TEKNISI EUGINEBILL* 🏆
+
+📋 *SPK ID:* #${wo.id.slice(-8).toUpperCase()}
+👤 *Pelanggan:* ${wo.customerName} (${wo.issueType?.replace('_', ' ')})
+
+${ratingResult.badge}
+🏅 *Gelar:* ${ratingResult.rankTitle}
+⭐ *Rating:* ${starsStr} (${ratingResult.score}/100 Poin)
+
+⏱️ *Total Durasi:* ${ratingResult.formattedDuration}
+🚗 *Jarak HQ -> Rumah:* ${ratingResult.distOfficeToCustomerKm} KM
+🔌 *Estimasi Kabel ODP:* ${ratingResult.distOdpToCustomerMeters} Meter
+
+🚀 *EugineBill High-Speed Fiber Network*`;
+                  const encoded = encodeURIComponent(text);
+                  window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+                }}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2"
+              >
+                💬 Bagikan ke WhatsApp Group
+              </button>
+
+              <button
+                onClick={() => {
+                  setRatingResult(null);
+                  router.push('/technician/work-orders');
+                }}
+                className="w-full py-3 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-md hover:opacity-90 transition-opacity"
+              >
+                🎉 Selesai &amp; Kembali ke Daftar Pekerjaan
+              </button>
+            </div>
           </div>
         </div>
       )}
