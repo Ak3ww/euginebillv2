@@ -1071,14 +1071,14 @@ export default function TechnicianWorkOrderWizardPage() {
 
               <div className="bg-background border border-border rounded-xl p-3 space-y-1">
                 <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-primary" /> Jarak HQ -> Rumah
+                  <MapPin className="w-3 h-3 text-primary" /> Jarak HQ ke Rumah
                 </span>
                 <p className="font-bold text-foreground">{ratingResult.distOfficeToCustomerKm} KM</p>
               </div>
 
               <div className="bg-background border border-border rounded-xl p-3 space-y-1 col-span-2">
                 <span className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
-                  <Navigation className="w-3 h-3 text-primary" /> Jarak Kabel ODP -> Rumah
+                  <Navigation className="w-3 h-3 text-primary" /> Jarak Kabel ODP ke Rumah
                 </span>
                 <p className="font-bold text-foreground">{ratingResult.distOdpToCustomerMeters} Meter</p>
               </div>
@@ -1123,7 +1123,7 @@ ${ratingResult.badge}
 ⭐ *Rating:* ${starsStr} (${ratingResult.score}/100 Poin)
 
 ⏱️ *Total Durasi:* ${ratingResult.formattedDuration}
-🚗 *Jarak HQ -> Rumah:* ${ratingResult.distOfficeToCustomerKm} KM
+🚗 *Jarak HQ ke Rumah:* ${ratingResult.distOfficeToCustomerKm} KM
 🔌 *Estimasi Kabel ODP:* ${ratingResult.distOdpToCustomerMeters} Meter
 
 🚀 *EugineBill High-Speed Fiber Network*`;
