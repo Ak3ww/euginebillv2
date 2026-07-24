@@ -1,0 +1,120 @@
+============================================
+EugineBill RADIUS - Installation Information
+============================================
+
+Installation Date : Thu Jul  9 18:59:51 WIB 2026
+Environment       : Public VPS / Cloud Server
+DEPLOY_ENV        : vps
+VPS/Server IP     : 168.110.194.24
+Domain            : euginemediagroup.com
+SSL               : Aktif - /etc/letsencrypt/live/euginemediagroup.com/
+Timezone          : Asia/Jakarta
+Current Time      : 2026-07-09 18:59:51 WIB
+
+>> SYSTEM INFORMATION
+--------------------
+Operating System: Ubuntu 22.04.5 LTS
+Node.js Version : v20.20.2
+npm Version     : 10.8.2
+MySQL Version   : 8.0.46-0ubuntu0.22.04.3
+FreeRADIUS      : radiusd: FreeRADIUS Version 3.0.26, for host x86_64-pc-linux-gnu, built on Dec 17 2024 at 15:46:27
+PM2 Version     : [PM2] Spawning PM2 daemon with pm2_home=/root/.pm2
+[PM2] PM2 Successfully daemonized
+7.0.3
+
+[>] DATABASE CREDENTIALS
+-----------------------
+Database Name  : EugineBill_radius
+Database User  : EugineBill_user
+Database Pass  : EugineBillradius123
+MySQL Root Pass: root123
+
+[>] APPLICATION CONFIGURATION
+----------------------------
+App Directory   : /var/www/EugineBill-radius
+Environment File: /var/www/EugineBill-radius/.env
+PM2 Config      : /var/www/EugineBill-radius/ecosystem.config.js
+Deploy Script   : /var/www/EugineBill-radius/deploy.sh
+
+[>] ACCESS INFORMATION
+---------------------
+Application URL : https://euginemediagroup.com
+Admin Panel     : https://euginemediagroup.com/admin
+Default Login   : Lihat database seeders
+Firewall (UFW)  : active
+
+[>] CUSTOMER MOBILE APP
+-----------------------
+APK Status      : Belum dibuild
+APK Download URL: https://euginemediagroup.com/downloads/EugineBill-radius.apk
+Build APK       : bash /var/www/EugineBill-radius/vps-install/install-apk.sh
+Rebuild APK     : bash /var/www/EugineBill-radius/vps-install/install-apk.sh --rebuild
+APK Status Cek  : bash /var/www/EugineBill-radius/vps-install/install-apk.sh --status
+
+[>] SSTP VPN CLIENT (koneksi ke MikroTik CHR)
+--------------------------------------------
+VPN Client Tools: Tidak diinstall (opsional)
+Install VPN     : bash /var/www/EugineBill-radius/vps-install/install-vpn-client.sh
+Konfigurasi VPN : Edit /etc/vpn/vpn.conf (VPN_SERVER, VPN_USER, VPN_PASS, VPN_SUBNET)
+Koneksi VPN     : vpn-connect start
+Status VPN      : vpn-connect status
+
+[>] WIREGUARD VPN SERVER (VPS sebagai server, NAS connect langsung)
+-------------------------------------------------------------------
+Protokol        : WireGuard (UDP 51820) — RouterOS 7.1+
+Subnet          : 10.200.0.0/24
+Install WG      : bash /var/www/EugineBill-radius/vps-install/install-wg-server.sh
+Install L2TP    : bash /var/www/EugineBill-radius/vps-install/install-l2tp-server.sh  (untuk RouterOS 6)
+Status WG       : wg show wg0
+Manage Peers    : Admin Panel → Network → VPN Server → klik tombol WireGuard
+Info File       : /etc/wireguard/wg-server-info.json
+
+[>] SERVICE STATUS
+-----------------
+MySQL     : active
+FreeRADIUS: active
+Nginx     : active
+Redis     : inactive
+tidak diinstall
+PM2 App   : offline
+
+[>] NETWORK / FIREWALL
+----------------------
+Deploy Env: Public VPS / Cloud Server
+UFW      : active
+Port 80   : HTTP
+Port 443  : HTTPS
+Port 1812 : RADIUS Authentication (UDP)
+Port 1813 : RADIUS Accounting (UDP)
+Port 3799 : RADIUS CoA (UDP)
+
+
+[>] USEFUL COMMANDS
+------------------
+# Application Management
+pm2 status                          # Cek status app
+pm2 logs EugineBill-radius            # Lihat logs
+pm2 restart EugineBill-radius         # Restart app
+/var/www/EugineBill-radius/deploy.sh                # Deploy update
+
+# Database
+mysql -u EugineBill_user -pEugineBillradius123 EugineBill_radius          # Connect DB
+mysqldump -u root -proot123 EugineBill_radius > backup.sql  # Backup DB
+
+# FreeRADIUS
+freeradius -X                       # Debug mode
+systemctl restart freeradius        # Restart
+tail -f /var/log/freeradius/radius.log  # Logs
+
+[>] NEXT STEPS
+-------------
+1. Akses aplikasi : https://euginemediagroup.com
+2. Login admin, ganti password
+3. Tambahkan NAS/router di pengaturan RADIUS
+4. Bagikan link APK ke customer: https://euginemediagroup.com/downloads/EugineBill-radius.apk
+5. [Opsional] Install Redis: bash /var/www/EugineBill-radius/vps-install/install-redis.sh
+6. [Opsional] Setup Cloudflare Tunnel untuk akses dari internet
+
+============================================
+Installasi selesai! Environment: Public VPS / Cloud Server
+============================================
