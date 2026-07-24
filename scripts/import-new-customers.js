@@ -205,43 +205,22 @@ async function main() {
 
   // Double Sync (MikroTik PPP Secret + FreeRADIUS) for All 3 Users
   for (const u of [user1, user2, user3]) {
-    // 1. Direct MikroTik Secret Sync (Standalone RouterOS API)
+    // 1. MikroTik Direct API Secret Sync
     try {
       if (u.routerId) {
-        const router = await prisma.router.findUnique({ where: { id: u.routerId } });
-        if (router && router.ipAddress && router.username && router.password) {
-          const { RouterOSAPI } = require('node-routeros');
-          const apiPort = router.port || 8728;
-          const conn = new RouterOSAPI({
-            host: router.ipAddress,
-            user: router.username,
-            password: router.password,
-            port: apiPort,
-            timeout: 5000,
-          });
-          await conn.connect();
-          const existing = await conn.write('/ppp/secret/print', [`?name=${u.username}`]);
-          const userProfile = u.profileId === profile75m.id ? profile75m : profile20m;
-          if (existing && existing.length > 0) {
-            await conn.write('/ppp/secret/set', [
-              `=.id=${existing[0]['.id']}`,
-              `=password=${u.password}`,
-              `=profile=${userProfile.name}`,
-            ]);
-          } else {
-            await conn.write('/ppp/secret/add', [
-              `=name=${u.username}`,
-              `=password=${u.password}`,
-              `=profile=${userProfile.name}`,
-              `=service=pppoe`,
-            ]);
-          }
-          await conn.close();
-          console.log(`🌐 MikroTik Secret synced directly to router (${router.name}) for ${u.username}`);
+        let PPPSecretService;
+        try {
+          PPPSecretService = require('../src/server/services/mikrotik/ppp-secret.service').PPPSecretService;
+        } catch {
+          PPPSecretService = require('../src/server/services/mikrotik/ppp-secret.service.ts').PPPSecretService;
+        }
+        if (PPPSecretService) {
+          await PPPSecretService.syncSecret(u.id);
+          console.log(`🌐 MikroTik Secret synced directly to router for ${u.username}`);
         }
       }
     } catch (mkErr) {
-      console.log(`ℹ️ MikroTik direct sync info for ${u.username}:`, mkErr.message);
+      console.log(`ℹ️ MikroTik direct sync note for ${u.username}:`, mkErr.message);
     }
 
     // 2. FreeRADIUS Credentials Sync
