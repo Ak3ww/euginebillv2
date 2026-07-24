@@ -4,27 +4,20 @@ const crypto = require('crypto');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🚀 Starting import of 2 new customers (ERNAWATI BATUARA & BIYADIAL KHAIR)...');
+  console.log('🚀 Starting import of 3 new customers (ERNAWATI BATUARA, BIYADIAL KHAIR, & IHSAN RASYID RABBANI)...');
 
-  // 1. Fetch or ensure 20 Mbps Profile exists
+  // 1. Fetch Profiles
   let profile20m = await prisma.pppoeProfile.findFirst({
-    where: {
-      OR: [
-        { name: { contains: '20' } },
-        { price: 150000 },
-      ],
-    },
+    where: { OR: [{ name: { contains: '20' } }, { price: 150000 }] },
   });
+  if (!profile20m) profile20m = await prisma.pppoeProfile.findFirst();
 
-  if (!profile20m) {
-    profile20m = await prisma.pppoeProfile.findFirst();
-  }
+  let profile75m = await prisma.pppoeProfile.findFirst({
+    where: { OR: [{ name: { contains: '75' } }, { price: 300000 }] },
+  });
+  if (!profile75m) profile75m = profile20m;
 
-  if (!profile20m) {
-    throw new Error('❌ Tidak ditemukan profile PPPoE di database. Buat profile terlebih dahulu!');
-  }
-
-  console.log(`✅ Using PPPoE Profile: ${profile20m.name} (ID: ${profile20m.id}, Price: Rp ${profile20m.price.toLocaleString('id-ID')})`);
+  console.log(`✅ Using 20M Profile: ${profile20m.name} | 75M Profile: ${profile75m.name}`);
 
   // 2. Fetch or create Area 1: Kampung Pisang
   let areaPisang = await prisma.pppoeArea.findFirst({
@@ -40,10 +33,7 @@ async function main() {
 
   if (!areaPisang) {
     areaPisang = await prisma.pppoeArea.create({
-      data: {
-        id: crypto.randomUUID(),
-        name: 'Kampung Pisang',
-      },
+      data: { id: crypto.randomUUID(), name: 'Kampung Pisang' },
     });
     console.log(`✅ Created Area: Kampung Pisang`);
   } else {
@@ -64,21 +54,18 @@ async function main() {
 
   if (!areaMuara) {
     areaMuara = await prisma.pppoeArea.create({
-      data: {
-        id: crypto.randomUUID(),
-        name: 'Muara Beres',
-      },
+      data: { id: crypto.randomUUID(), name: 'Muara Beres' },
     });
     console.log(`✅ Created Area: Muara Beres`);
   } else {
     console.log(`✅ Found Area: ${areaMuara.name} (ID: ${areaMuara.id})`);
   }
 
-  // 4. Fetch Router: cibinong (used by BOTH customers)
+  // 4. Fetch Router: cibinong (used by ALL 3 customers)
   const routers = await prisma.router.findMany();
   let routerCibinong = routers.find(r => r.name.toLowerCase().includes('cibinong')) || routers[0];
 
-  console.log(`✅ Using Router Cibinong for BOTH customers: ${routerCibinong?.name || 'Default Router'}`);
+  console.log(`✅ Using Router Cibinong for ALL customers: ${routerCibinong?.name || 'Default Router'}`);
 
   // -------------------------------------------------------------
   // CUSTOMER 1: ERNAWATI BATUARA
@@ -120,44 +107,9 @@ async function main() {
     console.log(`🔄 Updated Customer 1: ${user1.name} (${user1.username})`);
   } else {
     user1 = await prisma.pppoeUser.create({
-      data: {
-        id: crypto.randomUUID(),
-        ...cust1Payload,
-      },
+      data: { id: crypto.randomUUID(), ...cust1Payload },
     });
     console.log(`✨ Inserted Customer 1: ${user1.name} (${user1.username})`);
-  }
-
-  // Check / Upsert ODP if exists
-  try {
-    let odpPisang = await prisma.networkODP.findFirst({
-      where: { name: { contains: 'KPS06-A01' } },
-    });
-    if (!odpPisang) {
-      odpPisang = await prisma.networkODP.create({
-        data: {
-          id: crypto.randomUUID(),
-          name: 'ODP KPS06-A01',
-          latitude: 0.0,
-          longitude: 0.0,
-          portCount: 8,
-        },
-      });
-    }
-
-    await prisma.odpCustomerAssignment.upsert({
-      where: { customerId: user1.id },
-      update: { odpId: odpPisang.id, portNumber: 1 },
-      create: {
-        id: crypto.randomUUID(),
-        customerId: user1.id,
-        odpId: odpPisang.id,
-        portNumber: 1,
-      },
-    });
-    console.log(`📌 ODP KPS06-A01 assigned to ${user1.name}`);
-  } catch (odpErr) {
-    console.log(`ℹ️ ODP assignment info for ${user1.name}:`, odpErr.message);
   }
 
   // -------------------------------------------------------------
@@ -183,7 +135,7 @@ async function main() {
     autoIsolationEnabled: true,
     profileId: profile20m.id,
     areaId: areaMuara.id,
-    routerId: routerCibinong?.id || null, // Both use Cibinong router
+    routerId: routerCibinong?.id || null,
     createdAt: new Date('2026-07-21T00:00:00.000Z'),
   };
 
@@ -200,16 +152,57 @@ async function main() {
     console.log(`🔄 Updated Customer 2: ${user2.name} (${user2.username})`);
   } else {
     user2 = await prisma.pppoeUser.create({
-      data: {
-        id: crypto.randomUUID(),
-        ...cust2Payload,
-      },
+      data: { id: crypto.randomUUID(), ...cust2Payload },
     });
     console.log(`✨ Inserted Customer 2: ${user2.name} (${user2.username})`);
   }
 
-  // Double Sync (MikroTik PPP Secret + FreeRADIUS) for Both Users
-  for (const u of [user1, user2]) {
+  // -------------------------------------------------------------
+  // CUSTOMER 3: IHSAN RASYID RABBANI
+  // -------------------------------------------------------------
+  const cust3Username = 'EMG331';
+  const cust3Id = '435128135330';
+
+  const cust3Payload = {
+    username: cust3Username,
+    customerId: cust3Id,
+    name: 'IHSAN RASYID RABBANI',
+    password: '123',
+    portalPassword: '123',
+    phone: '083819213197',
+    address: 'KP. MUARA BERES RT 002 RW 001, SUKAHATI, CIBINONG',
+    status: 'ACTIVE',
+    subscriptionType: 'POSTPAID',
+    connectionType: 'PPPOE',
+    billingDay: 1,
+    autoIsolationEnabled: true,
+    profileId: profile75m.id,
+    areaId: areaMuara.id,
+    routerId: routerCibinong?.id || null,
+    createdAt: new Date('2026-07-19T00:00:00.000Z'),
+    expiredAt: new Date('2026-08-05T00:00:00.000Z'),
+  };
+
+  const existingCust3 = await prisma.pppoeUser.findFirst({
+    where: { OR: [{ username: cust3Username }, { customerId: cust3Id }] },
+  });
+
+  let user3;
+  if (existingCust3) {
+    user3 = await prisma.pppoeUser.update({
+      where: { id: existingCust3.id },
+      data: cust3Payload,
+    });
+    console.log(`🔄 Updated Customer 3: ${user3.name} (${user3.username})`);
+  } else {
+    user3 = await prisma.pppoeUser.create({
+      data: { id: crypto.randomUUID(), ...cust3Payload },
+    });
+    console.log(`✨ Inserted Customer 3: ${user3.name} (${user3.username})`);
+  }
+
+  // Double Sync (MikroTik PPP Secret + FreeRADIUS) for All 3 Users
+  for (const u of [user1, user2, user3]) {
     // 1. MikroTik Direct API Secret Sync
     try {
       if (u.routerId) {
@@ -244,18 +237,19 @@ async function main() {
         });
       }
 
-      if (profile20m.groupName) {
+      const userProfile = u.profileId === profile75m.id ? profile75m : profile20m;
+      if (userProfile.groupName) {
         const existingGroup = await prisma.radusergroup.findFirst({
           where: { username: u.username },
         });
         if (existingGroup) {
           await prisma.radusergroup.update({
             where: { id: existingGroup.id },
-            data: { groupname: profile20m.groupName },
+            data: { groupname: userProfile.groupName },
           });
         } else {
           await prisma.radusergroup.create({
-            data: { username: u.username, groupname: profile20m.groupName, priority: 0 },
+            data: { username: u.username, groupname: userProfile.groupName, priority: 0 },
           });
         }
       }
@@ -265,7 +259,7 @@ async function main() {
     }
   }
 
-  console.log('\n🎉 SUCCESS! All 2 new customers successfully imported into database.');
+  console.log('\n🎉 SUCCESS! All 3 new customers successfully imported into database.');
 }
 
 main()

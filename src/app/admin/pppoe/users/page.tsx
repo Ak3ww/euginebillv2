@@ -1427,7 +1427,14 @@ export default function PppoeUsersPage() {
                           <DollarSign className="h-2 w-2 mr-0.5" />{invoiceCounts[user.id]}
                         </span>
                       )}
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium ${user.status === 'active' ? 'bg-success/20 text-success' : user.status === 'isolated' ? 'bg-warning/20 text-warning' : 'bg-destructive/20 text-destructive'}`}>{user.status}</span>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                        user.status?.toUpperCase() === 'ACTIVE' ? 'bg-success/20 text-success' : 
+                        user.status?.toUpperCase() === 'ISOLATED' ? 'bg-warning/20 text-warning' : 
+                        user.status?.toUpperCase() === 'PENDING_INSTALLATION' ? 'bg-blue-100 text-blue-700' :
+                        'bg-destructive/20 text-destructive'
+                      }`}>
+                        {user.status?.toUpperCase() === 'ACTIVE' ? 'Aktif' : user.status?.toUpperCase() === 'ISOLATED' ? 'Terisolir' : user.status?.toUpperCase() === 'PENDING_INSTALLATION' ? 'Pending' : user.status}
+                      </span>
                       {user.isOnline
                         ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />Online</span>
                         : <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground">Offline</span>
@@ -1607,7 +1614,14 @@ export default function PppoeUsersPage() {
                       </td>
                       {/* Status */}
                       <td className="px-3 py-2">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium ${user.status === 'active' ? 'bg-success/20 text-success dark:bg-green-900/30' : user.status === 'isolated' ? 'bg-warning/20 text-warning dark:bg-yellow-900/30' : user.status === 'PENDING_INSTALLATION' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-destructive/20 text-destructive dark:bg-red-900/30'}`}>{user.status}</span>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                          user.status?.toUpperCase() === 'ACTIVE' ? 'bg-success/20 text-success dark:bg-green-900/30' : 
+                          user.status?.toUpperCase() === 'ISOLATED' ? 'bg-warning/20 text-warning dark:bg-yellow-900/30' : 
+                          user.status?.toUpperCase() === 'PENDING_INSTALLATION' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 
+                          'bg-destructive/20 text-destructive dark:bg-red-900/30'
+                        }`}>
+                          {user.status?.toUpperCase() === 'ACTIVE' ? 'Aktif' : user.status?.toUpperCase() === 'ISOLATED' ? 'Terisolir' : user.status?.toUpperCase() === 'PENDING_INSTALLATION' ? 'Pending' : user.status}
+                        </span>
                       </td>
                       {/* Sesi */}
                       <td className="px-3 py-2">
