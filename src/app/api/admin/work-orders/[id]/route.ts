@@ -46,7 +46,10 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     }
 
     const body = await req.json();
-    const { technicianId, status, priority, description, notes, scheduledDate } = body;
+    const { 
+      customerName, customerPhone, customerAddress, issueType,
+      technicianId, status, priority, description, notes, scheduledDate 
+    } = body;
 
     const existing = await prisma.workOrder.findUnique({ where: { id } });
     if (!existing) {
@@ -54,6 +57,10 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     }
 
     const updateData: any = {};
+    if (customerName !== undefined) updateData.customerName = customerName;
+    if (customerPhone !== undefined) updateData.customerPhone = customerPhone;
+    if (customerAddress !== undefined) updateData.customerAddress = customerAddress;
+    if (issueType !== undefined) updateData.issueType = issueType;
     if (priority !== undefined) updateData.priority = priority;
     if (description !== undefined) updateData.description = description;
     if (notes !== undefined) updateData.notes = notes;

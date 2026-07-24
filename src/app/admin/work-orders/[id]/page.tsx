@@ -44,6 +44,9 @@ export default function AdminWorkOrderDetailPage() {
         const data = await res.json();
         setWo(data.workOrder);
         setEditFormData({
+          customerName: data.workOrder.customerName || '',
+          customerPhone: data.workOrder.customerPhone || '',
+          customerAddress: data.workOrder.customerAddress || '',
           technicianId: data.workOrder.technicianId || '',
           status: data.workOrder.status || 'OPEN',
           priority: data.workOrder.priority || 'MEDIUM',
@@ -272,19 +275,54 @@ export default function AdminWorkOrderDetailPage() {
 
             <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-foreground mb-1">Teknisi Penanggung Jawab</label>
-                <select
-                  value={editFormData.technicianId}
-                  onChange={(e) => setEditFormData({ ...editFormData, technicianId: e.target.value })}
+                <label className="block font-bold text-foreground mb-1">Nama Pelanggan *</label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.customerName}
+                  onChange={(e) => setEditFormData({ ...editFormData, customerName: e.target.value })}
                   className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
-                >
-                  <option value="">-- Belum Ditunjuk --</option>
-                  {technicians.map((tech) => (
-                    <option key={tech.id} value={tech.id}>
-                      {tech.name} ({tech.phoneNumber})
-                    </option>
-                  ))}
-                </select>
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-foreground mb-1">Nomor WhatsApp Pelanggan *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.customerPhone}
+                    onChange={(e) => setEditFormData({ ...editFormData, customerPhone: e.target.value })}
+                    className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-foreground mb-1">Teknisi Penanggung Jawab</label>
+                  <select
+                    value={editFormData.technicianId}
+                    onChange={(e) => setEditFormData({ ...editFormData, technicianId: e.target.value })}
+                    className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
+                  >
+                    <option value="">-- Belum Ditunjuk --</option>
+                    {technicians.map((tech) => (
+                      <option key={tech.id} value={tech.id}>
+                        {tech.name} ({tech.phoneNumber})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-foreground mb-1">Alamat Pelanggan *</label>
+                <textarea
+                  rows={2}
+                  required
+                  value={editFormData.customerAddress}
+                  onChange={(e) => setEditFormData({ ...editFormData, customerAddress: e.target.value })}
+                  className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
