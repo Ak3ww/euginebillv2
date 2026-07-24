@@ -26,12 +26,13 @@ async function main() {
 
   console.log(`✅ Using PPPoE Profile: ${profile20m.name} (ID: ${profile20m.id}, Price: Rp ${profile20m.price.toLocaleString('id-ID')})`);
 
-  // 2. Fetch or create Area 1: EMGKPS - KAMPUNG PISANG
+  // 2. Fetch or create Area 1: Kampung Pisang
   let areaPisang = await prisma.pppoeArea.findFirst({
     where: {
       OR: [
+        { name: 'Kampung Pisang' },
+        { name: 'KAMPUNG PISANG' },
         { code: 'EMGKPS' },
-        { name: { contains: 'PISANG' } },
       ],
     },
   });
@@ -40,22 +41,27 @@ async function main() {
     areaPisang = await prisma.pppoeArea.create({
       data: {
         id: crypto.randomUUID(),
-        name: 'KAMPUNG PISANG',
+        name: 'Kampung Pisang',
         code: 'EMGKPS',
       },
     });
-    console.log(`✅ Created Area: KAMPUNG PISANG (EMGKPS)`);
+    console.log(`✅ Created Area: Kampung Pisang`);
   } else {
+    // Ensure name is clean
+    areaPisang = await prisma.pppoeArea.update({
+      where: { id: areaPisang.id },
+      data: { name: 'Kampung Pisang' },
+    });
     console.log(`✅ Found Area: ${areaPisang.name} (ID: ${areaPisang.id})`);
   }
 
-  // 3. Fetch or create Area 2: EMGSKHT - MUARA BERES
+  // 3. Fetch or create Area 2: Muara Beres
   let areaMuara = await prisma.pppoeArea.findFirst({
     where: {
       OR: [
+        { name: 'Muara Beres' },
+        { name: 'MUARA BERES' },
         { code: 'EMGSKHT' },
-        { name: { contains: 'MUARA BERES' } },
-        { name: { contains: 'SUKAHATI' } },
       ],
     },
   });
@@ -64,22 +70,25 @@ async function main() {
     areaMuara = await prisma.pppoeArea.create({
       data: {
         id: crypto.randomUUID(),
-        name: 'MUARA BERES',
+        name: 'Muara Beres',
         code: 'EMGSKHT',
       },
     });
-    console.log(`✅ Created Area: MUARA BERES (EMGSKHT)`);
+    console.log(`✅ Created Area: Muara Beres`);
   } else {
+    // Ensure name is clean
+    areaMuara = await prisma.pppoeArea.update({
+      where: { id: areaMuara.id },
+      data: { name: 'Muara Beres' },
+    });
     console.log(`✅ Found Area: ${areaMuara.name} (ID: ${areaMuara.id})`);
   }
 
-  // 4. Fetch Routers: cibinong & EUGINE_CCR2116
+  // 4. Fetch Router: cibinong (used by BOTH customers)
   const routers = await prisma.router.findMany();
   let routerCibinong = routers.find(r => r.name.toLowerCase().includes('cibinong')) || routers[0];
-  let routerCcr = routers.find(r => r.name.toLowerCase().includes('ccr') || r.name.toLowerCase().includes('eugine')) || routers[0];
 
-  console.log(`✅ Router Cibinong: ${routerCibinong?.name || 'Default'}`);
-  console.log(`✅ Router CCR: ${routerCcr?.name || 'Default'}`);
+  console.log(`✅ Using Router Cibinong for BOTH customers: ${routerCibinong?.name || 'Default Router'}`);
 
   // -------------------------------------------------------------
   // CUSTOMER 1: ERNAWATI BATUARA
@@ -183,7 +192,7 @@ async function main() {
     autoIsolationEnabled: true,
     profileId: profile20m.id,
     areaId: areaMuara.id,
-    routerId: routerCcr?.id || null,
+    routerId: routerCibinong?.id || null, // Both use Cibinong router
     createdAt: new Date('2026-07-21T00:00:00.000Z'),
   };
 
