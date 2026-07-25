@@ -6,21 +6,27 @@ async function deleteMuberWaHistory() {
   console.log('🗑️ Memulai pembersihan riwayat WA untuk area Muara Beres / KMB...\n');
 
   try {
-    // 1. Fetch all users belonging to Muara Beres / KMB area or address
-    const muberUsers = await prisma.pppoeUser.findMany({
-      where: {
-        OR: [
-          { area: { name: { contains: 'Muara Beres', mode: 'insensitive' } } },
-          { area: { name: { contains: 'KMB', mode: 'insensitive' } } },
-          { address: { contains: 'Muara Beres', mode: 'insensitive' } },
-        ],
-      },
+    // 1. Fetch all users with area & address
+    const allUsers = await prisma.pppoeUser.findMany({
       select: {
         id: true,
         name: true,
         phone: true,
         username: true,
+        address: true,
+        area: {
+          select: {
+            name: true,
+          },
+        },
       },
+    });
+
+    // Filter Muara Beres / KMB users in JavaScript memory (case-insensitive)
+    const muberUsers = allUsers.filter(u => {
+      const areaName = (u.area?.name || '').toLowerCase();
+      const address = (u.address || '').toLowerCase();
+      return areaName.includes('muara beres') || areaName.includes('kmb') || address.includes('muara beres');
     });
 
     console.log(`👤 Ditemukan ${muberUsers.length} pelanggan di area Muara Beres / KMB.`);
