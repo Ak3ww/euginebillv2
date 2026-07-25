@@ -6,8 +6,16 @@ import fs from 'fs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('=== AUDITING & SEEDING EXACT DATA FROM EXCEL ===');
+  console.log('=== SEEDING EXACT DATA FROM EXCEL (UNASSIGN ALL FIRST) ===');
 
+  // STEP 1: Unassign all users first
+  console.log('Step 1: Unassigning ALL users from all areas first...');
+  const resetResult = await prisma.pppoeUser.updateMany({
+    data: { areaId: null }
+  });
+  console.log(`✓ Successfully reset / unassigned ${resetResult.count} users in database.\n`);
+
+  // STEP 2: Read Excel file
   let excelPath = 'C:/Users/User/Downloads/Daftar_Pelanggan_Per_Wilayah.xlsx';
   if (!fs.existsSync(excelPath)) {
     excelPath = path.join(__dirname, 'Daftar_Pelanggan_Per_Wilayah.xlsx');
@@ -64,6 +72,7 @@ async function main() {
   const assignedUserIds = new Set<string>();
   const report: Record<string, { totalInSheet: number; matchedInDb: number; missingItems: any[] }> = {};
 
+  // STEP 3: Process matching and assignment
   for (const [sheetName, areaId] of areaRecordMap.entries()) {
     const ws = wb.getWorksheet(sheetName);
     if (!ws) continue;
@@ -131,16 +140,9 @@ async function main() {
     }
   }
 
-  // UNASSIGN ALL USERS NOT IN THE EXCEL DATA
-  const unassignedUsers = allUsers.filter(u => !assignedUserIds.has(u.id) && u.areaId !== null);
-  for (const u of unassignedUsers) {
-    await prisma.pppoeUser.update({
-      where: { id: u.id },
-      data: { areaId: null }
-    });
-  }
+  const remainingUnassigned = allUsers.length - assignedUserIds.size;
 
-  console.log('\n================ AUDIT & SEEDING REPORT ================');
+  console.log('\n================ FINAL AUDIT & SEEDING REPORT ================');
   for (const [sheetName, stat] of Object.entries(report)) {
     console.log(`\n📌 Area: "${areaMapping[sheetName]}" | Total di Excel: ${stat.totalInSheet} | Ter-assign ke DB: ${stat.matchedInDb}`);
     if (stat.missingItems.length > 0) {
@@ -152,8 +154,8 @@ async function main() {
       console.log(`   ✓ All ${stat.totalInSheet} customers matched 100%!`);
     }
   }
-  console.log(`\n📌 Total Unassigned (Tidak ada di Excel): ${unassignedUsers.length} users`);
-  console.log('========================================================\n');
+  console.log(`\n📌 Total Unassigned (Bukan Anggota 3 Wilayah): ${remainingUnassigned} users`);
+  console.log('==============================================================\n');
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());

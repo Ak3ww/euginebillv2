@@ -15,6 +15,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Step 1: Unassign all users first
+    await prisma.pppoeUser.updateMany({
+      data: { areaId: null }
+    });
+
     let excelPath = 'C:/Users/User/Downloads/Daftar_Pelanggan_Per_Wilayah.xlsx';
     if (!fs.existsSync(excelPath)) {
       excelPath = path.join(process.cwd(), 'scripts', 'Daftar_Pelanggan_Per_Wilayah.xlsx');
@@ -130,20 +135,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // UNASSIGN ALL USERS NOT IN THE EXCEL DATA
-    const unassignedUsers = allUsers.filter(u => !assignedUserIds.has(u.id) && u.areaId !== null);
-    for (const u of unassignedUsers) {
-      await prisma.pppoeUser.update({
-        where: { id: u.id },
-        data: { areaId: null }
-      });
-    }
+    const remainingUnassigned = allUsers.length - assignedUserIds.size;
 
     return NextResponse.json({
       success: true,
-      message: 'Seeding presisi 100% dari Excel berhasil diselesaikan.',
+      message: 'Unassigned semua user terlebih dahulu, lalu berhasil diseed presisi dari Excel.',
       report,
-      unassignedCount: unassignedUsers.length,
+      unassignedCount: remainingUnassigned,
     });
   } catch (error: any) {
     console.error('Seed exact from excel error:', error);
