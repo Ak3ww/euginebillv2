@@ -109,12 +109,21 @@ export async function POST(request: NextRequest) {
       '952649': areaRecordMap.get('Puri Nirwana 3')!,       // Syaiful Anwar Excel ID
       '267001': areaRecordMap.get('Kampung Muara Beres')!,  // Muhammad Juhdi
       '0DKC53CCPJ': areaRecordMap.get('Kampung Muara Beres')!,// Muhammad Juhdi Excel ID
+      '267643': areaRecordMap.get('Puri Nirwana 3')!,       // Nasrullatif
+      'nasrullatif': areaRecordMap.get('Puri Nirwana 3')!,  // Nasrullatif
     };
 
     for (const [key, targetAreaId] of Object.entries(specificOverrides)) {
-      const userRec = allUsers.find(u => u.username === key || u.customerId === key || normalizeStr(u.name) === normalizeStr(key));
-      if (userRec) {
+      const normKey = normalizeStr(key);
+      const userRec = allUsers.find(u => 
+        normalizeStr(u.username) === normKey ||
+        normalizeStr(u.customerId) === normKey ||
+        normalizeStr(u.name) === normKey
+      );
+
+      if (userRec && !assignedUserIds.has(userRec.id)) {
         assignedUserIds.add(userRec.id);
+        userRec.areaId = targetAreaId;
         await prisma.pppoeUser.update({
           where: { id: userRec.id },
           data: { areaId: targetAreaId }
@@ -200,6 +209,7 @@ export async function POST(request: NextRequest) {
         } else {
           for (const u of matched) {
             assignedUserIds.add(u.id);
+            u.areaId = areaId;
             await prisma.pppoeUser.update({
               where: { id: u.id },
               data: {
@@ -217,7 +227,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Berhasil meng-seed dengan penghitungan override presisi.',
+      message: 'Berhasil meng-seed dengan sinkronisasi memori areaId.',
       report,
       unassignedCount: remainingUnassigned,
     });

@@ -6,7 +6,7 @@ import fs from 'fs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('=== ACTIVATING ALL CUSTOMERS & EXACT AREA SEEDING (PERFECT REPORTING) ===');
+  console.log('=== ACTIVATING ALL CUSTOMERS & EXACT AREA SEEDING (FIXED MEMORY SYNC) ===');
 
   // 0. Standardize Muhammad Juhdi ID to numeric ID '267001'
   const juhdiUser = await prisma.pppoeUser.findFirst({
@@ -26,7 +26,7 @@ async function main() {
         username: juhdiUser.username || 'EMG267',
       }
     });
-    console.log(`✓ Standardized MUHAMMAD JUHDI customerId to "267001" (username: ${juhdiUser.username || 'EMG267'}).`);
+    console.log(`✓ Standardized MUHAMMAD JUHDI customerId to "267001".`);
   }
 
   // 1. Set status = 'active' for ALL customers in database
@@ -68,15 +68,7 @@ async function main() {
     areaRecordMap.set(sheetName, area.id);
   }
 
-  // 4. Read Excel file
-  let excelPath = 'C:/Users/User/Downloads/Daftar_Pelanggan_Per_Wilayah.xlsx';
-  if (!fs.existsSync(excelPath)) {
-    excelPath = path.join(__dirname, 'Daftar_Pelanggan_Per_Wilayah.xlsx');
-  }
-
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.readFile(excelPath);
-
+  // 4. Fetch FRESH list of users from DB AFTER reset
   const allUsers = await prisma.pppoeUser.findMany({
     select: {
       id: true,
@@ -85,8 +77,7 @@ async function main() {
       customerId: true,
       phone: true,
       address: true,
-      routerId: true,
-      router: { select: { name: true } }
+      areaId: true,
     }
   });
 
@@ -109,12 +100,22 @@ async function main() {
     '952649': areaRecordMap.get('Puri Nirwana 3')!,       // Syaiful Anwar Excel ID
     '267001': areaRecordMap.get('Kampung Muara Beres')!,  // Muhammad Juhdi
     '0DKC53CCPJ': areaRecordMap.get('Kampung Muara Beres')!,// Muhammad Juhdi Excel ID
+    '267643': areaRecordMap.get('Puri Nirwana 3')!,       // Nasrullatif
+    'nasrullatif': areaRecordMap.get('Puri Nirwana 3')!,  // Nasrullatif
   };
 
+  // Apply overrides to DB AND sync in-memory user objects
   for (const [key, targetAreaId] of Object.entries(specificOverrides)) {
-    const userRec = allUsers.find(u => u.username === key || u.customerId === key || normalizeStr(u.name) === normalizeStr(key));
-    if (userRec) {
+    const normKey = normalizeStr(key);
+    const userRec = allUsers.find(u => 
+      normalizeStr(u.username) === normKey ||
+      normalizeStr(u.customerId) === normKey ||
+      normalizeStr(u.name) === normKey
+    );
+
+    if (userRec && !assignedUserIds.has(userRec.id)) {
       assignedUserIds.add(userRec.id);
+      userRec.areaId = targetAreaId; // Sync in memory!
       await prisma.pppoeUser.update({
         where: { id: userRec.id },
         data: { areaId: targetAreaId }
@@ -122,9 +123,18 @@ async function main() {
     }
   }
 
+  // 5. Read Excel file
+  let excelPath = 'C:/Users/User/Downloads/Daftar_Pelanggan_Per_Wilayah.xlsx';
+  if (!fs.existsSync(excelPath)) {
+    excelPath = path.join(__dirname, 'Daftar_Pelanggan_Per_Wilayah.xlsx');
+  }
+
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(excelPath);
+
   const report: Record<string, { totalInSheet: number; matchedInDb: number; missingItems: any[] }> = {};
 
-  // 5. Seed from Excel sheets
+  // 6. Seed from Excel sheets
   for (const [sheetName, areaId] of areaRecordMap.entries()) {
     const ws = wb.getWorksheet(sheetName);
     if (!ws) continue;
@@ -160,8 +170,8 @@ async function main() {
       const itemNormCustId = normalizeStr(item.customerId);
       const itemNormPhone = normalizePhone(item.phone);
 
-      // Check if this item is in override list or already assigned to this area
-      const isOverrideOrAssigned = allUsers.find(u => {
+      // Check if this user was already assigned (e.g. by specific overrides) to this area
+      const alreadyMatched = allUsers.find(u => {
         if (!assignedUserIds.has(u.id)) return false;
         if (u.areaId !== areaId) return false;
 
@@ -177,7 +187,7 @@ async function main() {
         );
       });
 
-      if (isOverrideOrAssigned) {
+      if (alreadyMatched) {
         report[sheetName].matchedInDb++;
         continue;
       }
@@ -202,6 +212,7 @@ async function main() {
       } else {
         for (const u of matched) {
           assignedUserIds.add(u.id);
+          u.areaId = areaId;
           await prisma.pppoeUser.update({
             where: { id: u.id },
             data: {
@@ -215,7 +226,7 @@ async function main() {
     }
   }
 
-  // 6. Check unassigned (Citeureup vs Cibinong)
+  // 7. Check unassigned
   const remainingUnassigned = allUsers.filter(u => !assignedUserIds.has(u.id));
 
   console.log('\n================ FINAL SEEDING REPORT ================');
