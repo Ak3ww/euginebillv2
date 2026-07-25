@@ -158,7 +158,7 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
       }
 
       // Fetch invoices
-      const invRes = await fetch(`/api/admin/invoices?userId=${id}`);
+      const invRes = await fetch(`/api/invoices?userId=${id}`);
       if (invRes.ok) {
         const invData = await invRes.json();
         setInvoices(invData.invoices || []);
@@ -336,7 +336,7 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
               'w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold font-mono shrink-0 shadow-inner',
               user.status === 'ISOLATED' ? 'bg-destructive/10 text-destructive border border-destructive/20' : 'bg-primary/10 text-primary border border-primary/20'
             )}>
-              {user.name.slice(0, 2).toUpperCase()}
+              {(user?.name || user?.username || 'US').slice(0, 2).toUpperCase()}
             </div>
 
             <div>
@@ -633,7 +633,7 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-primary">#{wo.id.slice(-8).toUpperCase()}</span>
+                          <span className="font-mono text-xs font-bold text-primary">#{(wo.id || '').slice(-8).toUpperCase()}</span>
                           <span className="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
                             {wo.issueType.replace('_', ' ')}
                           </span>
