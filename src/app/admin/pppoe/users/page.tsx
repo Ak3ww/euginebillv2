@@ -333,6 +333,7 @@ export default function PppoeUsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterProfile, setFilterProfile] = useState('');
   const [filterRouter, setFilterRouter] = useState('');
+  const [filterArea, setFilterArea] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterSession, setFilterSession] = useState('');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('');
@@ -1155,13 +1156,14 @@ export default function PppoeUsersPage() {
     const matchesSearch = searchQuery === '' || user.username.toLowerCase().includes(searchQuery.toLowerCase()) || user.name.toLowerCase().includes(searchQuery.toLowerCase()) || user.phone.includes(searchQuery);
     const matchesProfile = filterProfile === '' || user.profile.id === filterProfile;
     const matchesRouter = filterRouter === '' || (filterRouter === 'global' ? !user.routerId : user.routerId === filterRouter);
+    const matchesArea = filterArea === '' || (filterArea === 'none' ? !user.areaId : (user.areaId === filterArea || user.area?.id === filterArea));
     const matchesStatus = filterStatus === '' || user.status === filterStatus;
     const matchesSession = filterSession === '' || (filterSession === 'online' ? user.isOnline === true : user.isOnline !== true);
     const matchesPaymentStatus = filterPaymentStatus === '' ||
       (filterPaymentStatus === 'unpaid' && (invoiceCounts[user.id] || 0) > 0) ||
       (filterPaymentStatus === 'paid' && !(invoiceCounts[user.id] > 0)) ||
       (filterPaymentStatus === 'isolated' && user.status === 'isolated');
-    return matchesSearch && matchesProfile && matchesRouter && matchesStatus && matchesSession && matchesPaymentStatus;
+    return matchesSearch && matchesProfile && matchesRouter && matchesArea && matchesStatus && matchesSession && matchesPaymentStatus;
   }).sort((a, b) => {
     let aVal: any, bVal: any;
 
@@ -1349,6 +1351,11 @@ export default function PppoeUsersPage() {
               <option value="">{t('pppoe.allNas')}</option><option value="global">{t('pppoe.global')}</option>
               {routers.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
+            <select value={filterArea} onChange={(e) => setFilterArea(e.target.value)} className="px-2 py-1.5 text-xs border border-border rounded bg-muted font-medium">
+              <option value="">Semua Wilayah / Area</option>
+              <option value="none">Tanpa Wilayah</option>
+              {areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
           </div>
           <div className="flex items-center gap-1.5 mt-2">
             <Filter className="h-3 w-3 text-muted-foreground" /><span className="text-[10px] text-muted-foreground">{t('common.status')}:</span>
@@ -1374,7 +1381,7 @@ export default function PppoeUsersPage() {
               </button>
             ))}
           </div>
-          {(searchQuery || filterProfile || filterRouter || filterStatus || filterSession || filterPaymentStatus) && <button onClick={() => { setSearchQuery(''); setFilterProfile(''); setFilterRouter(''); setFilterStatus(''); setFilterSession(''); setFilterPaymentStatus(''); }} className="ml-auto text-[10px] text-primary hover:text-teal-700 mt-1.5 block">{t('common.reset')}</button>}
+          {(searchQuery || filterProfile || filterRouter || filterArea || filterStatus || filterSession || filterPaymentStatus) && <button onClick={() => { setSearchQuery(''); setFilterProfile(''); setFilterRouter(''); setFilterArea(''); setFilterStatus(''); setFilterSession(''); setFilterPaymentStatus(''); }} className="ml-auto text-[10px] text-primary hover:text-teal-700 mt-1.5 block">{t('common.reset')}</button>}
           <div className="mt-2 text-[10px] text-muted-foreground">{t('table.showing')} {filteredUsers.length} {t('table.of')} {users.length}</div>
         </div>
 

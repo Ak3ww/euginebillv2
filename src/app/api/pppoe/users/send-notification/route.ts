@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
@@ -115,13 +115,40 @@ export async function POST(request: NextRequest) {
             affectedArea,
           };
         } else if (notificationType === 'invoice') {
-          // Invoice reminder
-          const latestInvoice = user.invoices[0];
+          // Invoice reminder: find pending/overdue invoice or latest
+          let targetInvoice = user.invoices.find(inv => inv.status === 'PENDING' || inv.status === 'OVERDUE') || user.invoices[0];
           
-          if (!latestInvoice) {
-            errors.push(`User ${user.name} tidak memiliki invoice`);
-            failedCount++;
-            continue;
+          if (!targetInvoice) {
+            // Auto-generate invoice for user if none exists for current period
+            try {
+              const invAmount = user.profile?.price || 100000;
+              const invNumber = `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+              const token = crypto.randomUUID();
+              const baseUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+              const dueDate = user.expiredAt || new Date(Date.now() + 7 * 24 * 3600 * 1000);
+
+              targetInvoice = await prisma.invoice.create({
+                data: {
+                  id: crypto.randomUUID(),
+                  invoiceNumber: invNumber,
+                  userId: user.id,
+                  amount: invAmount,
+                  baseAmount: invAmount,
+                  dueDate,
+                  status: 'PENDING',
+                  invoiceType: 'MONTHLY',
+                  customerName: user.name,
+                  customerPhone: user.phone,
+                  customerUsername: user.username,
+                  paymentToken: token,
+                  paymentLink: `${baseUrl}/pay/${token}`,
+                }
+              });
+            } catch (invErr: any) {
+              errors.push(`Gagal membuat invoice otomatis untuk ${user.name}: ${invErr.message}`);
+              failedCount++;
+              continue;
+            }
           }
           
           whatsappTemplate = await prisma.whatsapp_templates.findFirst({
@@ -136,15 +163,15 @@ export async function POST(request: NextRequest) {
             style: 'currency',
             currency: 'IDR',
             minimumFractionDigits: 0,
-          }).format(latestInvoice.amount);
+          }).format(targetInvoice.amount);
           
           variables = {
             ...variables,
-            invoiceNumber: latestInvoice.invoiceNumber,
+            invoiceNumber: targetInvoice.invoiceNumber,
             amount,
-            dueDate: latestInvoice.dueDate.toLocaleDateString('id-ID'),
+            dueDate: new Date(targetInvoice.dueDate).toLocaleDateString('id-ID'),
             customerEmail: user.email || '',
-            paymentLink: `${company?.baseUrl}/pay/${latestInvoice.paymentToken}`,
+            paymentLink: targetInvoice.paymentLink || `${company?.baseUrl || ''}/pay/${targetInvoice.paymentToken}`,
             additionalMessage: additionalMessage || '',
           };
         } else if (notificationType === 'payment') {
@@ -175,27 +202,41 @@ export async function POST(request: NextRequest) {
             ...variables,
             invoiceNumber: paidInvoice.invoiceNumber,
             amount,
-            paidDate: paidInvoice.paidAt?.toLocaleDateString('id-ID') || '',
+            paidDate: paidInvoice.paidAt ? new Date(paidInvoice.paidAt).toLocaleDateString('id-ID') : '',
             customerEmail: user.email || '',
-            expiredDate: user.expiredAt?.toLocaleDateString('id-ID') || '',
+            expiredDate: user.expiredAt ? new Date(user.expiredAt).toLocaleDateString('id-ID') : '',
             additionalMessage: additionalMessage || '',
           };
         }
         
         // Send WhatsApp
-        if ((notificationMethod === 'whatsapp' || notificationMethod === 'both') && whatsappTemplate && whatsappTemplate.isActive) {
-          let message = whatsappTemplate.message;
-          
-          // Replace all variables
-          Object.keys(variables).forEach(key => {
-            const regex = new RegExp(`{{${key}}}`, 'g');
-            message = message.replace(regex, variables[key] || '');
-          });
-          
-          try {
-            await WhatsAppService.sendMessage({ phone: user.phone, message });
-          } catch (error) {
-            console.error(`Failed to send WhatsApp to ${user.phone}:`, error);
+        if (notificationMethod === 'whatsapp' || notificationMethod === 'both') {
+          let message = '';
+          if (whatsappTemplate && whatsappTemplate.isActive) {
+            message = whatsappTemplate.message;
+          } else {
+            if (notificationType === 'invoice') {
+              message = `*TAGIHAN INTERNET REGULER*\n\nYth. {{customerName}} ({{customerId}}),\nBerikut adalah rincian tagihan internet Anda:\n\nNomor Tagihan: {{invoiceNumber}}\nJumlah Tagihan: {{amount}}\nJatuh Tempo: {{dueDate}}\n\nLink Pembayaran Instan:\n{{paymentLink}}\n\n{{additionalMessage}}\n\nTerima kasih.\n*{{companyName}}*`;
+            } else if (notificationType === 'outage') {
+              message = `*PEMBERITAHUAN GANGGUAN / MAINTENANCE*\n\nYth. Pelanggan {{companyName}},\n\nInformasi: {{issueType}}\nArea Terdampak: {{affectedArea}}\nKeterangan: {{description}}\nEstimasi Selesai: {{estimatedTime}}\n\nMohon maaf atas ketidaknyamanannya.`;
+            } else if (notificationType === 'payment') {
+              message = `*PEMBAYARAN DITERIMA*\n\nTerima kasih {{customerName}},\nPembayaran tagihan {{invoiceNumber}} sebesar {{amount}} telah kami terima pada {{paidDate}}.\n\nMasa aktif akun Anda telah diperpanjang hingga {{expiredDate}}.`;
+            }
+          }
+
+          if (message) {
+            // Replace all variables
+            Object.keys(variables).forEach(key => {
+              const regex = new RegExp(`{{${key}}}`, 'g');
+              message = message.replace(regex, variables[key] || '');
+            });
+            
+            try {
+              await WhatsAppService.sendMessage({ phone: user.phone, message });
+            } catch (error: any) {
+              console.error(`Failed to send WhatsApp to ${user.phone}:`, error);
+              errors.push(`Gagal kirim WA ke ${user.name} (${user.phone}): ${error.message || 'Error WA'}`);
+            }
           }
         }
         
