@@ -1198,14 +1198,14 @@ export default function InvoicesPage() {
                       <TableCell className="py-2 hidden sm:table-cell text-[10px] text-muted-foreground">{formatDate(invoice.dueDate)}</TableCell>
                       <TableCell className="py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {invoice.waNotifiedAt ? (
-                            <div className="flex items-center mr-1 px-1.5 py-0.5 rounded bg-success/10 text-success text-[9px] font-medium" title={`Terakhir WA dikirim: ${formatWIB(invoice.waNotifiedAt)}`}>
+                          {invoice.waNotifiedAt || (invoice as any).waRetryCount > 0 ? (
+                            <div className="flex items-center mr-1 px-1.5 py-0.5 rounded bg-success/10 text-success text-[9px] font-medium" title={`Terakhir WA dikirim: ${invoice.waNotifiedAt ? formatWIB(invoice.waNotifiedAt) : '-'} (Terkirim ${(invoice as any).waRetryCount || 1}x)`}>
                               <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
-                              WA Terkirim
+                              WA Terkirim ({(invoice as any).waRetryCount || 1}x)
                             </div>
                           ) : (
-                            <div className="flex items-center mr-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[9px] font-medium">
-                              Belum WA
+                            <div className="flex items-center mr-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[9px] font-medium" title="Belum pernah terkirim WA">
+                              Belum WA (0x)
                             </div>
                           )}
                           {invoice.paymentLink && (

@@ -4,17 +4,18 @@ import { sendInvoiceReminder } from '../src/server/services/notifications/whatsa
 const prisma = new PrismaClient();
 
 async function resendInvoices() {
-  console.log('🚀 Memulai pengiriman ulang WA tagihan ke pelanggan (Non-Muara Beres)...\n');
+  console.log('🚀 Memulai pengiriman antrean WA tagihan ke pelanggan (Belum WA & Non-Muara Beres)...\n');
 
   try {
     const company = await prisma.company.findFirst();
     const companyName = company?.name || 'EUGINE MEDIA GROUP';
     const companyPhone = company?.phone || '';
 
-    // Fetch all PENDING/OVERDUE invoices
+    // Fetch all PENDING/OVERDUE invoices that have NOT been notified (Belum WA)
     const invoices = await prisma.invoice.findMany({
       where: {
         status: { in: ['PENDING', 'OVERDUE'] },
+        waNotifiedAt: null,
       },
       include: {
         user: {
@@ -36,7 +37,7 @@ async function resendInvoices() {
       return !lowerArea.includes('muara beres') && !lowerArea.includes('kmb') && !lowerAddress.includes('muara beres');
     });
 
-    console.log(`📋 Ditemukan ${filteredInvoices.length} tagihan (Non-Muara Beres) yang akan dikirim ulang.\n`);
+    console.log(`📋 Ditemukan ${filteredInvoices.length} tagihan antrean 'Belum WA' (Non-Muara Beres) yang akan dikirim.\n`);
 
     let sent = 0;
     let failed = 0;
@@ -69,10 +70,20 @@ async function resendInvoices() {
           companyPhone,
           isOverdue: inv.status === 'OVERDUE',
         });
-        sent++;
-        console.log(`   ✅ Terkirim!`);
 
-        // Jeda 1.5 detik per pesan agar aman & tidak kena spam limit
+        // Update database status: mark as WA Terkirim and increment waRetryCount
+        await prisma.invoice.update({
+          where: { id: inv.id },
+          data: {
+            waNotifiedAt: new Date(),
+            waRetryCount: (inv.waRetryCount || 0) + 1,
+          },
+        });
+
+        sent++;
+        console.log(`   ✅ Terkirim & DB Updated (WA Terkirim)`);
+
+        // Jeda 1.5 detik per pesan agar aman & tidak kena rate limit
         await new Promise(resolve => setTimeout(resolve, 1500));
       } catch (err: any) {
         failed++;
@@ -80,7 +91,7 @@ async function resendInvoices() {
       }
     }
 
-    console.log(`\n🎉 Pengiriman ulang selesai! Total Terkirim: ${sent}, Gagal: ${failed}`);
+    console.log(`\n🎉 Pengiriman antrean selesai! Total Terkirim: ${sent}, Gagal: ${failed}`);
   } catch (error) {
     console.error('❌ Script error:', error);
   } finally {
