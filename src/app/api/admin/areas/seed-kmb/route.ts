@@ -78,9 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     let targetArea = await prisma.pppoeArea.findFirst({
-      where: {
-        name: { contains: 'MUARA BERES' }
-      }
+      where: { name: { contains: 'MUARA BERES' } }
     });
 
     if (!targetArea) {
@@ -103,6 +101,23 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    const targetNames = new Set(kmbCustomerList.map(item => item.name.trim().toLowerCase()));
+
+    // Unassign improperly matched users
+    const wrongUsers = allUsers.filter(u => {
+      if (u.areaId !== targetArea?.id) return false;
+      const uName = (u.name || '').trim().toLowerCase();
+      const uUsername = (u.username || '').trim().toLowerCase();
+      return !targetNames.has(uName) && !targetNames.has(uUsername);
+    });
+
+    for (const wu of wrongUsers) {
+      await prisma.pppoeUser.update({
+        where: { id: wu.id },
+        data: { areaId: null }
+      });
+    }
+
     let matchedCount = 0;
     let updatedCount = 0;
     const details: any[] = [];
@@ -113,7 +128,7 @@ export async function POST(request: NextRequest) {
       const matchedUsers = allUsers.filter(u => {
         const uName = (u.name || '').trim().toLowerCase();
         const uUsername = (u.username || '').trim().toLowerCase();
-        return uName === itemNorm || uUsername === itemNorm || uName.includes(itemNorm) || itemNorm.includes(uName);
+        return uName === itemNorm || uUsername === itemNorm;
       });
 
       if (matchedUsers.length > 0) {
@@ -135,6 +150,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Berhasil meng-assign ${updatedCount} user (${matchedCount}/${kmbCustomerList.length} nama tercocokkan) ke wilayah ${targetArea.name}`,
+      unassignedCount: wrongUsers.length,
       matchedCount,
       updatedCount,
       details,

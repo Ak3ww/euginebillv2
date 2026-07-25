@@ -67,13 +67,10 @@ const kmbCustomerList = [
 ];
 
 async function main() {
-  console.log('=== Seeding 62 Customers to KAMPUNG MUARA BERES ===');
+  console.log('=== Strict Seeding 62 Customers to KAMPUNG MUARA BERES ===');
 
-  // Ensure KAMPUNG MUARA BERES area exists
   let targetArea = await prisma.pppoeArea.findFirst({
-    where: {
-      name: { contains: 'MUARA BERES' }
-    }
+    where: { name: { contains: 'MUARA BERES' } }
   });
 
   if (!targetArea) {
@@ -84,9 +81,6 @@ async function main() {
         description: 'Wilayah Coverage Kampung Muara Beres',
       }
     });
-    console.log(`Created new area: ${targetArea.name}`);
-  } else {
-    console.log(`Using existing area: ${targetArea.name} (${targetArea.id})`);
   }
 
   const allUsers = await prisma.pppoeUser.findMany({
@@ -99,21 +93,40 @@ async function main() {
     }
   });
 
+  // Set target names for strict matching
+  const targetNames = new Set(kmbCustomerList.map(item => item.name.trim().toLowerCase()));
+
+  // Reset areaId to null for any user that was wrongly assigned during substring matching
+  const wrongUsers = allUsers.filter(u => {
+    if (u.areaId !== targetArea?.id) return false;
+    const uName = (u.name || '').trim().toLowerCase();
+    const uUsername = (u.username || '').trim().toLowerCase();
+    return !targetNames.has(uName) && !targetNames.has(uUsername);
+  });
+
+  console.log(`Unassigning ${wrongUsers.length} extra users that were improperly matched...`);
+  for (const wu of wrongUsers) {
+    await prisma.pppoeUser.update({
+      where: { id: wu.id },
+      data: { areaId: null }
+    });
+  }
+
   let matchedCount = 0;
   let updatedCount = 0;
 
   for (const item of kmbCustomerList) {
     const itemNorm = item.name.trim().toLowerCase();
     
-    // Exact or close match by name or username
+    // Strict exact name or exact username match ONLY
     const matchedUsers = allUsers.filter(u => {
       const uName = (u.name || '').trim().toLowerCase();
       const uUsername = (u.username || '').trim().toLowerCase();
-      return uName === itemNorm || uUsername === itemNorm || uName.includes(itemNorm) || itemNorm.includes(uName);
+      return uName === itemNorm || uUsername === itemNorm;
     });
 
     if (matchedUsers.length === 0) {
-      console.log(`❌ No match found in DB for: "${item.name}"`);
+      console.log(`❌ No exact match in DB for: "${item.name}"`);
       continue;
     }
 
@@ -124,16 +137,15 @@ async function main() {
         where: { id: u.id },
         data: {
           areaId: targetArea.id,
-          // Update address if current address is empty or generic
           address: (!u.address || u.address.length < 5) ? item.address : u.address,
         }
       });
       updatedCount++;
-      console.log(`✓ [Matched & Assigned] ${u.name} (${u.username}) -> KAMPUNG MUARA BERES`);
+      console.log(`✓ [Exact Match] ${u.name} (${u.username}) -> KAMPUNG MUARA BERES`);
     }
   }
 
-  console.log(`\nDone! Matched ${matchedCount}/${kmbCustomerList.length} list items. Total ${updatedCount} user records updated.`);
+  console.log(`\nDone! Strictly matched ${matchedCount}/${kmbCustomerList.length} items. Total ${updatedCount} users in KAMPUNG MUARA BERES.`);
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());
