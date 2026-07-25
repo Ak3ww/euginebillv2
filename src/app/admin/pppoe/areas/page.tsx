@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, MapPin, Users, Search, X, Loader2 } from 'lucide-react';
@@ -166,7 +166,27 @@ export default function AreasPage() {
               {t('pppoe.areasSubtitle')}
             </p>
           </div>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 flex-wrap">
+            <button
+              onClick={async () => {
+                if (!confirm('Jalankan Auto-Match 4 Wilayah Utama (KAMPUNG TEGAL, KAMPUNG PISANG, KAMPUNG MUARA BERES, PURI NIRWANA 3) untuk mencocokkan 179 pelanggan tanpa wilayah?')) return;
+                try {
+                  const res = await fetch('/api/admin/areas/auto-seed', { method: 'POST' });
+                  const data = await res.json();
+                  if (res.ok && data.success) {
+                    addToast({ type: 'success', title: '⚡ Auto-Match Berhasil!', description: data.message });
+                    loadAreas();
+                  } else {
+                    addToast({ type: 'error', title: 'Gagal', description: data.error || 'Gagal auto-seed wilayah' });
+                  }
+                } catch (e: any) {
+                  addToast({ type: 'error', title: 'Error', description: e.message });
+                }
+              }}
+              className="inline-flex items-center px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow-sm"
+            >
+              ⚡ Auto-Match 4 Wilayah Utama
+            </button>
             {canCreate && (
               <button
                 onClick={() => {
