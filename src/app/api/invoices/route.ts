@@ -134,15 +134,15 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    // Calculate stats — run all 7 queries in parallel
+    // Calculate stats — run all 7 queries in parallel applying current filter conditions
     const [total, unpaid, paid, pending, overdue, totalUnpaidAgg, totalPaidAgg] = await Promise.all([
-      prisma.invoice.count(),
-      prisma.invoice.count({ where: { status: { in: ['PENDING', 'OVERDUE'] } } }),
-      prisma.invoice.count({ where: { status: 'PAID' } }),
-      prisma.invoice.count({ where: { status: 'PENDING' } }),
-      prisma.invoice.count({ where: { status: 'OVERDUE' } }),
-      prisma.invoice.aggregate({ where: { status: { in: ['PENDING', 'OVERDUE'] } }, _sum: { amount: true } }),
-      prisma.invoice.aggregate({ where: { status: 'PAID' }, _sum: { amount: true } }),
+      prisma.invoice.count({ where }),
+      prisma.invoice.count({ where: { ...where, status: { in: ['PENDING', 'OVERDUE'] } } }),
+      prisma.invoice.count({ where: { ...where, status: 'PAID' } }),
+      prisma.invoice.count({ where: { ...where, status: 'PENDING' } }),
+      prisma.invoice.count({ where: { ...where, status: 'OVERDUE' } }),
+      prisma.invoice.aggregate({ where: { ...where, status: { in: ['PENDING', 'OVERDUE'] } }, _sum: { amount: true } }),
+      prisma.invoice.aggregate({ where: { ...where, status: 'PAID' }, _sum: { amount: true } }),
     ]);
     const stats = { total, unpaid, paid, pending, overdue, totalUnpaidAmount: totalUnpaidAgg, totalPaidAmount: totalPaidAgg };
 
