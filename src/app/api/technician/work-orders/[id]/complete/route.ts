@@ -134,11 +134,11 @@ export async function POST(
 
     // Auto-Billing Trigger & Admin Alert
     if (wo.linkedUserId) {
-      // Find the first PENDING or UNPAID invoice for this customer
+      // Find the first PENDING or OVERDUE invoice for this customer
       const invoice = await prisma.invoice.findFirst({
         where: {
           userId: wo.linkedUserId,
-          status: { in: ['PENDING', 'UNPAID', 'OVERDUE'] }
+          status: { in: ['PENDING', 'OVERDUE'] }
         },
         orderBy: {
           createdAt: 'desc'
@@ -152,7 +152,7 @@ export async function POST(
         await sendInvoiceReminder({
           phone: wo.customer.phone,
           customerName: wo.customer.name,
-          customerId: wo.customer.customerId,
+          customerId: wo.customer.customerId || undefined,
           customerUsername: wo.customer.username,
           invoiceNumber: invoice.invoiceNumber,
           amount: invoice.amount,

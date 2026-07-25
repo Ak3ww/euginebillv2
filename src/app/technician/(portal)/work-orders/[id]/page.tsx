@@ -238,7 +238,7 @@ export default function TechnicianWorkOrderWizardPage() {
       if (!photos['Foto ONT Menyala'] && !photos['Foto Bukti 1']) missing.push('Foto ONT Menyala / Bukti 1');
       if (!photos['Foto Rumah'] && !photos['Foto Bukti 2']) missing.push('Foto Rumah / Bukti 2');
     } else if (issueType.includes('MAINT') || issueType.includes('PERBAIK') || issueType === 'REPAIR') {
-      if (!reportData.description?.trim() && !reportData.rxSignal?.trim()) missing.push('Catatan Perbaikan / Redaman Sinyal');
+      if (!reportData.notes?.trim() && !reportData.rxSignal?.trim()) missing.push('Catatan Perbaikan / Redaman Sinyal');
       if (!customerGeo.lat || !customerGeo.lng) missing.push('Titik GPS Lokasi');
       if (Object.keys(photos).length === 0) missing.push('Minimal 1 Foto Bukti Perbaikan');
     } else if (issueType.includes('CABUT') || issueType.includes('DISMANTL')) {
@@ -857,7 +857,7 @@ export default function TechnicianWorkOrderWizardPage() {
                       <input 
                         type="file" 
                         accept="image/*"
-                        capture="camera"
+                        capture="environment"
                         onChange={(e) => handlePhotoUploadFromGallery(key, e)} 
                         className="hidden" 
                       />
@@ -1020,7 +1020,7 @@ export default function TechnicianWorkOrderWizardPage() {
                       <input 
                         type="file" 
                         accept="image/*"
-                        capture="camera"
+                        capture="environment"
                         onChange={(e) => handlePhotoUploadFromGallery(key, e)} 
                         className="hidden" 
                       />
