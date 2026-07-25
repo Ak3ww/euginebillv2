@@ -85,11 +85,15 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Extract customer name from message text (e.g. Yth. Bapak/Ibu *SYAIFUL ANWAR*)
+      const nameMatch = msg.match(/Yth\.\s*(?:Bapak\/Ibu\s*)?\*?([^\*\n\r]+)\*?/i);
+      const extractedName = nameMatch ? nameMatch[1].replace(/\*/g, '').trim() : '';
+
       // Extract username/customerId from message string if present (e.g. "Yth. Agus (EMG001)")
       const userMatch = msg.match(/\(([a-zA-Z0-9_-]+)\)/);
       const userCode = userMatch ? userMatch[1] : null;
 
-      // Find customer by phone number or extracted username/customerId
+      // Find customer by phone number, extracted name, or extracted username/customerId
       const cleanPhone = log.phone.replace(/[^0-9]/g, '');
       const searchPhone0 = cleanPhone.startsWith('62') ? '0' + cleanPhone.slice(2) : cleanPhone;
       const searchPhone62 = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
@@ -102,6 +106,7 @@ export async function POST(request: NextRequest) {
             { phone: searchPhone0 },
             { phone: searchPhone62 },
             { phone: { contains: lastDigits } },
+            ...(extractedName ? [{ name: { contains: extractedName } }] : []),
             ...(userCode ? [
               { username: userCode },
               { customerId: userCode },
@@ -114,15 +119,8 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      if (!user) {
-        skipped++;
-        continue;
-      }
-
-      const amount = parsedAmount || user.profile?.price || 100000;
-
-      // Check Muara Beres exclusion
-      if (excludeMuaraBeres) {
+      // Check Muara Beres exclusion if user belongs to KMB
+      if (user && excludeMuaraBeres) {
         const areaName = user.area?.name || '';
         const userAddress = user.address || '';
         if (
@@ -134,6 +132,11 @@ export async function POST(request: NextRequest) {
           continue;
         }
       }
+
+      const amount = parsedAmount || user?.profile?.price || 100000;
+      const customerName = user?.name || extractedName || 'Pelanggan';
+      const customerPhone = user?.phone || log.phone;
+      const customerUsername = user?.username || (extractedName ? extractedName.toLowerCase().replace(/[^a-z0-9]/g, '') : 'user');
 
       // Check if invoice already exists
       const existing = await prisma.invoice.findFirst({
@@ -156,16 +159,16 @@ export async function POST(request: NextRequest) {
         data: {
           id: crypto.randomUUID(),
           invoiceNumber,
-          userId: user.id,
+          userId: user?.id || null,
           amount,
-          baseAmount: user.profile?.price || amount,
+          baseAmount: user?.profile?.price || amount,
           dueDate,
           status: 'PENDING',
           invoiceType: 'MONTHLY',
-          customerName: user.name,
-          customerPhone: user.phone,
-          customerUsername: user.username,
-          customerEmail: user.email || null,
+          customerName,
+          customerPhone,
+          customerUsername,
+          customerEmail: user?.email || null,
           paymentToken,
           paymentLink,
           createdAt: log.sentAt || new Date(),
@@ -173,7 +176,7 @@ export async function POST(request: NextRequest) {
       });
 
       restored++;
-      restoredInvoices.push(`${invoiceNumber} (${user.name})`);
+      restoredInvoices.push(`${invoiceNumber} (${customerName})`);
     }
 
     return NextResponse.json({
