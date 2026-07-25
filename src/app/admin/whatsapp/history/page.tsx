@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -142,14 +142,39 @@ export default function WhatsAppHistoryPage() {
       <div className="relative z-10 space-y-6">
         <div className="max-w-7xl mx-auto space-y-3">
           {/* Header */}
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc] dark:drop-shadow-[0_0_30px_rgba(0,247,255,0.5)] flex items-center gap-2">
-              <svg className="w-6 h-6 text-[#00f7ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {t('whatsapp.historyTitle')}
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('whatsapp.historySubtitle')}</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc] dark:drop-shadow-[0_0_30px_rgba(0,247,255,0.5)] flex items-center gap-2">
+                <svg className="w-6 h-6 text-[#00f7ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {t('whatsapp.historyTitle')}
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('whatsapp.historySubtitle')}</p>
+            </div>
+            <button
+              onClick={async () => {
+                if (!confirm('Rapikan & perbaiki semua nomor HP pelanggan di database (misal 6288xxx double prefix, 6208xxx)?')) return;
+                try {
+                  setLoading(true);
+                  const res = await fetch('/api/admin/pppoe/fix-phone-numbers', { method: 'POST' });
+                  const data = await res.json();
+                  if (data.success) {
+                    alert(data.message);
+                    fetchHistory();
+                  } else {
+                    alert(data.error || 'Gagal merapikan nomor HP');
+                  }
+                } catch {
+                  alert('Terjadi kesalahan');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="inline-flex items-center px-3 py-2 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition-colors self-start sm:self-auto"
+            >
+              🛠️ Rapikan & Fix Nomor HP (Database Seed)
+            </button>
           </div>
 
           {/* Stats Cards */}
