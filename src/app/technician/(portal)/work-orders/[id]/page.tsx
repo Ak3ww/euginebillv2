@@ -823,14 +823,26 @@ export default function TechnicianWorkOrderWizardPage() {
                     </div>
                   )}
 
-                  <div className="flex gap-2 w-full">
+                  <div className="flex gap-1.5 w-full">
+                    <label className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm cursor-pointer transition-colors" title="Buka Kamera HP Langsung (APK/Native)">
+                      <Camera className="w-3.5 h-3.5" /> Kamera HP
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        capture="camera"
+                        onChange={(e) => handlePhotoUploadFromGallery(key, e)} 
+                        className="hidden" 
+                      />
+                    </label>
                     <button
+                      type="button"
                       onClick={() => openCameraModal(key)}
-                      className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm hover:opacity-90"
+                      className="py-2 px-2.5 bg-primary text-primary-foreground rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm hover:opacity-90 transition-opacity"
+                      title="Kamera WebRTC Live"
                     >
-                      <Camera className="w-3.5 h-3.5" /> Kamera
+                      <Camera className="w-3.5 h-3.5" /> Live
                     </button>
-                    <label className="flex-1 py-2 bg-muted text-foreground border border-border rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer hover:bg-muted/80">
+                    <label className="py-2 px-2.5 bg-muted text-foreground border border-border rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer hover:bg-muted/80 transition-colors" title="Pilih dari Galeri">
                       <ImageIcon className="w-3.5 h-3.5" /> Galeri
                       <input 
                         type="file" 
@@ -974,14 +986,26 @@ export default function TechnicianWorkOrderWizardPage() {
                     </div>
                   )}
 
-                  <div className="flex gap-2 w-full">
+                  <div className="flex gap-1.5 w-full">
+                    <label className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm cursor-pointer transition-colors" title="Buka Kamera HP Langsung (APK/Native)">
+                      <Camera className="w-3.5 h-3.5" /> Kamera HP
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        capture="camera"
+                        onChange={(e) => handlePhotoUploadFromGallery(key, e)} 
+                        className="hidden" 
+                      />
+                    </label>
                     <button
+                      type="button"
                       onClick={() => openCameraModal(key)}
-                      className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm hover:opacity-90"
+                      className="py-2 px-2.5 bg-primary text-primary-foreground rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm hover:opacity-90 transition-opacity"
+                      title="Kamera WebRTC Live"
                     >
-                      <Camera className="w-3.5 h-3.5" /> Kamera
+                      <Camera className="w-3.5 h-3.5" /> Live
                     </button>
-                    <label className="flex-1 py-2 bg-muted text-foreground border border-border rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer hover:bg-muted/80">
+                    <label className="py-2 px-2.5 bg-muted text-foreground border border-border rounded-lg font-mono text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer hover:bg-muted/80 transition-colors" title="Pilih dari Galeri">
                       <ImageIcon className="w-3.5 h-3.5" /> Galeri
                       <input 
                         type="file" 
