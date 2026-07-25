@@ -50,19 +50,16 @@ export async function POST(request: NextRequest) {
       if (linkMatch) validPaymentTokens.add(linkMatch[1].trim());
     }
 
-    // Auto-purge any PENDING/OVERDUE invoices in DB that do NOT match sent WA history from the last 24 hours
-    const unpaidInDB = await prisma.invoice.findMany({
+    // Purge ALL existing PENDING/OVERDUE invoices first so we start from a 100% clean slate!
+    const pendingInvoices = await prisma.invoice.findMany({
       where: { status: { in: ['PENDING', 'OVERDUE'] } },
-      select: { id: true, invoiceNumber: true, paymentToken: true },
+      select: { id: true },
     });
 
-    const idsToDelete = unpaidInDB
-      .filter(inv => !validInvoiceNumbers.has(inv.invoiceNumber) && (!inv.paymentToken || !validPaymentTokens.has(inv.paymentToken)))
-      .map(inv => inv.id);
-
-    if (idsToDelete.length > 0) {
-      await prisma.payment.deleteMany({ where: { invoiceId: { in: idsToDelete } } });
-      await prisma.invoice.deleteMany({ where: { id: { in: idsToDelete } } });
+    if (pendingInvoices.length > 0) {
+      const pendingIds = pendingInvoices.map(i => i.id);
+      await prisma.payment.deleteMany({ where: { invoiceId: { in: pendingIds } } });
+      await prisma.invoice.deleteMany({ where: { id: { in: pendingIds } } });
     }
 
     const company = await prisma.company.findFirst({ select: { baseUrl: true } });
