@@ -144,60 +144,55 @@ export async function PUT(request: Request) {
         console.log(`[Status Change] CoA disconnect result for ${user.username}:`, coaResult);
       }
 
-    } else {
-      // ========== NON-RADIUS MODE (MikroTik Direct) ==========
-      const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+      // ========== ALWAYS SYNC MIKROTIK DIRECT API (PPP Secret & Active Session) ==========
       const routerId = user.routerId;
-
-      if (!routerId) {
-        console.warn(`[Status Change] No routerId for user ${user.username}, skipping MikroTik API call`);
-      } else {
-        if (status === 'isolated') {
-          // Switch PPP secret profile to 'isolir' and kick active session
-          const result = await PPPSecretService.setProfileAndDisconnect(routerId, user.username, 'isolir');
-          console.log(`[Status Change] MikroTik isolate result for ${user.username}:`, result);
-
-        } else if (status === 'active') {
-          // Restore PPP secret to normal profile and kick active session (force reconnect)
-          const normalProfile = user.profile.mikrotikProfileName || user.profile.name || user.profile.groupName;
-          const result = await PPPSecretService.setProfileAndDisconnect(routerId, user.username, normalProfile);
-          console.log(`[Status Change] MikroTik restore result for ${user.username}:`, result);
-
-        } else if (status === 'blocked' || status === 'stop') {
-          // Disable the PPP secret entirely (user cannot connect)
-          const { MikroTikConnection } = await import('@/server/services/mikrotik/client');
-          const router = await prisma.router.findUnique({ where: { id: routerId } });
-          if (router) {
-            const conn = new MikroTikConnection({
-              host: router.ipAddress,
-              username: router.username,
-              password: router.password,
-              port: router.apiPort,
-            });
-            try {
-              await conn.connect();
-              const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`]);
-              if (existing.length > 0) {
+      if (routerId) {
+        const { MikroTikConnection } = await import('@/server/services/mikrotik/client');
+        const router = await prisma.router.findUnique({ where: { id: routerId } });
+        if (router) {
+          const conn = new MikroTikConnection({
+            host: router.ipAddress,
+            username: router.username,
+            password: router.password,
+            port: router.apiPort,
+          });
+          try {
+            await conn.connect();
+            const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`]);
+            if (existing.length > 0) {
+              if (status === 'blocked' || status === 'stop') {
                 await conn.execute('/ppp/secret/set', [
                   `=.id=${existing[0]['.id']}`,
                   `=disabled=yes`,
                 ]);
+              } else if (status === 'active') {
+                const normalProfile = user.profile.mikrotikProfileName || user.profile.name || user.profile.groupName;
+                await conn.execute('/ppp/secret/set', [
+                  `=.id=${existing[0]['.id']}`,
+                  `=disabled=no`,
+                  `=profile=${normalProfile}`,
+                ]);
+              } else if (status === 'isolated') {
+                await conn.execute('/ppp/secret/set', [
+                  `=.id=${existing[0]['.id']}`,
+                  `=disabled=no`,
+                  `=profile=isolir`,
+                ]);
               }
-              // Kick active connection
-              const active = await conn.execute('/ppp/active/print', [`?name=${user.username}`]);
-              if (active.length > 0) {
-                await conn.execute('/ppp/active/remove', [`=.id=${active[0]['.id']}`]);
-              }
-              await conn.disconnect();
-              console.log(`[Status Change] MikroTik disabled PPP secret for ${user.username}`);
-            } catch (err) {
-              console.error(`[Status Change] MikroTik block/stop error for ${user.username}:`, err);
-              try { await conn.disconnect(); } catch { /* ignore */ }
             }
+            // Kick active connection in MikroTik
+            const active = await conn.execute('/ppp/active/print', [`?name=${user.username}`]);
+            for (const session of active) {
+              await conn.execute('/ppp/active/remove', [`=.id=${session['.id']}`]);
+            }
+            await conn.disconnect();
+            console.log(`[Status Change] MikroTik API sync complete for ${user.username} (status: ${status})`);
+          } catch (err) {
+            console.error(`[Status Change] MikroTik API sync error for ${user.username}:`, err);
+            try { await conn.disconnect(); } catch { /* ignore */ }
           }
         }
       }
-    }
 
     // Log activity
     await logActivity({
