@@ -129,15 +129,22 @@ app.post('/send', async (req, res) => {
 
     try {
         // Format number to JID
-        let jid = phone.replace(/[^0-9]/g, '');
-        if (jid.startsWith('0')) jid = '62' + jid.substring(1);
-        if (!jid.startsWith('62')) jid = '62' + jid;
-        jid = jid + '@s.whatsapp.net';
+        let rawDigits = phone.replace(/[^0-9]/g, '');
+        if (rawDigits.startsWith('620')) rawDigits = '62' + rawDigits.substring(3);
+        else if (rawDigits.startsWith('0')) rawDigits = '62' + rawDigits.substring(1);
+        else if (rawDigits.startsWith('8')) rawDigits = '62' + rawDigits;
+        else if (!rawDigits.startsWith('62')) rawDigits = '62' + rawDigits;
 
-        // Check if number exists on WA
-        const [result] = await sock.onWhatsApp(jid);
-        if (!result?.exists) {
-           return res.status(400).json({ status: false, message: 'Nomor tidak terdaftar di WhatsApp' });
+        const jid = rawDigits + '@s.whatsapp.net';
+
+        // Check if number exists on WA (log warning if false, but proceed with direct send)
+        try {
+          const [result] = await sock.onWhatsApp(jid);
+          if (result && !result.exists) {
+            console.warn(`[WA Service] Warning: onWhatsApp reported ${rawDigits} not exists, trying direct send...`);
+          }
+        } catch (e) {
+          console.warn(`[WA Service] onWhatsApp check skipped due to error:`, e);
         }
 
         await sock.sendMessage(jid, { text: message });
