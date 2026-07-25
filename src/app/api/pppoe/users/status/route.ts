@@ -143,6 +143,7 @@ export async function PUT(request: Request) {
         const coaResult = await disconnectPPPoEUser(user.username);
         console.log(`[Status Change] CoA disconnect result for ${user.username}:`, coaResult);
       }
+    }
 
       // ========== ALWAYS SYNC MIKROTIK DIRECT API (PPP Secret & Active Session) ==========
       const routerId = user.routerId;
