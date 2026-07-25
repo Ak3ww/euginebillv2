@@ -12,14 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const weakUsers = await prisma.pppoeUser.findMany({
-      where: {
-        OR: [
-          { password: '123' },
-          { password: '' },
-          { password: null as any }
-        ]
-      },
+    const allUsers = await prisma.pppoeUser.findMany({
       select: {
         id: true,
         username: true,
@@ -28,6 +21,10 @@ export async function POST(request: NextRequest) {
         portalPassword: true,
       }
     });
+
+    const weakUsers = allUsers.filter(
+      u => !u.password || u.password.trim() === '' || u.password === '123'
+    );
 
     let fixedCount = 0;
     const details: any[] = [];

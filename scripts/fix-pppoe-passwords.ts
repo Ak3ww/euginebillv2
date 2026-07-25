@@ -4,24 +4,20 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('=== Checking PPPoE Passwords in Database ===');
   
-  // Find all users where password is '123' or empty
-  const weakPasswordUsers = await prisma.pppoeUser.findMany({
-    where: {
-      OR: [
-        { password: '123' },
-        { password: '' },
-        { password: null as any }
-      ]
-    },
+  // Fetch users and filter in memory to avoid Prisma null-where query validation error
+  const allUsers = await prisma.pppoeUser.findMany({
     select: {
       id: true,
       username: true,
       name: true,
       password: true,
       portalPassword: true,
-      routerId: true
     }
   });
+
+  const weakPasswordUsers = allUsers.filter(
+    u => !u.password || u.password.trim() === '' || u.password === '123'
+  );
 
   console.log(`Found ${weakPasswordUsers.length} users with weak/default '123' or empty PPPoE password.`);
 
@@ -47,10 +43,10 @@ async function main() {
     } catch (_) {}
 
     fixedCount++;
-    console.log(`  [Fixed] User "${user.username}" (${user.name}) -> PPPoE Password set to: ${targetPassword} (Portal Password: ${user.portalPassword || '123'})`);
+    console.log(`  [Fixed] User "${user.username}" (${user.name}) -> PPPoE Password set to: ${targetPassword}`);
   }
 
-  console.log(`\n✓ Fixed ${fixedCount} users.`);
+  console.log(`\n✓ Fixed ${fixedCount} users to default PPPoE password '${targetPassword}'.`);
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());
