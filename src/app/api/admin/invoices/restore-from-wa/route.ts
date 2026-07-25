@@ -22,9 +22,15 @@ export async function POST(request: NextRequest) {
 
     const waLogs = await prisma.whatsapp_history.findMany({
       where: {
-        message: { contains: '/pay/' },
         sentAt: { gte: sinceDate },
         status: { in: ['sent', 'SENT', 'success', 'SUCCESS', 'terkirim', 'TERKIRIM'] },
+        OR: [
+          { message: { contains: '/pay/' } },
+          { message: { contains: 'INVOICE' } },
+          { message: { contains: 'Tagihan' } },
+          { message: { contains: 'tagihan' } },
+          { message: { contains: 'INV-' } },
+        ],
       },
       orderBy: { sentAt: 'desc' },
       take: 1000,
@@ -73,6 +79,17 @@ export async function POST(request: NextRequest) {
     for (const log of waLogs) {
       const msg = log.message;
 
+      // Extract invoiceNumber, paymentToken, amount, and dueDate using flexible Regex
+      const invMatch = msg.match(/(?:No\.\s*Invoice|Nomor\s*Invoice|Nomor\s*Tagihan|No\s*Tagihan):\s*\*?([^\*\n\r]+)\*?/i) || msg.match(/(INV-[a-zA-Z0-9_-]+)/i);
+      const linkMatch = msg.match(/\/pay\/([a-zA-Z0-9_-]+)/i);
+      const amountMatch = msg.match(/(?:Jumlah|Total)\s*Tagihan:\s*Rp\s*([\d\.]+)/i) || msg.match(/Rp\s*([\d\.]+)/i);
+      const dueMatch = msg.match(/(?:Jatuh Tempo|sebelum):\s*\*?([^\*\n\r]+)\*?/i);
+
+      if (!invMatch) {
+        skipped++;
+        continue;
+      }
+
       // Ensure we only restore the LATEST message sent to each phone number
       const cleanPhoneKey = log.phone.replace(/[^0-9]/g, '').slice(-10);
       if (processedPhones.has(cleanPhoneKey)) {
@@ -81,19 +98,8 @@ export async function POST(request: NextRequest) {
       }
       processedPhones.add(cleanPhoneKey);
 
-      // Extract invoiceNumber, paymentToken, amount, and dueDate using flexible Regex
-      const invMatch = msg.match(/(?:No\.\s*Invoice|Nomor\s*Invoice|Nomor\s*Tagihan|No\s*Tagihan):\s*\*?([^\*\n\r]+)\*?/i) || msg.match(/(INV-[a-zA-Z0-9_-]+)/i);
-      const linkMatch = msg.match(/\/pay\/([a-zA-Z0-9_-]+)/i);
-      const amountMatch = msg.match(/(?:Jumlah|Total)\s*Tagihan:\s*Rp\s*([\d\.]+)/i);
-      const dueMatch = msg.match(/(?:Jatuh Tempo|sebelum):\s*\*?([^\*\n\r]+)\*?/i);
-
-      if (!invMatch || !linkMatch) {
-        skipped++;
-        continue;
-      }
-
       const invoiceNumber = invMatch[1].replace(/\*/g, '').trim();
-      const paymentToken = linkMatch[1].trim();
+      const paymentToken = linkMatch ? linkMatch[1].trim() : crypto.randomUUID().replace(/-/g, '');
       const rawAmount = amountMatch ? amountMatch[1].replace(/\./g, '') : '0';
       const parsedAmount = parseInt(rawAmount) || 0;
 
