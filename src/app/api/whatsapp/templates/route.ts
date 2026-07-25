@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 
 const COMMON_FOOTER = `-----------------------------------------
-📱 *Aplikasi Pelanggan:* http://euginemediagroup.com/download-app
+📱 *Aplikasi Pelanggan:* {{link_download_aplikasi}}
 📢 *WA Channel Info & Promo:* https://whatsapp.com/channel/0029Vb80GhZ1CYoX3FVC4m2v
 
 Ada kendala? Balas chat ini untuk informasi lebih lanjut.
