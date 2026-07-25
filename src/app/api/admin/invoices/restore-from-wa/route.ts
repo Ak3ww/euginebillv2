@@ -103,16 +103,28 @@ export async function POST(request: NextRequest) {
       const rawAmount = amountMatch ? amountMatch[1].replace(/\./g, '') : '0';
       const parsedAmount = parseInt(rawAmount) || 0;
 
-      // Parse due date if available
-      let dueDate = new Date();
+      // Parse due date if available (handles Indonesian month names like "5 Agustus 2026")
+      const INDO_MONTHS: Record<string, number> = {
+        januari: 0, jan: 0, februari: 1, feb: 1, maret: 2, mar: 2, april: 3, apr: 3,
+        mei: 4, juni: 5, jun: 5, juli: 6, jul: 6, agustus: 7, agu: 7, ags: 7,
+        september: 8, sep: 8, oktober: 9, okt: 9, november: 10, nov: 10, desember: 11,
+      };
+
+      let dueDate = new Date('2026-08-05');
       if (dueMatch) {
-        const dStr = dueMatch[1].replace(/\*/g, '').trim();
-        const parts = dStr.split('/');
-        if (parts.length === 3) {
-          dueDate = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
-        } else {
-          const parsed = new Date(dStr);
-          if (!isNaN(parsed.getTime())) dueDate = parsed;
+        const dStr = dueMatch[1].replace(/\*/g, '').trim().toLowerCase();
+        const parts = dStr.split(/[\/\-\s]+/);
+        if (parts.length >= 3) {
+          const day = parseInt(parts[0]);
+          let month = parseInt(parts[1]) - 1;
+          if (isNaN(month)) {
+            const mStr = parts[1];
+            month = INDO_MONTHS[mStr] !== undefined ? INDO_MONTHS[mStr] : 7;
+          }
+          const year = parseInt(parts[2]);
+          if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+            dueDate = new Date(Date.UTC(year, month, day, 12, 0, 0));
+          }
         }
       }
 
