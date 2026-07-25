@@ -93,10 +93,9 @@ async function main() {
     }
   });
 
-  // Set target names for strict matching
   const targetNames = new Set(kmbCustomerList.map(item => item.name.trim().toLowerCase()));
 
-  // Reset areaId to null for any user that was wrongly assigned during substring matching
+  // Unassign improperly matched users from previous substring match
   const wrongUsers = allUsers.filter(u => {
     if (u.areaId !== targetArea?.id) return false;
     const uName = (u.name || '').trim().toLowerCase();
@@ -104,12 +103,13 @@ async function main() {
     return !targetNames.has(uName) && !targetNames.has(uUsername);
   });
 
-  console.log(`Unassigning ${wrongUsers.length} extra users that were improperly matched...`);
+  console.log(`Unassigning ${wrongUsers.length} extra users that were improperly matched:`);
   for (const wu of wrongUsers) {
     await prisma.pppoeUser.update({
       where: { id: wu.id },
       data: { areaId: null }
     });
+    console.log(`  - Unassigned: ${wu.name} (${wu.username})`);
   }
 
   let matchedCount = 0;
