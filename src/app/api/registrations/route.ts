@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
 import { sendRegistrationConfirmation, notifyAdminsViaWhatsApp } from '@/server/services/notifications/whatsapp-templates.service';
 
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     const isAdminManual = !!session;
