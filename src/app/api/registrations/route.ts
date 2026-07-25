@@ -1,11 +1,13 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { sendRegistrationConfirmation, notifyAdminsViaWhatsApp } from '@/server/services/notifications/whatsapp-templates.service';
 
-export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const isAdminManual = !!session;
+
     const body = await request.json();
-    const { name, phone, email, address, profileId, notes, referralCode, latitude, longitude, idCardNumber, idCardPhoto, areaId } = body;
+    const { name, phone, email, address, profileId, notes, referralCode, latitude, longitude, idCardNumber, idCardPhoto, areaId, sendWaNotification } = body;
 
     // Validate required fields
     if (!name || !phone || !address || !profileId) {
@@ -74,29 +76,34 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Notify all admins via WhatsApp (fire-and-forget)
-    (() => {
-      const refInfo = validReferralCode ? `\n🎁 Kode Referral: *${validReferralCode}*` : '';
-      prisma.company.findFirst({ select: { baseUrl: true } }).then(company => {
-        const adminUrl = `${company?.baseUrl || ''}/admin/pppoe/registrations`;
-        const message =
-          `📋 *Pendaftaran Baru Masuk!*\n\n` +
-          `👤 Nama: *${name}*\n` +
-          `📞 HP: *${phone}*\n` +
-          `📦 Paket: *${registration.profile.name}*\n` +
-          `📍 Alamat: ${address}${refInfo}\n\n` +
-          `Silakan buka panel admin untuk menyetujui:\n${adminUrl}`;
-        return notifyAdminsViaWhatsApp(message);
-      }).catch(() => {});
-    })();
+    // Notify all admins via WhatsApp only for public user submissions (fire-and-forget)
+    if (!isAdminManual) {
+      (() => {
+        const refInfo = validReferralCode ? `\n🎁 Kode Referral: *${validReferralCode}*` : '';
+        prisma.company.findFirst({ select: { baseUrl: true } }).then(company => {
+          const adminUrl = `${company?.baseUrl || ''}/admin/pppoe/registrations`;
+          const message =
+            `📋 *Pendaftaran Baru Masuk!*\n\n` +
+            `👤 Nama: *${name}*\n` +
+            `📞 HP: *${phone}*\n` +
+            `📦 Paket: *${registration.profile.name}*\n` +
+            `📍 Alamat: ${address}${refInfo}\n\n` +
+            `Silakan buka panel admin untuk menyetujui:\n${adminUrl}`;
+          return notifyAdminsViaWhatsApp(message);
+        }).catch(() => {});
+      })();
+    }
 
-    // Send customer WA confirmation using DB template (fire-and-forget)
-    sendRegistrationConfirmation({
-      customerName: name,
-      customerPhone: phone,
-      profileName: registration.profile.name,
-      address,
-    }).catch(() => {});
+    // Send customer WA confirmation only if public submission OR sendWaNotification is explicitly true
+    const shouldSendCustomerWa = !isAdminManual || sendWaNotification === true;
+    if (shouldSendCustomerWa) {
+      sendRegistrationConfirmation({
+        customerName: name,
+        customerPhone: phone,
+        profileName: registration.profile.name,
+        address,
+      }).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,
