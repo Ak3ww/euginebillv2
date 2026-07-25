@@ -145,6 +145,14 @@ export class WhatsAppService {
   public static cleanPhone(phone: string): string {
     if (!phone) return '';
     let clean = phone.replace(/[^0-9]/g, '');
+
+    // Fix double '8' prepend error (e.g. 62885254837611 [14 digits] -> 6285254837611 [13 digits])
+    if (clean.startsWith('6288') && clean.length >= 14) {
+      clean = '628' + clean.slice(4);
+    } else if (clean.startsWith('088') && clean.length >= 13) {
+      clean = '08' + clean.slice(3);
+    }
+
     if (clean.startsWith('620')) {
       clean = '62' + clean.slice(3);
     } else if (clean.startsWith('0')) {
