@@ -6,7 +6,7 @@ import fs from 'fs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('=== ACTIVATING ALL CUSTOMERS & EXACT AREA SEEDING (REAL-WORLD RESOLUTION) ===');
+  console.log('=== ACTIVATING ALL CUSTOMERS & EXACT AREA SEEDING (PERFECT STATS) ===');
 
   // 1. Set status = 'active' for ALL customers in database
   console.log('Step 1: Setting status = "active" for all customers in database...');
@@ -73,19 +73,16 @@ async function main() {
   const normalizePhone = (p?: string | null) => p ? p.replace(/[^0-9]/g, '').replace(/^62/, '0') : '';
 
   const assignedUserIds = new Set<string>();
-  const report: Record<string, { totalInSheet: number; matchedInDb: number; missingItems: any[] }> = {};
 
-  // Direct specific username / customerId mapping overrides
+  // Direct specific username / customerId mapping overrides (including Syaiful Anwar = EMG050)
   const specificOverrides: Record<string, string> = {
-    // Andriansyah KPS vs KMB
-    'EMG011': areaRecordMap.get('Kampung Pisang')!,
-    'EMG299': areaRecordMap.get('Kampung Muara Beres')!,
-    // Yunus & Yunus POS (Both Kampung Muara Beres)
-    'EMG157': areaRecordMap.get('Kampung Muara Beres')!,
-    'EMG182': areaRecordMap.get('Kampung Muara Beres')!,
+    'EMG011': areaRecordMap.get('Kampung Pisang')!,       // Andriansyah KPS
+    'EMG299': areaRecordMap.get('Kampung Muara Beres')!,  // Andriansyah KMB
+    'EMG157': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus
+    'EMG182': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus POS
+    'EMG050': areaRecordMap.get('Puri Nirwana 3')!,       // Syaiful Anwar / Saepul Anwar
   };
 
-  // Pre-apply specific overrides
   for (const [username, targetAreaId] of Object.entries(specificOverrides)) {
     const userRec = allUsers.find(u => u.username === username || u.customerId === username);
     if (userRec) {
@@ -94,9 +91,10 @@ async function main() {
         where: { id: userRec.id },
         data: { areaId: targetAreaId }
       });
-      console.log(`✓ Specific override applied: ${userRec.name} (${userRec.username}) -> ${targetAreaId}`);
     }
   }
+
+  const report: Record<string, { totalInSheet: number; matchedInDb: number; missingItems: any[] }> = {};
 
   // 5. Seed from Excel sheets
   for (const [sheetName, areaId] of areaRecordMap.entries()) {
@@ -134,6 +132,28 @@ async function main() {
       const itemNormCustId = normalizeStr(item.customerId);
       const itemNormPhone = normalizePhone(item.phone);
 
+      // Check if this item was already assigned by override to this area
+      const alreadyAssigned = allUsers.find(u => {
+        if (!assignedUserIds.has(u.id)) return false;
+        if (u.areaId !== areaId) return false;
+
+        const uNormName = normalizeStr(u.name);
+        const uNormUsername = normalizeStr(u.username);
+        const uNormCustId = normalizeStr(u.customerId);
+        const uNormPhone = normalizePhone(u.phone);
+
+        return (
+          (itemNormCustId && uNormCustId === itemNormCustId) ||
+          (itemNormName && (uNormName === itemNormName || uNormUsername === itemNormName)) ||
+          (itemNormPhone && itemNormPhone.length > 7 && uNormPhone === itemNormPhone)
+        );
+      });
+
+      if (alreadyAssigned) {
+        report[sheetName].matchedInDb++;
+        continue;
+      }
+
       const matched = allUsers.filter(u => {
         if (assignedUserIds.has(u.id)) return false;
 
@@ -142,13 +162,8 @@ async function main() {
         const uNormCustId = normalizeStr(u.customerId);
         const uNormPhone = normalizePhone(u.phone);
 
-        // 1. Strict match by customerId
         if (itemNormCustId && uNormCustId && itemNormCustId === uNormCustId) return true;
-
-        // 2. Strict match by exact username or exact name
         if (itemNormName && (uNormName === itemNormName || uNormUsername === itemNormName)) return true;
-
-        // 3. Strict match by phone number
         if (itemNormPhone && uNormPhone && itemNormPhone.length > 7 && uNormPhone === itemNormPhone) return true;
 
         return false;

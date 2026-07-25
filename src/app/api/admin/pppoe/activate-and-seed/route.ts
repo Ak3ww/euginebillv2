@@ -77,12 +77,12 @@ export async function POST(request: NextRequest) {
 
     const assignedUserIds = new Set<string>();
 
-    // Specific overrides
     const specificOverrides: Record<string, string> = {
-      'EMG011': areaRecordMap.get('Kampung Pisang')!,
-      'EMG299': areaRecordMap.get('Kampung Muara Beres')!,
-      'EMG157': areaRecordMap.get('Kampung Muara Beres')!,
-      'EMG182': areaRecordMap.get('Kampung Muara Beres')!,
+      'EMG011': areaRecordMap.get('Kampung Pisang')!,       // Andriansyah KPS
+      'EMG299': areaRecordMap.get('Kampung Muara Beres')!,  // Andriansyah KMB
+      'EMG157': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus
+      'EMG182': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus POS
+      'EMG050': areaRecordMap.get('Puri Nirwana 3')!,       // Syaiful Anwar / Saepul Anwar
     };
 
     for (const [username, targetAreaId] of Object.entries(specificOverrides)) {
@@ -133,6 +133,27 @@ export async function POST(request: NextRequest) {
         const itemNormCustId = normalizeStr(item.customerId);
         const itemNormPhone = normalizePhone(item.phone);
 
+        const alreadyAssigned = allUsers.find(u => {
+          if (!assignedUserIds.has(u.id)) return false;
+          if (u.areaId !== areaId) return false;
+
+          const uNormName = normalizeStr(u.name);
+          const uNormUsername = normalizeStr(u.username);
+          const uNormCustId = normalizeStr(u.customerId);
+          const uNormPhone = normalizePhone(u.phone);
+
+          return (
+            (itemNormCustId && uNormCustId === itemNormCustId) ||
+            (itemNormName && (uNormName === itemNormName || uNormUsername === itemNormName)) ||
+            (itemNormPhone && itemNormPhone.length > 7 && uNormPhone === itemNormPhone)
+          );
+        });
+
+        if (alreadyAssigned) {
+          report[sheetName].matchedInDb++;
+          continue;
+        }
+
         const matched = allUsers.filter(u => {
           if (assignedUserIds.has(u.id)) return false;
 
@@ -170,7 +191,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Berhasil mengaktifkan dan meng-seed semua area dengan override presisi.',
+      message: 'Berhasil meng-seed dengan penghitungan override presisi.',
       report,
       unassignedCount: remainingUnassigned,
     });
