@@ -56,18 +56,8 @@ export class WhatsAppService {
       throw new Error('No active WhatsApp providers configured');
     }
 
-    // Clean phone number - ensure it starts with country code (62 for Indonesia)
-    let cleanPhone = phone.replace(/[^0-9]/g, '');
-    
-    // Add 62 prefix if starts with 0
-    if (cleanPhone.startsWith('0')) {
-      cleanPhone = '62' + cleanPhone.substring(1);
-    }
-    
-    // Ensure starts with 62
-    if (!cleanPhone.startsWith('62')) {
-      cleanPhone = '62' + cleanPhone;
-    }
+    // Clean phone number to standard E.164 format (628xxx)
+    let cleanPhone = this.cleanPhone(phone);
     
     let lastError: Error | null = null;
     const attempts: Array<{
@@ -150,12 +140,31 @@ export class WhatsAppService {
   }
 
   /**
-   * Clean phone number to E.164 format (62xxx)
+   * Clean phone number to E.164 format (628xxx)
    */
-  private static cleanPhone(phone: string): string {
+  public static cleanPhone(phone: string): string {
+    if (!phone) return '';
     let clean = phone.replace(/[^0-9]/g, '');
-    if (clean.startsWith('0')) clean = '62' + clean.substring(1);
-    if (!clean.startsWith('62')) clean = '62' + clean;
+    if (clean.startsWith('620')) {
+      clean = '62' + clean.slice(3);
+    } else if (clean.startsWith('0')) {
+      clean = '62' + clean.slice(1);
+    } else if (clean.startsWith('8')) {
+      clean = '62' + clean;
+    } else if (!clean.startsWith('62')) {
+      clean = '62' + clean;
+    }
+    return clean;
+  }
+
+  /**
+   * Format phone number to local Indonesian format (08xxx)
+   */
+  public static formatLocalPhone(phone: string): string {
+    const clean = this.cleanPhone(phone);
+    if (clean.startsWith('62')) {
+      return '0' + clean.slice(2);
+    }
     return clean;
   }
 
