@@ -342,12 +342,35 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold font-display text-foreground">{user.name}</h1>
-                <span className={cn(
-                  'px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border',
-                  user.status === 'ISOLATED' ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                )}>
-                  {user.status === 'ISOLATED' ? 'Terisolir' : 'Aktif'}
-                </span>
+                {(() => {
+                  const s = String(user.status || '').toUpperCase();
+                  if (s === 'PENDING_INSTALLATION' || s === 'PENDING') {
+                    return (
+                      <span className="px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border bg-amber-500/10 text-amber-600 border-amber-500/20">
+                        Pending Instalasi
+                      </span>
+                    );
+                  }
+                  if (s === 'ISOLATED') {
+                    return (
+                      <span className="px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border bg-destructive/10 text-destructive border-destructive/20">
+                        Terisolir
+                      </span>
+                    );
+                  }
+                  if (s === 'BLOCKED' || s === 'STOP') {
+                    return (
+                      <span className="px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border bg-muted text-muted-foreground border-border">
+                        Terblokir
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                      Aktif
+                    </span>
+                  );
+                })()}
                 {activeSession ? (
                   <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-full font-mono text-[10px] font-bold uppercase flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Sesi Online
