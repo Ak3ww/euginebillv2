@@ -6,7 +6,7 @@ import fs from 'fs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('=== ACTIVATING ALL CUSTOMERS & EXACT AREA SEEDING (WITH ALIAS RESOLUTION) ===');
+  console.log('=== ACTIVATING ALL CUSTOMERS & EXACT AREA SEEDING (REAL-WORLD RESOLUTION) ===');
 
   // 1. Set status = 'active' for ALL customers in database
   console.log('Step 1: Setting status = "active" for all customers in database...');
@@ -72,18 +72,31 @@ async function main() {
   const normalizeStr = (s?: string | null) => s ? s.trim().toLowerCase().replace(/[^a-z0-9]/g, '') : '';
   const normalizePhone = (p?: string | null) => p ? p.replace(/[^0-9]/g, '').replace(/^62/, '0') : '';
 
-  // Specific alias aliases dictionary for names/IDs that differ slightly between DB and Excel
-  const aliasMap: Record<string, string[]> = {
-    '952649': ['saepul anwar', 'syaiful anwar', 'emg050'],
-    'syaiful anwar': ['saepul anwar', 'syaiful anwar', '952649'],
-    '422883': ['andriansyah', 'emg011', 'emg299'],
-    'andriansyah': ['andriansyah', 'emg011', 'emg299', '422883'],
-    '117008': ['yunus pos', 'yunuspos', 'emg182'],
-    'yunus pos': ['yunus pos', 'yunuspos', 'emg182', '117008'],
-  };
-
   const assignedUserIds = new Set<string>();
   const report: Record<string, { totalInSheet: number; matchedInDb: number; missingItems: any[] }> = {};
+
+  // Direct specific username / customerId mapping overrides
+  const specificOverrides: Record<string, string> = {
+    // Andriansyah KPS vs KMB
+    'EMG011': areaRecordMap.get('Kampung Pisang')!,
+    'EMG299': areaRecordMap.get('Kampung Muara Beres')!,
+    // Yunus & Yunus POS (Both Kampung Muara Beres)
+    'EMG157': areaRecordMap.get('Kampung Muara Beres')!,
+    'EMG182': areaRecordMap.get('Kampung Muara Beres')!,
+  };
+
+  // Pre-apply specific overrides
+  for (const [username, targetAreaId] of Object.entries(specificOverrides)) {
+    const userRec = allUsers.find(u => u.username === username || u.customerId === username);
+    if (userRec) {
+      assignedUserIds.add(userRec.id);
+      await prisma.pppoeUser.update({
+        where: { id: userRec.id },
+        data: { areaId: targetAreaId }
+      });
+      console.log(`✓ Specific override applied: ${userRec.name} (${userRec.username}) -> ${targetAreaId}`);
+    }
+  }
 
   // 5. Seed from Excel sheets
   for (const [sheetName, areaId] of areaRecordMap.entries()) {
@@ -121,11 +134,6 @@ async function main() {
       const itemNormCustId = normalizeStr(item.customerId);
       const itemNormPhone = normalizePhone(item.phone);
 
-      const aliases = [
-        ...(aliasMap[itemNormCustId] || []),
-        ...(aliasMap[itemNormName] || []),
-      ].map(normalizeStr);
-
       const matched = allUsers.filter(u => {
         if (assignedUserIds.has(u.id)) return false;
 
@@ -142,11 +150,6 @@ async function main() {
 
         // 3. Strict match by phone number
         if (itemNormPhone && uNormPhone && itemNormPhone.length > 7 && uNormPhone === itemNormPhone) return true;
-
-        // 4. Alias match fallback
-        if (aliases.length > 0) {
-          if (aliases.includes(uNormName) || aliases.includes(uNormUsername) || aliases.includes(uNormCustId)) return true;
-        }
 
         return false;
       });
