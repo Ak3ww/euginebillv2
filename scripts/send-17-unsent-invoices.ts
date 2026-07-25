@@ -4,29 +4,48 @@ import { sendInvoiceReminder } from '../src/server/services/notifications/whatsa
 const prisma = new PrismaClient();
 
 async function send17UnsentInvoices() {
-  console.log('🚀 Memulai pengiriman WA tagihan KHUSUS untuk 17 pelanggan (Belum WA)...\n');
+  console.log('🚀 Memulai pengiriman WA tagihan KHUSUS untuk pelanggan (Belum WA)...\n');
 
   try {
+    // 1. Enable WhatsApp reminder settings in DB so messages are actually sent to device
+    await prisma.whatsapp_reminder_settings.updateMany({
+      data: { enabled: true },
+    });
+
+    console.log('✅ WA Reminder Settings: ENABLED (enabled = true). Pesan WA akan benar-benar terkirim ke HP!\n');
+
     const company = await prisma.company.findFirst();
     const companyName = company?.name || 'EUGINE MEDIA GROUP';
     const companyPhone = company?.phone || '';
 
-    // 1. Ensure all PENDING invoices have dueDate set to 5 August 2026
+    // Target Due Date: 5 August 2026
     const targetDueDate = new Date('2026-08-05T12:00:00.000Z');
+
+    // Reset waNotifiedAt for invoices that were skipped due to disabled settings
+    const skippedInvoiceNumbers = [
+      'INV-20260725-78577B',
+      'INV-20260725-A1C40A',
+      'INV-20260725-F92A7F',
+      'INV-20260725-6CB0C9',
+      'INV-20260725-B343C6',
+      'INV-20260725-FE739B',
+      'INV-20260725-D0DF77',
+      'INV-20260725-2AD555',
+      'INV-20260725-1BFD77',
+      'INV-20260725-91ABA8',
+    ];
 
     await prisma.invoice.updateMany({
       where: {
-        status: { in: ['PENDING', 'OVERDUE'] },
+        invoiceNumber: { in: skippedInvoiceNumbers },
       },
       data: {
-        dueDate: targetDueDate,
-        status: 'PENDING',
+        waNotifiedAt: null,
+        waRetryCount: 0,
       },
     });
 
-    console.log('📅 Tanggal Jatuh Tempo seluruh tagihan di database SUDAH DIPASTIKAN: 5 Agustus 2026.\n');
-
-    // 2. Fetch strictly the 17 unsent invoices (waNotifiedAt is null)
+    // Fetch strictly unsent invoices (waNotifiedAt is null)
     const unsentInvoices = await prisma.invoice.findMany({
       where: {
         status: { in: ['PENDING', 'OVERDUE'] },
@@ -43,7 +62,7 @@ async function send17UnsentInvoices() {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Filter out Muara Beres / KMB in memory to be 100% safe
+    // Filter out Muara Beres / KMB in memory
     const filteredInvoices = unsentInvoices.filter(inv => {
       const areaName = inv.user?.area?.name || '';
       const address = inv.user?.address || '';
@@ -75,7 +94,7 @@ async function send17UnsentInvoices() {
       console.log(`📱 [${i + 1}/${filteredInvoices.length}] Kirim WA -> ${inv.invoiceNumber} | ${name} (${phone})...`);
 
       try {
-        await sendInvoiceReminder({
+        const result = await sendInvoiceReminder({
           phone,
           customerName: name,
           customerId: inv.user?.customerId || inv.user?.username || '-',
@@ -84,25 +103,28 @@ async function send17UnsentInvoices() {
           area: inv.user?.area?.name || '-',
           invoiceNumber: inv.invoiceNumber,
           amount: inv.amount,
-          dueDate: targetDueDate, // Explicitly pass 5 August 2026
+          dueDate: targetDueDate,
           paymentLink: inv.paymentLink || `${company?.baseUrl || 'http://euginemediagroup.com'}/pay/${inv.paymentToken}`,
           companyName,
           companyPhone,
           isOverdue: false,
         });
 
-        // Update DB status: set waNotifiedAt to now and increment waRetryCount
-        await prisma.invoice.update({
-          where: { id: inv.id },
-          data: {
-            waNotifiedAt: new Date(),
-            waRetryCount: (inv.waRetryCount || 0) + 1,
-            dueDate: targetDueDate,
-          },
-        });
-
-        sent++;
-        console.log(`   ✅ BERHASIL! Status DB: WA Terkirim (1x)\n`);
+        if (result && result.success) {
+          await prisma.invoice.update({
+            where: { id: inv.id },
+            data: {
+              waNotifiedAt: new Date(),
+              waRetryCount: (inv.waRetryCount || 0) + 1,
+              dueDate: targetDueDate,
+            },
+          });
+          sent++;
+          console.log(`   ✅ REAL SENT & DB Updated: WA Terkirim (1x)\n`);
+        } else {
+          failed++;
+          console.log(`   ⚠️ Skipped/Failed: ${result?.error || 'Unknown error'}\n`);
+        }
 
         // Delay 1.5s per message
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -112,7 +134,7 @@ async function send17UnsentInvoices() {
       }
     }
 
-    console.log(`\n🎉 SELESAI! Pengiriman 17 Pelanggan Selesai. Total Terkirim: ${sent}, Gagal: ${failed}`);
+    console.log(`\n🎉 SELESAI! Total Berhasil Terkirim Real: ${sent}, Gagal/Skipped: ${failed}`);
   } catch (error) {
     console.error('❌ Script error:', error);
   } finally {
