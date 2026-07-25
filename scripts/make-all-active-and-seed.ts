@@ -6,7 +6,7 @@ import fs from 'fs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('=== ACTIVATING ALL CUSTOMERS & EXACT AREA SEEDING (FIXED MEMORY SYNC) ===');
+  console.log('=== ACTIVATING ALL CUSTOMERS & EXACT AREA SEEDING (PERFECT STATS) ===');
 
   // 0. Standardize Muhammad Juhdi ID to numeric ID '267001'
   const juhdiUser = await prisma.pppoeUser.findFirst({
@@ -78,6 +78,8 @@ async function main() {
       phone: true,
       address: true,
       areaId: true,
+      routerId: true,
+      router: { select: { name: true } }
     }
   });
 
@@ -115,7 +117,7 @@ async function main() {
 
     if (userRec && !assignedUserIds.has(userRec.id)) {
       assignedUserIds.add(userRec.id);
-      userRec.areaId = targetAreaId; // Sync in memory!
+      userRec.areaId = targetAreaId;
       await prisma.pppoeUser.update({
         where: { id: userRec.id },
         data: { areaId: targetAreaId }
@@ -170,7 +172,6 @@ async function main() {
       const itemNormCustId = normalizeStr(item.customerId);
       const itemNormPhone = normalizePhone(item.phone);
 
-      // Check if this user was already assigned (e.g. by specific overrides) to this area
       const alreadyMatched = allUsers.find(u => {
         if (!assignedUserIds.has(u.id)) return false;
         if (u.areaId !== areaId) return false;
@@ -226,7 +227,7 @@ async function main() {
     }
   }
 
-  // 7. Check unassigned
+  // 7. Breakdown of unassigned users
   const remainingUnassigned = allUsers.filter(u => !assignedUserIds.has(u.id));
 
   console.log('\n================ FINAL SEEDING REPORT ================');
@@ -239,7 +240,12 @@ async function main() {
       console.log(`   ✓ All ${stat.totalInSheet} customers matched 100%!`);
     }
   }
-  console.log(`\n📌 Total Unassigned Users (Tepat 37 Citeureup): ${remainingUnassigned.length} users`);
+
+  console.log(`\n📌 Total Unassigned Users: ${remainingUnassigned.length} users`);
+  console.log(`   Daftar 41 Unassigned Users:`);
+  remainingUnassigned.forEach((u, i) => {
+    console.log(`   ${i+1}. Name: "${u.name}" | Username: "${u.username}" | Router: "${u.router?.name || '-'}"`);
+  });
   console.log('======================================================\n');
 }
 
