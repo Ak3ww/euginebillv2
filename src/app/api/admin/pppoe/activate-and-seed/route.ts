@@ -15,6 +15,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Standardize Juhdi ID
+    const juhdiUser = await prisma.pppoeUser.findFirst({
+      where: {
+        OR: [
+          { customerId: '0DKC53CCPJ' },
+          { name: { contains: 'JUHDI' } }
+        ]
+      }
+    });
+
+    if (juhdiUser) {
+      await prisma.pppoeUser.update({
+        where: { id: juhdiUser.id },
+        data: {
+          customerId: '267001',
+          username: juhdiUser.username || 'EMG267',
+        }
+      });
+    }
+
     await prisma.pppoeUser.updateMany({
       data: { status: 'active' }
     });
@@ -78,15 +98,16 @@ export async function POST(request: NextRequest) {
     const assignedUserIds = new Set<string>();
 
     const specificOverrides: Record<string, string> = {
-      'EMG011': areaRecordMap.get('Kampung Pisang')!,       // Andriansyah KPS
-      'EMG299': areaRecordMap.get('Kampung Muara Beres')!,  // Andriansyah KMB
-      'EMG157': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus
-      'EMG182': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus POS
-      'EMG050': areaRecordMap.get('Puri Nirwana 3')!,       // Syaiful Anwar / Saepul Anwar
+      'EMG011': areaRecordMap.get('Kampung Pisang')!,
+      'EMG299': areaRecordMap.get('Kampung Muara Beres')!,
+      'EMG157': areaRecordMap.get('Kampung Muara Beres')!,
+      'EMG182': areaRecordMap.get('Kampung Muara Beres')!,
+      'EMG050': areaRecordMap.get('Puri Nirwana 3')!,
+      '267001': areaRecordMap.get('Kampung Muara Beres')!,
     };
 
     for (const [username, targetAreaId] of Object.entries(specificOverrides)) {
-      const userRec = allUsers.find(u => u.username === username || u.customerId === username);
+      const userRec = allUsers.find(u => u.username === username || u.customerId === username || normalizeStr(u.name).includes('juhdi'));
       if (userRec) {
         assignedUserIds.add(userRec.id);
         await prisma.pppoeUser.update({
@@ -191,7 +212,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Berhasil meng-seed dengan penghitungan override presisi.',
+      message: 'Berhasil menstandardisasi ID Juhdi dan meng-seed semua area.',
       report,
       unassignedCount: remainingUnassigned,
     });
