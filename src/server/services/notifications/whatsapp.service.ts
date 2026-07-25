@@ -37,6 +37,19 @@ export class WhatsAppService {
    * Send message with automatic failover
    */
   static async sendMessage({ phone, message }: SendMessageParams) {
+    // 🛑 MASTER KILL SWITCH / PAUSE CHECK
+    const isPaused = process.env.STOP_WA === '1' || process.env.DISABLE_WA_SENDING === 'true';
+    if (isPaused) {
+      console.warn(`[WhatsApp] 🛑 WA sending is PAUSED (STOP_WA=1). Skipping message to ${phone}`);
+      return { success: false, error: 'Pengiriman WA sedang dihentikan (STOP_WA=1)' };
+    }
+
+    const reminderSettings = await prisma.whatsapp_reminder_settings.findFirst().catch(() => null);
+    if (reminderSettings && reminderSettings.enabled === false) {
+      console.warn(`[WhatsApp] 🛑 WA sending is DISABLED in Reminder Settings. Skipping message to ${phone}`);
+      return { success: false, error: 'Pengiriman WA sedang dihentikan di Pengaturan Reminder' };
+    }
+
     const providers = await this.getActiveProviders();
 
     if (providers.length === 0) {

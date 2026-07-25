@@ -15,16 +15,30 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
     ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(rawAmount)
     : (rawAmount || '');
 
+  const baseUrl = variables.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://euginemediagroup.com';
+  const downloadAppUrl = variables.link_download_aplikasi && variables.link_download_aplikasi.startsWith('http')
+    ? variables.link_download_aplikasi
+    : `${baseUrl}/download-app`;
+
+  const customerId = variables.customerId && variables.customerId !== '-' ? variables.customerId : (variables.customerUsername || variables.username || '-');
+  const profileName = variables.profileName && variables.profileName !== '-' ? variables.profileName : (variables.packageName || '-');
+  const expiredAt = variables.expiredAt || variables.dueDate || variables.expiredDate || '-';
+  const dueDate = variables.dueDate || variables.expiredAt || variables.expiredDate || '-';
+
   const defaultVars: Record<string, any> = {
+    customerName: variables.customerName || 'Pelanggan',
+    customerId,
+    profileName,
     total_bayar: formattedAmount,
     total_tagihan: formattedAmount,
     amount: formattedAmount,
     jumlah: formattedAmount,
     nominal: formattedAmount,
     harga: formattedAmount,
-    link_download_aplikasi: variables.link_download_aplikasi || variables.link_download_apk || `${variables.baseUrl || ''}/download-app`,
-    link_download_apk: variables.link_download_apk || variables.link_download_aplikasi || `${variables.baseUrl || ''}/download-app`,
-    expiredAt: variables.expiredAt || variables.dueDate || variables.expiredDate || '-',
+    expiredAt,
+    dueDate,
+    link_download_aplikasi: downloadAppUrl,
+    link_download_apk: downloadAppUrl,
     paymentMethod: variables.paymentMethod || variables.metodePembayaran || '-',
     metodePembayaran: variables.metodePembayaran || variables.paymentMethod || '-',
   };

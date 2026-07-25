@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 
 const COMMON_FOOTER = `-----------------------------------------
-📱 *Aplikasi Pelanggan:* {{link_download_aplikasi}}
+📱 *Aplikasi Pelanggan:* http://euginemediagroup.com/download-app
 📢 *WA Channel Info & Promo:* https://whatsapp.com/channel/0029Vb80GhZ1CYoX3FVC4m2v
 
 Ada kendala? Balas chat ini untuk informasi lebih lanjut.
@@ -16,6 +16,7 @@ Yth. Bapak/Ibu *{{customerName}}*
 • *ID Pelanggan:* {{customerId}}
 • *No. Invoice:* {{invoiceNumber}}
 • *Paket:* {{profileName}}
+• *Total Tagihan:* {{total_bayar}}
 
 ⚠️ _Mohon lakukan pembayaran sebelum *{{expiredAt}}* agar layanan internet tetap aktif dan lancar._
 
