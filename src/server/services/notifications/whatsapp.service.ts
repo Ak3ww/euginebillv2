@@ -1,4 +1,3 @@
-import 'server-only'
 import { prisma } from '@/server/db/client';
 
 interface WhatsAppProvider {
