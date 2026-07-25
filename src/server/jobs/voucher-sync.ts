@@ -859,6 +859,19 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           continue
         }
 
+        // Skip if user belongs to Kampung Muara Beres (KMB)
+        const areaName = invoice.user?.area?.name || '';
+        const userAddress = invoice.user?.address || '';
+        if (
+          areaName.toLowerCase().includes('muara beres') ||
+          areaName.toLowerCase().includes('kmb') ||
+          userAddress.toLowerCase().includes('muara beres')
+        ) {
+          console.log(`[Invoice Reminder] Skipped ${invoice.invoiceNumber}: User is in Muara Beres (KMB)`)
+          skippedCount++
+          continue
+        }
+
         // Check if this reminder day already sent
         const sentReminders = invoice.sentReminders
           ? JSON.parse(invoice.sentReminders)
