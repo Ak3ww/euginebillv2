@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { targetMonth, scope, userId, skipExisting = true, sendWa = false, additionalFees, excludeMuaraBeres = false } = body;
+    const { targetMonth, scope, userId, areaId, skipExisting = true, sendWa = false, additionalFees, excludeMuaraBeres = false } = body;
 
     if (!targetMonth || !/^\d{4}-\d{2}$/.test(targetMonth)) {
       return badRequest('targetMonth harus format YYYY-MM');
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       status: { in: ['active', 'isolated'] },
     };
     if (scope === 'single') userWhere.id = userId;
+    if (areaId && areaId !== 'all') userWhere.areaId = areaId;
 
     if (excludeMuaraBeres) {
       userWhere.AND = [

@@ -121,8 +121,17 @@ export default function InvoicesPage() {
   const [genSkipExisting, setGenSkipExisting] = useState(true);
   const [genSendWa, setGenSendWa] = useState(false);
   const [genExcludeMuaraBeres, setGenExcludeMuaraBeres] = useState(true);
+  const [genAreaId, setGenAreaId] = useState('all');
+  const [areaOptions, setAreaOptions] = useState<{ id: string; name: string; userCount?: number }[]>([]);
   const [genAdditionalFees, setGenAdditionalFees] = useState<{name: string, amount: number}[]>([]);
   const [genResult, setGenResult] = useState<{ generated: number; skipped: number; errors: { username: string; error: string }[]; message: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/pppoe/areas')
+      .then(res => res.json())
+      .then(data => { if (data.areas) setAreaOptions(data.areas); })
+      .catch(() => {});
+  }, []);
 
   const MONTH_NAMES_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const getMonthLabel = (ym: string) => {
@@ -855,6 +864,7 @@ export default function InvoicesPage() {
           targetMonth: genMonth,
           scope: genScope,
           userId: genScope === 'single' ? genUserId : undefined,
+          areaId: genScope === 'all' ? genAreaId : undefined,
           skipExisting: genSkipExisting,
           sendWa: genSendWa,
           excludeMuaraBeres: genExcludeMuaraBeres,
@@ -1734,6 +1744,25 @@ export default function InvoicesPage() {
                       </button>
                     </div>
                   </div>
+
+                  {/* Area Filter Dropdown (All scope mode) */}
+                  {genScope === 'all' && (
+                    <div>
+                      <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Wilayah / Area</label>
+                      <select
+                        value={genAreaId}
+                        onChange={e => setGenAreaId(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-muted/50 border border-border rounded-xl focus:outline-none focus:border-blue-500/60"
+                      >
+                        <option value="all">🌐 Semua Wilayah / Area</option>
+                        {areaOptions.map(a => (
+                          <option key={a.id} value={a.id}>
+                            📍 {a.name} ({a.userCount || 0} pelanggan)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   {/* User search (single mode) */}
                   {genScope === 'single' && (
