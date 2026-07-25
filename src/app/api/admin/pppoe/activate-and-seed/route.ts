@@ -15,12 +15,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Step 1: Set status = 'active' for all users
     await prisma.pppoeUser.updateMany({
       data: { status: 'active' }
     });
 
-    // Step 2: Unassign all users first
     await prisma.pppoeUser.updateMany({
       data: { areaId: null }
     });
@@ -77,6 +75,15 @@ export async function POST(request: NextRequest) {
     const normalizeStr = (s?: string | null) => s ? s.trim().toLowerCase().replace(/[^a-z0-9]/g, '') : '';
     const normalizePhone = (p?: string | null) => p ? p.replace(/[^0-9]/g, '').replace(/^62/, '0') : '';
 
+    const aliasMap: Record<string, string[]> = {
+      '952649': ['saepul anwar', 'syaiful anwar', 'emg050'],
+      'syaiful anwar': ['saepul anwar', 'syaiful anwar', '952649'],
+      '422883': ['andriansyah', 'emg011', 'emg299'],
+      'andriansyah': ['andriansyah', 'emg011', 'emg299', '422883'],
+      '117008': ['yunus pos', 'yunuspos', 'emg182'],
+      'yunus pos': ['yunus pos', 'yunuspos', 'emg182', '117008'],
+    };
+
     const assignedUserIds = new Set<string>();
     const report: Record<string, { totalInSheet: number; matchedInDb: number; missingItems: any[] }> = {};
 
@@ -115,6 +122,11 @@ export async function POST(request: NextRequest) {
         const itemNormCustId = normalizeStr(item.customerId);
         const itemNormPhone = normalizePhone(item.phone);
 
+        const aliases = [
+          ...(aliasMap[itemNormCustId] || []),
+          ...(aliasMap[itemNormName] || []),
+        ].map(normalizeStr);
+
         const matched = allUsers.filter(u => {
           if (assignedUserIds.has(u.id)) return false;
 
@@ -126,6 +138,9 @@ export async function POST(request: NextRequest) {
           if (itemNormCustId && uNormCustId && itemNormCustId === uNormCustId) return true;
           if (itemNormName && (uNormName === itemNormName || uNormUsername === itemNormName)) return true;
           if (itemNormPhone && uNormPhone && itemNormPhone.length > 7 && uNormPhone === itemNormPhone) return true;
+          if (aliases.length > 0) {
+            if (aliases.includes(uNormName) || aliases.includes(uNormUsername) || aliases.includes(uNormCustId)) return true;
+          }
 
           return false;
         });
@@ -152,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Semua user di-set ACTIVE, di-UNASSIGN semua area, lalu di-SEED presisi per wilayah.',
+      message: 'Berhasil mengaktifkan dan meng-seed semua area dengan penanganan alias.',
       report,
       unassignedCount: remainingUnassigned,
     });
