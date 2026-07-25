@@ -207,8 +207,8 @@ export async function createPppoeUser(
   const finalPortalPassword = (portalPassword || '123').trim();
 
   if (!noPppoeAccount && !password) {
-    // Auto-generate a secure random PPPoE password if empty — NEVER default to '123' or portalPassword
-    password = 'pp' + Math.floor(100000 + Math.random() * 900000).toString();
+    // Default PPPoE Secret password to 'eugine0909'
+    password = 'eugine0909';
   }
 
   // Resolve name/phone: prefer explicit values, fall back to linked customer

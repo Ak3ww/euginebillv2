@@ -33,7 +33,7 @@ export default function NewPppoeUserPage() {
 
   const [formData, setFormData] = useState<any>({
     username: '',
-    password: '',
+    password: 'eugine0909',
     portalPassword: '123',
     profileId: '',
     routerId: '',

@@ -26,16 +26,13 @@ async function main() {
   console.log(`Found ${weakPasswordUsers.length} users with weak/default '123' or empty PPPoE password.`);
 
   let fixedCount = 0;
+  const targetPassword = 'eugine0909';
 
   for (const user of weakPasswordUsers) {
-    // Generate a secure unique PPPoE password (e.g. ppp + 6 random chars)
-    const newPppoePassword = 'pp' + Math.floor(100000 + Math.random() * 900000).toString();
-
     await prisma.pppoeUser.update({
       where: { id: user.id },
       data: {
-        password: newPppoePassword,
-        // Keep portalPassword as '123' if they want default 123 for portal login
+        password: targetPassword,
         portalPassword: user.portalPassword || '123',
       }
     });
@@ -44,13 +41,13 @@ async function main() {
     try {
       await prisma.radcheck.upsert({
         where: { username_attribute: { username: user.username, attribute: 'Cleartext-Password' } },
-        create: { username: user.username, attribute: 'Cleartext-Password', op: ':=', value: newPppoePassword },
-        update: { value: newPppoePassword }
+        create: { username: user.username, attribute: 'Cleartext-Password', op: ':=', value: targetPassword },
+        update: { value: targetPassword }
       });
     } catch (_) {}
 
     fixedCount++;
-    console.log(`  [Fixed] User "${user.username}" (${user.name}) -> New PPPoE Password: ${newPppoePassword} (Portal Password: ${user.portalPassword || '123'})`);
+    console.log(`  [Fixed] User "${user.username}" (${user.name}) -> PPPoE Password set to: ${targetPassword} (Portal Password: ${user.portalPassword || '123'})`);
   }
 
   console.log(`\n✓ Fixed ${fixedCount} users.`);
