@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const profileId = searchParams.get('profileId');
     const routerId = searchParams.get('routerId');
+    const areaId = searchParams.get('areaId');
     const address = searchParams.get('address');
     const name = searchParams.get('name'); // search by customer name
     const search = searchParams.get('search'); // generic search (name/username/address)
@@ -33,6 +34,10 @@ export async function GET(request: NextRequest) {
 
     if (routerId) {
       where.routerId = routerId;
+    }
+
+    if (areaId) {
+      where.areaId = areaId;
     }
 
     // Search by name only
@@ -90,6 +95,7 @@ export async function GET(request: NextRequest) {
         status: true,
         profileId: true,
         routerId: true,
+        areaId: true,
         profile: {
           select: {
             name: true,
@@ -97,6 +103,12 @@ export async function GET(request: NextRequest) {
         },
         router: {
           select: {
+            name: true,
+          },
+        },
+        area: {
+          select: {
+            id: true,
             name: true,
           },
         },
@@ -130,7 +142,7 @@ export async function GET(request: NextRequest) {
       odpAssignment: assignmentMap.get(user.id) || null,
     }));
 
-    // Get profiles and routers for filter options
+    // Get profiles, routers, areas for filter options
     const profiles = await prisma.pppoeProfile.findMany({
       where: { isActive: true },
       select: {
@@ -142,6 +154,14 @@ export async function GET(request: NextRequest) {
 
     const routers = await prisma.router.findMany({
       where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const areas = await prisma.area.findMany({
       select: {
         id: true,
         name: true,
@@ -165,6 +185,7 @@ export async function GET(request: NextRequest) {
       filters: {
         profiles,
         routers,
+        areas,
         statuses: ['active', 'isolated', 'blocked'],
         odps,
       },

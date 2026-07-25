@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -13,6 +13,7 @@ interface User {
   status: string;
   profile?: { name: string };
   router?: { name: string };
+  area?: { id: string; name: string };
   odpAssignment?: {
     odp: {
       id: string;
@@ -43,12 +44,14 @@ export default function SendMessagePage() {
   const [filters, setFilters] = useState<{
     profiles: { id: string; name: string }[];
     routers: { id: string; name: string }[];
+    areas: { id: string; name: string }[];
     statuses: string[];
     odps: { id: string; name: string }[];
-  }>({ profiles: [], routers: [], statuses: [], odps: [] });
+  }>({ profiles: [], routers: [], areas: [], statuses: [], odps: [] });
   const [statusFilter, setStatusFilter] = useState('');
   const [profileFilter, setProfileFilter] = useState('');
   const [routerFilter, setRouterFilter] = useState('');
+  const [areaFilter, setAreaFilter] = useState('');
   const [addressFilter, setAddressFilter] = useState('');
   const [odpFilters, setOdpFilters] = useState<string[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -60,7 +63,7 @@ export default function SendMessagePage() {
     loadUsers();
     loadTemplates();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, profileFilter, routerFilter, addressFilter, odpFilters]);
+  }, [statusFilter, profileFilter, routerFilter, areaFilter, addressFilter, odpFilters]);
 
   const loadUsers = async () => {
     setLoadingUsers(true);
@@ -69,6 +72,7 @@ export default function SendMessagePage() {
       if (statusFilter) params.append('status', statusFilter);
       if (profileFilter) params.append('profileId', profileFilter);
       if (routerFilter) params.append('routerId', routerFilter);
+      if (areaFilter) params.append('areaId', areaFilter);
       if (addressFilter) params.append('address', addressFilter);
       if (odpFilters.length > 0) params.append('odpIds', odpFilters.join(','));
 
@@ -418,7 +422,20 @@ export default function SendMessagePage() {
                 </div>
 
                 {/* Other Filters */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-medium text-muted-foreground dark:text-muted-foreground mb-0.5">Filter Wilayah / Area</label>
+                    <select
+                      value={areaFilter || 'all'}
+                      onChange={(e) => setAreaFilter(e.target.value === 'all' ? '' : e.target.value)}
+                      className="w-full h-7 px-2 text-[10px] bg-card border border-border rounded focus:ring-1 focus:ring-primary focus:border-teal-500 text-foreground"
+                    >
+                      <option value="all">Semua Wilayah</option>
+                      {filters.areas?.map((area) => (
+                        <option key={area.id} value={area.id}>{area.name}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-[10px] font-medium text-muted-foreground dark:text-muted-foreground mb-0.5">{t('common.status')}</label>
                     <select
@@ -536,6 +553,7 @@ export default function SendMessagePage() {
                             <th className="px-2 py-1.5 text-left text-[9px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase hidden sm:table-cell">{t('common.username')}</th>
                             <th className="px-2 py-1.5 text-left text-[9px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase">{t('common.phone')}</th>
                             <th className="px-2 py-1.5 text-left text-[9px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase hidden md:table-cell">{t('common.profile')}</th>
+                            <th className="px-2 py-1.5 text-left text-[9px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase hidden lg:table-cell">Wilayah</th>
                             <th className="px-2 py-1.5 text-left text-[9px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase hidden lg:table-cell">ODP</th>
                             <th className="px-2 py-1.5 text-left text-[9px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase">{t('common.status')}</th>
                           </tr>
@@ -543,7 +561,7 @@ export default function SendMessagePage() {
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                           {users.length === 0 ? (
                             <tr>
-                              <td colSpan={7} className="px-2 py-6 text-center text-[10px] text-muted-foreground">{t('whatsapp.noUsersFound')}</td>
+                              <td colSpan={8} className="px-2 py-6 text-center text-[10px] text-muted-foreground">{t('whatsapp.noUsersFound')}</td>
                             </tr>
                           ) : (
                             users.map((user) => (
@@ -560,6 +578,7 @@ export default function SendMessagePage() {
                                 <td className="px-2 py-1 text-[10px] text-muted-foreground dark:text-muted-foreground hidden sm:table-cell">{user.username}</td>
                                 <td className="px-2 py-1 text-[10px] text-muted-foreground dark:text-muted-foreground font-mono">{user.phone || '-'}</td>
                                 <td className="px-2 py-1 text-[10px] text-muted-foreground dark:text-muted-foreground hidden md:table-cell">{user.profile?.name || '-'}</td>
+                                <td className="px-2 py-1 text-[10px] text-muted-foreground dark:text-muted-foreground hidden lg:table-cell">{user.area?.name || '-'}</td>
                                 <td className="px-2 py-1 hidden lg:table-cell">
                                   {user.odpAssignment ? (
                                     <span className="text-[9px] text-muted-foreground dark:text-muted-foreground">
