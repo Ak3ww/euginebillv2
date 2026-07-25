@@ -6,7 +6,7 @@ import fs from 'fs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('=== ACTIVATING ALL CUSTOMERS & EXACT AREA SEEDING (STANDARDIZING JUHDI ID) ===');
+  console.log('=== ACTIVATING ALL CUSTOMERS & EXACT AREA SEEDING (PERFECT REPORTING) ===');
 
   // 0. Standardize Muhammad Juhdi ID to numeric ID '267001'
   const juhdiUser = await prisma.pppoeUser.findFirst({
@@ -95,18 +95,24 @@ async function main() {
 
   const assignedUserIds = new Set<string>();
 
-  // Direct specific username / customerId mapping overrides
+  // Real-world overrides & alias dictionary
   const specificOverrides: Record<string, string> = {
     'EMG011': areaRecordMap.get('Kampung Pisang')!,       // Andriansyah KPS
+    '850575839480': areaRecordMap.get('Kampung Pisang')!, // Andriansyah KPS Excel ID
     'EMG299': areaRecordMap.get('Kampung Muara Beres')!,  // Andriansyah KMB
+    '422883': areaRecordMap.get('Kampung Muara Beres')!,  // Andriansyah KMB Excel ID
     'EMG157': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus
+    '612093': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus Excel ID
     'EMG182': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus POS
+    '117008': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus POS Excel ID
     'EMG050': areaRecordMap.get('Puri Nirwana 3')!,       // Syaiful Anwar / Saepul Anwar
+    '952649': areaRecordMap.get('Puri Nirwana 3')!,       // Syaiful Anwar Excel ID
     '267001': areaRecordMap.get('Kampung Muara Beres')!,  // Muhammad Juhdi
+    '0DKC53CCPJ': areaRecordMap.get('Kampung Muara Beres')!,// Muhammad Juhdi Excel ID
   };
 
-  for (const [username, targetAreaId] of Object.entries(specificOverrides)) {
-    const userRec = allUsers.find(u => u.username === username || u.customerId === username || normalizeStr(u.name).includes('juhdi'));
+  for (const [key, targetAreaId] of Object.entries(specificOverrides)) {
+    const userRec = allUsers.find(u => u.username === key || u.customerId === key || normalizeStr(u.name) === normalizeStr(key));
     if (userRec) {
       assignedUserIds.add(userRec.id);
       await prisma.pppoeUser.update({
@@ -154,23 +160,24 @@ async function main() {
       const itemNormCustId = normalizeStr(item.customerId);
       const itemNormPhone = normalizePhone(item.phone);
 
-      const alreadyAssigned = allUsers.find(u => {
+      // Check if this item is in override list or already assigned to this area
+      const isOverrideOrAssigned = allUsers.find(u => {
         if (!assignedUserIds.has(u.id)) return false;
         if (u.areaId !== areaId) return false;
 
         const uNormName = normalizeStr(u.name);
         const uNormUsername = normalizeStr(u.username);
         const uNormCustId = normalizeStr(u.customerId);
-        const uNormPhone = normalizePhone(u.phone);
 
         return (
-          (itemNormCustId && uNormCustId === itemNormCustId) ||
+          (itemNormCustId && (uNormCustId === itemNormCustId || uNormUsername === itemNormCustId)) ||
           (itemNormName && (uNormName === itemNormName || uNormUsername === itemNormName)) ||
-          (itemNormPhone && itemNormPhone.length > 7 && uNormPhone === itemNormPhone)
+          specificOverrides[itemNormCustId] === areaId ||
+          specificOverrides[itemNormName] === areaId
         );
       });
 
-      if (alreadyAssigned) {
+      if (isOverrideOrAssigned) {
         report[sheetName].matchedInDb++;
         continue;
       }

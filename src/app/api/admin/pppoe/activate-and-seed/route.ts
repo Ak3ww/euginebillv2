@@ -15,7 +15,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Standardize Juhdi ID
     const juhdiUser = await prisma.pppoeUser.findFirst({
       where: {
         OR: [
@@ -98,16 +97,22 @@ export async function POST(request: NextRequest) {
     const assignedUserIds = new Set<string>();
 
     const specificOverrides: Record<string, string> = {
-      'EMG011': areaRecordMap.get('Kampung Pisang')!,
-      'EMG299': areaRecordMap.get('Kampung Muara Beres')!,
-      'EMG157': areaRecordMap.get('Kampung Muara Beres')!,
-      'EMG182': areaRecordMap.get('Kampung Muara Beres')!,
-      'EMG050': areaRecordMap.get('Puri Nirwana 3')!,
-      '267001': areaRecordMap.get('Kampung Muara Beres')!,
+      'EMG011': areaRecordMap.get('Kampung Pisang')!,       // Andriansyah KPS
+      '850575839480': areaRecordMap.get('Kampung Pisang')!, // Andriansyah KPS Excel ID
+      'EMG299': areaRecordMap.get('Kampung Muara Beres')!,  // Andriansyah KMB
+      '422883': areaRecordMap.get('Kampung Muara Beres')!,  // Andriansyah KMB Excel ID
+      'EMG157': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus
+      '612093': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus Excel ID
+      'EMG182': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus POS
+      '117008': areaRecordMap.get('Kampung Muara Beres')!,  // Yunus POS Excel ID
+      'EMG050': areaRecordMap.get('Puri Nirwana 3')!,       // Syaiful Anwar / Saepul Anwar
+      '952649': areaRecordMap.get('Puri Nirwana 3')!,       // Syaiful Anwar Excel ID
+      '267001': areaRecordMap.get('Kampung Muara Beres')!,  // Muhammad Juhdi
+      '0DKC53CCPJ': areaRecordMap.get('Kampung Muara Beres')!,// Muhammad Juhdi Excel ID
     };
 
-    for (const [username, targetAreaId] of Object.entries(specificOverrides)) {
-      const userRec = allUsers.find(u => u.username === username || u.customerId === username || normalizeStr(u.name).includes('juhdi'));
+    for (const [key, targetAreaId] of Object.entries(specificOverrides)) {
+      const userRec = allUsers.find(u => u.username === key || u.customerId === key || normalizeStr(u.name) === normalizeStr(key));
       if (userRec) {
         assignedUserIds.add(userRec.id);
         await prisma.pppoeUser.update({
@@ -154,23 +159,23 @@ export async function POST(request: NextRequest) {
         const itemNormCustId = normalizeStr(item.customerId);
         const itemNormPhone = normalizePhone(item.phone);
 
-        const alreadyAssigned = allUsers.find(u => {
+        const isOverrideOrAssigned = allUsers.find(u => {
           if (!assignedUserIds.has(u.id)) return false;
           if (u.areaId !== areaId) return false;
 
           const uNormName = normalizeStr(u.name);
           const uNormUsername = normalizeStr(u.username);
           const uNormCustId = normalizeStr(u.customerId);
-          const uNormPhone = normalizePhone(u.phone);
 
           return (
-            (itemNormCustId && uNormCustId === itemNormCustId) ||
+            (itemNormCustId && (uNormCustId === itemNormCustId || uNormUsername === itemNormCustId)) ||
             (itemNormName && (uNormName === itemNormName || uNormUsername === itemNormName)) ||
-            (itemNormPhone && itemNormPhone.length > 7 && uNormPhone === itemNormPhone)
+            specificOverrides[itemNormCustId] === areaId ||
+            specificOverrides[itemNormName] === areaId
           );
         });
 
-        if (alreadyAssigned) {
+        if (isOverrideOrAssigned) {
           report[sheetName].matchedInDb++;
           continue;
         }
@@ -212,7 +217,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Berhasil menstandardisasi ID Juhdi dan meng-seed semua area.',
+      message: 'Berhasil meng-seed dengan penghitungan override presisi.',
       report,
       unassignedCount: remainingUnassigned,
     });
