@@ -43,43 +43,56 @@ export async function POST(request: NextRequest) {
     for (const log of waLogs) {
       const msg = log.message;
 
-      // Extract invoiceNumber, paymentToken, amount, and dueDate using Regex
-      const invMatch = msg.match(/Nomor Tagihan:\s*([^\n\r]+)/i);
+      // Extract invoiceNumber, paymentToken, amount, and dueDate using flexible Regex
+      const invMatch = msg.match(/(?:No\.\s*Invoice|Nomor\s*Invoice|Nomor\s*Tagihan|No\s*Tagihan):\s*\*?([^\*\n\r]+)\*?/i) || msg.match(/(INV-[a-zA-Z0-9_-]+)/i);
       const linkMatch = msg.match(/\/pay\/([a-zA-Z0-9_-]+)/i);
-      const amountMatch = msg.match(/Jumlah Tagihan:\s*Rp\s*([\d\.]+)/i);
-      const dueMatch = msg.match(/Jatuh Tempo:\s*([^\n\r]+)/i);
+      const amountMatch = msg.match(/(?:Jumlah|Total)\s*Tagihan:\s*Rp\s*([\d\.]+)/i);
+      const dueMatch = msg.match(/(?:Jatuh Tempo|sebelum):\s*\*?([^\*\n\r]+)\*?/i);
 
       if (!invMatch || !linkMatch) {
         skipped++;
         continue;
       }
 
-      const invoiceNumber = invMatch[1].trim();
+      const invoiceNumber = invMatch[1].replace(/\*/g, '').trim();
       const paymentToken = linkMatch[1].trim();
       const rawAmount = amountMatch ? amountMatch[1].replace(/\./g, '') : '0';
-      const amount = parseInt(rawAmount) || 100000;
+      const parsedAmount = parseInt(rawAmount) || 0;
 
       // Parse due date if available
       let dueDate = new Date();
       if (dueMatch) {
-        const dStr = dueMatch[1].trim();
+        const dStr = dueMatch[1].replace(/\*/g, '').trim();
         const parts = dStr.split('/');
         if (parts.length === 3) {
           dueDate = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+        } else {
+          const parsed = new Date(dStr);
+          if (!isNaN(parsed.getTime())) dueDate = parsed;
         }
       }
 
-      // Find customer by phone number
+      // Extract username/customerId from message string if present (e.g. "Yth. Agus (EMG001)")
+      const userMatch = msg.match(/\(([a-zA-Z0-9_-]+)\)/);
+      const userCode = userMatch ? userMatch[1] : null;
+
+      // Find customer by phone number or extracted username/customerId
       const cleanPhone = log.phone.replace(/[^0-9]/g, '');
-      const searchPhone = cleanPhone.startsWith('62') ? '0' + cleanPhone.slice(2) : cleanPhone;
+      const searchPhone0 = cleanPhone.startsWith('62') ? '0' + cleanPhone.slice(2) : cleanPhone;
+      const searchPhone62 = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
+      const lastDigits = searchPhone0.length >= 8 ? searchPhone0.slice(-8) : searchPhone0;
 
       const user = await prisma.pppoeUser.findFirst({
         where: {
           OR: [
             { phone: log.phone },
-            { phone: searchPhone },
-            { phone: cleanPhone },
-            { phone: { contains: searchPhone } },
+            { phone: searchPhone0 },
+            { phone: searchPhone62 },
+            { phone: { contains: lastDigits } },
+            ...(userCode ? [
+              { username: userCode },
+              { customerId: userCode },
+            ] : []),
           ],
         },
         include: {
@@ -92,6 +105,8 @@ export async function POST(request: NextRequest) {
         skipped++;
         continue;
       }
+
+      const amount = parsedAmount || user.profile?.price || 100000;
 
       // Check Muara Beres exclusion
       if (excludeMuaraBeres) {
