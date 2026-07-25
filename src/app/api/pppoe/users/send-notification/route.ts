@@ -122,7 +122,13 @@ export async function POST(request: NextRequest) {
             // Auto-generate invoice for user if none exists for current period
             try {
               const invAmount = user.profile?.price || 100000;
-              const invNumber = `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+              const now = new Date();
+              const year = now.getFullYear();
+              const month = String(now.getMonth() + 1).padStart(2, '0');
+              const count = await prisma.invoice.count({
+                where: { invoiceNumber: { startsWith: `INV-${year}${month}-` } }
+              });
+              const invNumber = `INV-${year}${month}-${String(count + 1).padStart(4, '0')}`;
               const token = crypto.randomUUID();
               const baseUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
               const dueDate = user.expiredAt || new Date(Date.now() + 7 * 24 * 3600 * 1000);
@@ -159,7 +165,7 @@ export async function POST(request: NextRequest) {
             where: { type: 'invoice-reminder' },
           });
           
-          const amount = new Intl.NumberFormat('id-ID', {
+          const amountFormatted = new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
             minimumFractionDigits: 0,
@@ -168,7 +174,11 @@ export async function POST(request: NextRequest) {
           variables = {
             ...variables,
             invoiceNumber: targetInvoice.invoiceNumber,
-            amount,
+            amount: amountFormatted,
+            total_bayar: amountFormatted,
+            total_tagihan: amountFormatted,
+            jumlah: amountFormatted,
+            nominal: amountFormatted,
             dueDate: new Date(targetInvoice.dueDate).toLocaleDateString('id-ID'),
             customerEmail: user.email || '',
             paymentLink: targetInvoice.paymentLink || `${company?.baseUrl || ''}/pay/${targetInvoice.paymentToken}`,

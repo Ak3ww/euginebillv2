@@ -1,5 +1,6 @@
 'use client';
 
+import '@/app/customer/customer.css';
 import { formatWIB } from '@/lib/timezone';
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';

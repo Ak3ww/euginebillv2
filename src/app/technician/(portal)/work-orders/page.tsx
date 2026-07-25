@@ -61,6 +61,9 @@ export default function WorkOrdersPage() {
       case 'IN_PROGRESS':
         return <span className="px-2 py-1 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded-full font-mono text-[10px] uppercase tracking-wider font-bold">Proses</span>;
       case 'COMPLETED':
+      case 'SUCCESS':
+      case 'RESOLVED':
+      case 'CLOSED':
         return <span className="px-2 py-1 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-full font-mono text-[10px] uppercase tracking-wider font-bold">Selesai</span>;
       default:
         return <span className="px-2 py-1 bg-slate-500/10 text-slate-600 border border-slate-500/20 rounded-full font-mono text-[10px] uppercase tracking-wider font-bold">{status}</span>;
@@ -146,7 +149,7 @@ export default function WorkOrdersPage() {
               <div className="pt-4 border-t border-[var(--color-rule)] flex justify-between items-center mt-auto">
                 <div className="text-xs text-[var(--color-muted)] flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5" />
-                  {wo.technician?.name || 'Belum Diambil'}
+                  {wo.technician?.name || (wo.status === 'COMPLETED' || wo.status === 'SUCCESS' ? 'Teknisi Field' : 'Belum Diambil')}
                 </div>
                 <button className="text-[10px] font-mono font-bold text-[var(--color-focus)] bg-[var(--color-focus)]/5 hover:bg-[var(--color-focus)]/10 px-3 py-1.5 rounded uppercase tracking-wider transition-colors">
                   Detail →

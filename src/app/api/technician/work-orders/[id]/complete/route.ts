@@ -87,6 +87,17 @@ export async function POST(
           });
         }
 
+        // If found, update ODP location if lat/lng are provided
+        if (targetOdp && (odpLatNum !== 0 || odpLngNum !== 0)) {
+          await prisma.networkODP.update({
+            where: { id: targetOdp.id },
+            data: {
+              latitude: odpLatNum,
+              longitude: odpLngNum,
+            }
+          }).catch(e => console.error('Failed to update ODP coordinates:', e));
+        }
+
         // Link customer to ODP assignment if linkedUserId exists
         if (wo.linkedUserId && targetOdp) {
           await prisma.odpCustomerAssignment.upsert({
@@ -121,13 +132,13 @@ export async function POST(
       }
     });
 
-    // Auto-Billing Trigger
+    // Auto-Billing Trigger & Admin Alert
     if (wo.linkedUserId) {
-      // Find the first PENDING invoice for this customer
+      // Find the first PENDING or UNPAID invoice for this customer
       const invoice = await prisma.invoice.findFirst({
         where: {
           userId: wo.linkedUserId,
-          status: 'PENDING'
+          status: { in: ['PENDING', 'UNPAID', 'OVERDUE'] }
         },
         orderBy: {
           createdAt: 'desc'
@@ -150,6 +161,19 @@ export async function POST(
           companyName: company?.name || 'ISP',
           companyPhone: company?.phone || ''
         }).catch(e => console.error('Failed to send WA Invoice on completion:', e));
+      } else if (!invoice && wo.customer) {
+        // Send alert to Admin that Installation is complete but Invoice is NOT created yet!
+        try {
+          const { NotificationService } = await import('@/server/services/notifications/dispatcher.service');
+          await NotificationService.notifyAdminInstallationCompleteNoInvoice({
+            workOrderId: wo.id,
+            customerName: wo.customerName,
+            customerPhone: wo.customerPhone,
+            customerId: wo.customer.customerId || wo.customer.username,
+          });
+        } catch (notifErr) {
+          console.error('Failed to send admin installation completed alert:', notifErr);
+        }
       }
     }
 

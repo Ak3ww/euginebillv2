@@ -225,13 +225,20 @@ export default function AdminWorkOrdersPage() {
             >
               <div>
                 <div className="flex justify-between items-start mb-3">
-                  <span className={cn('px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase tracking-wider font-bold border',
-                    wo.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
-                    wo.status === 'IN_PROGRESS' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
-                    'bg-amber-500/10 text-amber-600 border-amber-500/20'
-                  )}>
-                    {wo.status}
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={cn('px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase tracking-wider font-bold border',
+                      (wo.status === 'COMPLETED' || wo.status === 'SUCCESS') ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
+                      wo.status === 'IN_PROGRESS' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
+                      'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                    )}>
+                      {(wo.status === 'COMPLETED' || wo.status === 'SUCCESS') ? 'SELESAI' : wo.status}
+                    </span>
+                    {(wo.status === 'COMPLETED' || wo.status === 'SUCCESS') && !(wo as any).hasInvoice && (
+                      <span className="px-2 py-0.5 rounded-full font-mono text-[9px] uppercase tracking-wider font-bold bg-rose-500/10 text-rose-600 border border-rose-500/30 animate-pulse">
+                        ⚠️ Tagihan Belum Terbuat
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
                     {wo.issueType.replace('_', ' ')}
                   </span>

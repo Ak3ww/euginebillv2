@@ -45,7 +45,15 @@ export async function GET(req: Request) {
             select: { id: true, name: true, phoneNumber: true, username: true },
           },
           customer: {
-            select: { id: true, name: true, username: true, customerId: true },
+            select: { 
+              id: true, 
+              name: true, 
+              username: true, 
+              customerId: true,
+              invoices: {
+                select: { id: true, invoiceNumber: true, status: true },
+              }
+            },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -55,9 +63,14 @@ export async function GET(req: Request) {
       prisma.workOrder.count({ where }),
     ]);
 
+    const formattedWorkOrders = workOrders.map(wo => ({
+      ...wo,
+      hasInvoice: wo.customer?.invoices && wo.customer.invoices.length > 0,
+    }));
+
     return NextResponse.json({
       success: true,
-      workOrders,
+      workOrders: formattedWorkOrders,
       pagination: {
         page,
         limit,

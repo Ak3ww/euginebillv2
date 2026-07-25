@@ -396,4 +396,21 @@ export const NotificationService = {
       };
     }
   },
+
+  /**
+   * Notify Admin when an installation SPK is completed but no invoice has been created yet
+   */
+  async notifyAdminInstallationCompleteNoInvoice(data: {
+    workOrderId: string;
+    customerName: string;
+    customerPhone: string;
+    customerId: string;
+  }) {
+    return this.create({
+      type: 'INSTALLATION_NO_INVOICE',
+      title: '⚠️ SPK Instalasi Selesai (Belum Dibuat Tagihan)',
+      message: `Pemasangan SPK #${data.workOrderId.slice(-8).toUpperCase()} untuk ${data.customerName} (${data.customerId}) telah SELESAI oleh teknisi. Tagihan belum terbuat!`,
+      link: `/admin/work-orders?id=${data.workOrderId}`,
+    });
+  },
 };

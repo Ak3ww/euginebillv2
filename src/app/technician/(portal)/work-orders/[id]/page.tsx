@@ -228,12 +228,26 @@ export default function TechnicianWorkOrderWizardPage() {
   };
 
   const validateStep3 = (): boolean => {
+    const issueType = (wo?.issueType || 'INSTALLATION').toUpperCase();
     const missing: string[] = [];
-    if (!reportData.sn.trim()) missing.push('Serial Number (SN) ONT');
-    if (!reportData.rxSignal.trim()) missing.push('Sinyal Redaman Rx (dBm)');
-    if (!customerGeo.lat || !customerGeo.lng) missing.push('Titik GPS Rumah Pelanggan');
-    if (!photos['Foto ONT Menyala']) missing.push('Foto ONT Menyala');
-    if (!photos['Foto Rumah']) missing.push('Foto Rumah');
+
+    if (issueType.includes('INSTAL') || issueType === 'INSTALLATION') {
+      if (!reportData.sn.trim()) missing.push('Serial Number (SN) ONT');
+      if (!reportData.rxSignal.trim()) missing.push('Sinyal Redaman Rx (dBm)');
+      if (!customerGeo.lat || !customerGeo.lng) missing.push('Titik GPS Rumah Pelanggan');
+      if (!photos['Foto ONT Menyala'] && !photos['Foto Bukti 1']) missing.push('Foto ONT Menyala / Bukti 1');
+      if (!photos['Foto Rumah'] && !photos['Foto Bukti 2']) missing.push('Foto Rumah / Bukti 2');
+    } else if (issueType.includes('MAINT') || issueType.includes('PERBAIK') || issueType === 'REPAIR') {
+      if (!reportData.description?.trim() && !reportData.rxSignal?.trim()) missing.push('Catatan Perbaikan / Redaman Sinyal');
+      if (!customerGeo.lat || !customerGeo.lng) missing.push('Titik GPS Lokasi');
+      if (Object.keys(photos).length === 0) missing.push('Minimal 1 Foto Bukti Perbaikan');
+    } else if (issueType.includes('CABUT') || issueType.includes('DISMANTL')) {
+      if (!customerGeo.lat || !customerGeo.lng) missing.push('Titik GPS Lokasi');
+      if (Object.keys(photos).length === 0) missing.push('Minimal 1 Foto Perangkat Ditarik');
+    } else {
+      if (!customerGeo.lat || !customerGeo.lng) missing.push('Titik GPS Lokasi');
+      if (Object.keys(photos).length === 0) missing.push('Minimal 1 Foto Bukti Laporan');
+    }
 
     if (missing.length > 0) {
       addToast({
@@ -603,10 +617,24 @@ export default function TechnicianWorkOrderWizardPage() {
           </span>
         </div>
 
-        <div className="space-y-1.5 text-xs pt-2 border-t border-border">
-          <div className="flex items-start gap-1.5 text-muted-foreground">
-            <MapPin className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-            <span className="line-clamp-2 leading-relaxed text-foreground">{wo.customerAddress}</span>
+        <div className="space-y-2 text-xs pt-2 border-t border-border">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+              <span className="line-clamp-2 leading-relaxed text-foreground">{wo.customerAddress}</span>
+            </div>
+            <a
+              href={
+                customerGeo.lat && customerGeo.lng
+                  ? `https://www.google.com/maps/dir/?api=1&destination=${customerGeo.lat},${customerGeo.lng}`
+                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wo.customerAddress)}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2.5 py-1 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1 shrink-0 transition-colors"
+            >
+              <Navigation className="w-3 h-3" /> Navigasi Maps
+            </a>
           </div>
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Phone className="w-3.5 h-3.5 text-primary shrink-0" />

@@ -10,7 +10,18 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
   if (!template || !template.trim()) return '';
   let rendered = template;
 
+  const rawAmount = variables.amount || variables.total_bayar || variables.total_tagihan || variables.jumlah || variables.nominal || variables.harga;
+  const formattedAmount = typeof rawAmount === 'number'
+    ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(rawAmount)
+    : (rawAmount || '');
+
   const defaultVars: Record<string, any> = {
+    total_bayar: formattedAmount,
+    total_tagihan: formattedAmount,
+    amount: formattedAmount,
+    jumlah: formattedAmount,
+    nominal: formattedAmount,
+    harga: formattedAmount,
     link_download_aplikasi: variables.link_download_aplikasi || variables.link_download_apk || `${variables.baseUrl || ''}/download-app`,
     link_download_apk: variables.link_download_apk || variables.link_download_aplikasi || `${variables.baseUrl || ''}/download-app`,
     expiredAt: variables.expiredAt || variables.dueDate || variables.expiredDate || '-',
@@ -21,8 +32,11 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
   const merged = { ...defaultVars, ...variables };
 
   for (const [key, value] of Object.entries(merged)) {
-    const regex = new RegExp(`{{${key}}}`, 'g');
-    rendered = rendered.replace(regex, String(value ?? ''));
+    const valStr = String(value ?? '');
+    // Replace {{key}}
+    rendered = rendered.replace(new RegExp(`{{${key}}}`, 'gi'), valStr);
+    // Replace {key}
+    rendered = rendered.replace(new RegExp(`{${key}}`, 'gi'), valStr);
   }
 
   return rendered;
