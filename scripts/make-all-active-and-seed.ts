@@ -29,15 +29,8 @@ async function main() {
     console.log(`✓ Standardized MUHAMMAD JUHDI customerId to "267001".`);
   }
 
-  // 1. Set status = 'active' for ALL customers in database
-  console.log('Step 1: Setting status = "active" for all customers in database...');
-  const statusUpdate = await prisma.pppoeUser.updateMany({
-    data: { status: 'active' }
-  });
-  console.log(`✓ Updated ${statusUpdate.count} users to status = "active".\n`);
-
-  // 2. Unassign all users first
-  console.log('Step 2: Resetting all area assignments (unassign all)...');
+  // 1. Reset all area assignments (unassign all)
+  console.log('Step 1: Resetting all area assignments (unassign all)...');
   await prisma.pppoeUser.updateMany({
     data: { areaId: null }
   });

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
 import {
@@ -130,7 +130,7 @@ const ACTIVITY_TABS = [
 ];
 
 function timeAgo(isoString: string): string {
-  const diff = nowWIB().getTime() - new Date(isoString).getTime();
+  const diff = Math.max(0, Date.now() - new Date(isoString).getTime());
   const s = Math.floor(diff / 1000);
   if (s < 60) return `${s}d`;
   const m = Math.floor(s / 60);

@@ -106,17 +106,19 @@ export async function GET(request: NextRequest) {
         pppoeUsernameSet = new Set(pppoeUsers.map(u => u.username.toLowerCase()));
         const hotspotVoucherSet = new Set(hotspotVouchers.map(v => v.code));
 
+        const countedPppoeUsers = new Set<string>();
         for (const username of allUsernames) {
           const raw = username.toLowerCase();
           const normalized = normalizeUsername(username).toLowerCase();
           if (pppoeUsernameSet.has(raw) || pppoeUsernameSet.has(normalized)) {
-            activeSessionsPPPoE++;
+            countedPppoeUsers.add(normalized);
           } else if (hotspotVoucherSet.has(username)) {
             // Only count as hotspot if username is a registered voucher code
             activeSessionsHotspot++;
           }
           // else: unregistered user — skip entirely (ghost session)
         }
+        activeSessionsPPPoE = countedPppoeUsers.size;
       }
 
       // Supplement: count synthetic ACTIVE hotspot vouchers.
@@ -209,11 +211,11 @@ export async function GET(request: NextRequest) {
       console.error('[Dashboard] Error counting isolated users:', e);
     }
 
-    // ==================== 6. Suspended Customers (Stop Langganan) ====================
+    // ==================== 6. Suspended / Stop Customers ====================
     let suspendedCount = 0;
     try {
       suspendedCount = await prisma.pppoeUser.count({
-        where: { status: { in: ['suspended', 'SUSPENDED'] } },
+        where: { status: { in: ['suspended', 'SUSPENDED', 'stop', 'STOP', 'disabled', 'DISABLED'] } },
       });
     } catch (e) {
       console.error('[Dashboard] Error counting suspended users:', e);
