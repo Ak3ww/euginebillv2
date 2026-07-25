@@ -195,12 +195,21 @@ export async function createPppoeUser(
   request: NextRequest
 ) {
   const {
-    password, portalPassword, profileId, pppoeCustomerId, routerId, areaId,
+    portalPassword, profileId, pppoeCustomerId, routerId, areaId,
     email, address, latitude, longitude, ipAddress, macAddress, comment,
     expiredAt, subscriptionType, billingDay, idCardNumber, idCardPhoto,
     installationPhotos, followRoad, registeredAt,
   } = data;
   const noPppoeAccount = !!(data as any).noPppoeAccount;
+
+  // Explicitly separate PPPoE Password from Portal Password
+  let password = (data.password || '').trim();
+  const finalPortalPassword = (portalPassword || '123').trim();
+
+  if (!noPppoeAccount && !password) {
+    // Auto-generate a secure random PPPoE password if empty — NEVER default to '123' or portalPassword
+    password = 'pp' + Math.floor(100000 + Math.random() * 900000).toString();
+  }
 
   // Resolve name/phone: prefer explicit values, fall back to linked customer
   let resolvedName = data.name || '';
@@ -292,7 +301,7 @@ export async function createPppoeUser(
       username,
       customerId,
       password,
-      portalPassword: portalPassword || '123',
+      portalPassword: finalPortalPassword,
       profileId,
       routerId: routerId || null,
       areaId: areaId || null,

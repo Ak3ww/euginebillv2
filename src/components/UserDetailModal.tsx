@@ -313,14 +313,14 @@ export default function UserDetailModal({
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>{t('userModal.password')}</label>
+                  <label className={labelCls}>Password PPPoE (Secret MikroTik/RADIUS)</label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       className={`${inputCls} pr-10`}
-                      placeholder={t('userModal.passwordPlaceholder')}
+                      placeholder="Biarkan kosong jika tidak ingin merubah secret PPPoE"
                       autoComplete="new-password"
                     />
                     <button
@@ -333,13 +333,13 @@ export default function UserDetailModal({
                   </div>
                 </div>
                 <div>
-                  <label className={labelCls}>Password Portal</label>
+                  <label className={labelCls}>Password Portal Pelanggan (Login Web)</label>
                   <input
                     type="text"
                     value={formData.portalPassword}
                     onChange={(e) => setFormData({ ...formData, portalPassword: e.target.value })}
                     className={inputCls}
-                    placeholder="Biarkan kosong jika tidak diubah"
+                    placeholder="Default 123 (untuk login portal pelanggan)"
                   />
                 </div>
                 <div>

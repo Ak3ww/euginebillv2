@@ -91,8 +91,11 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
   const prevIsOpen = useRef(isOpen);
   useEffect(() => {
     if (prevIsOpen.current && !isOpen) {
-      setFormData({ username: '', password: '', portalPassword: '123', profileId: '', routerId: '', areaId: '', name: '', phone: '', email: '', address: '', latitude: '', longitude: '', ipAddress: '', expiredAt: '', subscriptionType: 'POSTPAID', billingDay: '1', macAddress: '', comment: '', referralCode: '', idCardNumber: '', idCardPhoto: '', installationPhotos: [], followRoad: false, registeredAt: new Date().toISOString().slice(0, 10) });
+      setFormData({ username: '', password: 'p' + Math.floor(100000 + Math.random() * 900000).toString(), portalPassword: '123', profileId: '', routerId: '', areaId: '', name: '', phone: '', email: '', address: '', latitude: '', longitude: '', ipAddress: '', expiredAt: '', subscriptionType: 'POSTPAID', billingDay: '1', macAddress: '', comment: '', referralCode: '', idCardNumber: '', idCardPhoto: '', installationPhotos: [], followRoad: false, registeredAt: new Date().toISOString().slice(0, 10) });
       setShowPassword(false);
+    }
+    if (!prevIsOpen.current && isOpen && !formData.password) {
+      setFormData((prev: any) => ({ ...prev, password: 'p' + Math.floor(100000 + Math.random() * 900000).toString() }));
     }
     prevIsOpen.current = isOpen;
   }, [isOpen]);
