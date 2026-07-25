@@ -37,6 +37,34 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // First pass: collect all valid invoice numbers and tokens from sent WA messages
+    const validInvoiceNumbers = new Set<string>();
+    const validPaymentTokens = new Set<string>();
+
+    for (const log of waLogs) {
+      const msg = log.message;
+      const invMatch = msg.match(/(?:No\.\s*Invoice|Nomor\s*Invoice|Nomor\s*Tagihan|No\s*Tagihan):\s*\*?([^\*\n\r]+)\*?/i) || msg.match(/(INV-[a-zA-Z0-9_-]+)/i);
+      const linkMatch = msg.match(/\/pay\/([a-zA-Z0-9_-]+)/i);
+
+      if (invMatch) validInvoiceNumbers.add(invMatch[1].replace(/\*/g, '').trim());
+      if (linkMatch) validPaymentTokens.add(linkMatch[1].trim());
+    }
+
+    // Auto-purge any PENDING/OVERDUE invoices in DB that do NOT match sent WA history from the last 24 hours
+    const unpaidInDB = await prisma.invoice.findMany({
+      where: { status: { in: ['PENDING', 'OVERDUE'] } },
+      select: { id: true, invoiceNumber: true, paymentToken: true },
+    });
+
+    const idsToDelete = unpaidInDB
+      .filter(inv => !validInvoiceNumbers.has(inv.invoiceNumber) && (!inv.paymentToken || !validPaymentTokens.has(inv.paymentToken)))
+      .map(inv => inv.id);
+
+    if (idsToDelete.length > 0) {
+      await prisma.payment.deleteMany({ where: { invoiceId: { in: idsToDelete } } });
+      await prisma.invoice.deleteMany({ where: { id: { in: idsToDelete } } });
+    }
+
     const company = await prisma.company.findFirst({ select: { baseUrl: true } });
     const baseUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
