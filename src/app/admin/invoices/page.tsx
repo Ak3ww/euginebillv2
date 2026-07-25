@@ -908,6 +908,34 @@ export default function InvoicesPage() {
     );
   });
 
+  const handleRestoreFromWa = async () => {
+    const confirmed = await showConfirm(
+      'Pulihkan Tagihan dari WA?',
+      'Sistem akan memulihkan kembali seluruh tagihan yang terhapus PERSIS sesuai Nomor Tagihan & Link Pembayaran yang SUDAH terlanjur terkirim ke pelanggan (Kecuali Wilayah Muara Beres). Pelanggan tidak perlu dikirimi WA lagi dan link di HP mereka langsung aktif kembali. Lanjutkan?'
+    );
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/invoices/restore-from-wa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ excludeMuaraBeres: true }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await showSuccess(data.message || 'Tagihan berhasil dipulihkan!');
+        loadInvoices();
+      } else {
+        await showError(data.error || data.message || 'Gagal memulihkan tagihan');
+      }
+    } catch (e: any) {
+      await showError('Terjadi kesalahan saat memulihkan tagihan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading && invoices.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -978,6 +1006,13 @@ export default function InvoicesPage() {
               className="inline-flex items-center px-2 py-1.5 text-xs border border-blue-500 text-blue-400 rounded hover:bg-blue-500/10"
             >
               <PlusSquare className="h-3 w-3 mr-1" />Generate Tagihan
+            </button>
+            <button
+              onClick={handleRestoreFromWa}
+              className="inline-flex items-center px-2.5 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-sm transition-colors"
+              title="Pulihkan tagihan yang terhapus persis sesuai link & nomor tagihan di WA (Kecuali KMB)"
+            >
+              ⚡ Pulihkan dari WA (Link Sama)
             </button>
 
           </div>

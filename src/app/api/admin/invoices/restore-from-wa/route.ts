@@ -1,0 +1,165 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/server/auth/config';
+import { prisma } from '@/server/db/client';
+import { unauthorized } from '@/lib/api-response';
+
+/**
+ * POST /api/admin/invoices/restore-from-wa
+ * Restores deleted invoices directly from sent whatsapp_history logs so that
+ * the EXACT invoiceNumber and EXACT paymentToken / paymentLink received by customers work 100%.
+ */
+export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return unauthorized();
+
+  try {
+    const body = await request.json().catch(() => ({}));
+    const { excludeMuaraBeres = true } = body;
+
+    // Fetch sent WA history messages that contain payment links (/pay/)
+    const waLogs = await prisma.whatsapp_history.findMany({
+      where: {
+        message: { contains: '/pay/' },
+      },
+      orderBy: { sentAt: 'desc' },
+      take: 1000,
+    });
+
+    if (waLogs.length === 0) {
+      return NextResponse.json({
+        success: false,
+        message: 'Tidak ditemukan riwayat pesan WA tagihan yang berisi link pembayaran.',
+      });
+    }
+
+    const company = await prisma.company.findFirst({ select: { baseUrl: true } });
+    const baseUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+    let restored = 0;
+    let skipped = 0;
+    const restoredInvoices: string[] = [];
+
+    for (const log of waLogs) {
+      const msg = log.message;
+
+      // Extract invoiceNumber, paymentToken, amount, and dueDate using Regex
+      const invMatch = msg.match(/Nomor Tagihan:\s*([^\n\r]+)/i);
+      const linkMatch = msg.match(/\/pay\/([a-zA-Z0-9_-]+)/i);
+      const amountMatch = msg.match(/Jumlah Tagihan:\s*Rp\s*([\d\.]+)/i);
+      const dueMatch = msg.match(/Jatuh Tempo:\s*([^\n\r]+)/i);
+
+      if (!invMatch || !linkMatch) {
+        skipped++;
+        continue;
+      }
+
+      const invoiceNumber = invMatch[1].trim();
+      const paymentToken = linkMatch[1].trim();
+      const rawAmount = amountMatch ? amountMatch[1].replace(/\./g, '') : '0';
+      const amount = parseInt(rawAmount) || 100000;
+
+      // Parse due date if available
+      let dueDate = new Date();
+      if (dueMatch) {
+        const dStr = dueMatch[1].trim();
+        const parts = dStr.split('/');
+        if (parts.length === 3) {
+          dueDate = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+        }
+      }
+
+      // Find customer by phone number
+      const cleanPhone = log.phone.replace(/[^0-9]/g, '');
+      const searchPhone = cleanPhone.startsWith('62') ? '0' + cleanPhone.slice(2) : cleanPhone;
+
+      const user = await prisma.pppoeUser.findFirst({
+        where: {
+          OR: [
+            { phone: log.phone },
+            { phone: searchPhone },
+            { phone: cleanPhone },
+            { phone: { contains: searchPhone } },
+          ],
+        },
+        include: {
+          area: true,
+          profile: true,
+        },
+      });
+
+      if (!user) {
+        skipped++;
+        continue;
+      }
+
+      // Check Muara Beres exclusion
+      if (excludeMuaraBeres) {
+        const areaName = user.area?.name || '';
+        const userAddress = user.address || '';
+        if (
+          areaName.toLowerCase().includes('muara beres') ||
+          areaName.toLowerCase().includes('kmb') ||
+          userAddress.toLowerCase().includes('muara beres')
+        ) {
+          skipped++;
+          continue;
+        }
+      }
+
+      // Check if invoice already exists
+      const existing = await prisma.invoice.findFirst({
+        where: {
+          OR: [
+            { invoiceNumber },
+            { paymentToken },
+          ],
+        },
+      });
+
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      // Re-create the EXACT invoice record
+      const paymentLink = `${baseUrl}/pay/${paymentToken}`;
+      await prisma.invoice.create({
+        data: {
+          id: crypto.randomUUID(),
+          invoiceNumber,
+          userId: user.id,
+          amount,
+          baseAmount: user.profile?.price || amount,
+          dueDate,
+          status: 'PENDING',
+          invoiceType: 'MONTHLY',
+          customerName: user.name,
+          customerPhone: user.phone,
+          customerUsername: user.username,
+          customerEmail: user.email || null,
+          paymentToken,
+          paymentLink,
+          createdAt: log.sentAt || new Date(),
+        },
+      });
+
+      restored++;
+      restoredInvoices.push(`${invoiceNumber} (${user.name})`);
+    }
+
+    return NextResponse.json({
+      success: true,
+      restored,
+      skipped,
+      restoredInvoices,
+      message: `Berhasil memulihkan ${restored} tagihan persis sesuai nomor & link WA yang sudah dikirim ke pelanggan!`,
+    });
+  } catch (error: any) {
+    console.error('Restore from WA error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Gagal memulihkan tagihan dari WA' },
+      { status: 500 }
+    );
+  }
+}
