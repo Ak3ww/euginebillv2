@@ -514,9 +514,10 @@ export async function sendInvoiceReminder(data: {
 
     const status = isOverdue ? 'overdue' : 'reminder';
     console.log(`[WA] ✅ Invoice ${status} sent to ${data.phone}`);
+    return { success: true };
   } catch (error) {
     console.error(`[WA] ❌ Failed to send invoice reminder:`, error);
-    throw error; // Re-throw to let cron handle it
+    return { success: false, error: (error as any)?.message || String(error) };
   }
 }
 

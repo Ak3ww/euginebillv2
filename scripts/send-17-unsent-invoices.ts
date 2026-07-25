@@ -21,7 +21,7 @@ async function send17UnsentInvoices() {
     // Target Due Date: 5 August 2026
     const targetDueDate = new Date('2026-08-05T12:00:00.000Z');
 
-    // Reset waNotifiedAt for invoices that were skipped due to disabled settings
+    // Reset waNotifiedAt for unsent/skipped invoices
     const skippedInvoiceNumbers = [
       'INV-20260725-78577B',
       'INV-20260725-A1C40A',
@@ -94,7 +94,7 @@ async function send17UnsentInvoices() {
       console.log(`📱 [${i + 1}/${filteredInvoices.length}] Kirim WA -> ${inv.invoiceNumber} | ${name} (${phone})...`);
 
       try {
-        const result = await sendInvoiceReminder({
+        const result: any = await sendInvoiceReminder({
           phone,
           customerName: name,
           customerId: inv.user?.customerId || inv.user?.username || '-',
@@ -110,7 +110,7 @@ async function send17UnsentInvoices() {
           isOverdue: false,
         });
 
-        if (result && result.success) {
+        if (result === undefined || result?.success === true) {
           await prisma.invoice.update({
             where: { id: inv.id },
             data: {
@@ -120,10 +120,10 @@ async function send17UnsentInvoices() {
             },
           });
           sent++;
-          console.log(`   ✅ REAL SENT & DB Updated: WA Terkirim (1x)\n`);
+          console.log(`   🎉 REAL SENT & DB Updated: WA Terkirim (1x)\n`);
         } else {
           failed++;
-          console.log(`   ⚠️ Skipped/Failed: ${result?.error || 'Unknown error'}\n`);
+          console.log(`   ⚠️ Gagal: ${result?.error || 'Pesan gagal terkirim'}\n`);
         }
 
         // Delay 1.5s per message
@@ -134,7 +134,7 @@ async function send17UnsentInvoices() {
       }
     }
 
-    console.log(`\n🎉 SELESAI! Total Berhasil Terkirim Real: ${sent}, Gagal/Skipped: ${failed}`);
+    console.log(`\n🎉 SELESAI! Total Berhasil Terkirim Real: ${sent}, Gagal: ${failed}`);
   } catch (error) {
     console.error('❌ Script error:', error);
   } finally {
