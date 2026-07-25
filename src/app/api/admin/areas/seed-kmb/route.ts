@@ -79,10 +79,7 @@ export async function POST(request: NextRequest) {
 
     let targetArea = await prisma.pppoeArea.findFirst({
       where: {
-        OR: [
-          { name: { contains: 'MUARA BERES' } },
-          { code: 'KMB' }
-        ]
+        name: { contains: 'MUARA BERES' }
       }
     });
 
@@ -91,7 +88,6 @@ export async function POST(request: NextRequest) {
         data: {
           id: crypto.randomUUID(),
           name: 'KAMPUNG MUARA BERES',
-          code: 'KMB',
           description: 'Wilayah Coverage Kampung Muara Beres',
         }
       });

@@ -67,15 +67,12 @@ const kmbCustomerList = [
 ];
 
 async function main() {
-  console.log('=== Seeding 62 Customers to KAMPUNG MUARA BERES (KMB) ===');
+  console.log('=== Seeding 62 Customers to KAMPUNG MUARA BERES ===');
 
   // Ensure KAMPUNG MUARA BERES area exists
   let targetArea = await prisma.pppoeArea.findFirst({
     where: {
-      OR: [
-        { name: { contains: 'MUARA BERES' } },
-        { code: 'KMB' }
-      ]
+      name: { contains: 'MUARA BERES' }
     }
   });
 
@@ -84,11 +81,10 @@ async function main() {
       data: {
         id: crypto.randomUUID(),
         name: 'KAMPUNG MUARA BERES',
-        code: 'KMB',
         description: 'Wilayah Coverage Kampung Muara Beres',
       }
     });
-    console.log(`Created new area: ${targetArea.name} (${targetArea.code})`);
+    console.log(`Created new area: ${targetArea.name}`);
   } else {
     console.log(`Using existing area: ${targetArea.name} (${targetArea.id})`);
   }
