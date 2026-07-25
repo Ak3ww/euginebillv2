@@ -89,7 +89,16 @@ export async function POST(request: NextRequest) {
         const address = vals[2] ? String(vals[2]).trim() : '';
         const phone = vals[3] ? String(vals[3]).trim() : '';
 
-        if (name && !name.toUpperCase().startsWith('DAFTAR') && !name.toUpperCase().startsWith('TERMUK') && !name.toUpperCase().startsWith('NAMA') && !name.toUpperCase().startsWith('NO')) {
+        if (
+          name &&
+          !name.toUpperCase().startsWith('DAFTAR') &&
+          !name.toUpperCase().startsWith('TERMASUK') &&
+          !name.toUpperCase().startsWith('TERMUK') &&
+          !name.toUpperCase().startsWith('NAMA') &&
+          !name.toUpperCase().startsWith('NO') &&
+          !name.toUpperCase().startsWith('RINGKASAN') &&
+          !name.toUpperCase().startsWith('SUMBER')
+        ) {
           sheetTargetUsers.push({ name, customerId, address, phone });
         }
       });
@@ -112,7 +121,6 @@ export async function POST(request: NextRequest) {
           if (itemNormCustId && uNormCustId && itemNormCustId === uNormCustId) return true;
           if (itemNormName && (uNormName === itemNormName || uNormUsername === itemNormName)) return true;
           if (itemNormPhone && uNormPhone && itemNormPhone.length > 7 && uNormPhone === itemNormPhone) return true;
-          if (itemNormName.length > 6 && (uNormName.includes(itemNormName) || itemNormName.includes(uNormName))) return true;
 
           return false;
         });

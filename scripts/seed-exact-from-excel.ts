@@ -6,14 +6,14 @@ import fs from 'fs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('=== SEEDING EXACT DATA FROM EXCEL (UNASSIGN ALL FIRST) ===');
+  console.log('=== SEEDING EXACT DATA FROM EXCEL (STRICT MATCH & UNASSIGN FIRST) ===');
 
   // STEP 1: Unassign all users first
   console.log('Step 1: Unassigning ALL users from all areas first...');
   const resetResult = await prisma.pppoeUser.updateMany({
     data: { areaId: null }
   });
-  console.log(`✓ Successfully reset / unassigned ${resetResult.count} users in database.\n`);
+  console.log(`✓ Reset / unassigned ${resetResult.count} users in database.\n`);
 
   // STEP 2: Read Excel file
   let excelPath = 'C:/Users/User/Downloads/Daftar_Pelanggan_Per_Wilayah.xlsx';
@@ -72,7 +72,7 @@ async function main() {
   const assignedUserIds = new Set<string>();
   const report: Record<string, { totalInSheet: number; matchedInDb: number; missingItems: any[] }> = {};
 
-  // STEP 3: Process matching and assignment
+  // STEP 3: Process matching and assignment with STRICT matching
   for (const [sheetName, areaId] of areaRecordMap.entries()) {
     const ws = wb.getWorksheet(sheetName);
     if (!ws) continue;
@@ -87,7 +87,17 @@ async function main() {
       const address = vals[2] ? String(vals[2]).trim() : '';
       const phone = vals[3] ? String(vals[3]).trim() : '';
 
-      if (name && !name.toUpperCase().startsWith('DAFTAR') && !name.toUpperCase().startsWith('TERMUK') && !name.toUpperCase().startsWith('NAMA') && !name.toUpperCase().startsWith('NO')) {
+      // Strictly filter out non-customer header rows
+      if (
+        name &&
+        !name.toUpperCase().startsWith('DAFTAR') &&
+        !name.toUpperCase().startsWith('TERMASUK') &&
+        !name.toUpperCase().startsWith('TERMUK') &&
+        !name.toUpperCase().startsWith('NAMA') &&
+        !name.toUpperCase().startsWith('NO') &&
+        !name.toUpperCase().startsWith('RINGKASAN') &&
+        !name.toUpperCase().startsWith('SUMBER')
+      ) {
         sheetTargetUsers.push({ name, customerId, address, phone });
       }
     });
@@ -107,17 +117,14 @@ async function main() {
         const uNormCustId = normalizeStr(u.customerId);
         const uNormPhone = normalizePhone(u.phone);
 
-        // 1. Match by customerId
+        // 1. Strict match by customerId
         if (itemNormCustId && uNormCustId && itemNormCustId === uNormCustId) return true;
-        
-        // 2. Match by exact name or username
+
+        // 2. Strict match by exact username or exact name
         if (itemNormName && (uNormName === itemNormName || uNormUsername === itemNormName)) return true;
 
-        // 3. Match by phone number
+        // 3. Strict match by phone number
         if (itemNormPhone && uNormPhone && itemNormPhone.length > 7 && uNormPhone === itemNormPhone) return true;
-
-        // 4. Match fuzzy/contain name if name is sufficiently long (> 6 chars)
-        if (itemNormName.length > 6 && (uNormName.includes(itemNormName) || itemNormName.includes(uNormName))) return true;
 
         return false;
       });
@@ -144,17 +151,17 @@ async function main() {
 
   console.log('\n================ FINAL AUDIT & SEEDING REPORT ================');
   for (const [sheetName, stat] of Object.entries(report)) {
-    console.log(`\n📌 Area: "${areaMapping[sheetName]}" | Total di Excel: ${stat.totalInSheet} | Ter-assign ke DB: ${stat.matchedInDb}`);
+    console.log(`\n📌 Area: "${areaMapping[sheetName]}" | Total Pelanggan di Excel: ${stat.totalInSheet} | Ter-assign ke DB: ${stat.matchedInDb}`);
     if (stat.missingItems.length > 0) {
-      console.log(`   ⚠️ Ada ${stat.missingItems.length} pelanggan di Excel yang TIDAK DITEMUKAN di database:`);
+      console.log(`   ⚠️ Ada ${stat.missingItems.length} baris di Excel yang TIDAK MATCH di database:`);
       stat.missingItems.forEach((m, idx) => {
         console.log(`      ${idx + 1}. Nama: "${m.name}" | ID: "${m.customerId}" | Telp: "${m.phone}" | Alamat: "${m.address}"`);
       });
     } else {
-      console.log(`   ✓ All ${stat.totalInSheet} customers matched 100%!`);
+      console.log(`   ✓ Semua ${stat.totalInSheet} pelanggan ter-match 100%!`);
     }
   }
-  console.log(`\n📌 Total Unassigned (Bukan Anggota 3 Wilayah): ${remainingUnassigned} users`);
+  console.log(`\n📌 Total Unassigned (Tersisa Tanpa Area): ${remainingUnassigned} users`);
   console.log('==============================================================\n');
 }
 
