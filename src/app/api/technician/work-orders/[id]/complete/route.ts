@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import { nanoid } from 'nanoid';
 import { prisma } from '@/server/db/client';
 import { TECH_JWT_SECRET } from '@/server/auth/technician-secret';
 import { sendInvoiceReminder } from '@/server/services/notifications/whatsapp-templates.service';
@@ -54,6 +55,56 @@ export async function POST(
         });
       } catch (geoErr) {
         console.error('Failed to update customer GPS location:', geoErr);
+      }
+    }
+
+    // Auto-Seed ODP to Network DB & Create ODP Customer Assignment
+    if (reportData?.odpName && String(reportData.odpName).trim()) {
+      try {
+        const odpNameTrimmed = String(reportData.odpName).trim();
+        const odpPortNum = parseInt(String(reportData.port || '1').replace(/\D/g, '')) || 1;
+        const odpLatNum = parseFloat(String(reportData.odpLat || customerLat || '0'));
+        const odpLngNum = parseFloat(String(reportData.odpLng || customerLng || '0'));
+
+        // Find existing ODP by case-insensitive name
+        let targetOdp = await prisma.networkODP.findFirst({
+          where: {
+            name: { equals: odpNameTrimmed }
+          }
+        });
+
+        // If not found, create new ODP automatically
+        if (!targetOdp) {
+          targetOdp = await prisma.networkODP.create({
+            data: {
+              id: nanoid(),
+              name: odpNameTrimmed,
+              latitude: odpLatNum,
+              longitude: odpLngNum,
+              portCount: 16,
+              status: 'active',
+            }
+          });
+        }
+
+        // Link customer to ODP assignment if linkedUserId exists
+        if (wo.linkedUserId && targetOdp) {
+          await prisma.odpCustomerAssignment.upsert({
+            where: { customerId: wo.linkedUserId },
+            create: {
+              id: nanoid(),
+              customerId: wo.linkedUserId,
+              odpId: targetOdp.id,
+              portNumber: odpPortNum,
+            },
+            update: {
+              odpId: targetOdp.id,
+              portNumber: odpPortNum,
+            }
+          });
+        }
+      } catch (odpSeedErr) {
+        console.error('Failed to auto-seed ODP / customer assignment:', odpSeedErr);
       }
     }
 

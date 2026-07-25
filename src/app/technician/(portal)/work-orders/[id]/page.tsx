@@ -81,11 +81,35 @@ export default function TechnicianWorkOrderWizardPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // ODP Auto-seed & Suggestion States
+  interface ExistingOdp {
+    id: string;
+    name: string;
+    latitude: number;
+    longitude: number;
+    portCount: number;
+  }
+  const [existingOdps, setExistingOdps] = useState<ExistingOdp[]>([]);
+  const [suggestedOdp, setSuggestedOdp] = useState<{ name: string; distMeters: number } | null>(null);
+
   const storageKey = `tech_spk_wizard_${params.id}`;
 
   useEffect(() => {
     fetchWo();
+    fetchExistingOdps();
   }, [params.id]);
+
+  const fetchExistingOdps = async () => {
+    try {
+      const res = await fetch('/api/technician/odps');
+      const data = await res.json();
+      if (data.success && data.odps) {
+        setExistingOdps(data.odps);
+      }
+    } catch (err) {
+      console.error('Failed to fetch existing ODPs:', err);
+    }
+  };
 
   // Load Saved Draft Progress & Stopwatch from LocalStorage
   useEffect(() => {
@@ -283,8 +307,28 @@ export default function TechnicianWorkOrderWizardPage() {
     setOdpGeoLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = pos.coords.latitude.toFixed(6);
-        const lng = pos.coords.longitude.toFixed(6);
+        const latNum = pos.coords.latitude;
+        const lngNum = pos.coords.longitude;
+        const lat = latNum.toFixed(6);
+        const lng = lngNum.toFixed(6);
+        
+        // Auto-detect nearest existing ODP within 100 meters
+        if (existingOdps.length > 0) {
+          let nearest: { name: string; distMeters: number } | null = null;
+          existingOdps.forEach((odp) => {
+            if (odp.latitude && odp.longitude) {
+              const distKm = calculateDistanceKm(latNum, lngNum, odp.latitude, odp.longitude);
+              const distMeters = Math.round(distKm * 1000);
+              if (!nearest || distMeters < nearest.distMeters) {
+                nearest = { name: odp.name, distMeters };
+              }
+            }
+          });
+          if (nearest && (nearest as any).distMeters <= 150) {
+            setSuggestedOdp(nearest);
+          }
+        }
+
         setReportData(prev => {
           const updated = { ...prev, odpLat: lat, odpLng: lng };
           saveProgress(step, { reportData: updated });
@@ -312,8 +356,13 @@ export default function TechnicianWorkOrderWizardPage() {
     stopCameraStream();
 
     try {
+      const isSecure = typeof window !== 'undefined' && (window.isSecureContext || window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      if (!isSecure) {
+        throw new Error('Kamera langsung (WebRTC) membutuhkan HTTPS aman. Gunakan tombol Kamera Native HP.');
+      }
+
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Kamera langsung tidak didukung di browser ini. Gunakan tombol Unggah dari Galeri.');
+        throw new Error('Kamera langsung tidak didukung di browser ini. Gunakan tombol Kamera Native HP.');
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -332,7 +381,11 @@ export default function TechnicianWorkOrderWizardPage() {
       }
     } catch (err: any) {
       console.error('Camera Stream Error:', err);
-      setCameraError(err.message || 'Gagal mengakses kamera HP. Pastikan Izin Kamera Diizinkan di Pengaturan HP Anda.');
+      const isDenied = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || String(err.message).toLowerCase().includes('permission');
+      const errorMsg = isDenied
+        ? 'Izin kamera ditolak. Buka Pengaturan Browser -> Izin Situs -> Akses Kamera (Allow), atau gunakan tombol Kamera Native HP di bawah.'
+        : (err.message || 'Gagal mengakses kamera HP. Gunakan tombol Kamera Native HP di bawah.');
+      setCameraError(errorMsg);
     } finally {
       setCameraLoading(false);
     }
@@ -689,7 +742,8 @@ export default function TechnicianWorkOrderWizardPage() {
               <label className="block font-bold text-foreground mb-1">Nama ODP *</label>
               <input
                 type="text"
-                placeholder="Cth: ODP KPS06-A01"
+                list="odp-suggestions-list"
+                placeholder="Cth: ODP KDS-07-A01"
                 value={reportData.odpName}
                 onChange={(e) => {
                   const updated = { ...reportData, odpName: e.target.value };
@@ -698,20 +752,51 @@ export default function TechnicianWorkOrderWizardPage() {
                 }}
                 className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
               />
+              <datalist id="odp-suggestions-list">
+                {existingOdps.map((odp) => (
+                  <option key={odp.id} value={odp.name} />
+                ))}
+              </datalist>
+
+              {/* Nearest ODP Recommendation Pill */}
+              {suggestedOdp && (
+                <div className="mt-2 p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center justify-between">
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                    📍 ODP Terdekat: <strong>{suggestedOdp.name}</strong> ({suggestedOdp.distMeters}m)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = { ...reportData, odpName: suggestedOdp.name };
+                      setReportData(updated);
+                      saveProgress(2, { reportData: updated });
+                      addToast({ type: 'info', title: `ODP Ditautkan: ${suggestedOdp.name}` });
+                    }}
+                    className="px-2 py-0.5 bg-emerald-600 text-white rounded text-[10px] font-bold hover:bg-emerald-700 shadow-sm"
+                  >
+                    Gunakan
+                  </button>
+                </div>
+              )}
             </div>
             <div>
-              <label className="block font-bold text-foreground mb-1">Nomor Port ODP *</label>
-              <input
-                type="text"
-                placeholder="Cth: Port 3"
+              <label className="block font-bold text-foreground mb-1">Nomor Port ODP (1 - 16) *</label>
+              <select
                 value={reportData.port}
                 onChange={(e) => {
                   const updated = { ...reportData, port: e.target.value };
                   setReportData(updated);
                   saveProgress(2, { reportData: updated });
                 }}
-                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
-              />
+                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono font-bold"
+              >
+                <option value="">-- Pilih Port ODP --</option>
+                {Array.from({ length: 16 }, (_, i) => i + 1).map((portNum) => (
+                  <option key={portNum} value={`Port ${portNum}`}>
+                    Port {portNum}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -952,15 +1037,18 @@ export default function TechnicianWorkOrderWizardPage() {
             )}
 
             {cameraError ? (
-              <div className="p-6 text-center text-rose-400 space-y-3">
-                <AlertCircle className="w-10 h-10 mx-auto" />
-                <p className="text-xs font-mono leading-relaxed">{cameraError}</p>
-                <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground font-mono text-xs font-bold rounded-xl cursor-pointer">
-                  <ImageIcon className="w-4 h-4" /> Pilih dari Galeri
+              <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-center space-y-3">
+                <p className="text-xs font-bold text-rose-400">{cameraError}</p>
+                <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-mono text-xs font-bold cursor-pointer shadow-lg">
+                  <Camera className="w-4 h-4" /> Buka Kamera Native HP
                   <input 
                     type="file" 
                     accept="image/*"
-                    onChange={(e) => handlePhotoUploadFromGallery(cameraModalKey, e)} 
+                    capture="environment"
+                    onChange={(e) => {
+                      handlePhotoUploadFromGallery(cameraModalKey, e);
+                      closeCameraModal();
+                    }} 
                     className="hidden" 
                   />
                 </label>
