@@ -6,7 +6,7 @@ import fs from 'fs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('=== SEEDING EXACT DATA FROM DAFTAR_PELANGGAN_PER_WILAYAH.XLSX ===');
+  console.log('=== AUDITING & SEEDING EXACT DATA FROM EXCEL ===');
 
   let excelPath = 'C:/Users/User/Downloads/Daftar_Pelanggan_Per_Wilayah.xlsx';
   if (!fs.existsSync(excelPath)) {
@@ -21,14 +21,13 @@ async function main() {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(excelPath);
 
-  // 1. Ensure target areas exist in database
   const areaMapping: Record<string, string> = {
     'Puri Nirwana 3': 'PURI NIRWANA 3',
     'Kampung Pisang': 'KAMPUNG PISANG',
     'Kampung Muara Beres': 'KAMPUNG MUARA BERES',
   };
 
-  const areaRecordMap = new Map<string, string>(); // sheetName -> areaId
+  const areaRecordMap = new Map<string, string>();
 
   for (const [sheetName, areaName] of Object.entries(areaMapping)) {
     let area = await prisma.pppoeArea.findFirst({
@@ -43,14 +42,10 @@ async function main() {
           description: `Wilayah Coverage ${areaName}`,
         }
       });
-      console.log(`Created Area: ${area.name} (${area.id})`);
-    } else {
-      console.log(`Found Area: ${area.name} (${area.id})`);
     }
     areaRecordMap.set(sheetName, area.id);
   }
 
-  // 2. Fetch all users from DB
   const allUsers = await prisma.pppoeUser.findMany({
     select: {
       id: true,
@@ -66,19 +61,14 @@ async function main() {
   const normalizeStr = (s?: string | null) => s ? s.trim().toLowerCase().replace(/[^a-z0-9]/g, '') : '';
   const normalizePhone = (p?: string | null) => p ? p.replace(/[^0-9]/g, '').replace(/^62/, '0') : '';
 
-  // Track assigned user IDs across all sheets
   const assignedUserIds = new Set<string>();
-  const report: Record<string, { totalInSheet: number; matchedInDb: number; details: string[] }> = {};
+  const report: Record<string, { totalInSheet: number; matchedInDb: number; missingItems: any[] }> = {};
 
-  // 3. Process each sheet
   for (const [sheetName, areaId] of areaRecordMap.entries()) {
     const ws = wb.getWorksheet(sheetName);
-    if (!ws) {
-      console.log(`Warning: Sheet "${sheetName}" not found in workbook.`);
-      continue;
-    }
+    if (!ws) continue;
 
-    report[sheetName] = { totalInSheet: 0, matchedInDb: 0, details: [] };
+    report[sheetName] = { totalInSheet: 0, matchedInDb: 0, missingItems: [] };
     const sheetTargetUsers: { name: string; customerId: string; address: string; phone: string }[] = [];
 
     ws.eachRow((row) => {
@@ -88,7 +78,6 @@ async function main() {
       const address = vals[2] ? String(vals[2]).trim() : '';
       const phone = vals[3] ? String(vals[3]).trim() : '';
 
-      // Skip headers and title rows
       if (name && !name.toUpperCase().startsWith('DAFTAR') && !name.toUpperCase().startsWith('TERMUK') && !name.toUpperCase().startsWith('NAMA') && !name.toUpperCase().startsWith('NO')) {
         sheetTargetUsers.push({ name, customerId, address, phone });
       }
@@ -101,7 +90,6 @@ async function main() {
       const itemNormCustId = normalizeStr(item.customerId);
       const itemNormPhone = normalizePhone(item.phone);
 
-      // Find matching user in DB
       const matched = allUsers.filter(u => {
         if (assignedUserIds.has(u.id)) return false;
 
@@ -110,34 +98,41 @@ async function main() {
         const uNormCustId = normalizeStr(u.customerId);
         const uNormPhone = normalizePhone(u.phone);
 
-        // Match by customerId OR exact name/username OR phone
+        // 1. Match by customerId
         if (itemNormCustId && uNormCustId && itemNormCustId === uNormCustId) return true;
+        
+        // 2. Match by exact name or username
         if (itemNormName && (uNormName === itemNormName || uNormUsername === itemNormName)) return true;
+
+        // 3. Match by phone number
         if (itemNormPhone && uNormPhone && itemNormPhone.length > 7 && uNormPhone === itemNormPhone) return true;
+
+        // 4. Match fuzzy/contain name if name is sufficiently long (> 6 chars)
+        if (itemNormName.length > 6 && (uNormName.includes(itemNormName) || itemNormName.includes(uNormName))) return true;
 
         return false;
       });
 
-      for (const u of matched) {
-        assignedUserIds.add(u.id);
-        await prisma.pppoeUser.update({
-          where: { id: u.id },
-          data: {
-            areaId: areaId,
-            // Update address from Excel if current address is short or generic
-            address: (item.address && item.address.length > 5 && (!u.address || u.address.length < 5)) ? item.address : u.address,
-          }
-        });
-        report[sheetName].matchedInDb++;
-        report[sheetName].details.push(`${u.name} (${u.username}) -> ${areaMapping[sheetName]}`);
+      if (matched.length === 0) {
+        report[sheetName].missingItems.push(item);
+      } else {
+        for (const u of matched) {
+          assignedUserIds.add(u.id);
+          await prisma.pppoeUser.update({
+            where: { id: u.id },
+            data: {
+              areaId: areaId,
+              address: (item.address && item.address.length > 5 && (!u.address || u.address.length < 5)) ? item.address : u.address,
+            }
+          });
+          report[sheetName].matchedInDb++;
+        }
       }
     }
   }
 
-  // 4. UNASSIGN ALL USERS NOT IN THE EXCEL DATA
+  // UNASSIGN ALL USERS NOT IN THE EXCEL DATA
   const unassignedUsers = allUsers.filter(u => !assignedUserIds.has(u.id) && u.areaId !== null);
-  console.log(`\nUnassigning ${unassignedUsers.length} users who are NOT in the 100% valid Excel data...`);
-  
   for (const u of unassignedUsers) {
     await prisma.pppoeUser.update({
       where: { id: u.id },
@@ -145,13 +140,20 @@ async function main() {
     });
   }
 
-  // 5. Final Summary Report
-  console.log('\n================ FINAL SEEDING REPORT ================');
+  console.log('\n================ AUDIT & SEEDING REPORT ================');
   for (const [sheetName, stat] of Object.entries(report)) {
-    console.log(`✓ Area: "${areaMapping[sheetName]}" | Excel List: ${stat.totalInSheet} | Assigned in DB: ${stat.matchedInDb}`);
+    console.log(`\n📌 Area: "${areaMapping[sheetName]}" | Total di Excel: ${stat.totalInSheet} | Ter-assign ke DB: ${stat.matchedInDb}`);
+    if (stat.missingItems.length > 0) {
+      console.log(`   ⚠️ Ada ${stat.missingItems.length} pelanggan di Excel yang TIDAK DITEMUKAN di database:`);
+      stat.missingItems.forEach((m, idx) => {
+        console.log(`      ${idx + 1}. Nama: "${m.name}" | ID: "${m.customerId}" | Telp: "${m.phone}" | Alamat: "${m.address}"`);
+      });
+    } else {
+      console.log(`   ✓ All ${stat.totalInSheet} customers matched 100%!`);
+    }
   }
-  console.log(`✓ Total Unassigned (No Area): ${unassignedUsers.length} users`);
-  console.log('======================================================\n');
+  console.log(`\n📌 Total Unassigned (Tidak ada di Excel): ${unassignedUsers.length} users`);
+  console.log('========================================================\n');
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());

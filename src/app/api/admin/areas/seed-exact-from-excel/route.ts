@@ -68,13 +68,13 @@ export async function POST(request: NextRequest) {
     const normalizePhone = (p?: string | null) => p ? p.replace(/[^0-9]/g, '').replace(/^62/, '0') : '';
 
     const assignedUserIds = new Set<string>();
-    const report: Record<string, { totalInSheet: number; matchedInDb: number }> = {};
+    const report: Record<string, { totalInSheet: number; matchedInDb: number; missingItems: any[] }> = {};
 
     for (const [sheetName, areaId] of areaRecordMap.entries()) {
       const ws = wb.getWorksheet(sheetName);
       if (!ws) continue;
 
-      report[sheetName] = { totalInSheet: 0, matchedInDb: 0 };
+      report[sheetName] = { totalInSheet: 0, matchedInDb: 0, missingItems: [] };
       const sheetTargetUsers: { name: string; customerId: string; address: string; phone: string }[] = [];
 
       ws.eachRow((row) => {
@@ -107,20 +107,25 @@ export async function POST(request: NextRequest) {
           if (itemNormCustId && uNormCustId && itemNormCustId === uNormCustId) return true;
           if (itemNormName && (uNormName === itemNormName || uNormUsername === itemNormName)) return true;
           if (itemNormPhone && uNormPhone && itemNormPhone.length > 7 && uNormPhone === itemNormPhone) return true;
+          if (itemNormName.length > 6 && (uNormName.includes(itemNormName) || itemNormName.includes(uNormName))) return true;
 
           return false;
         });
 
-        for (const u of matched) {
-          assignedUserIds.add(u.id);
-          await prisma.pppoeUser.update({
-            where: { id: u.id },
-            data: {
-              areaId: areaId,
-              address: (item.address && item.address.length > 5 && (!u.address || u.address.length < 5)) ? item.address : u.address,
-            }
-          });
-          report[sheetName].matchedInDb++;
+        if (matched.length === 0) {
+          report[sheetName].missingItems.push(item);
+        } else {
+          for (const u of matched) {
+            assignedUserIds.add(u.id);
+            await prisma.pppoeUser.update({
+              where: { id: u.id },
+              data: {
+                areaId: areaId,
+                address: (item.address && item.address.length > 5 && (!u.address || u.address.length < 5)) ? item.address : u.address,
+              }
+            });
+            report[sheetName].matchedInDb++;
+          }
         }
       }
     }
