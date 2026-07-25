@@ -139,14 +139,15 @@ export default function InvoicesPage() {
   useEffect(() => {
     loadInvoices();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, invoiceMonth]);
+  }, [activeTab, invoiceMonth, searchQuery]);
 
   const loadInvoices = async () => {
     try {
       setLoading(true);
       const status = activeTab === 'unpaid' ? 'PENDING' : activeTab === 'paid' ? 'PAID' : 'all';
-      const params = new URLSearchParams({ status });
+      const params = new URLSearchParams({ status, limit: '500' });
       if (invoiceMonth) params.set('month', invoiceMonth);
+      if (searchQuery) params.set('search', searchQuery);
       const res = await fetch(`/api/invoices?${params}`);
       const data = await res.json();
       setInvoices(data.invoices || []);
@@ -897,8 +898,11 @@ export default function InvoicesPage() {
       inv.invoiceNumber.toLowerCase().includes(q) ||
       inv.user?.name?.toLowerCase().includes(q) ||
       inv.customerName?.toLowerCase().includes(q) ||
+      inv.user?.username?.toLowerCase().includes(q) ||
+      inv.customerUsername?.toLowerCase().includes(q) ||
       inv.user?.phone?.includes(q) ||
-      inv.customerPhone?.includes(q)
+      inv.customerPhone?.includes(q) ||
+      inv.user?.customerId?.toLowerCase().includes(q)
     );
   });
 

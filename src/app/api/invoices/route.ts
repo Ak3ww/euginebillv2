@@ -61,10 +61,26 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status'); // UNPAID, PAID, PENDING, OVERDUE
     const userId = searchParams.get('userId');
-    const limit = parseInt(searchParams.get('limit') || '100');
+    const limit = parseInt(searchParams.get('limit') || '500');
     const monthParam = searchParams.get('month'); // YYYY-MM
+    const search = searchParams.get('search');
 
     const where: any = {};
+
+    // Search query across invoice fields and linked user fields
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { invoiceNumber: { contains: q } },
+        { customerName: { contains: q } },
+        { customerUsername: { contains: q } },
+        { customerPhone: { contains: q } },
+        { user: { name: { contains: q } } },
+        { user: { username: { contains: q } } },
+        { user: { phone: { contains: q } } },
+        { user: { customerId: { contains: q } } },
+      ];
+    }
 
     // Month filter — applies to paidAt for PAID invoices, createdAt for others
     if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
