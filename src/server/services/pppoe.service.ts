@@ -353,6 +353,15 @@ export async function createPppoeUser(
           data: { syncedToRadius: true, lastSyncAt: new Date() },
         });
         radiusSynced = true;
+
+        // Also sync to MikroTik API if routerId is set
+        if (routerId) {
+          try {
+            await PPPSecretService.syncSecret(user.id);
+          } catch (e) {
+            console.error('MikroTik API secret sync error during PSB:', e);
+          }
+        }
       } catch (syncError) {
         console.error('RADIUS sync error:', syncError);
       }
