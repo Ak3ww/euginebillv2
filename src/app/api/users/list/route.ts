@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' },
     });
 
-    const areas = await prisma.area.findMany({
+    const areas = await prisma.pppoeArea.findMany({
       select: {
         id: true,
         name: true,
