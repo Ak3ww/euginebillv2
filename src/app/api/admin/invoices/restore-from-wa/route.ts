@@ -15,12 +15,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json().catch(() => ({}));
-    const { excludeMuaraBeres = true } = body;
+    const { excludeMuaraBeres = true, hoursAgo = 48 } = body;
 
-    // Fetch sent WA history messages that contain payment links (/pay/)
+    // Fetch sent WA history messages from the last N hours that contain payment links (/pay/)
+    const sinceDate = new Date(Date.now() - hoursAgo * 3600 * 1000);
+
     const waLogs = await prisma.whatsapp_history.findMany({
       where: {
         message: { contains: '/pay/' },
+        sentAt: { gte: sinceDate },
       },
       orderBy: { sentAt: 'desc' },
       take: 1000,
@@ -29,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (waLogs.length === 0) {
       return NextResponse.json({
         success: false,
-        message: 'Tidak ditemukan riwayat pesan WA tagihan yang berisi link pembayaran.',
+        message: `Tidak ditemukan riwayat pesan WA tagihan dalam ${hoursAgo} jam terakhir.`,
       });
     }
 
@@ -39,9 +42,18 @@ export async function POST(request: NextRequest) {
     let restored = 0;
     let skipped = 0;
     const restoredInvoices: string[] = [];
+    const processedPhones = new Set<string>();
 
     for (const log of waLogs) {
       const msg = log.message;
+
+      // Ensure we only restore the LATEST message sent to each phone number
+      const cleanPhoneKey = log.phone.replace(/[^0-9]/g, '').slice(-10);
+      if (processedPhones.has(cleanPhoneKey)) {
+        skipped++;
+        continue;
+      }
+      processedPhones.add(cleanPhoneKey);
 
       // Extract invoiceNumber, paymentToken, amount, and dueDate using flexible Regex
       const invMatch = msg.match(/(?:No\.\s*Invoice|Nomor\s*Invoice|Nomor\s*Tagihan|No\s*Tagihan):\s*\*?([^\*\n\r]+)\*?/i) || msg.match(/(INV-[a-zA-Z0-9_-]+)/i);
