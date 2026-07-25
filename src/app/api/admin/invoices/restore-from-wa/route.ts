@@ -15,15 +15,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json().catch(() => ({}));
-    const { excludeMuaraBeres = true, hoursAgo = 48 } = body;
+    const { excludeMuaraBeres = true, hoursAgo = 24 } = body;
 
-    // Fetch sent WA history messages from the last N hours that contain payment links (/pay/)
+    // Fetch sent WA history messages from the last 24 hours (sent/terkirim) that contain payment links (/pay/)
     const sinceDate = new Date(Date.now() - hoursAgo * 3600 * 1000);
 
     const waLogs = await prisma.whatsapp_history.findMany({
       where: {
         message: { contains: '/pay/' },
         sentAt: { gte: sinceDate },
+        status: { in: ['sent', 'SENT', 'success', 'SUCCESS', 'terkirim', 'TERKIRIM'] },
       },
       orderBy: { sentAt: 'desc' },
       take: 1000,
