@@ -757,17 +757,32 @@ export default function TechnicianTicketsPage() {
                       />
                       <div className="flex flex-col gap-1.5">
                         {/* Camera / file pick */}
-                        <label className="cursor-pointer flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 transition-colors" title="Upload foto">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+                                stream.getTracks().forEach(t => t.stop());
+                              }
+                            } catch (e) {
+                              console.warn('Camera permission check:', e);
+                            }
+                            fileInputRef.current?.click();
+                          }}
+                          className="cursor-pointer flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 transition-colors"
+                          title="Ambil foto / Upload"
+                        >
                           <Camera className="w-4 h-4" />
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            onChange={handlePhotoSelect}
-                            className="hidden"
-                          />
-                        </label>
+                        </button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={handlePhotoSelect}
+                          className="hidden"
+                        />
                         {/* GPS */}
                         <button
                           onClick={handleGetGPS}

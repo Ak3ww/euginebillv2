@@ -365,14 +365,19 @@ export default function TechnicianWorkOrderWizardPage() {
         throw new Error('Kamera langsung tidak didukung di browser ini. Gunakan tombol Kamera Native HP.');
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: mode },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: mode } },
+          audio: false,
+        });
+      } catch (firstErr) {
+        // Fallback constraint if overconstrained
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
 
       streamRef.current = stream;
       if (videoRef.current) {
@@ -383,8 +388,8 @@ export default function TechnicianWorkOrderWizardPage() {
       console.error('Camera Stream Error:', err);
       const isDenied = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || String(err.message).toLowerCase().includes('permission');
       const errorMsg = isDenied
-        ? 'Izin kamera ditolak. Buka Pengaturan Browser -> Izin Situs -> Akses Kamera (Allow), atau gunakan tombol Kamera Native HP di bawah.'
-        : (err.message || 'Gagal mengakses kamera HP. Gunakan tombol Kamera Native HP di bawah.');
+        ? 'Izin kamera belum diberikan / ditolak. Klik "Minta Izin Kamera" di bawah atau gunakan Kamera Native HP.'
+        : (err.message || 'Gagal mengakses kamera HP. Gunakan tombol Kamera Native HP.');
       setCameraError(errorMsg);
     } finally {
       setCameraLoading(false);
@@ -1039,19 +1044,27 @@ export default function TechnicianWorkOrderWizardPage() {
             {cameraError ? (
               <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-center space-y-3">
                 <p className="text-xs font-bold text-rose-400">{cameraError}</p>
-                <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-mono text-xs font-bold cursor-pointer shadow-lg">
-                  <Camera className="w-4 h-4" /> Buka Kamera Native HP
-                  <input 
-                    type="file" 
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(e) => {
-                      handlePhotoUploadFromGallery(cameraModalKey, e);
-                      closeCameraModal();
-                    }} 
-                    className="hidden" 
-                  />
-                </label>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center pt-1">
+                  <button
+                    onClick={() => startCamera(facingMode)}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-xl font-mono text-xs font-bold shadow-md hover:opacity-90"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Minta Izin Kamera
+                  </button>
+                  <label className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-mono text-xs font-bold cursor-pointer shadow-md">
+                    <Camera className="w-3.5 h-3.5" /> Kamera Native HP
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(e) => {
+                        handlePhotoUploadFromGallery(cameraModalKey, e);
+                        closeCameraModal();
+                      }} 
+                      className="hidden" 
+                    />
+                  </label>
+                </div>
               </div>
             ) : (
               <video 
