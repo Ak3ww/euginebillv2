@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { targetMonth, scope, userId, skipExisting = true, sendWa = false, additionalFees } = body;
+    const { targetMonth, scope, userId, skipExisting = true, sendWa = false, additionalFees, excludeMuaraBeres = false } = body;
 
     if (!targetMonth || !/^\d{4}-\d{2}$/.test(targetMonth)) {
       return badRequest('targetMonth harus format YYYY-MM');
@@ -52,14 +52,27 @@ export async function POST(request: NextRequest) {
     };
 
     // Build user query — include BOTH POSTPAID and PREPAID
-    const userWhere: Record<string, unknown> = {
+    const userWhere: any = {
       status: { in: ['active', 'isolated'] },
     };
     if (scope === 'single') userWhere.id = userId;
 
+    if (excludeMuaraBeres) {
+      userWhere.AND = [
+        {
+          NOT: [
+            { area: { name: { contains: 'Muara Beres' } } },
+            { area: { name: { contains: 'KMB' } } },
+            { address: { contains: 'Muara Beres' } },
+          ]
+        }
+      ];
+    }
+
     const users = await prisma.pppoeUser.findMany({
       where: userWhere,
       include: {
+        area: { select: { id: true, name: true } },
         profile: { select: { id: true, name: true, price: true, ppnActive: true, ppnRate: true } },
       },
     });

@@ -120,6 +120,7 @@ export default function InvoicesPage() {
   const [genLoadingUsers, setGenLoadingUsers] = useState(false);
   const [genSkipExisting, setGenSkipExisting] = useState(true);
   const [genSendWa, setGenSendWa] = useState(false);
+  const [genExcludeMuaraBeres, setGenExcludeMuaraBeres] = useState(true);
   const [genAdditionalFees, setGenAdditionalFees] = useState<{name: string, amount: number}[]>([]);
   const [genResult, setGenResult] = useState<{ generated: number; skipped: number; errors: { username: string; error: string }[]; message: string } | null>(null);
 
@@ -856,6 +857,7 @@ export default function InvoicesPage() {
           userId: genScope === 'single' ? genUserId : undefined,
           skipExisting: genSkipExisting,
           sendWa: genSendWa,
+          excludeMuaraBeres: genExcludeMuaraBeres,
           additionalFees: genScope === 'single' ? genAdditionalFees : undefined,
         }),
       });
@@ -1783,6 +1785,15 @@ export default function InvoicesPage() {
                         className="rounded border-border"
                       />
                       <span className="text-xs">Lewati jika tagihan bulan ini sudah ada</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+                      <input
+                        type="checkbox"
+                        checked={genExcludeMuaraBeres}
+                        onChange={e => setGenExcludeMuaraBeres(e.target.checked)}
+                        className="rounded border-border"
+                      />
+                      <span className="text-xs text-rose-600 dark:text-rose-400 font-bold">🚫 Kecualikan Wilayah Muara Beres (KMB)</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
