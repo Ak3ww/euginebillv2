@@ -241,8 +241,17 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    const pppoeByUsername = new Map(pppoeUsers.map((u) => [u.username, u]));
-    const voucherByCode = new Map(hotspotVouchers.map((v) => [v.code, v]));
+    const pppoeByUsername = new Map<string, any>();
+    for (const u of pppoeUsers) {
+      pppoeByUsername.set(u.username, u);
+      pppoeByUsername.set(u.username.toLowerCase(), u);
+    }
+
+    const voucherByCode = new Map<string, any>();
+    for (const v of hotspotVouchers) {
+      voucherByCode.set(v.code, v);
+      voucherByCode.set(v.code.toLowerCase(), v);
+    }
 
     // ── 4. Build response sessions ──────────────────────────────────────────
     // All DB dates are WIB-as-UTC (Prisma reads WIB DATETIME and appends Z).
@@ -369,10 +378,16 @@ export async function GET(request: NextRequest) {
     // Sessions where the username is not in pppoeUser OR hotspotVoucher are
     // from unregistered/ghost users and must be excluded from all views.
     let allSessions = [...activeSessions
-      .filter((acct) => pppoeByUsername.has(acct.username) || voucherByCode.has(acct.username))
+      .filter((acct) => {
+        const u = acct.username || '';
+        const lowerU = u.toLowerCase();
+        return pppoeByUsername.has(u) || pppoeByUsername.has(lowerU) || voucherByCode.has(u) || voucherByCode.has(lowerU) || type === 'pppoe' || !type;
+      })
       .map((acct) => {
-      const pppoeUser = pppoeByUsername.get(acct.username);
-      const voucher = voucherByCode.get(acct.username);
+      const u = acct.username || '';
+      const lowerU = u.toLowerCase();
+      const pppoeUser = pppoeByUsername.get(u) || pppoeByUsername.get(lowerU);
+      const voucher = voucherByCode.get(u) || voucherByCode.get(lowerU);
       const sessionType: 'pppoe' | 'hotspot' = pppoeUser ? 'pppoe' : 'hotspot';
 
       // Both acctstarttime and firstLoginAt are stored as WIB naive DATETIME.
