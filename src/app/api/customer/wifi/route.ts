@@ -80,8 +80,37 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const ssid = params['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID'] || '';
-    const password = params['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey'] || '';
+    // Extract Connected Devices / Hosts from TR-069 parameters
+    const connectedHosts: any[] = [];
+    const hostIndices = new Set<string>();
+    
+    for (const key of Object.keys(params)) {
+      const match = key.match(/LANDevice\.\d+\.Hosts\.Host\.(\d+)\./i);
+      if (match) {
+        hostIndices.add(match[1]);
+      }
+    }
+
+    for (const idx of hostIndices) {
+      const prefix = `InternetGatewayDevice.LANDevice.1.Hosts.Host.${idx}.`;
+      const mac = params[`${prefix}MACAddress`] || '';
+      const ip = params[`${prefix}IPAddress`] || '';
+      const hostname = params[`${prefix}HostName`] || params[`${prefix}HostName`] || params[`${prefix}HostName`] || 'Perangkat Tanpa Nama';
+      const activeRaw = params[`${prefix}Active`];
+      const active = activeRaw === '1' || activeRaw === 'true' || activeRaw === true;
+      const interfaceType = params[`${prefix}InterfaceType`] || 'Wi-Fi';
+
+      if (mac || ip) {
+        connectedHosts.push({
+          macAddress: mac,
+          ipAddress: ip,
+          hostname: hostname,
+          associatedDevice: interfaceType.toLowerCase().includes('802.11') || interfaceType.toLowerCase().includes('wifi') || interfaceType.toLowerCase().includes('wlan') ? 'Wi-Fi' : 'LAN',
+          active: active,
+          signalStrength: active ? 'Bagus' : 'Terputus',
+        });
+      }
+    }
 
     const processedDevice = {
       _id: device.id,
@@ -103,11 +132,11 @@ export async function GET(request: NextRequest) {
           security: 'WPA2-PSK',
           password: password,
           band: '2.4GHz',
-          totalAssociations: 0,
+          totalAssociations: connectedHosts.filter(h => h.active).length,
           bssid: '-'
         }
       ],
-      connectedHosts: [],
+      connectedHosts: connectedHosts,
       signalStrength: {
         rxPower: rxPower,
         txPower: '-',
