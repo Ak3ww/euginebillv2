@@ -201,11 +201,21 @@ export async function GET(
 
     const paidViaText = (() => {
       if (!invoice.paidAt) return null;
-      if (approvedManual || invoice.payments?.some((p: any) => p.method === 'manual_transfer' || p.method === 'manual')) {
-        return `Transfer Manual ${destinationBank ? `(ke ${destinationBank})` : ''}`;
+      if (approvedManual || invoice.payments?.some((p: any) => {
+        const m = (p.method || '').toLowerCase();
+        return m.includes('transfer') || m.includes('bank') || m.includes('manual');
+      })) {
+        return `Bank Transfer${destinationBank ? ` (${destinationBank})` : ''}`;
       }
-      if (invoice.payments?.length > 0) return 'Payment Gateway';
-      return 'Dikonfirmasi Admin';
+      if (invoice.payments?.length > 0) {
+        const p = invoice.payments[0];
+        const m = (p.method || '').toLowerCase();
+        if (m.includes('transfer') || m.includes('bank') || m.includes('manual') || m === 'bank_transfer' || m === 'transfer') {
+          return 'Bank Transfer';
+        }
+        return 'Payment Gateway';
+      }
+      return 'Bank Transfer';
     })();
 
     // Additional fees parsing

@@ -64,9 +64,18 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
 
   const paidVia = (() => {
     if (!rawInvoice.paidAt) return null;
-    if (approvedManual || rawInvoice.payments?.some((p: any) => p.method === 'manual_transfer' || p.method === 'manual')) return 'transfer';
-    if (rawInvoice.payments?.length > 0) return 'gateway';
-    return 'admin';
+    const manualPayment = rawInvoice.manualPayments?.find((mp: any) => mp.status === 'APPROVED') || rawInvoice.manualPayments?.[0];
+    if (manualPayment) return 'transfer';
+    
+    if (rawInvoice.payments?.length > 0) {
+      const p = rawInvoice.payments[0];
+      const m = (p.method || '').toLowerCase();
+      if (m.includes('transfer') || m.includes('bank') || m.includes('manual') || m === 'bank_transfer' || m === 'transfer') {
+        return 'transfer';
+      }
+      return 'gateway';
+    }
+    return 'transfer';
   })();
 
   inv.paidVia = paidVia;

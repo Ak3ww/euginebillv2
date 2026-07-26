@@ -147,7 +147,7 @@ export default function InvoiceTemplate({ data }: { data: InvoiceTemplateData })
                 {data.invoice.paidAt && (
                   <>
                     <div className="mb-1 text-gray-700 text-xs"><span className="text-gray-400">Dibayar pada: </span>{data.invoice.paidAt}</div>
-                    <div className="mb-1 text-gray-700 text-xs"><span className="text-gray-400">Via: </span>{data.paidVia === 'gateway' ? 'Payment Gateway' : data.paidVia === 'transfer' ? `Transfer Manual ${data.destinationBank ? `(ke ${data.destinationBank})` : ''}` : 'Dikonfirmasi Admin'}</div>
+                    <div className="mb-1 text-gray-700 text-xs"><span className="text-gray-400">Via: </span>{data.paidVia === 'gateway' ? 'Payment Gateway' : `Bank Transfer${data.destinationBank ? ` (${data.destinationBank})` : ''}`}</div>
                   </>
                 )}
               </div>
