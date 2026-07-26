@@ -159,9 +159,9 @@ ${names}
   // --- DEVICE DB OPS ---
 
   static async upsertDevice(deviceId: string, deviceInfo: any, ipAddress: string) {
-    const existing = await prisma.acsDevice.findUnique({ where: { serialNumber: deviceId } });
-    if (existing) {
-      return await prisma.acsDevice.update({
+    let device = await prisma.acsDevice.findUnique({ where: { serialNumber: deviceId } });
+    if (device) {
+      device = await prisma.acsDevice.update({
         where: { serialNumber: deviceId },
         data: {
           ipAddress,
@@ -172,7 +172,7 @@ ${names}
     } else {
       const company = await prisma.company.findFirst();
       if (!company) throw new Error('No company found');
-      return await prisma.acsDevice.create({
+      device = await prisma.acsDevice.create({
         data: {
           serialNumber: deviceId,
           oui: deviceInfo.OUI || '',
@@ -185,6 +185,33 @@ ${names}
         }
       });
     }
+
+    // Auto-queue initial GetParameterValues task if pppoeUserId is missing
+    if (!device.pppoeUserId) {
+      const existingPendingTask = await prisma.acsTask.findFirst({
+        where: { deviceId: device.id, status: 'pending', name: 'GetParameterValues' }
+      });
+      if (!existingPendingTask) {
+        await prisma.acsTask.create({
+          data: {
+            name: 'GetParameterValues',
+            command: 'GetParameterValues',
+            payload: JSON.stringify({
+              parameterNames: [
+                'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username',
+                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID',
+                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey',
+                'InternetGatewayDevice.LANDevice.1.Hosts.',
+              ]
+            }),
+            status: 'pending',
+            deviceId: device.id
+          }
+        });
+      }
+    }
+
+    return device;
   }
 
   static async getNextTask(serialNumber: string) {
@@ -207,9 +234,41 @@ ${names}
       // Merge new parameters into existing device parameters
       const existingParams = (task.device.parameters as Record<string, any>) || {};
       const newParams = { ...existingParams, ...result };
+      
+      // Auto-extract PPPoE username from parameters to link pppoeUserId
+      let matchedUserId: string | null = task.device.pppoeUserId || null;
+      if (!matchedUserId) {
+        let rawPppUsername = '';
+        for (const [k, v] of Object.entries(newParams)) {
+          if (k.toLowerCase().includes('wanpppconnection') && k.toLowerCase().includes('username')) {
+            rawPppUsername = String(v || '').trim();
+            if (rawPppUsername) break;
+          }
+        }
+
+        if (rawPppUsername) {
+          const cleanUsername = rawPppUsername.split('@')[0].trim();
+          const pppUser = await prisma.pppoeUser.findFirst({
+            where: {
+              OR: [
+                { username: { equals: rawPppUsername } },
+                { username: { equals: cleanUsername } },
+              ]
+            }
+          });
+          if (pppUser) {
+            matchedUserId = pppUser.id;
+            console.log(`[Built-in ACS] 🔗 Auto-linked device ${task.device.serialNumber} to PPPoE user: ${pppUser.username}`);
+          }
+        }
+      }
+
       await prisma.acsDevice.update({
         where: { id: task.deviceId },
-        data: { parameters: newParams }
+        data: {
+          parameters: newParams,
+          pppoeUserId: matchedUserId || undefined,
+        }
       });
     }
 
