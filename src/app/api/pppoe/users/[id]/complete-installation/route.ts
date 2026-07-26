@@ -84,6 +84,15 @@ export async function POST(
         profileName: user.profile?.name || '-',
       });
       waSent = true;
+
+      // Update invoice in DB to record waNotifiedAt timestamp
+      await prisma.invoice.update({
+        where: { id: latestInvoice.id },
+        data: {
+          waNotifiedAt: new Date(),
+          waRetryCount: { increment: 1 },
+        },
+      }).catch((e) => console.error('[CompleteInstallation] DB update waNotifiedAt error:', e));
     } catch (waError) {
       console.error('[CompleteInstallation] Failed to send WA notification:', waError);
     }

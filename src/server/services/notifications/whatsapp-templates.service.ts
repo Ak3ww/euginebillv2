@@ -358,6 +358,16 @@ export async function sendInstallationInvoice(data: {
       message,
     });
 
+    if (data.invoiceNumber) {
+      await prisma.invoice.updateMany({
+        where: { invoiceNumber: data.invoiceNumber },
+        data: {
+          waNotifiedAt: new Date(),
+          waRetryCount: { increment: 1 }
+        }
+      }).catch(e => console.error(`[WA] Failed to update waNotifiedAt for ${data.invoiceNumber}:`, e));
+    }
+
     console.log(`[WA] ✅ Invoice notification sent to ${data.customerPhone}`);
   } catch (error) {
     console.error(`[WA] ❌ Failed to send invoice notification:`, error);
@@ -511,6 +521,16 @@ export async function sendInvoiceReminder(data: {
       phone: data.phone,
       message,
     });
+
+    if (data.invoiceNumber) {
+      await prisma.invoice.updateMany({
+        where: { invoiceNumber: data.invoiceNumber },
+        data: {
+          waNotifiedAt: new Date(),
+          waRetryCount: { increment: 1 }
+        }
+      }).catch(e => console.error(`[WA] Failed to update waNotifiedAt for ${data.invoiceNumber}:`, e));
+    }
 
     const status = isOverdue ? 'overdue' : 'reminder';
     console.log(`[WA] ✅ Invoice ${status} sent to ${data.phone}`);
