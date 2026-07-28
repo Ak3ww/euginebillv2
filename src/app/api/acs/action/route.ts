@@ -13,46 +13,90 @@ export async function POST(request: Request) {
     const { serialNumber, action, ...payload } = await request.json();
 
     if (!serialNumber || !action) {
-      return NextResponse.json({ error: 'Serial Number and Action are required' }, { status: 400 });
+      return NextResponse.json({ error: 'Serial Number dan Action wajib diisi' }, { status: 400 });
     }
 
     const device = await prisma.acsDevice.findUnique({ where: { serialNumber } });
     if (!device) {
-      return NextResponse.json({ error: 'Device not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Device tidak ditemukan' }, { status: 404 });
     }
 
+    const { CwmpService } = await import('@/server/services/acs/cwmp.service');
+
+    // ── RefreshData: queue GetParameterValues full ───────────────────────
     if (action === 'RefreshData') {
-      const { CwmpService } = await import('@/server/services/acs/cwmp.service');
       await CwmpService.queueRefreshTask(device.id);
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, message: 'Perintah ambil data terbaru diantrekan' });
     }
 
+    // ── RefreshConnectedDevices: queue GetParameterValues khusus Hosts ───
+    if (action === 'RefreshConnectedDevices') {
+      await CwmpService.queueConnectedDevicesRefresh(device.id);
+      return NextResponse.json({ success: true, message: 'Perintah ambil daftar perangkat WiFi diantrekan' });
+    }
+
+    // ── ConnectionRequest: push Inform sekarang ──────────────────────────
+    if (action === 'ConnectionRequest') {
+      const result = await CwmpService.sendConnectionRequest(device.id);
+      return NextResponse.json({
+        success: result.success,
+        message: result.success
+          ? 'Connection Request berhasil dikirim. Perangkat akan segera Inform.'
+          : result.error,
+        error: result.success ? undefined : result.error,
+      });
+    }
+
+    // ── SetParameterValues: ubah parameter di device ────────────────────
     if (action === 'SetParameterValues' && payload.parameterValues) {
+      // Optimistic update: langsung update dedicated columns + JSON blob
       const existingParams = (device.parameters as Record<string, any>) || {};
       const newParams = { ...existingParams };
-      payload.parameterValues.forEach((pv: {name: string, value: string}) => {
+
+      const updateData: Record<string, any> = { parameters: {} };
+
+      for (const pv of (payload.parameterValues as { name: string; value: string }[])) {
         newParams[pv.name] = pv.value;
-      });
+
+        // Map ke kolom dedicated
+        const { ZteParamMap } = await import('@/server/services/acs/cwmp.service');
+        if (pv.name === ZteParamMap.ssid)         updateData.ssid = pv.value;
+        if (pv.name === ZteParamMap.ssid5g)        updateData.ssid5g = pv.value;
+        if (pv.name === ZteParamMap.wifiPassword)  updateData.wifiPassword = pv.value;
+        if (pv.name === ZteParamMap.wifiPassword5g) updateData.wifiPassword5g = pv.value;
+        if (pv.name === ZteParamMap.pppoeUsername) {
+          // Juga coba re-link PPPoE user
+          const clean = pv.value.split('@')[0].trim();
+          const pppUser = await prisma.pppoeUser.findFirst({
+            where: { OR: [{ username: pv.value }, { username: clean }] }
+          });
+          if (pppUser) updateData.pppoeUserId = pppUser.id;
+        }
+      }
+
+      updateData.parameters = newParams;
+
       await prisma.acsDevice.update({
         where: { id: device.id },
-        data: { parameters: newParams }
+        data: updateData,
       });
     }
 
-    // Queue the task
+    // Queue task ke device
     await prisma.acsTask.create({
       data: {
         deviceId: device.id,
         command: action,
         name: action,
         payload: Object.keys(payload).length > 0 ? JSON.stringify(payload) : null,
-        status: 'pending'
+        status: 'pending',
       }
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('ACS Action Error:', error);
-    return NextResponse.json({ error: 'Failed to queue action' }, { status: 500 });
+
+  } catch (error: any) {
+    console.error('[ACS Action] Error:', error);
+    return NextResponse.json({ error: 'Gagal mengirim perintah: ' + error.message }, { status: 500 });
   }
 }

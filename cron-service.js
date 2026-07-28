@@ -180,6 +180,8 @@ async function start() {
   scheduleJob('cron_history_cleanup', '0 4 * * *', 'Cron History Cleanup', { lockTtl: 120 });
   scheduleJob('mikrotik_session_sync', '*/5 * * * *', 'MikroTik Session Sync', { lockTtl: 120 });
   scheduleJob('mikrotik_session_cleanup', '0 3 * * *', 'MikroTik Session Cleanup', { lockTtl: 120 });
+  scheduleJob('acs_offline_check', '*/5 * * * *', 'ACS Offline Detection');       // Tandai device ACS yg tdk Inform sebagai offline
+  scheduleJob('acs_session_cleanup', '*/30 * * * *', 'ACS Session Cleanup');       // Bersihkan sesi CWMP kedaluwarsa dari DB
 
   // Telegram crons integration (dynamic settings)
   setTimeout(async () => {

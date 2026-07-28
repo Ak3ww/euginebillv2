@@ -412,6 +412,34 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ success: false, error: recovErr.message })
         }
 
+      case 'acs_offline_check':
+        try {
+          const { CwmpService } = await import('@/server/services/acs/cwmp.service')
+          const offlineResult = await CwmpService.runOfflineDetection(12) // 12 menit threshold
+          return NextResponse.json({
+            success: true,
+            marked: offlineResult.marked,
+            message: `ACS offline check: ${offlineResult.marked} device(s) marked offline`
+          })
+        } catch (acsErr: any) {
+          return NextResponse.json({ success: false, error: acsErr.message })
+        }
+
+      case 'acs_session_cleanup':
+        try {
+          const { prisma: acsPrisma } = await import('@/server/db/client')
+          const deleted = await acsPrisma.acsSession.deleteMany({
+            where: { expiresAt: { lt: new Date() } }
+          })
+          return NextResponse.json({
+            success: true,
+            deleted: deleted.count,
+            message: `ACS session cleanup: removed ${deleted.count} expired session(s)`
+          })
+        } catch (acsErr: any) {
+          return NextResponse.json({ success: false, error: acsErr.message })
+        }
+
       default:
         return NextResponse.json({
           success: false,

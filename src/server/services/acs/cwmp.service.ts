@@ -6,15 +6,122 @@ const XSD_NS  = 'http://www.w3.org/2001/XMLSchema';
 const XSI_NS  = 'http://www.w3.org/2001/XMLSchema-instance';
 const SOAP_ENC_NS = 'http://schemas.xmlsoap.org/soap/encoding/';
 
+// TR-069 Parameter OID map — multi-vendor support (ZTE primary)
 export const ZteParamMap = {
-  ssid: 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID',
-  wifiPassword: 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey',
-  pppoeUsername: 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username',
-  pppoePassword: 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password',
-  rxPower: 'InternetGatewayDevice.WANDevice.1.X_ZTE-COM_PONInterfaceConfig.RxPower',
-  rxPowerAlt: 'InternetGatewayDevice.WANDevice.1.WANDSLDiagnostics.ReceiveAttenuation',
-  rxPowerAlt2: 'InternetGatewayDevice.WANDevice.1.WANDSLInterfaceConfig.OpticalSignalLevel'
+  // WiFi 2.4GHz
+  ssid:             'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID',
+  wifiPassword:     'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey',
+  wifiEnable:       'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.Enable',
+  wifiChannel:      'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.Channel',
+
+  // WiFi 5GHz
+  ssid5g:           'InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.SSID',
+  wifiPassword5g:   'InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.PreSharedKey.1.PreSharedKey',
+  wifiEnable5g:     'InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.Enable',
+
+  // PPPoE WAN
+  pppoeUsername:    'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username',
+  pppoePassword:    'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password',
+  wanExternalIp:    'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.ExternalIPAddress',
+
+  // GPON Optical Signal
+  rxPower:          'InternetGatewayDevice.WANDevice.1.X_ZTE-COM_PONInterfaceConfig.RxPower',
+  txPower:          'InternetGatewayDevice.WANDevice.1.X_ZTE-COM_PONInterfaceConfig.TxPower',
+  rxPowerAlt:       'InternetGatewayDevice.WANDevice.1.WANDSLDiagnostics.ReceiveAttenuation',
+  rxPowerAlt2:      'InternetGatewayDevice.WANDevice.1.WANDSLInterfaceConfig.OpticalSignalLevel',
+
+  // Device Info
+  hardwareVersion:  'InternetGatewayDevice.DeviceInfo.HardwareVersion',
+  softwareVersion:  'InternetGatewayDevice.DeviceInfo.SoftwareVersion',
+  uptime:           'InternetGatewayDevice.DeviceInfo.UpTime',
+
+  // ACS Management
+  periodicInformInterval: 'InternetGatewayDevice.ManagementServer.PeriodicInformInterval',
+  periodicInformEnable:   'InternetGatewayDevice.ManagementServer.PeriodicInformEnable',
+  connectionRequestUrl:   'InternetGatewayDevice.ManagementServer.ConnectionRequestURL',
+
+  // LAN Hosts
+  hostCount:        'InternetGatewayDevice.LANDevice.1.Hosts.HostNumberOfEntries',
 };
+
+// Parameter set yang di-request saat Inform pertama / refresh berkala
+export const FULL_PARAM_SET = [
+  ZteParamMap.ssid,
+  ZteParamMap.wifiPassword,
+  ZteParamMap.ssid5g,
+  ZteParamMap.wifiPassword5g,
+  ZteParamMap.pppoeUsername,
+  ZteParamMap.wanExternalIp,
+  ZteParamMap.rxPower,
+  ZteParamMap.txPower,
+  ZteParamMap.hardwareVersion,
+  ZteParamMap.softwareVersion,
+  ZteParamMap.uptime,
+  ZteParamMap.periodicInformInterval,
+  ZteParamMap.hostCount,
+];
+
+// Parameter untuk ambil daftar connected devices (Hosts)
+// Diperlukan HostNumberOfEntries dulu, lalu loop per-entry
+export const HOST_BASE_PARAMS = (n: number): string[] => {
+  const base = `InternetGatewayDevice.LANDevice.1.Hosts.Host.${n}.`;
+  return [
+    base + 'MACAddress',
+    base + 'IPAddress',
+    base + 'HostName',
+    base + 'InterfaceType',
+    base + 'Active',
+    base + 'AddressSource',
+  ];
+};
+
+// Interval minimal antara full-refresh (ms) — 10 menit
+const FULL_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+
+// ─────────────────────────────────────────────
+// Helper: parse rxPower raw value → dBm float
+// ─────────────────────────────────────────────
+function parseRxPower(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const n = parseFloat(raw);
+  if (isNaN(n)) return null;
+  if (n < -1000) return n / 1000;
+  if (n < -100 && n > -1000) return n / 10;
+  return n;
+}
+
+// ─────────────────────────────────────────────
+// Helper: extract connected devices dari params
+// ─────────────────────────────────────────────
+function extractConnectedDevices(params: Record<string, string>): { mac: string; ip: string; hostname: string; interface: string; active: boolean }[] {
+  const hosts: { mac: string; ip: string; hostname: string; interface: string; active: boolean }[] = [];
+  const hostPrefix = 'InternetGatewayDevice.LANDevice.1.Hosts.Host.';
+
+  // Kumpulkan semua indeks host yang ada
+  const indices = new Set<number>();
+  for (const key of Object.keys(params)) {
+    if (key.startsWith(hostPrefix)) {
+      const rest = key.slice(hostPrefix.length);
+      const idx = parseInt(rest.split('.')[0], 10);
+      if (!isNaN(idx)) indices.add(idx);
+    }
+  }
+
+  for (const idx of Array.from(indices).sort((a, b) => a - b)) {
+    const base = `${hostPrefix}${idx}.`;
+    const mac = params[base + 'MACAddress'] || '';
+    const ip = params[base + 'IPAddress'] || '';
+    if (!mac && !ip) continue;
+    hosts.push({
+      mac,
+      ip,
+      hostname: params[base + 'HostName'] || '',
+      interface: params[base + 'InterfaceType'] || '',
+      active: (params[base + 'Active'] || '').toLowerCase() === 'true' || (params[base + 'Active'] || '') === '1',
+    });
+  }
+  return hosts;
+}
 
 export class CwmpService {
   /**
@@ -45,6 +152,23 @@ export class CwmpService {
       SerialNumber: this.xmlValue(deviceIdBlock, 'SerialNumber'),
       ProductClass: this.xmlValue(deviceIdBlock, 'ProductClass'),
     };
+  }
+
+  /**
+   * Parse ConnectionRequestURL dari Inform ParameterList
+   */
+  static parseConnectionRequestUrl(xml: string): string {
+    // Cari di ParameterList dari Inform message
+    const structRe = /<(?:[\w-]+:)?ParameterValueStruct>([\s\S]*?)<\/(?:[\w-]+:)?ParameterValueStruct>/gi;
+    let m;
+    while ((m = structRe.exec(xml)) !== null) {
+      const block = m[1];
+      const name = this.xmlValue(block, 'Name');
+      if (name && name.includes('ConnectionRequestURL')) {
+        return this.xmlValue(block, 'Value');
+      }
+    }
+    return '';
   }
 
   static parseParameterValues(xml: string): Record<string, string> {
@@ -158,15 +282,29 @@ ${names}
 
   // --- DEVICE DB OPS ---
 
-  static async upsertDevice(deviceId: string, deviceInfo: any, ipAddress: string) {
+  /**
+   * Upsert device saat Inform masuk.
+   * - Create jika baru, update ipAddress + lastInform + status jika sudah ada
+   * - Auto-queue GetParameterValues full jika belum pernah di-refresh dalam FULL_REFRESH_INTERVAL_MS
+   * - Auto-queue SetParameterValues untuk set PeriodicInformInterval = 300 jika interval saat ini > 300
+   */
+  static async upsertDevice(
+    deviceId: string,
+    deviceInfo: { Manufacturer?: string; OUI?: string; ProductClass?: string; SerialNumber?: string },
+    ipAddress: string,
+    connectionRequestUrl?: string
+  ) {
     let device = await prisma.acsDevice.findUnique({ where: { serialNumber: deviceId } });
+
     if (device) {
       device = await prisma.acsDevice.update({
         where: { serialNumber: deviceId },
         data: {
           ipAddress,
           lastInform: new Date(),
-          status: 'online'
+          status: 'online',
+          informCount: { increment: 1 },
+          ...(connectionRequestUrl ? { connectionRequestUrl } : {}),
         }
       });
     } else {
@@ -181,42 +319,49 @@ ${names}
           ipAddress,
           lastInform: new Date(),
           status: 'online',
-          companyId: company.id
+          informCount: 1,
+          companyId: company.id,
+          ...(connectionRequestUrl ? { connectionRequestUrl } : {}),
         }
       });
+      console.log(`[Built-in ACS] ✨ New device registered: ${deviceId} (${deviceInfo.Manufacturer} ${deviceInfo.ProductClass})`);
     }
 
-    // Auto-queue initial GetParameterValues task if pppoeUserId is missing
-    if (!device.pppoeUserId) {
-      const existingPendingTask = await prisma.acsTask.findFirst({
-        where: { deviceId: device.id, status: 'pending', name: 'GetParameterValues' }
+    // Queue full refresh jika:
+    // 1. Belum pernah ada task GetParameterValues, ATAU
+    // 2. Task GetParameterValues terakhir sudah > FULL_REFRESH_INTERVAL_MS yang lalu
+    const lastRefreshTask = await prisma.acsTask.findFirst({
+      where: { deviceId: device.id, name: 'GetParameterValues' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const needsRefresh = !lastRefreshTask ||
+      (Date.now() - lastRefreshTask.createdAt.getTime()) > FULL_REFRESH_INTERVAL_MS;
+
+    if (needsRefresh) {
+      // Hapus pending GetParameterValues yang sudah ada supaya tidak numpuk
+      await prisma.acsTask.deleteMany({
+        where: { deviceId: device.id, name: 'GetParameterValues', status: 'pending' }
       });
-      if (!existingPendingTask) {
-        await prisma.acsTask.create({
-          data: {
-            name: 'GetParameterValues',
-            command: 'GetParameterValues',
-            payload: JSON.stringify({
-              parameterNames: [
-                'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username',
-                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID',
-                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey',
-                'InternetGatewayDevice.LANDevice.1.Hosts.',
-              ]
-            }),
-            status: 'pending',
-            deviceId: device.id
-          }
-        });
-      }
+
+      await prisma.acsTask.create({
+        data: {
+          name: 'GetParameterValues',
+          command: 'GetParameterValues',
+          payload: JSON.stringify({ parameterNames: FULL_PARAM_SET }),
+          status: 'pending',
+          deviceId: device.id,
+        }
+      });
+      console.log(`[Built-in ACS] 📡 Queued full parameter refresh for ${deviceId}`);
     }
 
     return device;
   }
 
-  static async getNextTask(serialNumber: string) {
+  static async getNextTask(deviceDbId: string) {
     return await prisma.acsTask.findFirst({
-      where: { device: { serialNumber }, status: 'pending' },
+      where: { deviceId: deviceDbId, status: 'pending' },
       orderBy: { createdAt: 'asc' }
     });
   }
@@ -228,14 +373,51 @@ ${names}
     });
   }
 
+  /**
+   * Proses GetParameterValuesResponse:
+   * 1. Merge params baru ke JSON blob
+   * 2. Ekstrak ke kolom dedicated (ssid, rxPower, dll)
+   * 3. Parse connected devices (Hosts)
+   * 4. Auto-link pppoeUserId
+   * 5. Auto-set PeriodicInformInterval ke 300 jika > 300
+   */
   static async markTaskDoneWithResult(taskId: string, status: string = 'success', result: any) {
     const task = await prisma.acsTask.findUnique({ where: { id: taskId }, include: { device: true } });
+
     if (task && task.name === 'GetParameterValues' && result) {
-      // Merge new parameters into existing device parameters
       const existingParams = (task.device.parameters as Record<string, any>) || {};
-      const newParams = { ...existingParams, ...result };
-      
-      // Auto-extract PPPoE username from parameters to link pppoeUserId
+      const newParams: Record<string, string> = { ...existingParams, ...result };
+
+      // ─── Extract dedicated fields ───────────────────────────────────
+      const ssid         = newParams[ZteParamMap.ssid] || task.device.ssid || null;
+      const ssid5g       = newParams[ZteParamMap.ssid5g] || task.device.ssid5g || null;
+      const wifiPassword = newParams[ZteParamMap.wifiPassword] || task.device.wifiPassword || null;
+      const wifiPass5g   = newParams[ZteParamMap.wifiPassword5g] || task.device.wifiPassword5g || null;
+      const hwVersion    = newParams[ZteParamMap.hardwareVersion] || task.device.hardwareVersion || null;
+      const swVersion    = newParams[ZteParamMap.softwareVersion] || task.device.softwareVersion || null;
+      const wanIp        = newParams[ZteParamMap.wanExternalIp] || task.device.wanIpAddress || null;
+
+      // Uptime (dalam detik)
+      const uptimeRaw = newParams[ZteParamMap.uptime];
+      const deviceUptime = uptimeRaw ? parseInt(uptimeRaw, 10) || null : task.device.deviceUptime;
+
+      // RxPower / TxPower
+      const rxPowerRaw = newParams[ZteParamMap.rxPower] || newParams[ZteParamMap.rxPowerAlt] || newParams[ZteParamMap.rxPowerAlt2];
+      const rxPower = parseRxPower(rxPowerRaw);
+      const txPowerRaw = newParams[ZteParamMap.txPower];
+      const txPower = txPowerRaw ? parseFloat(txPowerRaw) || null : task.device.txPower;
+
+      // PeriodicInformInterval
+      const piRaw = newParams[ZteParamMap.periodicInformInterval];
+      const periodicInformInterval = piRaw ? parseInt(piRaw, 10) || null : task.device.periodicInformInterval;
+
+      // ─── Connected Devices (LAN Hosts) ──────────────────────────────
+      const connectedDevicesList = extractConnectedDevices(newParams);
+      const connectedDevicesCount = connectedDevicesList.length > 0
+        ? connectedDevicesList.length
+        : (newParams[ZteParamMap.hostCount] ? parseInt(newParams[ZteParamMap.hostCount], 10) || null : task.device.connectedDevicesCount);
+
+      // ─── Auto-link PPPoE user ────────────────────────────────────────
       let matchedUserId: string | null = task.device.pppoeUserId || null;
       if (!matchedUserId) {
         let rawPppUsername = '';
@@ -258,18 +440,56 @@ ${names}
           });
           if (pppUser) {
             matchedUserId = pppUser.id;
-            console.log(`[Built-in ACS] 🔗 Auto-linked device ${task.device.serialNumber} to PPPoE user: ${pppUser.username}`);
+            console.log(`[Built-in ACS] 🔗 Auto-linked ${task.device.serialNumber} → PPPoE: ${pppUser.username}`);
           }
         }
       }
 
+      // ─── Persist ke DB ───────────────────────────────────────────────
       await prisma.acsDevice.update({
         where: { id: task.deviceId },
         data: {
           parameters: newParams,
           pppoeUserId: matchedUserId || undefined,
+          ssid:        ssid ?? undefined,
+          ssid5g:      ssid5g ?? undefined,
+          wifiPassword: wifiPassword ?? undefined,
+          wifiPassword5g: wifiPass5g ?? undefined,
+          hardwareVersion: hwVersion ?? undefined,
+          softwareVersion: swVersion ?? undefined,
+          wanIpAddress: wanIp ?? undefined,
+          rxPower:     rxPower !== null ? rxPower : undefined,
+          txPower:     txPower !== null ? txPower : undefined,
+          deviceUptime: deviceUptime !== null ? deviceUptime : undefined,
+          periodicInformInterval: periodicInformInterval !== null ? periodicInformInterval : undefined,
+          connectedDevicesCount: connectedDevicesCount !== null ? connectedDevicesCount : undefined,
+          connectedDevices: connectedDevicesList.length > 0 ? connectedDevicesList : undefined,
         }
       });
+
+      // ─── Auto-percepat PeriodicInformInterval ke 300s jika > 300 ─────
+      if (periodicInformInterval && periodicInformInterval > 300) {
+        const alreadyQueued = await prisma.acsTask.findFirst({
+          where: { deviceId: task.deviceId, name: 'SetPeriodicInform', status: 'pending' }
+        });
+        if (!alreadyQueued) {
+          await prisma.acsTask.create({
+            data: {
+              name: 'SetPeriodicInform',
+              command: 'SetParameterValues',
+              payload: JSON.stringify({
+                parameterValues: [
+                  { name: ZteParamMap.periodicInformInterval, value: '300', type: 'xsd:unsignedInt' },
+                  { name: ZteParamMap.periodicInformEnable, value: 'true', type: 'xsd:boolean' },
+                ]
+              }),
+              status: 'pending',
+              deviceId: task.deviceId,
+            }
+          });
+          console.log(`[Built-in ACS] ⚡ Queued PeriodicInformInterval=300 for ${task.device.serialNumber} (was: ${periodicInformInterval}s)`);
+        }
+      }
     }
 
     await prisma.acsTask.update({
@@ -278,20 +498,88 @@ ${names}
     });
   }
 
+  /**
+   * Queue GetParameterValues untuk semua parameter + Hosts
+   */
   static async queueRefreshTask(deviceId: string) {
     const device = await prisma.acsDevice.findUnique({ where: { id: deviceId } });
     if (!device) throw new Error('Device not found');
 
-    const paramNames = Object.values(ZteParamMap);
+    // Hapus pending GetParameterValues yang ada
+    await prisma.acsTask.deleteMany({
+      where: { deviceId: device.id, name: 'GetParameterValues', status: 'pending' }
+    });
+
     await prisma.acsTask.create({
       data: {
         name: 'GetParameterValues',
         command: 'GetParameterValues',
-        payload: JSON.stringify({ parameterNames: paramNames }),
+        payload: JSON.stringify({ parameterNames: FULL_PARAM_SET }),
         status: 'pending',
-        deviceId: device.id
+        deviceId: device.id,
       }
     });
+  }
+
+  /**
+   * Queue GetParameterValues khusus connected devices (Hosts)
+   * Perlu tahu jumlah host dulu dari HostNumberOfEntries
+   */
+  static async queueConnectedDevicesRefresh(deviceId: string) {
+    const device = await prisma.acsDevice.findUnique({ where: { id: deviceId } });
+    if (!device) throw new Error('Device not found');
+
+    const count = device.connectedDevicesCount || 20; // default max 20 hosts
+    const params: string[] = [ZteParamMap.hostCount];
+    for (let i = 1; i <= count; i++) {
+      params.push(...HOST_BASE_PARAMS(i));
+    }
+
+    await prisma.acsTask.create({
+      data: {
+        name: 'GetConnectedDevices',
+        command: 'GetParameterValues',
+        payload: JSON.stringify({ parameterNames: params }),
+        status: 'pending',
+        deviceId: device.id,
+      }
+    });
+  }
+
+  /**
+   * Kirim Connection Request ke device (agar segera Inform ke ACS)
+   * Hanya bisa jika VPS bisa reach IP device di LAN
+   */
+  static async sendConnectionRequest(deviceId: string): Promise<{ success: boolean; error?: string }> {
+    const device = await prisma.acsDevice.findUnique({ where: { id: deviceId } });
+    if (!device) return { success: false, error: 'Device not found' };
+    if (!device.connectionRequestUrl) return { success: false, error: 'Connection Request URL tidak tersedia. Perangkat belum mengirimkan URL-nya.' };
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch(device.connectionRequestUrl, {
+        method: 'GET',
+        signal: controller.signal,
+        // Basic auth — ZTE biasanya username/password kosong atau admin/admin
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'),
+        }
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok || res.status === 204 || res.status === 200) {
+        console.log(`[Built-in ACS] ✅ Connection Request sent to ${device.serialNumber}: HTTP ${res.status}`);
+        return { success: true };
+      } else {
+        return { success: false, error: `HTTP ${res.status} dari ${device.connectionRequestUrl}` };
+      }
+    } catch (err: any) {
+      const msg = err.name === 'AbortError' ? 'Timeout (10s) — VPS mungkin tidak bisa reach IP device' : err.message;
+      console.warn(`[Built-in ACS] ⚠️ Connection Request failed for ${device.serialNumber}: ${msg}`);
+      return { success: false, error: msg };
+    }
   }
 
   static buildAddObject(cwmpId: string, objectName: string, parameterKey: string = ''): string {
@@ -301,5 +589,76 @@ ${names}
         <ParameterKey>${this.escapeXml(parameterKey)}</ParameterKey>
       </cwmp:AddObject>`
     );
+  }
+
+  // ─── SESSION MANAGEMENT (DB-based) ───────────────────────────────────────
+
+  static async getOrCreateSession(sessionId: string): Promise<{ serialNumber: string | null; deviceDbId: string | null; currentTaskId: string | null }> {
+    // Hapus session expired
+    await prisma.acsSession.deleteMany({
+      where: { expiresAt: { lt: new Date() } }
+    }).catch(() => {}); // non-blocking
+
+    let session = await prisma.acsSession.findUnique({ where: { id: sessionId } });
+    if (!session) {
+      session = await prisma.acsSession.create({
+        data: {
+          id: sessionId,
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 menit
+        }
+      });
+    } else {
+      // Refresh TTL
+      await prisma.acsSession.update({
+        where: { id: sessionId },
+        data: { expiresAt: new Date(Date.now() + 30 * 60 * 1000) }
+      });
+    }
+    return {
+      serialNumber: session.serialNumber,
+      deviceDbId: session.deviceDbId,
+      currentTaskId: session.currentTaskId,
+    };
+  }
+
+  static async updateSession(sessionId: string, data: { serialNumber?: string; deviceDbId?: string; currentTaskId?: string | null }) {
+    await prisma.acsSession.update({
+      where: { id: sessionId },
+      data: {
+        ...data,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      }
+    }).catch(() => {});
+  }
+
+  static async clearSessionTask(sessionId: string) {
+    await prisma.acsSession.update({
+      where: { id: sessionId },
+      data: { currentTaskId: null }
+    }).catch(() => {});
+  }
+
+  // ─── OFFLINE DETECTION ───────────────────────────────────────────────────
+
+  /**
+   * Tandai device sebagai offline jika lastInform > thresholdMinutes menit yang lalu.
+   * Jalankan via cron setiap 5 menit.
+   */
+  static async runOfflineDetection(thresholdMinutes: number = 12): Promise<{ marked: number }> {
+    const threshold = new Date(Date.now() - thresholdMinutes * 60 * 1000);
+
+    const result = await prisma.acsDevice.updateMany({
+      where: {
+        status: 'online',
+        lastInform: { lt: threshold }
+      },
+      data: { status: 'offline' }
+    });
+
+    if (result.count > 0) {
+      console.log(`[Built-in ACS] 🔴 Marked ${result.count} device(s) as offline (lastInform > ${thresholdMinutes} min ago)`);
+    }
+
+    return { marked: result.count };
   }
 }

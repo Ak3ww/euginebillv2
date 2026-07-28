@@ -2480,16 +2480,40 @@ model acsDevice {
   hardwareVersion      String?
   softwareVersion      String?
   connectionRequestUrl String?
-  ipAddress            String?
+  ipAddress            String?   // WAN IP (dari HTTP client IP saat Inform)
+  wanIpAddress         String?   // External IP dari parameter WANIPConnection.ExternalIPAddress
   status               String    @default("online")
   lastInform           DateTime?
-  parameters           Json?
+  parameters           Json?     // Raw TR-069 parameters (JSON blob)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
+
+  // Dedicated columns — disinkron dari parameters JSON saat GetParameterValuesResponse
+  ssid                 String?   // WiFi SSID 2.4GHz
+  ssid5g               String?   // WiFi SSID 5GHz
+  wifiPassword         String?   // WiFi Pre-Shared Key 2.4GHz
+  wifiPassword5g       String?   // WiFi Pre-Shared Key 5GHz
+  rxPower              Float?    // Redaman sinyal optik (dBm)
+  txPower              Float?    // Transmit power optik (dBm)
+  deviceUptime         Int?      // Uptime perangkat dalam detik
+  connectedDevicesCount Int?     // Jumlah perangkat LAN terhubung (cache)
+  connectedDevices     Json?     // Array: [{mac, ip, hostname, interface, active}]
+  periodicInformInterval Int?    // Interval Inform dalam detik
+
+  // Tracking
+  informCount          Int       @default(0)    // Total Inform diterima
+  firstSeenAt          DateTime  @default(now()) // Pertama kali Inform
 
   companyId            String
   company              company   @relation(fields: [companyId], references: [id])
   tasks                acsTask[]
+
+  @@index([status, lastInform])
+  @@index([ssid])
+  @@index([rxPower])
+  @@index([wanIpAddress])
+  @@index([pppoeUserId])
+  @@map("acs_devices")
 }
 
 model acsTask {
@@ -2503,6 +2527,40 @@ model acsTask {
   result       Json?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  @@index([deviceId, status])
+  @@index([createdAt])
+  @@map("acs_tasks")
+}
+
+// DB-based CWMP session (menggantikan in-memory Map)
+model acsSession {
+  id            String    @id          // = sessionId cookie value
+  serialNumber  String?               // Serial number device yang sedang sesi
+  deviceDbId    String?               // UUID acsDevice.id
+  currentTaskId String?               // ID acsTask yang sedang dieksekusi
+  expiresAt     DateTime             // Auto-expire setelah 30 menit
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([expiresAt])
+  @@index([serialNumber])
+  @@map("acs_sessions")
+}
+
+// Kandidat perangkat baru yang terdeteksi dari DHCP lease MikroTik
+// tapi belum pernah Inform ke ACS
+model acsCandidate {
+  id          String    @id @default(uuid())
+  macAddress  String    @unique
+  ipAddress   String?
+  hostname    String?
+  routerId    String?   // Router MikroTik mana yang mengeluarkan lease ini
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @updatedAt
+
+  @@index([ipAddress])
+  @@map("acs_candidates")
 }
 
 model mikrotikSession {

@@ -1,120 +1,163 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CwmpService } from '@/server/services/acs/cwmp.service';
 
-// In-memory session store (simple implementation for this example)
-// In production, this should ideally be in Redis or DB if running multiple instances
-const sessions = new Map<string, { deviceId: string, currentTaskId?: string }>();
-
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
-    require('fs').appendFileSync('cwmp-debug.log', new Date().toISOString() + '\n' + rawBody + '\n\n');
+
+    // Session ID dari cookie, atau buat baru
     const sessionId = req.cookies.get('acs_session')?.value || crypto.randomUUID();
-    
-    // Create new session if doesn't exist
-    if (!sessions.has(sessionId)) {
-      sessions.set(sessionId, { deviceId: '' });
-    }
-    const session = sessions.get(sessionId)!;
-    
+
+    // Ambil/buat session dari DB (persistent, tidak hilang saat restart)
+    const session = await CwmpService.getOrCreateSession(sessionId);
+
     let responseXml = '';
     const cwmpId = CwmpService.extractCwmpId(rawBody) || '1';
-    const ipAddress = req.headers.get('x-forwarded-for') || req.ip || '127.0.0.1';
+    const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim()
+      || req.headers.get('x-real-ip')
+      || '127.0.0.1';
 
     if (rawBody.trim().length === 0) {
-      // Empty POST - device is asking for tasks
-      if (session.deviceId) {
-        const nextTask = await CwmpService.getNextTask(session.deviceId);
+      // ── Empty POST: device meminta task berikutnya ──────────────────
+      if (session.deviceDbId) {
+        const nextTask = await CwmpService.getNextTask(session.deviceDbId);
+
         if (nextTask) {
-          session.currentTaskId = nextTask.id;
+          await CwmpService.updateSession(sessionId, { currentTaskId: nextTask.id });
+
           if (nextTask.name === 'Reboot') {
             responseXml = CwmpService.buildReboot(cwmpId);
+
           } else if (nextTask.name === 'FactoryReset') {
             responseXml = CwmpService.buildFactoryReset(cwmpId);
-          } else if (nextTask.name === 'SetParameterValues') {
+
+          } else if (
+            nextTask.name === 'SetParameterValues' ||
+            nextTask.name === 'SetPeriodicInform'
+          ) {
             try {
-              const payload = JSON.parse(nextTask.payload || '{}');
+              const payload = JSON.parse((nextTask.payload as string) || '{}');
               responseXml = CwmpService.buildSetParameterValues(cwmpId, payload.parameterValues || []);
             } catch (e) {
-              console.error('Failed to parse SetParameterValues payload', e);
+              console.error('[CWMP] Failed to parse SetParameterValues payload', e);
               await CwmpService.markTaskDone(nextTask.id, 'failed');
+              await CwmpService.clearSessionTask(sessionId);
             }
+
           } else if (nextTask.name === 'AddObject') {
             try {
-              const payload = JSON.parse(nextTask.payload || '{}');
+              const payload = JSON.parse((nextTask.payload as string) || '{}');
               responseXml = CwmpService.buildAddObject(cwmpId, payload.objectName || '');
             } catch (e) {
-              console.error('Failed to parse AddObject payload', e);
+              console.error('[CWMP] Failed to parse AddObject payload', e);
               await CwmpService.markTaskDone(nextTask.id, 'failed');
+              await CwmpService.clearSessionTask(sessionId);
             }
-          } else if (nextTask.name === 'GetParameterValues') {
+
+          } else if (
+            nextTask.name === 'GetParameterValues' ||
+            nextTask.name === 'GetConnectedDevices'
+          ) {
             try {
-              const payload = JSON.parse(nextTask.payload || '{}');
+              const payload = JSON.parse((nextTask.payload as string) || '{}');
               responseXml = CwmpService.buildGetParameterValues(cwmpId, payload.parameterNames || []);
             } catch (e) {
-              console.error('Failed to parse GetParameterValues payload', e);
+              console.error('[CWMP] Failed to parse GetParameterValues payload', e);
               await CwmpService.markTaskDone(nextTask.id, 'failed');
+              await CwmpService.clearSessionTask(sessionId);
             }
           }
         }
       }
+
     } else if (CwmpService.hasCwmpMethod(rawBody, 'Inform')) {
+      // ── Inform: device registrasi / heartbeat ───────────────────────
       const deviceInfo = CwmpService.parseDeviceId(rawBody);
-      if (deviceInfo && deviceInfo.SerialNumber) {
-        session.deviceId = deviceInfo.SerialNumber;
-        await CwmpService.upsertDevice(deviceInfo.SerialNumber, deviceInfo, ipAddress);
+      const connectionRequestUrl = CwmpService.parseConnectionRequestUrl(rawBody);
+
+      if (deviceInfo?.SerialNumber) {
+        const device = await CwmpService.upsertDevice(
+          deviceInfo.SerialNumber,
+          deviceInfo,
+          ipAddress,
+          connectionRequestUrl || undefined
+        );
+
+        // Simpan ke session
+        await CwmpService.updateSession(sessionId, {
+          serialNumber: device.serialNumber,
+          deviceDbId: device.id,
+        });
+
         responseXml = CwmpService.buildInformResponse(cwmpId);
+        console.log(`[CWMP] ✅ Inform from ${device.serialNumber} (IP: ${ipAddress})`);
       } else {
-        return new NextResponse('Bad Request', { status: 400 });
+        return new NextResponse('Bad Request: missing SerialNumber', { status: 400 });
       }
-    } else if (CwmpService.hasCwmpMethod(rawBody, 'TransferComplete') || 
-               CwmpService.hasCwmpMethod(rawBody, 'RebootResponse') ||
-               CwmpService.hasCwmpMethod(rawBody, 'FactoryResetResponse') ||
-               CwmpService.hasCwmpMethod(rawBody, 'SetParameterValuesResponse') ||
-               CwmpService.hasCwmpMethod(rawBody, 'AddObjectResponse')) {
-      
-      // Mark current task as done if exists
+
+    } else if (
+      CwmpService.hasCwmpMethod(rawBody, 'TransferComplete') ||
+      CwmpService.hasCwmpMethod(rawBody, 'RebootResponse') ||
+      CwmpService.hasCwmpMethod(rawBody, 'FactoryResetResponse') ||
+      CwmpService.hasCwmpMethod(rawBody, 'SetParameterValuesResponse') ||
+      CwmpService.hasCwmpMethod(rawBody, 'AddObjectResponse')
+    ) {
+      // ── Task berhasil dieksekusi device ─────────────────────────────
       if (session.currentTaskId) {
         await CwmpService.markTaskDone(session.currentTaskId, 'success');
-        session.currentTaskId = undefined;
+        await CwmpService.clearSessionTask(sessionId);
+        console.log(`[CWMP] ✅ Task ${session.currentTaskId} completed`);
       }
-      
-      // We can respond with empty 204 or check for another task immediately.
+
     } else if (CwmpService.hasCwmpMethod(rawBody, 'GetParameterValuesResponse')) {
+      // ── GetParameterValues response: proses dan simpan ke DB ────────
       if (session.currentTaskId) {
         const values = CwmpService.parseParameterValues(rawBody);
         await CwmpService.markTaskDoneWithResult(session.currentTaskId, 'success', values);
-        session.currentTaskId = undefined;
+        await CwmpService.clearSessionTask(sessionId);
+        console.log(`[CWMP] ✅ GetParameterValues response processed (${Object.keys(values).length} params)`);
       }
+
     } else if (CwmpService.hasCwmpMethod(rawBody, 'Fault')) {
+      // ── Device melaporkan error (Fault) ─────────────────────────────
       if (session.currentTaskId) {
         const fault = CwmpService.parseFault(rawBody);
         await CwmpService.markTaskDoneWithResult(session.currentTaskId, 'failed', fault);
-        session.currentTaskId = undefined;
+        await CwmpService.clearSessionTask(sessionId);
+        console.warn(`[CWMP] ⚠️ Task ${session.currentTaskId} faulted:`, fault);
       }
-    } else {
-      // Unhandled method, usually just ignore or 204
     }
+    // else: unhandled method — respond with 204
 
+    // ── Kirim response ──────────────────────────────────────────────────
     if (responseXml) {
       const res = new NextResponse(responseXml, {
         status: 200,
         headers: {
-          'Content-Type': 'text/xml',
-          'Server': 'EugineBill ACS'
+          'Content-Type': 'text/xml; charset=utf-8',
+          'Server': 'EugineBill ACS/2.0',
         }
       });
-      res.cookies.set('acs_session', sessionId, { httpOnly: true, path: '/api/cwmp' });
+      res.cookies.set('acs_session', sessionId, {
+        httpOnly: true,
+        path: '/api/cwmp',
+        maxAge: 1800, // 30 menit
+        sameSite: 'lax',
+      });
       return res;
     } else {
       const res = new NextResponse(null, { status: 204 });
-      res.cookies.set('acs_session', sessionId, { httpOnly: true, path: '/api/cwmp' });
+      res.cookies.set('acs_session', sessionId, {
+        httpOnly: true,
+        path: '/api/cwmp',
+        maxAge: 1800,
+        sameSite: 'lax',
+      });
       return res;
     }
 
   } catch (error: any) {
-    console.error('CWMP Error:', error);
-    require('fs').appendFileSync('cwmp-debug.log', 'ERROR: ' + error.message + '\n' + (error.stack || '') + '\n\n');
+    console.error('[CWMP] Error:', error.message);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
