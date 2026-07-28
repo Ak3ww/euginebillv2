@@ -69,6 +69,7 @@ tmp/
 temp/
 *.tmp
 *.sql
+!prisma/migrations/**/*.sql
 *.backup
 *.bak
 *.old
