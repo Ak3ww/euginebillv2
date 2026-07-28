@@ -15,6 +15,7 @@ import MapPicker from '@/components/MapPicker';
 import { CameraPhotoInput } from '@/components/CameraPhotoInput';
 import { CameraViewfinder } from '@/components/CameraViewfinder';
 import UserDetailModal from '@/components/UserDetailModal';
+import { getFastLocation } from '@/lib/geo-utils';
 import { formatWIB, isExpiredWIB as isExpired, endOfDayWIBtoUTC } from '@/lib/timezone';
 import {
   SimpleModal,
@@ -139,11 +140,11 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
       const result = await res.json();
       if (result.success) {
         setFormData(prev => ({ ...prev, installationPhotos: [...prev.installationPhotos, result.url] }));
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition((p) => {
-            setFormData(prev => ({ ...prev, latitude: p.coords.latitude.toFixed(6), longitude: p.coords.longitude.toFixed(6) }));
-          }, () => {}, { enableHighAccuracy: true, timeout: 10000 });
-        }
+        getFastLocation({ timeoutMs: 5000, highAccuracyTimeoutMs: 2000 })
+          .then((p) => {
+            setFormData(prev => ({ ...prev, latitude: p.latitude.toFixed(6), longitude: p.longitude.toFixed(6) }));
+          })
+          .catch(() => {});
       } else { await showError(result.error || 'Upload foto instalasi gagal'); }
     } catch { await showError('Upload foto instalasi gagal'); }
     finally { setUploadingInstallation(false); }
@@ -186,7 +187,7 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
               <div className="flex items-center justify-between mb-1"><ModalLabel>{t('pppoe.gpsLocation')}</ModalLabel>
                 <div className="flex gap-1">
                   <button type="button" onClick={() => setShowMapPicker(true)} className="inline-flex items-center px-2 py-0.5 text-[10px] bg-primary/10 text-primary border border-primary/50 rounded hover:bg-primary/20 dark:bg-[#00f7ff]/20 dark:text-[#00f7ff] dark:border-[#00f7ff]/50 dark:hover:bg-[#00f7ff]/30"><Map className="h-2.5 w-2.5 mr-1" />{t('pppoe.openMap')}</button>
-                  <button type="button" onClick={async () => { if (navigator.geolocation) { navigator.geolocation.getCurrentPosition((p) => { setFormData(prev => ({ ...prev, latitude: p.coords.latitude.toFixed(6), longitude: p.coords.longitude.toFixed(6) })); }, async () => { await showError(t('pppoe.gpsFailed')); }, { enableHighAccuracy: true, timeout: 10000 }); } }} className="inline-flex items-center px-2 py-0.5 text-[10px] bg-green-100 text-green-600 border border-green-300 rounded hover:bg-green-200 dark:bg-[#00ff88]/20 dark:text-[#00ff88] dark:border-[#00ff88]/50 dark:hover:bg-[#00ff88]/30"><MapPin className="h-2.5 w-2.5 mr-1" />{t('pppoe.autoGps')}</button>
+                  <button type="button" onClick={async () => { try { const p = await getFastLocation({ timeoutMs: 6000, highAccuracyTimeoutMs: 2500 }); setFormData(prev => ({ ...prev, latitude: p.latitude.toFixed(6), longitude: p.longitude.toFixed(6) })); } catch { await showError(t('pppoe.gpsFailed')); } }} className="inline-flex items-center px-2 py-0.5 text-[10px] bg-green-100 text-green-600 border border-green-300 rounded hover:bg-green-200 dark:bg-[#00ff88]/20 dark:text-[#00ff88] dark:border-[#00ff88]/50 dark:hover:bg-[#00ff88]/30"><MapPin className="h-2.5 w-2.5 mr-1" />{t('pppoe.autoGps')}</button>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">

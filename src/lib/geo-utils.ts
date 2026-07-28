@@ -10,6 +10,106 @@ export const EUGINEBILL_HQ = {
   name: 'HQ EugineBill Cibinong',
 };
 
+export interface FastLocationResult {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+  isHighAccuracy?: boolean;
+}
+
+export interface FastLocationOptions {
+  timeoutMs?: number;
+  highAccuracyTimeoutMs?: number;
+  maxAgeMs?: number;
+}
+
+/**
+ * Super-fast Geolocation getter for mobile/web browsers.
+ * Prevents 10-15s stalls on mobile browsers by trying high accuracy for a short window (2.5s)
+ * and immediately falling back to low accuracy / cached location if hardware GPS is slow.
+ */
+export function getFastLocation(options: FastLocationOptions = {}): Promise<FastLocationResult> {
+  const {
+    timeoutMs = 6000,
+    highAccuracyTimeoutMs = 2500,
+    maxAgeMs = 60000,
+  } = options;
+
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || !navigator?.geolocation) {
+      return reject(new Error('GPS tidak didukung pada perangkat/browser ini'));
+    }
+
+    let finished = false;
+
+    const done = (res: FastLocationResult) => {
+      if (!finished) {
+        finished = true;
+        resolve(res);
+      }
+    };
+
+    const fail = (err: any) => {
+      if (!finished) {
+        finished = true;
+        reject(err);
+      }
+    };
+
+    // Overall Safety Timeout (6 seconds max)
+    const safetyTimer = setTimeout(() => {
+      if (!finished) {
+        // Last-gasp attempt: low accuracy, accept up to 5 min old cache
+        navigator.geolocation.getCurrentPosition(
+          (pos) => done({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+            isHighAccuracy: false
+          }),
+          (err) => fail(err),
+          { enableHighAccuracy: false, timeout: 2000, maximumAge: 300000 }
+        );
+      }
+    }, timeoutMs);
+
+    // Primary attempt: Try High Accuracy for 2.5s
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        clearTimeout(safetyTimer);
+        done({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+          isHighAccuracy: true,
+        });
+      },
+      (err) => {
+        // High accuracy failed or timed out -> Fallback to Low Accuracy instantly!
+        if (!finished) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              clearTimeout(safetyTimer);
+              done({
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                accuracy: pos.coords.accuracy,
+                isHighAccuracy: false,
+              });
+            },
+            (fallbackErr) => {
+              clearTimeout(safetyTimer);
+              fail(fallbackErr);
+            },
+            { enableHighAccuracy: false, timeout: 3000, maximumAge: maxAgeMs }
+          );
+        }
+      },
+      { enableHighAccuracy: true, timeout: highAccuracyTimeoutMs, maximumAge: maxAgeMs }
+    );
+  });
+}
+
 /**
  * Calculates geodesic distance between two GPS points in kilometers using Haversine formula
  */

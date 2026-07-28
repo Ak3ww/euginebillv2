@@ -17,6 +17,7 @@ function renderWithLinks(text: string) {
 }
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getFastLocation } from '@/lib/geo-utils';
 import {
   Ticket,
   Search,
@@ -238,26 +239,20 @@ export default function TechnicianTicketsPage() {
   }
 
   async function handleGetGPS() {
-    if (!navigator.geolocation) {
-      addToast({ type: 'error', title: 'GPS tidak tersedia di perangkat ini' });
-      return;
-    }
     setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const mapsUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
-        const gpsText = `📍 Lokasi: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}\n${mapsUrl}`;
-        setReplyMessage((prev) => (prev ? `${prev}\n${gpsText}` : gpsText));
-        setGpsLoading(false);
-        replyTextareaRef.current?.focus();
-      },
-      (err) => {
-        setGpsLoading(false);
-        addToast({ type: 'error', title: 'Gagal mendapatkan lokasi', description: err.message });
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+    try {
+      const pos = await getFastLocation({ timeoutMs: 6000, highAccuracyTimeoutMs: 2500 });
+      const latitude = pos.latitude;
+      const longitude = pos.longitude;
+      const mapsUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
+      const gpsText = `📍 Lokasi: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}\n${mapsUrl}`;
+      setReplyMessage((prev) => (prev ? `${prev}\n${gpsText}` : gpsText));
+      setGpsLoading(false);
+      replyTextareaRef.current?.focus();
+    } catch (err: any) {
+      setGpsLoading(false);
+      addToast({ type: 'error', title: 'Gagal mendapatkan lokasi', description: err.message || 'Pastikan izin lokasi diaktifkan' });
+    }
   }
 
   async function sendReply() {

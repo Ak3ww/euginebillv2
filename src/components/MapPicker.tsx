@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Layers, MapPin, Navigation } from 'lucide-react';
 import { showError } from '@/lib/sweetalert';
+import { getFastLocation } from '@/lib/geo-utils';
 
 interface MapPickerProps {
   isOpen: boolean;
@@ -159,33 +160,26 @@ export default function MapPicker({
     }
   };
 
-  const handleGetCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const newPos: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-          setPosition(newPos);
+  const handleGetCurrentLocation = async () => {
+    try {
+      const pos = await getFastLocation({ timeoutMs: 6000, highAccuracyTimeoutMs: 2500 });
+      const newPos: [number, number] = [pos.latitude, pos.longitude];
+      setPosition(newPos);
 
-          if (mapRef.current) {
-            mapRef.current.flyTo(newPos, 17);
+      if (mapRef.current) {
+        mapRef.current.flyTo(newPos, 17);
 
-            // Update or create marker
-            const L = require('leaflet');
-            if (markerRef.current) {
-              markerRef.current.setLatLng(newPos);
-            } else {
-              markerRef.current = L.marker(newPos).addTo(mapRef.current);
-            }
-          }
-        },
-        (err) => {
-          console.error('GPS Error:', err);
-          showError('Gagal mendapatkan lokasi GPS. Pastikan izin lokasi diaktifkan.');
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    } else {
-      showError('Browser tidak mendukung GPS');
+        // Update or create marker
+        const L = require('leaflet');
+        if (markerRef.current) {
+          markerRef.current.setLatLng(newPos);
+        } else {
+          markerRef.current = L.marker(newPos).addTo(mapRef.current);
+        }
+      }
+    } catch (err: any) {
+      console.error('GPS Error:', err);
+      showError('Gagal mendapatkan lokasi GPS. Pastikan izin lokasi diaktifkan.');
     }
   };
 

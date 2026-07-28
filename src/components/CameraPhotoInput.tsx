@@ -3,6 +3,7 @@
 import { useId, useRef, useState, useCallback, useEffect } from 'react';
 import { Camera, ImageIcon, X, MapPin, Loader2, SwitchCamera, Circle, CheckCircle2 } from 'lucide-react';
 import { compressImage } from '@/lib/utils';
+import { getFastLocation } from '@/lib/geo-utils';
 
 interface CameraPhotoInputProps {
   photoUrl: string;
@@ -43,20 +44,19 @@ export function CameraPhotoInput({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
 
-  const captureGps = useCallback(() => {
-    if (!('geolocation' in navigator)) return;
+  const captureGps = useCallback(async () => {
     setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setGps({ lat, lng });
-        onGpsCapture?.(lat, lng);
-        setGpsLoading(false);
-      },
-      () => setGpsLoading(false),
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    try {
+      const pos = await getFastLocation({ timeoutMs: 5000, highAccuracyTimeoutMs: 2000 });
+      const lat = pos.latitude;
+      const lng = pos.longitude;
+      setGps({ lat, lng });
+      onGpsCapture?.(lat, lng);
+    } catch (e) {
+      // silent fallback for photo GPS
+    } finally {
+      setGpsLoading(false);
+    }
   }, [onGpsCapture]);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {

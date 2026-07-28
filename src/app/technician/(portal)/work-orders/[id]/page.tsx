@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/cyberpunk/CyberToast';
-import { calculateTechnicianScore, PerformanceRating, EUGINEBILL_HQ } from '@/lib/geo-utils';
+import { calculateTechnicianScore, PerformanceRating, EUGINEBILL_HQ, getFastLocation } from '@/lib/geo-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -285,82 +285,68 @@ export default function TechnicianWorkOrderWizardPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Get Current Location via Geolocation API
-  const captureCustomerGps = () => {
-    if (!navigator.geolocation) {
-      addToast({ type: 'error', title: 'GPS Tidak Didukung', description: 'Browser HP Anda tidak mendukung Geolocation.' });
-      return;
-    }
+  // Get Current Location via Geolocation API (Ultra-fast fallback)
+  const captureCustomerGps = async () => {
     setGeoLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setCustomerGeo({ lat, lng });
-        setGeoLoading(false);
-        addToast({
-          type: 'success',
-          title: '📍 Tikor GPS Pelanggan Terekam',
-          description: `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`,
-        });
-        saveProgress(step);
-      },
-      (err) => {
-        setGeoLoading(false);
-        addToast({ type: 'error', title: 'Gagal Mengambil GPS', description: err.message || 'Pastikan Izin Akses Lokasi (GPS) Aktif!' });
-      },
-      { enableHighAccuracy: true, timeout: 15000 }
-    );
+    try {
+      const pos = await getFastLocation({ timeoutMs: 6000, highAccuracyTimeoutMs: 2500 });
+      const lat = pos.latitude;
+      const lng = pos.longitude;
+      setCustomerGeo({ lat, lng });
+      setGeoLoading(false);
+      addToast({
+        type: 'success',
+        title: '📍 Tikor GPS Pelanggan Terekam',
+        description: `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}${pos.isHighAccuracy ? '' : ' (Lokasi Cepat)'}`,
+      });
+      saveProgress(step);
+    } catch (err: any) {
+      setGeoLoading(false);
+      addToast({ type: 'error', title: 'Gagal Mengambil GPS', description: err.message || 'Pastikan Izin Akses Lokasi (GPS) Aktif!' });
+    }
   };
 
-  const captureOdpGps = () => {
-    if (!navigator.geolocation) {
-      addToast({ type: 'error', title: 'GPS Tidak Didukung', description: 'Browser HP Anda tidak mendukung Geolocation.' });
-      return;
-    }
+  const captureOdpGps = async () => {
     setOdpGeoLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const latNum = pos.coords.latitude;
-        const lngNum = pos.coords.longitude;
-        const lat = latNum.toFixed(6);
-        const lng = lngNum.toFixed(6);
-        
-        // Auto-detect nearest existing ODP within 100 meters
-        if (existingOdps.length > 0) {
-          let nearest: { name: string; distMeters: number } | null = null;
-          existingOdps.forEach((odp) => {
-            if (odp.latitude && odp.longitude) {
-              const distKm = calculateDistanceKm(latNum, lngNum, odp.latitude, odp.longitude);
-              const distMeters = Math.round(distKm * 1000);
-              if (!nearest || distMeters < nearest.distMeters) {
-                nearest = { name: odp.name, distMeters };
-              }
+    try {
+      const pos = await getFastLocation({ timeoutMs: 6000, highAccuracyTimeoutMs: 2500 });
+      const latNum = pos.latitude;
+      const lngNum = pos.longitude;
+      const lat = latNum.toFixed(6);
+      const lng = lngNum.toFixed(6);
+      
+      // Auto-detect nearest existing ODP within 100 meters
+      if (existingOdps.length > 0) {
+        let nearest: { name: string; distMeters: number } | null = null;
+        existingOdps.forEach((odp) => {
+          if (odp.latitude && odp.longitude) {
+            const distKm = calculateDistanceKm(latNum, lngNum, odp.latitude, odp.longitude);
+            const distMeters = Math.round(distKm * 1000);
+            if (!nearest || distMeters < nearest.distMeters) {
+              nearest = { name: odp.name, distMeters };
             }
-          });
-          if (nearest && (nearest as any).distMeters <= 150) {
-            setSuggestedOdp(nearest);
           }
+        });
+        if (nearest && (nearest as any).distMeters <= 150) {
+          setSuggestedOdp(nearest);
         }
+      }
 
-        setReportData(prev => {
-          const updated = { ...prev, odpLat: lat, odpLng: lng };
-          saveProgress(step, { reportData: updated });
-          return updated;
-        });
-        setOdpGeoLoading(false);
-        addToast({
-          type: 'success',
-          title: '📍 Tikor GPS ODP Terekam',
-          description: `Lat: ${lat}, Lng: ${lng}`,
-        });
-      },
-      (err) => {
-        setOdpGeoLoading(false);
-        addToast({ type: 'error', title: 'Gagal Mengambil GPS ODP', description: err.message || 'Pastikan Izin Akses Lokasi (GPS) Aktif!' });
-      },
-      { enableHighAccuracy: true, timeout: 15000 }
-    );
+      setReportData(prev => {
+        const updated = { ...prev, odpLat: lat, odpLng: lng };
+        saveProgress(step, { reportData: updated });
+        return updated;
+      });
+      setOdpGeoLoading(false);
+      addToast({
+        type: 'success',
+        title: '📍 Tikor GPS ODP Terekam',
+        description: `Lat: ${lat}, Lng: ${lng}`,
+      });
+    } catch (err: any) {
+      setOdpGeoLoading(false);
+      addToast({ type: 'error', title: 'Gagal Mengambil GPS ODP', description: err.message || 'Pastikan Izin Akses Lokasi (GPS) Aktif!' });
+    }
   };
 
   // --- LIVE WEBRTC CAMERA CONTROLLER ---

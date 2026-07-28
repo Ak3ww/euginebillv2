@@ -11,6 +11,7 @@ import {
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { useTranslation } from '@/hooks/useTranslation';
 import { CameraPhotoInput } from '@/components/CameraPhotoInput';
+import { getFastLocation } from '@/lib/geo-utils';
 
 interface Profile {
   id: string;
@@ -341,14 +342,17 @@ export default function TechnicianRegisterPage() {
                     <button
                       type="button"
                       disabled={gpsLoading}
-                      onClick={() => {
-                        if (!navigator.geolocation) return addToast({ type: 'error', title: 'Browser tidak mendukung GPS' });
+                      onClick={async () => {
                         setGpsLoading(true);
-                        navigator.geolocation.getCurrentPosition(
-                          (p) => { setForm((f) => ({ ...f, latitude: p.coords.latitude.toFixed(6), longitude: p.coords.longitude.toFixed(6) })); setGpsLoading(false); },
-                          () => { addToast({ type: 'error', title: 'Gagal mendapatkan GPS', description: 'Pastikan izin lokasi diaktifkan' }); setGpsLoading(false); },
-                          { enableHighAccuracy: true, timeout: 10000 }
-                        );
+                        try {
+                          const pos = await getFastLocation({ timeoutMs: 6000, highAccuracyTimeoutMs: 2500 });
+                          setForm((f) => ({ ...f, latitude: pos.latitude.toFixed(6), longitude: pos.longitude.toFixed(6) }));
+                          setGpsLoading(false);
+                          addToast({ type: 'success', title: '📍 GPS Terekam', description: `${pos.latitude.toFixed(6)}, ${pos.longitude.toFixed(6)}` });
+                        } catch (err: any) {
+                          addToast({ type: 'error', title: 'Gagal mendapatkan GPS', description: err.message || 'Pastikan izin lokasi diaktifkan' });
+                          setGpsLoading(false);
+                        }
                       }}
                       className="w-full flex items-center justify-center gap-2 py-2 px-4 text-xs font-semibold bg-[#bc13fe]/10 hover:bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe]/30 rounded-xl transition-all disabled:opacity-60"
                     >

@@ -8,6 +8,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { showSuccess, showError, showWarning } from '@/lib/sweetalert';
 import { CameraPhotoInput } from '@/components/CameraPhotoInput';
 import { CameraViewfinder } from '@/components/CameraViewfinder';
+import { getFastLocation } from '@/lib/geo-utils';
 
 interface User {
   id: string;
@@ -233,11 +234,11 @@ export default function UserDetailModal({
       const result = await res.json();
       if (result.success) {
         setFormData(prev => ({ ...prev, installationPhotos: [...prev.installationPhotos, result.url] }));
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition((p) => {
-            setFormData(prev => ({ ...prev, latitude: p.coords.latitude.toFixed(6), longitude: p.coords.longitude.toFixed(6) }));
-          }, () => {}, { enableHighAccuracy: true, timeout: 10000 });
-        }
+        getFastLocation({ timeoutMs: 5000, highAccuracyTimeoutMs: 2000 })
+          .then((p) => {
+            setFormData(prev => ({ ...prev, latitude: p.latitude.toFixed(6), longitude: p.longitude.toFixed(6) }));
+          })
+          .catch(() => {});
       } else { await showError(result.error || 'Upload foto instalasi gagal'); }
     } catch { await showError('Upload foto instalasi gagal'); }
     finally { setUploadingInstallation(false); }
@@ -464,38 +465,16 @@ export default function UserDetailModal({
                           if (!isSecure) {
                             await showWarning('GPS Auto memerlukan koneksi HTTPS.\n\nUntuk menggunakan fitur ini:\n1. Akses aplikasi melalui HTTPS, atau\n2. Gunakan "Pilih di Peta" untuk memilih lokasi manual');
                             return;
-                          }
-
-                          if (navigator.geolocation) {
-                            navigator.geolocation.getCurrentPosition(
-                              (position) => {
-                                setFormData({
-                                  ...formData,
-                                  latitude: position.coords.latitude.toFixed(6),
-                                  longitude: position.coords.longitude.toFixed(6),
-                                });
-                              },
-                              async (error) => {
-                                let errorMessage = 'Gagal mendapatkan lokasi: ';
-                                switch (error.code) {
-                                  case error.PERMISSION_DENIED:
-                                    errorMessage += 'Akses lokasi ditolak. Silakan izinkan akses lokasi di browser Anda.';
-                                    break;
-                                  case error.POSITION_UNAVAILABLE:
-                                    errorMessage += 'Informasi lokasi tidak tersedia.';
-                                    break;
-                                  case error.TIMEOUT:
-                                    errorMessage += 'Waktu permintaan lokasi habis.';
-                                    break;
-                                  default:
-                                    errorMessage += error.message;
-                                }
-                                await showError(errorMessage);
-                              }
-                            );
-                          } else {
-                            await showError('Geolocation tidak didukung oleh browser ini.');
-                          }
+                          }                          try {
+                            const position = await getFastLocation({ timeoutMs: 6000, highAccuracyTimeoutMs: 2500 });
+                            setFormData({
+                              ...formData,
+                              latitude: position.latitude.toFixed(6),
+                              longitude: position.longitude.toFixed(6),
+                            });
+                          } catch (error: any) {
+                            await showError('Gagal mendapatkan lokasi: ' + (error.message || 'Pastikan izin lokasi diaktifkan'));
+                          }  
                         }}
                         className="inline-flex items-center px-3 py-1 text-xs bg-green-100 text-green-600 dark:bg-[#00ff88]/20 dark:text-[#00ff88] border border-green-300 dark:border-[#00ff88]/50 rounded hover:bg-green-200 dark:hover:bg-[#00ff88]/30 transition"
                       >
