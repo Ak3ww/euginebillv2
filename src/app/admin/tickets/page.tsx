@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -271,7 +271,7 @@ export default function AdminTicketsPage() {
         </div>
         <button
           onClick={openDispatch}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm hover:shadow-md transition-all"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm hover:shadow-md transition-all"
         >
           <Send className="w-4 h-4" />
           Kirim ke Teknisi
