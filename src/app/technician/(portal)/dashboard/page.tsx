@@ -299,9 +299,9 @@ export default function TechnicianDashboardPage() {
                   </a>
                   <button
                     onClick={() => router.push(`/technician/work-orders/${wo.id}`)}
-                    className="px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-primary text-primary-foreground font-bold rounded-lg text-xs hover:opacity-90 transition-opacity shadow-sm"
                   >
-                    Detail
+                    🚀 Kerjakan →
                   </button>
                 </div>
               </div>
