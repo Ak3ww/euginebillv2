@@ -1497,30 +1497,66 @@ export default function PppoeUsersPage() {
                     )}
                   </div>
                   {/* Actions */}
-                  <div className="flex items-center gap-1 pt-1 border-t border-border/50 flex-wrap">
-                    <a href={`/admin/pppoe/users/${user.customerId || user.id}`} className="compact-action p-1.5 text-green-500 hover:bg-green-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Lihat profil detail" title="Lihat Profil Detail"><Eye className="h-3.5 w-3.5 pointer-events-none" /></a>
-                    <button onClick={() => handleEdit(user)} className="compact-action p-1.5 text-[#00f7ff] hover:bg-[#00f7ff]/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Edit" title="Edit"><Pencil className="h-3.5 w-3.5 pointer-events-none" /></button>
-                    <button onClick={() => handleSyncToRadius(user)} className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Sync RADIUS" title="Sync RADIUS"><RefreshCw className="h-3.5 w-3.5 pointer-events-none" /></button>
-                    <button
-                      onClick={() => handleStatusChange(user.id, user.status === 'isolated' ? 'active' : 'isolated')}
-                      className={`compact-action p-1.5 rounded cursor-pointer flex items-center justify-center focus:outline-none ${user.status === 'isolated' ? 'text-success hover:bg-success/10' : 'text-orange-500 hover:bg-orange-500/10'}`}
-                      aria-label={user.status === 'isolated' ? 'Aktifkan' : 'Isolir'}
-                      title={user.status === 'isolated' ? 'Aktifkan' : 'Isolir'}
-                    >
-                      <Shield className="h-3.5 w-3.5 pointer-events-none" />
-                    </button>
-                    <button onClick={() => handleStopSubscription(user)} className="compact-action p-1.5 text-destructive/70 hover:bg-destructive/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Stop Langganan" title="Stop Langganan"><Ban className="h-3.5 w-3.5 pointer-events-none" /></button>
-                    <button onClick={() => setDeleteUserId(user.id)} className="compact-action p-1.5 text-destructive hover:bg-destructive/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Hapus" title="Hapus"><Trash2 className="h-3.5 w-3.5 pointer-events-none" /></button>
-                    <button onClick={() => setPrintDialogUser(user)} className="compact-action p-1.5 text-purple-500 hover:bg-purple-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Cetak Invoice" title="Cetak Invoice"><Printer className="h-3.5 w-3.5 pointer-events-none" /></button>
-                    {invoiceCounts[user.id] > 0 ? (
-                      <button onClick={() => handleMarkAllPaid(user.id, user.name)} disabled={markingPaid === user.id} className="compact-action px-2 py-1 text-[10px] font-medium bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-50 ml-auto cursor-pointer focus:outline-none">
-                        {markingPaid === user.id ? <Loader2 className="h-3 w-3 animate-spin" /> : t('pppoe.markPaid')}
-                      </button>
-                    ) : (
-                      <button onClick={() => handleManualExtend(user)} disabled={extending === user.id} className="compact-action p-1.5 text-warning hover:bg-warning/10 rounded disabled:opacity-50 ml-auto cursor-pointer focus:outline-none" aria-label={t('pppoe.extendManual')} title={t('pppoe.extendManual')}>
-                        {extending === user.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3.5 w-3.5 pointer-events-none" />}
+                  <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+                    {/* Selesaikan Pemasangan (Highlight for Pending Installation) */}
+                    {(user.status === 'PENDING_INSTALLATION' || user.status === 'pending_installation') && (
+                      <button
+                        onClick={() => handleCompleteInstallation(user)}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl shadow-md transition-all animate-pulse"
+                      >
+                        <Wrench className="h-4 w-4" /> 🔧 Selesaikan Pemasangan &amp; Kirim WA Tagihan
                       </button>
                     )}
+
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {/* Buat SPK */}
+                      <a
+                        href={`/admin/work-orders?new=true&userId=${user.id}&name=${encodeURIComponent(user.name)}&phone=${encodeURIComponent(user.phone || '')}&address=${encodeURIComponent(user.address || '')}`}
+                        className="flex-1 min-w-[110px] flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 hover:bg-purple-500/20 rounded-lg transition-colors"
+                      >
+                        <ClipboardCheck className="h-3.5 w-3.5" /> Buat SPK
+                      </a>
+                      {/* Lihat Profil */}
+                      <a
+                        href={`/admin/pppoe/users/${user.customerId || user.id}`}
+                        className="flex-1 min-w-[90px] flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/30 hover:bg-green-500/20 rounded-lg transition-colors"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> Profil
+                      </a>
+                      {/* Edit */}
+                      <button
+                        onClick={() => handleEdit(user)}
+                        className="flex-1 min-w-[80px] flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-[#00f7ff]/10 text-[#00f7ff] border border-[#00f7ff]/30 hover:bg-[#00f7ff]/20 rounded-lg transition-colors"
+                      >
+                        <Pencil className="h-3.5 w-3.5" /> Edit
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1 pt-1 flex-wrap">
+                      {company.radiusEnabled && (
+                        <button onClick={() => handleSyncToRadius(user)} className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Sync RADIUS" title="Sync RADIUS"><RefreshCw className="h-3.5 w-3.5 pointer-events-none" /></button>
+                      )}
+                      <button
+                        onClick={() => handleStatusChange(user.id, user.status === 'isolated' ? 'active' : 'isolated')}
+                        className={`compact-action p-1.5 rounded cursor-pointer flex items-center justify-center focus:outline-none ${user.status === 'isolated' ? 'text-success hover:bg-success/10' : 'text-orange-500 hover:bg-orange-500/10'}`}
+                        aria-label={user.status === 'isolated' ? 'Aktifkan' : 'Isolir'}
+                        title={user.status === 'isolated' ? 'Aktifkan' : 'Isolir'}
+                      >
+                        <Shield className="h-3.5 w-3.5 pointer-events-none" />
+                      </button>
+                      <button onClick={() => handleStopSubscription(user)} className="compact-action p-1.5 text-destructive/70 hover:bg-destructive/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Stop Langganan" title="Stop Langganan"><Ban className="h-3.5 w-3.5 pointer-events-none" /></button>
+                      <button onClick={() => setDeleteUserId(user.id)} className="compact-action p-1.5 text-destructive hover:bg-destructive/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Hapus" title="Hapus"><Trash2 className="h-3.5 w-3.5 pointer-events-none" /></button>
+                      <button onClick={() => setPrintDialogUser(user)} className="compact-action p-1.5 text-purple-500 hover:bg-purple-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Cetak Invoice" title="Cetak Invoice"><Printer className="h-3.5 w-3.5 pointer-events-none" /></button>
+                      {invoiceCounts[user.id] > 0 ? (
+                        <button onClick={() => handleMarkAllPaid(user.id, user.name)} disabled={markingPaid === user.id} className="compact-action px-2 py-1 text-[10px] font-medium bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-50 ml-auto cursor-pointer focus:outline-none">
+                          {markingPaid === user.id ? <Loader2 className="h-3 w-3 animate-spin" /> : t('pppoe.markPaid')}
+                        </button>
+                      ) : (
+                        <button onClick={() => handleManualExtend(user)} disabled={extending === user.id} className="compact-action p-1.5 text-warning hover:bg-warning/10 rounded disabled:opacity-50 ml-auto cursor-pointer focus:outline-none" aria-label={t('pppoe.extendManual')} title={t('pppoe.extendManual')}>
+                          {extending === user.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3.5 w-3.5 pointer-events-none" />}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))

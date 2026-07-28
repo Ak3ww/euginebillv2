@@ -710,10 +710,10 @@ export default function TechnicianWorkOrderWizardPage() {
             ))}
           </div>
 
-          <div className="pt-4 border-t border-border flex justify-end">
+          <div className="pt-4 border-t border-border flex justify-end sticky bottom-14 lg:static z-30 bg-card/95 backdrop-blur-md p-3 -mx-4 -mb-4 lg:p-0 lg:m-0 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] lg:shadow-none rounded-b-2xl">
             <button
               onClick={() => handleNextStep(2)}
-              className="w-full sm:w-auto px-6 py-3 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-3.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2"
             >
               🚀 Mulai Pekerjaan &amp; Berangkat <ChevronRight className="w-4 h-4" />
             </button>
@@ -871,18 +871,18 @@ export default function TechnicianWorkOrderWizardPage() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-border flex justify-between gap-3">
+          <div className="pt-4 border-t border-border flex justify-between items-center gap-3 sticky bottom-14 lg:static z-30 bg-card/95 backdrop-blur-md p-3 -mx-4 -mb-4 lg:p-0 lg:m-0 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] lg:shadow-none rounded-b-2xl">
             <button
               onClick={() => setStep(1)}
-              className="px-4 py-2.5 bg-muted text-foreground font-bold text-xs rounded-xl flex items-center gap-1.5"
+              className="px-4 py-3 bg-muted text-foreground font-bold text-xs rounded-xl flex items-center gap-1.5"
             >
               <ChevronLeft className="w-4 h-4" /> Kembali
             </button>
             <button
               onClick={() => handleNextStep(3)}
-              className="px-6 py-2.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-md hover:opacity-90 transition-opacity flex items-center gap-1.5"
+              className="px-6 py-3.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-lg hover:opacity-90 transition-all flex items-center gap-1.5"
             >
-              ➡️ Lanjut ke Penarikan Kabel &amp; Rumah Pelanggan <ChevronRight className="w-4 h-4" />
+              ➡️ Lanjut ke Rumah Pelanggan <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -1034,17 +1034,17 @@ export default function TechnicianWorkOrderWizardPage() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-border flex justify-between gap-3">
+          <div className="pt-4 border-t border-border flex justify-between items-center gap-3 sticky bottom-14 lg:static z-30 bg-card/95 backdrop-blur-md p-3 -mx-4 -mb-4 lg:p-0 lg:m-0 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] lg:shadow-none rounded-b-2xl">
             <button
               onClick={() => setStep(2)}
-              className="px-4 py-2.5 bg-muted text-foreground font-bold text-xs rounded-xl flex items-center gap-1.5"
+              className="px-3.5 py-3 bg-muted text-foreground font-bold text-xs rounded-xl flex items-center gap-1 shrink-0"
             >
-              <ChevronLeft className="w-4 h-4" /> Kembali ke Step 2
+              <ChevronLeft className="w-4 h-4" /> Step 2
             </button>
             <button
               onClick={submitComplete}
               disabled={submitting}
-              className="px-6 py-3 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-2"
+              className="flex-1 sm:flex-initial px-5 py-3.5 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-xl hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 text-center animate-pulse"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               ✅ Selesaikan Pekerjaan SPK

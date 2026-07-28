@@ -151,9 +151,9 @@ export default function WorkOrdersPage() {
                   <User className="w-3.5 h-3.5" />
                   {wo.technician?.name || (wo.status === 'COMPLETED' || wo.status === 'SUCCESS' ? 'Teknisi Field' : 'Belum Diambil')}
                 </div>
-                <button className="text-[10px] font-mono font-bold text-[var(--color-focus)] bg-[var(--color-focus)]/5 hover:bg-[var(--color-focus)]/10 px-3 py-1.5 rounded uppercase tracking-wider transition-colors">
-                  Detail →
-                </button>
+                <span className="text-xs font-bold text-primary bg-primary/10 border border-primary/30 hover:bg-primary/20 px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm transition-all">
+                  Buka SPK →
+                </span>
               </div>
             </div>
           ))}
