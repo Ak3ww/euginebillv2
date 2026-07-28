@@ -1,92 +1,32 @@
--- Migration: acs_enhancement_v2 (Compatible with MySQL 5.7, 8.0, and MariaDB)
+-- Migration: acs_enhancement_v2 (Standard SQL - No DELIMITER/PROCEDURE)
 
--- 1. Rename tables if they exist under old unmapped names
-SET @exist_acsDevice := (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'acsDevice');
-SET @sql_rename_acsDevice := IF(@exist_acsDevice > 0, 'RENAME TABLE `acsDevice` TO `acs_devices`', 'SELECT 1');
-PREPARE stmt1 FROM @sql_rename_acsDevice; EXECUTE stmt1; DEALLOCATE PREPARE stmt1;
+-- 1. Rename existing tables to match Prisma @map names
+ALTER TABLE `acsDevice` RENAME TO `acs_devices`;
+ALTER TABLE `acsTask` RENAME TO `acs_tasks`;
 
-SET @exist_acsTask := (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'acsTask');
-SET @sql_rename_acsTask := IF(@exist_acsTask > 0, 'RENAME TABLE `acsTask` TO `acs_tasks`', 'SELECT 1');
-PREPARE stmt2 FROM @sql_rename_acsTask; EXECUTE stmt2; DEALLOCATE PREPARE stmt2;
+-- 2. Add new columns to acs_devices
+ALTER TABLE `acs_devices` ADD COLUMN `wanIpAddress` VARCHAR(191) NULL;
+ALTER TABLE `acs_devices` ADD COLUMN `ssid` VARCHAR(191) NULL;
+ALTER TABLE `acs_devices` ADD COLUMN `ssid5g` VARCHAR(191) NULL;
+ALTER TABLE `acs_devices` ADD COLUMN `wifiPassword` VARCHAR(191) NULL;
+ALTER TABLE `acs_devices` ADD COLUMN `wifiPassword5g` VARCHAR(191) NULL;
+ALTER TABLE `acs_devices` ADD COLUMN `rxPower` DOUBLE NULL;
+ALTER TABLE `acs_devices` ADD COLUMN `txPower` DOUBLE NULL;
+ALTER TABLE `acs_devices` ADD COLUMN `deviceUptime` INT NULL;
+ALTER TABLE `acs_devices` ADD COLUMN `connectedDevicesCount` INT NULL;
+ALTER TABLE `acs_devices` ADD COLUMN `connectedDevices` JSON NULL;
+ALTER TABLE `acs_devices` ADD COLUMN `periodicInformInterval` INT NULL;
+ALTER TABLE `acs_devices` ADD COLUMN `informCount` INT NOT NULL DEFAULT 0;
+ALTER TABLE `acs_devices` ADD COLUMN `firstSeenAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3);
 
--- 2. Create acs_devices table if it does not exist at all
-CREATE TABLE IF NOT EXISTS `acs_devices` (
-  `id`                   VARCHAR(191) NOT NULL,
-  `serialNumber`         VARCHAR(191) NOT NULL,
-  `manufacturer`         VARCHAR(191) NULL,
-  `oui`                  VARCHAR(191) NULL,
-  `productClass`         VARCHAR(191) NULL,
-  `hardwareVersion`      VARCHAR(191) NULL,
-  `softwareVersion`      VARCHAR(191) NULL,
-  `connectionRequestUrl` VARCHAR(191) NULL,
-  `ipAddress`            VARCHAR(191) NULL,
-  `wanIpAddress`         VARCHAR(191) NULL,
-  `status`               VARCHAR(191) NOT NULL DEFAULT 'online',
-  `lastInform`           DATETIME(3)  NULL,
-  `parameters`           JSON         NULL,
-  `ssid`                 VARCHAR(191) NULL,
-  `ssid5g`               VARCHAR(191) NULL,
-  `wifiPassword`         VARCHAR(191) NULL,
-  `wifiPassword5g`       VARCHAR(191) NULL,
-  `rxPower`              DOUBLE       NULL,
-  `txPower`              DOUBLE       NULL,
-  `deviceUptime`         INT          NULL,
-  `connectedDevicesCount` INT         NULL,
-  `connectedDevices`     JSON         NULL,
-  `periodicInformInterval` INT        NULL,
-  `informCount`          INT          NOT NULL DEFAULT 0,
-  `firstSeenAt`          DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `createdAt`            DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updatedAt`            DATETIME(3)  NOT NULL,
-  `companyId`            VARCHAR(191) NOT NULL,
-  `pppoeUserId`          VARCHAR(191) NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE INDEX `acs_devices_serialNumber_key` (`serialNumber`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- 3. Add indexes to acs_devices
+ALTER TABLE `acs_devices` ADD INDEX `acs_devices_status_lastInform_idx` (`status`, `lastInform`);
+ALTER TABLE `acs_devices` ADD INDEX `acs_devices_ssid_idx` (`ssid`);
+ALTER TABLE `acs_devices` ADD INDEX `acs_devices_rxPower_idx` (`rxPower`);
+ALTER TABLE `acs_devices` ADD INDEX `acs_devices_wanIpAddress_idx` (`wanIpAddress`);
+ALTER TABLE `acs_devices` ADD INDEX `acs_devices_pppoeUserId_idx` (`pppoeUserId`);
 
--- Helper procedure to safely add columns if missing
-DROP PROCEDURE IF EXISTS AddAcsColumn;
-DELIMITER //
-CREATE PROCEDURE AddAcsColumn(IN tbl VARCHAR(64), IN col VARCHAR(64), IN coldef TEXT)
-BEGIN
-  IF NOT EXISTS (SELECT * FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = tbl AND column_name = col) THEN
-    SET @s = CONCAT('ALTER TABLE `', tbl, '` ADD COLUMN `', col, '` ', coldef);
-    PREPARE stmt FROM @s; EXECUTE stmt; DEALLOCATE PREPARE;
-  END IF;
-END //
-DELIMITER ;
-
-CALL AddAcsColumn('acs_devices', 'wanIpAddress', 'VARCHAR(191) NULL');
-CALL AddAcsColumn('acs_devices', 'ssid', 'VARCHAR(191) NULL');
-CALL AddAcsColumn('acs_devices', 'ssid5g', 'VARCHAR(191) NULL');
-CALL AddAcsColumn('acs_devices', 'wifiPassword', 'VARCHAR(191) NULL');
-CALL AddAcsColumn('acs_devices', 'wifiPassword5g', 'VARCHAR(191) NULL');
-CALL AddAcsColumn('acs_devices', 'rxPower', 'DOUBLE NULL');
-CALL AddAcsColumn('acs_devices', 'txPower', 'DOUBLE NULL');
-CALL AddAcsColumn('acs_devices', 'deviceUptime', 'INT NULL');
-CALL AddAcsColumn('acs_devices', 'connectedDevicesCount', 'INT NULL');
-CALL AddAcsColumn('acs_devices', 'connectedDevices', 'JSON NULL');
-CALL AddAcsColumn('acs_devices', 'periodicInformInterval', 'INT NULL');
-CALL AddAcsColumn('acs_devices', 'informCount', 'INT NOT NULL DEFAULT 0');
-CALL AddAcsColumn('acs_devices', 'firstSeenAt', 'DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)');
-
-DROP PROCEDURE IF EXISTS AddAcsColumn;
-
--- 3. Create acs_tasks table if not exists
-CREATE TABLE IF NOT EXISTS `acs_tasks` (
-  `id`        VARCHAR(191) NOT NULL,
-  `deviceId`  VARCHAR(191) NOT NULL,
-  `name`      VARCHAR(191) NOT NULL,
-  `command`   VARCHAR(191) NOT NULL,
-  `status`    VARCHAR(191) NOT NULL DEFAULT 'pending',
-  `payload`   JSON         NULL,
-  `result`    JSON         NULL,
-  `createdAt` DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updatedAt` DATETIME(3)  NOT NULL,
-  PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- 4. Create acs_sessions table if not exists
+-- 4. Create acs_sessions table
 CREATE TABLE IF NOT EXISTS `acs_sessions` (
   `id`            VARCHAR(191) NOT NULL,
   `serialNumber`  VARCHAR(191) NULL,
@@ -95,10 +35,12 @@ CREATE TABLE IF NOT EXISTS `acs_sessions` (
   `expiresAt`     DATETIME(3)  NOT NULL,
   `createdAt`     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt`     DATETIME(3)  NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  INDEX `acs_sessions_expiresAt_idx` (`expiresAt`),
+  INDEX `acs_sessions_serialNumber_idx` (`serialNumber`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- 5. Create acs_candidates table if not exists
+-- 5. Create acs_candidates table
 CREATE TABLE IF NOT EXISTS `acs_candidates` (
   `id`          VARCHAR(191) NOT NULL,
   `macAddress`  VARCHAR(191) NOT NULL,
@@ -108,5 +50,6 @@ CREATE TABLE IF NOT EXISTS `acs_candidates` (
   `firstSeenAt` DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `lastSeenAt`  DATETIME(3)  NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `acs_candidates_macAddress_key` (`macAddress`)
+  UNIQUE INDEX `acs_candidates_macAddress_key` (`macAddress`),
+  INDEX `acs_candidates_ipAddress_idx` (`ipAddress`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
