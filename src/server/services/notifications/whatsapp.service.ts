@@ -166,18 +166,24 @@ export class WhatsAppService {
           response: JSON.stringify({ error: lastError.message }),
         });
         
-        // Continue to next provider
-        continue;
+        // Return failure immediately without falling back to the next provider,
+        // allowing the admin/user to manually retry later.
+        return {
+          success: false as const,
+          provider: provider.name,
+          error: lastError.message,
+          attempts,
+        };
       }
     }
     
-    // All providers failed — return structured failure instead of throwing
-    // so the route can include per-provider attempt details in the response.
+    // Should theoretically not reach here unless there are 0 providers,
+    // which is caught earlier.
     return {
       success: false as const,
       provider: null,
-      error: `All WhatsApp providers failed. Last error: ${lastError?.message}`,
-      attempts,
+      error: 'No valid WhatsApp provider execution path.',
+      attempts: [],
     };
   }
 
