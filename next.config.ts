@@ -33,6 +33,10 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  
+  // Transpile packages that might contain modern ES syntax for older browsers
+  transpilePackages: ['lucide-react', 'gsap', '@gsap/react'],
+  
   // Security & Performance
   productionBrowserSourceMaps: false, // Protect code & save memory
   poweredByHeader: false, // Remove X-Powered-By header
