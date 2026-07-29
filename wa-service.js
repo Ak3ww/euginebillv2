@@ -171,11 +171,12 @@ app.post('/send', async (req, res) => {
 
     const jid = rawDigits + '@s.whatsapp.net';
 
-    // Verify the number is on WhatsApp (log warning if false, but proceed with direct send)
+    // Verify the number is on WhatsApp
     try {
       const [result] = await sock.onWhatsApp(jid);
-      if (result && !result.exists) {
-        console.warn(`[WA Service] Warning: onWhatsApp reported ${rawDigits} not exists, trying direct send...`);
+      if (!result || !result.exists) {
+        console.warn(`[WA Service] Blocked: onWhatsApp reported ${rawDigits} does not exist on WhatsApp.`);
+        return res.status(400).json({ status: false, message: 'Nomor tidak terdaftar di WhatsApp' });
       }
     } catch (e) {
       console.warn(`[WA Service] onWhatsApp check skipped due to error:`, e);
