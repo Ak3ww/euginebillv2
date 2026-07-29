@@ -478,7 +478,7 @@ export default function WhatsAppAuditPage() {
             <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl">
               <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4" />
-                Daftar Pelanggan yang Sempat Menerima > 1 Pesan Sebelum Fix ({duplicateList.length})
+                Daftar Pelanggan yang Sempat Menerima &gt; 1 Pesan Sebelum Fix ({duplicateList.length})
               </span>
             </div>
 
