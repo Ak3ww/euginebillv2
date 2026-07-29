@@ -353,10 +353,14 @@ export async function sendInstallationInvoice(data: {
     // Render template
     const message = renderTemplate(templateContent, variables);
 
-    await WhatsAppService.sendMessage({
+    const waRes = await WhatsAppService.sendMessage({
       phone: data.customerPhone,
       message,
     });
+
+    if (!waRes.success) {
+      throw new Error(waRes.error || 'WhatsApp provider failed to send message');
+    }
 
     if (data.invoiceNumber) {
       await prisma.invoice.updateMany({
@@ -421,10 +425,14 @@ export async function sendAdminCreateUser(data: {
     // Render template
     const message = renderTemplate(templateContent, variables);
 
-    await WhatsAppService.sendMessage({
+    const waRes = await WhatsAppService.sendMessage({
       phone: data.customerPhone,
       message,
     });
+
+    if (!waRes.success) {
+      throw new Error(waRes.error || 'WhatsApp provider failed to send message');
+    }
 
     console.log(`[WA] ✅ Admin create user notification sent to ${data.customerPhone}`);
   } catch (error) {
@@ -517,15 +525,20 @@ export async function sendInvoiceReminder(data: {
     // Render template
     const message = renderTemplate(templateContent, variables);
 
-    await WhatsAppService.sendMessage({
+    const waRes = await WhatsAppService.sendMessage({
       phone: data.phone,
       message,
     });
+
+    if (!waRes.success) {
+      throw new Error(waRes.error || 'WhatsApp provider failed to send message');
+    }
 
     if (data.invoiceNumber) {
       await prisma.invoice.updateMany({
         where: { invoiceNumber: data.invoiceNumber },
         data: {
+          waNotified: true,
           waNotifiedAt: new Date(),
           waRetryCount: { increment: 1 }
         }
@@ -615,10 +628,14 @@ export async function sendPaymentSuccess(data: {
     // Render template
     const message = renderTemplate(templateContent, variables);
 
-    await WhatsAppService.sendMessage({
+    const waRes = await WhatsAppService.sendMessage({
       phone: data.customerPhone,
       message,
     });
+
+    if (!waRes.success) {
+      throw new Error(waRes.error || 'WhatsApp provider failed to send message');
+    }
 
     console.log(`[WA] ✅ Payment success notification sent to ${data.customerPhone}`);
   } catch (error) {
@@ -674,10 +691,14 @@ export async function sendVoucherPurchaseSuccess(data: {
     // Render template
     const message = renderTemplate(templateContent, variables);
 
-    await WhatsAppService.sendMessage({
+    const waRes = await WhatsAppService.sendMessage({
       phone: data.customerPhone,
       message,
     });
+
+    if (!waRes.success) {
+      throw new Error(waRes.error || 'WhatsApp provider failed to send message');
+    }
 
     console.log(`[WA] ✅ Voucher purchase notification sent to ${data.customerPhone}`);
   } catch (error) {
@@ -737,10 +758,14 @@ export async function sendAutoRenewalSuccess(data: {
     // Render template
     const message = renderTemplate(templateContent, variables);
 
-    await WhatsAppService.sendMessage({
+    const waRes2 = await WhatsAppService.sendMessage({
       phone: data.customerPhone,
       message,
     });
+
+    if (!waRes2.success) {
+      throw new Error(waRes2.error || 'WhatsApp provider failed to send message');
+    }
 
     console.log(`[WA] ✅ Auto-renewal notification sent to ${data.customerPhone}`);
   } catch (error) {

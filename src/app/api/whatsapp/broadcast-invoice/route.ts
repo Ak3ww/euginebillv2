@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { logActivity } from '@/server/services/activity-log.service';
 import { getServerSession } from 'next-auth';
@@ -184,6 +184,9 @@ export async function POST(request: NextRequest) {
               phone: msg.phone,
               message: msg.message,
             });
+            if (!sendResult.success) {
+              throw new Error(sendResult.error || 'Gagal mengirim pesan WA via provider');
+            }
             return sendResult;
           },
           {},
