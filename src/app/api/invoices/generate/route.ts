@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { targetMonth, scope, userId, areaId, skipExisting = true, sendWa = false, additionalFees, excludeMuaraBeres = false } = body;
+    const { targetMonth, scope, userId, areaId, skipExisting = true, sendWa = false, additionalFees } = body;
 
     if (!targetMonth || !/^\d{4}-\d{2}$/.test(targetMonth)) {
       return badRequest('targetMonth harus format YYYY-MM');
@@ -57,18 +57,6 @@ export async function POST(request: NextRequest) {
     };
     if (scope === 'single') userWhere.id = userId;
     if (areaId && areaId !== 'all') userWhere.areaId = areaId;
-
-    if (excludeMuaraBeres) {
-      userWhere.AND = [
-        {
-          NOT: [
-            { area: { name: { contains: 'Muara Beres' } } },
-            { area: { name: { contains: 'KMB' } } },
-            { address: { contains: 'Muara Beres' } },
-          ]
-        }
-      ];
-    }
 
     const users = await prisma.pppoeUser.findMany({
       where: userWhere,
