@@ -37,9 +37,30 @@ let myNumber = null;
 // Silent logger — no noise in PM2 logs except our console.log calls
 const logger = pino({ level: 'silent' });
 
+// Auto-restart on corrupted session (Bad MAC)
+let badMacCount = 0;
+const originalConsoleError = console.error;
+console.error = function (...args) {
+  if (args.some(a => typeof a === 'string' && (a.includes('Bad MAC') || a.includes('Failed to decrypt')))) {
+    badMacCount++;
+    if (badMacCount >= 3) {
+       originalConsoleError('[WA Service] 🛑 CRITICAL: Multiple Bad MAC / Encryption errors detected. Session is corrupted. Forcing auto-logout...');
+       badMacCount = 0;
+       connectionStatus = 'error'; // Set to error so UI shows 'Device Terputus'
+       if (sock) {
+         try { sock.logout('Corrupted session').catch(() => {}); } catch {}
+       }
+       try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch {}
+       sock = null;
+    }
+  }
+  originalConsoleError.apply(console, args);
+};
+
 async function connectToWhatsApp() {
   connectionStatus = 'initializing';
   qrCodeImage = null;
+  badMacCount = 0; // reset on new connection
 
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const { version, isLatest } = await fetchLatestBaileysVersion();
