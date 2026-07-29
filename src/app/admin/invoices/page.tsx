@@ -120,7 +120,7 @@ export default function InvoicesPage() {
   const [genLoadingUsers, setGenLoadingUsers] = useState(false);
   const [genSkipExisting, setGenSkipExisting] = useState(true);
   const [genSendWa, setGenSendWa] = useState(false);
-  const [genExcludeMuaraBeres, setGenExcludeMuaraBeres] = useState(true);
+  const [genExcludeMuaraBeres, setGenExcludeMuaraBeres] = useState(false);
   const [genAreaId, setGenAreaId] = useState('all');
   const [areaOptions, setAreaOptions] = useState<{ id: string; name: string; userCount?: number }[]>([]);
   const [genAdditionalFees, setGenAdditionalFees] = useState<{name: string, amount: number}[]>([]);
