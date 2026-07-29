@@ -6,6 +6,8 @@ import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatWIB } from '@/lib/timezone';
 import { useToast } from '@/components/cyberpunk/CyberToast';
+import UserDetailModal from '@/components/UserDetailModal';
+import MapPicker from '@/components/MapPicker';
 import {
   ArrowLeft, User, Wifi, WifiOff, Shield, ShieldOff, Ban, CheckCircle2,
   Phone, Mail, MapPin, Calendar, CreditCard, Copy, ExternalLink, RefreshCw,
@@ -42,11 +44,17 @@ interface PppoeUserDetail {
   macAddress: string | null;
   comment: string | null;
   expiredAt: string | null;
+  billingDay: number | null;
   customerId: string | null;
   syncedToRadius: boolean;
   subscriptionType: string;
   createdAt: string;
   updatedAt: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  idCardNumber?: string | null;
+  idCardPhoto?: string | null;
+  installationPhotos?: string | null;
   profile: { id: string; name: string; groupName: string; price?: number };
   router?: { id: string; name: string; nasname: string } | null;
   area?: { id: string; name: string } | null;
@@ -107,9 +115,20 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
+
+  // Metadata for UserDetailModal
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [routers, setRouters] = useState<any[]>([]);
+  const [areas, setAreas] = useState<any[]>([]);
+
+  // UserDetailModal & MapPicker States
+  const [isUserDetailModalOpen, setIsUserDetailModalOpen] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [mapPickerLat, setMapPickerLat] = useState<string | undefined>(undefined);
+  const [mapPickerLon, setMapPickerLon] = useState<string | undefined>(undefined);
+  const [modalLatLng, setModalLatLng] = useState<{ lat: string; lng: string } | undefined>(undefined);
 
   // Collapse / Expand Section States
   const [expandPersonal, setExpandPersonal] = useState(true);
@@ -117,16 +136,6 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
   const [expandHardware, setExpandHardware] = useState(true);
   const [expandWorkOrders, setExpandWorkOrders] = useState(true);
   const [expandInvoices, setExpandInvoices] = useState(false);
-
-  // Edit Personal / ODP Modal State
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editFormData, setEditFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    address: '',
-    comment: '',
-  });
 
   // Create SPK Modal State
   const [isSpkModalOpen, setIsSpkModalOpen] = useState(false);
@@ -138,6 +147,21 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
     notes: '',
   });
 
+  const fetchMetadata = async () => {
+    try {
+      const [pRes, rRes, aRes] = await Promise.all([
+        fetch('/api/pppoe/profiles'),
+        fetch('/api/pppoe/routers'),
+        fetch('/api/pppoe/areas'),
+      ]);
+      if (pRes.ok) setProfiles((await pRes.json()).profiles || []);
+      if (rRes.ok) setRouters((await rRes.json()).routers || []);
+      if (aRes.ok) setAreas((await aRes.json()).areas || []);
+    } catch (err) {
+      console.error('Failed to fetch metadata:', err);
+    }
+  };
+
   const fetchUserDetail = async () => {
     setLoading(true);
     try {
@@ -146,13 +170,6 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
       if (res.ok && data.user) {
         setUser(data.user);
         setActiveSession(data.activeSession || null);
-        setEditFormData({
-          name: data.user.name || '',
-          phone: data.user.phone || '',
-          email: data.user.email || '',
-          address: data.user.address || '',
-          comment: data.user.comment || '',
-        });
       } else {
         addToast({ type: 'error', title: 'Gagal', description: data.error || 'Pelanggan tidak ditemukan' });
       }
@@ -173,13 +190,36 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
 
   useEffect(() => {
     fetchUserDetail();
+    fetchMetadata();
   }, [id]);
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(label);
-    addToast({ type: 'success', title: 'Tersalin', description: `${label} berhasil disalin ke clipboard` });
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleSaveUser = async (data: any) => {
+    try {
+      const isEdit = !!data.id;
+      const url = isEdit ? '/api/pppoe/users' : '/api/pppoe/users';
+      const method = isEdit ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.error || 'Gagal menyimpan data pelanggan');
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Berhasil',
+        description: 'Data pelanggan berhasil diperbarui!',
+      });
+      fetchUserDetail();
+      setIsUserDetailModalOpen(false);
+    } catch (error: any) {
+      addToast({ type: 'error', title: 'Gagal', description: error.message });
+    }
   };
 
   const handleUpdateStatus = async (newStatus: string) => {
@@ -202,28 +242,6 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
       addToast({ type: 'error', title: 'Gagal', description: 'Gagal terhubung ke server' });
     } finally {
       setStatusLoading(false);
-    }
-  };
-
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    try {
-      const res = await fetch(`/api/pppoe/users/${user.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editFormData),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        addToast({ type: 'success', title: 'Berhasil', description: 'Data pelanggan berhasil diperbarui!' });
-        setIsEditModalOpen(false);
-        fetchUserDetail();
-      } else {
-        addToast({ type: 'error', title: 'Gagal', description: data.error || 'Gagal memperbarui data' });
-      }
-    } catch {
-      addToast({ type: 'error', title: 'Gagal', description: 'Gagal menghubungkan ke server' });
     }
   };
 
@@ -299,7 +317,7 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
         <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto" />
         <h2 className="text-lg font-bold text-foreground">Pelanggan Tidak Ditemukan</h2>
         <p className="text-xs text-muted-foreground">ID atau Username pelanggan tidak terdaftar di sistem EugineBill.</p>
-        <button onClick={() => router.push('/admin/pppoe/users')} className="px-4 py-2 bg-primary text-primary-foreground font-bold text-xs rounded-xl">
+        <button onClick={() => router.push('/admin/pppoe/users')} className="px-4 py-2 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-sm">
           Kembali ke Daftar Pelanggan
         </button>
       </div>
@@ -317,99 +335,105 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
   const rxSignal = woReportData.rxSignal || '-';
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
 
-      {/* Back Button */}
-      <button
-        onClick={() => router.push('/admin/pppoe/users')}
-        className="flex items-center gap-1.5 text-xs font-mono font-bold text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar Pelanggan
-      </button>
+      {/* Back Navigation & Breadcrumb */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => router.push('/admin/pppoe/users')}
+          className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-primary transition-colors bg-card border border-border px-3 py-1.5 rounded-xl shadow-sm"
+        >
+          <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar Pelanggan
+        </button>
+        <span className="text-[11px] font-mono text-muted-foreground">Profil Dedicated Pelanggan</span>
+      </div>
 
-      {/* Header Profile Card */}
-      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* Header Profile Hero Card */}
+      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5 relative overflow-hidden">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
           
           <div className="flex items-start gap-4">
             <div className={cn(
-              'w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold font-mono shrink-0 shadow-inner',
-              user.status === 'ISOLATED' ? 'bg-destructive/10 text-destructive border border-destructive/20' : 'bg-primary/10 text-primary border border-primary/20'
+              'w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold font-mono shrink-0 shadow-sm border',
+              user.status === 'ISOLATED' ? 'bg-rose-500/10 text-rose-600 border-rose-500/20' : 'bg-primary/10 text-primary border-primary/20'
             )}>
               {(user?.name || user?.username || 'US').slice(0, 2).toUpperCase()}
             </div>
 
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold font-display text-foreground">{user.name}</h1>
+                <h1 className="text-2xl font-bold text-foreground tracking-tight">{user.name}</h1>
                 {(() => {
                   const s = String(user.status || '').toUpperCase();
                   if (s === 'PENDING_INSTALLATION' || s === 'PENDING') {
                     return (
-                      <span className="px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border bg-amber-500/10 text-amber-600 border-amber-500/20">
+                      <span className="px-3 py-1 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border bg-amber-500/10 text-amber-600 border-amber-500/20 shadow-sm animate-pulse">
                         Pending Instalasi
                       </span>
                     );
                   }
                   if (s === 'ISOLATED') {
                     return (
-                      <span className="px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border bg-destructive/10 text-destructive border-destructive/20">
+                      <span className="px-3 py-1 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border bg-rose-500/10 text-rose-600 border-rose-500/20 shadow-sm">
                         Terisolir
                       </span>
                     );
                   }
                   if (s === 'BLOCKED' || s === 'STOP') {
                     return (
-                      <span className="px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border bg-muted text-muted-foreground border-border">
+                      <span className="px-3 py-1 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border bg-muted text-muted-foreground border-border shadow-sm">
                         Terblokir
                       </span>
                     );
                   }
                   return (
-                    <span className="px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                    <span className="px-3 py-1 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider border bg-emerald-500/10 text-emerald-600 border-emerald-500/20 shadow-sm">
                       Aktif
                     </span>
                   );
                 })()}
                 {activeSession ? (
-                  <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-full font-mono text-[10px] font-bold uppercase flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Sesi Online
+                  <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-full font-mono text-[10px] font-bold uppercase flex items-center gap-1.5 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Sesi Online
                   </span>
                 ) : (
-                  <span className="px-2.5 py-0.5 bg-muted text-muted-foreground border border-border rounded-full font-mono text-[10px] font-bold uppercase">
+                  <span className="px-3 py-1 bg-muted text-muted-foreground border border-border rounded-full font-mono text-[10px] font-bold uppercase shadow-sm">
                     Offline
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground mt-1.5 flex-wrap">
+              <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground mt-2 flex-wrap">
                 <span>ID: <strong className="text-primary font-bold">{user.customerId || user.id}</strong></span>
                 <span>•</span>
                 <span>Username: <strong className="text-foreground">{user.username}</strong></span>
                 <span>•</span>
                 <span>Paket: <strong className="text-foreground">{user.profile?.name || '-'}</strong></span>
+                {user.area && (
+                  <>
+                    <span>•</span>
+                    <span>Wilayah: <strong className="text-foreground">{user.area.name}</strong></span>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Header Action Buttons */}
-          <div className="flex items-center gap-2 flex-wrap w-full md:w-auto border-t md:border-t-0 border-border pt-3 md:pt-0">
-            {user.phone && (
-              <a
-                href={`https://wa.me/${user.phone.replace(/[^0-9]/g, '').replace(/^0/, '62')}`}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-2 bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20 border border-emerald-600/20 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 transition-colors"
-              >
-                <MessageCircle className="w-4 h-4" /> WA Pelanggan
-              </a>
-            )}
+          {/* Action Buttons Header */}
+          <div className="flex items-center gap-2 flex-wrap w-full md:w-auto border-t md:border-t-0 border-border pt-4 md:pt-0">
+            {/* Direct Edit Button opening full UserDetailModal */}
+            <button
+              onClick={() => setIsUserDetailModalOpen(true)}
+              className="px-3.5 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+            >
+              <Edit3 className="w-4 h-4" /> Edit Data Pelanggan
+            </button>
 
             {(user.status === 'PENDING_INSTALLATION' || user.status === 'pending_installation') && (
               <button
                 onClick={handleCompleteInstallation}
                 disabled={statusLoading}
-                className="px-3.5 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 shadow-md transition-all animate-pulse"
+                className="px-3.5 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all animate-pulse"
               >
                 <Wrench className="w-4 h-4" /> 🔧 Selesaikan Pemasangan
               </button>
@@ -417,23 +441,27 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
 
             <button
               onClick={() => setIsSpkModalOpen(true)}
-              className="px-3 py-2 bg-primary text-primary-foreground hover:opacity-90 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 shadow-md transition-opacity"
+              className="px-3.5 py-2.5 bg-card hover:bg-accent border border-primary/30 text-foreground rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
             >
-              <Wrench className="w-4 h-4" /> + Terbitkan SPK / Ganti Modem
+              <Wrench className="w-4 h-4 text-primary" /> + Terbitkan SPK
             </button>
 
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className="px-3 py-2 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 transition-colors"
-            >
-              <Edit3 className="w-4 h-4 text-primary" /> Edit Data
-            </button>
+            {user.phone && (
+              <a
+                href={`https://wa.me/${user.phone.replace(/[^0-9]/g, '').replace(/^0/, '62')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3.5 py-2.5 bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20 border border-emerald-600/20 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"
+              >
+                <MessageCircle className="w-4 h-4" /> WA Pelanggan
+              </a>
+            )}
 
             {user.status === 'ISOLATED' ? (
               <button
                 onClick={() => handleUpdateStatus('ACTIVE')}
                 disabled={statusLoading}
-                className="px-3 py-2 bg-emerald-600 text-white hover:opacity-90 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 transition-opacity"
+                className="px-3.5 py-2.5 bg-emerald-600 text-white hover:opacity-90 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-opacity"
               >
                 <CheckCircle2 className="w-4 h-4" /> Un-Isolir Sesi
               </button>
@@ -441,7 +469,7 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
               <button
                 onClick={() => handleUpdateStatus('ISOLATED')}
                 disabled={statusLoading}
-                className="px-3 py-2 bg-amber-600 text-white hover:opacity-90 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 transition-opacity"
+                className="px-3.5 py-2.5 bg-amber-600 text-white hover:opacity-90 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-opacity"
               >
                 <Ban className="w-4 h-4" /> Isolir Sesi
               </button>
@@ -455,11 +483,11 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
         <button
           onClick={() => setExpandPersonal(!expandPersonal)}
-          className="w-full px-6 py-4 bg-muted/40 hover:bg-muted/70 flex justify-between items-center transition-colors border-b border-border"
+          className="w-full px-6 py-4 bg-muted/30 hover:bg-muted/60 flex justify-between items-center transition-colors border-b border-border"
         >
           <div className="flex items-center gap-2.5">
             <User className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-bold text-foreground font-display">Data Diri &amp; Paket Langganan</h2>
+            <h2 className="text-base font-bold text-foreground">Data Diri &amp; Paket Langganan</h2>
           </div>
           {expandPersonal ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
         </button>
@@ -468,15 +496,15 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
             <div className="p-3 bg-background border border-border rounded-xl">
               <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">ID Pelanggan</span>
-              <span className="font-mono font-bold text-primary mt-1 block">{user.customerId || user.id}</span>
+              <span className="font-mono font-bold text-primary mt-1 block text-sm">{user.customerId || user.id}</span>
             </div>
             <div className="p-3 bg-background border border-border rounded-xl">
               <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Nama Lengkap</span>
-              <span className="font-bold text-foreground mt-1 block">{user.name}</span>
+              <span className="font-bold text-foreground mt-1 block text-sm">{user.name}</span>
             </div>
             <div className="p-3 bg-background border border-border rounded-xl">
               <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Nomor Telepon / WA</span>
-              <span className="font-mono font-bold text-foreground mt-1 block">{user.phone}</span>
+              <span className="font-mono font-bold text-foreground mt-1 block text-sm">{user.phone || '-'}</span>
             </div>
             <div className="p-3 bg-background border border-border rounded-xl">
               <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Email</span>
@@ -488,16 +516,28 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
             </div>
             <div className="p-3 bg-background border border-border rounded-xl">
               <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Paket Langganan</span>
-              <span className="font-bold text-primary mt-1 block">{user.profile?.name || '-'}</span>
+              <span className="font-bold text-primary mt-1 block text-sm">{user.profile?.name || '-'}</span>
+            </div>
+            <div className="p-3 bg-background border border-border rounded-xl">
+              <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Tipe Langganan</span>
+              <span className="font-bold text-foreground mt-1 block">
+                {user.subscriptionType === 'PREPAID' ? '⏰ Prabayar' : '📅 Pascabayar'}
+              </span>
+            </div>
+            <div className="p-3 bg-background border border-border rounded-xl">
+              <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Tanggal Tagihan / Expired</span>
+              <span className="font-mono font-bold text-amber-600 dark:text-amber-400 mt-1 block text-sm">
+                {user.expiredAt ? formatWIB(user.expiredAt, 'dd/MM/yyyy') : 'Tanggal ' + (user.billingDay || 1)}
+              </span>
             </div>
             <div className="p-3 bg-background border border-border rounded-xl">
               <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Tanggal Pendaftaran</span>
               <span className="font-mono text-foreground mt-1 block">{formatWIB(user.createdAt, 'dd/MM/yyyy HH:mm')}</span>
             </div>
-            <div className="p-3 bg-background border border-border rounded-xl">
-              <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Tanggal Jatuh Tempo / Expired</span>
-              <span className="font-mono font-bold text-amber-600 dark:text-amber-400 mt-1 block">
-                {user.expiredAt ? formatWIB(user.expiredAt, 'dd/MM/yyyy') : 'Setiap Bulan'}
+            <div className="p-3 bg-background border border-border rounded-xl md:col-span-2">
+              <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Koordinat GPS</span>
+              <span className="font-mono text-foreground mt-1 block">
+                {user.latitude && user.longitude ? `${user.latitude}, ${user.longitude}` : 'Belum diatur'}
               </span>
             </div>
           </div>
@@ -508,11 +548,11 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
         <button
           onClick={() => setExpandMikrotik(!expandMikrotik)}
-          className="w-full px-6 py-4 bg-muted/40 hover:bg-muted/70 flex justify-between items-center transition-colors border-b border-border"
+          className="w-full px-6 py-4 bg-muted/30 hover:bg-muted/60 flex justify-between items-center transition-colors border-b border-border"
         >
           <div className="flex items-center gap-2.5">
             <Wifi className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-bold text-foreground font-display">Data Sesi MikroTik &amp; RADIUS Real-Time</h2>
+            <h2 className="text-base font-bold text-foreground">Data Sesi MikroTik &amp; RADIUS Real-Time</h2>
           </div>
           {expandMikrotik ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
         </button>
@@ -547,7 +587,7 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
 
             {/* Sesi Live Active Detail */}
             {activeSession ? (
-              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-3">
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-3 shadow-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Sesi Terhubung (Live Active)
@@ -586,11 +626,11 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
         <button
           onClick={() => setExpandHardware(!expandHardware)}
-          className="w-full px-6 py-4 bg-muted/40 hover:bg-muted/70 flex justify-between items-center transition-colors border-b border-border"
+          className="w-full px-6 py-4 bg-muted/30 hover:bg-muted/60 flex justify-between items-center transition-colors border-b border-border"
         >
           <div className="flex items-center gap-2.5">
             <Server className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-bold text-foreground font-display">Data Perangkat &amp; Infrastruktur Lapangan (ONT / ODP)</h2>
+            <h2 className="text-base font-bold text-foreground">Data Perangkat &amp; Infrastruktur Lapangan (ONT / ODP)</h2>
           </div>
           {expandHardware ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
         </button>
@@ -620,7 +660,7 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
               </div>
               <div className="p-3 bg-background border border-border rounded-xl">
                 <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Sinyal Redaman Rx</span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-1 block">
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-1 block text-sm">
                   {rxSignal !== '-' ? `${rxSignal} dBm` : '-'}
                 </span>
               </div>
@@ -633,11 +673,11 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
         <button
           onClick={() => setExpandWorkOrders(!expandWorkOrders)}
-          className="w-full px-6 py-4 bg-muted/40 hover:bg-muted/70 flex justify-between items-center transition-colors border-b border-border"
+          className="w-full px-6 py-4 bg-muted/30 hover:bg-muted/60 flex justify-between items-center transition-colors border-b border-border"
         >
           <div className="flex items-center gap-2.5">
             <Wrench className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-bold text-foreground font-display">Riwayat SPK &amp; Pergantian Modem</h2>
+            <h2 className="text-base font-bold text-foreground">Riwayat SPK &amp; Pergantian Modem</h2>
           </div>
           {expandWorkOrders ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
         </button>
@@ -696,11 +736,11 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
         <button
           onClick={() => setExpandInvoices(!expandInvoices)}
-          className="w-full px-6 py-4 bg-muted/40 hover:bg-muted/70 flex justify-between items-center transition-colors border-b border-border"
+          className="w-full px-6 py-4 bg-muted/30 hover:bg-muted/60 flex justify-between items-center transition-colors border-b border-border"
         >
           <div className="flex items-center gap-2.5">
             <CreditCard className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-bold text-foreground font-display">Riwayat Tagihan &amp; Pembayaran ({invoices.length})</h2>
+            <h2 className="text-base font-bold text-foreground">Riwayat Tagihan &amp; Pembayaran ({invoices.length})</h2>
           </div>
           {expandInvoices ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
         </button>
@@ -743,67 +783,38 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
         )}
       </div>
 
-      {/* Edit Personal Modal */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-border pb-3">
-              <h3 className="text-base font-bold text-foreground">Edit Data Pelanggan</h3>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Complete Full UserDetailModal Popup */}
+      <UserDetailModal
+        isOpen={isUserDetailModalOpen}
+        onClose={() => {
+          setIsUserDetailModalOpen(false);
+          setModalLatLng(undefined);
+        }}
+        user={user}
+        onSave={handleSaveUser}
+        profiles={profiles}
+        routers={routers}
+        areas={areas}
+        currentLatLng={modalLatLng}
+        onLatLngChange={(lat, lng) => {
+          setMapPickerLat(lat);
+          setMapPickerLon(lng);
+          setShowMapPicker(true);
+        }}
+      />
 
-            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-foreground mb-1">Nama Pelanggan</label>
-                <input
-                  type="text"
-                  required
-                  value={editFormData.name}
-                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                  className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-foreground mb-1">Nomor WhatsApp / Telepon</label>
-                <input
-                  type="text"
-                  required
-                  value={editFormData.phone}
-                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                  className="w-full p-2.5 bg-background border border-input rounded-xl font-mono focus:ring-2 focus:ring-primary outline-none"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-foreground mb-1">Email</label>
-                <input
-                  type="email"
-                  value={editFormData.email}
-                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                  className="w-full p-2.5 bg-background border border-input rounded-xl font-mono focus:ring-2 focus:ring-primary outline-none"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-foreground mb-1">Alamat Lengkap</label>
-                <textarea
-                  rows={2}
-                  value={editFormData.address}
-                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                  className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none"
-                />
-              </div>
-              <div className="pt-2 flex gap-3">
-                <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-2 bg-muted text-foreground rounded-xl font-bold">
-                  Batal
-                </button>
-                <button type="submit" className="flex-1 py-2 bg-primary text-primary-foreground rounded-xl font-bold">
-                  Simpan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {/* Map Picker Modal for Location Selection inside UserDetailModal */}
+      {showMapPicker && (
+        <MapPicker
+          isOpen={showMapPicker}
+          onClose={() => setShowMapPicker(false)}
+          initialLat={mapPickerLat ? parseFloat(mapPickerLat) : undefined}
+          initialLng={mapPickerLon ? parseFloat(mapPickerLon) : undefined}
+          onSelectLocation={(lat, lng) => {
+            setModalLatLng({ lat: lat.toString(), lng: lng.toString() });
+            setShowMapPicker(false);
+          }}
+        />
       )}
 
       {/* Terbitkan SPK / Ganti Modem Modal */}
