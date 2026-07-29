@@ -45,10 +45,18 @@ const hankenGrotesk = Hanken_Grotesk({
 
 export async function generateMetadata(): Promise<Metadata> {
   const company = await prisma.company.findFirst({ select: { name: true } });
-  const name = company?.name || 'EugineBill RADIUS';
+  const name = company?.name || 'Eugine Media Group';
+  const description = "Eugine Media Group | Integrated IT, Network, and Hardware Solutions for ISP/RTRW.NET and Enterprise.";
   return {
     title: name,
-    description: "Billing & RADIUS management system for ISP/RTRW.NET",
+    description: description,
+    openGraph: {
+      title: name,
+      description: description,
+      siteName: name,
+      locale: 'id_ID',
+      type: 'website',
+    },
     manifest: "/manifest.json",
     appleWebApp: {
       capable: true,
