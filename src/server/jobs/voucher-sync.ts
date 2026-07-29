@@ -727,6 +727,25 @@ export function initCronJobs() {
 export async function sendInvoiceReminders(force: boolean = false): Promise<{ success: boolean; sent: number; skipped: number; error?: string }> {
   const startedAt = new Date()
 
+  // Prevent concurrent execution (Race Condition Lock)
+  const runningJob = await prisma.cronHistory.findFirst({
+    where: { jobType: 'invoice_reminder', status: 'running' }
+  });
+
+  if (runningJob) {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    if (runningJob.startedAt < tenMinutesAgo) {
+      console.log('[Invoice Reminder] Found stale running job, marking as failed...');
+      await prisma.cronHistory.update({
+        where: { id: runningJob.id },
+        data: { status: 'failed', result: 'Marked as failed due to timeout' }
+      });
+    } else {
+      console.log('[Invoice Reminder] Job is already running. Skipping to prevent duplicate sends.');
+      return { success: false, sent: 0, skipped: 0, error: 'Job is already running' };
+    }
+  }
+
   const history = await prisma.cronHistory.create({
     data: {
       id: nanoid(),
@@ -1287,6 +1306,26 @@ export async function autoIsolateExpiredUsers(): Promise<{ success: boolean; iso
  */
 export async function generateInvoices(force = false): Promise<{ success: boolean; generated: number; skipped: number; error?: string }> {
   const startedAt = new Date()
+
+  // Prevent concurrent execution (Race Condition Lock)
+  const runningJob = await prisma.cronHistory.findFirst({
+    where: { jobType: 'invoice_generate', status: 'running' }
+  });
+
+  if (runningJob) {
+    // Check if the running job is stale (e.g., stuck for > 10 minutes)
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    if (runningJob.startedAt < tenMinutesAgo) {
+      console.log('[Invoice Generate] Found stale running job, marking as failed...');
+      await prisma.cronHistory.update({
+        where: { id: runningJob.id },
+        data: { status: 'failed', result: 'Marked as failed due to timeout' }
+      });
+    } else {
+      console.log('[Invoice Generate] Job is already running. Skipping to prevent duplicates.');
+      return { success: false, generated: 0, skipped: 0, error: 'Job is already running' };
+    }
+  }
 
   const history = await prisma.cronHistory.create({
     data: {

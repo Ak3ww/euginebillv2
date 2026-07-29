@@ -22,6 +22,9 @@ interface SendMessageParams {
  */
 export class WhatsAppService {
   
+  // Memory cache to prevent immediate concurrent duplicate triggers
+  private static inflightRequests = new Set<string>();
+
   /**
    * Get active providers sorted by priority
    */
@@ -57,6 +60,46 @@ export class WhatsAppService {
 
     // Clean phone number to standard E.164 format (628xxx)
     let cleanPhone = this.cleanPhone(phone);
+
+    // 🛑 ANTI-SPAM MEMORY LOCK (Prevents concurrent duplicate calls in same process)
+    const hash = typeof Buffer !== 'undefined' ? Buffer.from(message).toString('base64').substring(0, 20) : message.substring(0, 20);
+    const cacheKey = `${cleanPhone}:${hash}`;
+    
+    if (this.inflightRequests.has(cacheKey)) {
+      console.warn(`[WhatsApp] 🛑 Anti-Spam (Memory): Message to ${phone} is already in-flight.`);
+      return { success: false, error: 'Anti-Spam: Pesan yang sama sedang diproses' };
+    }
+    
+    this.inflightRequests.add(cacheKey);
+
+    // Free the memory lock after 2 minutes (just in case)
+    setTimeout(() => {
+      this.inflightRequests.delete(cacheKey);
+    }, 120000);
+
+    let dbCheckFailed = false;
+    try {
+      // 🛑 ANTI-SPAM DB CHECK (Prevents spam across processes/restarts within 5 minutes)
+      const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const recentMessage = await prisma.whatsapp_history.findFirst({
+        where: {
+          phone: cleanPhone,
+          message: message,
+          sentAt: { gte: fiveMinsAgo }
+        }
+      });
+
+      if (recentMessage) {
+        console.warn(`[WhatsApp] 🛑 Anti-Spam (DB): Message to ${phone} was already sent within the last 5 minutes.`);
+        dbCheckFailed = true;
+        return { success: false, error: 'Anti-Spam: Pesan yang sama sudah dikirim dalam 5 menit terakhir' };
+      }
+    } catch (e) {
+      console.error('[WhatsApp] Anti-Spam DB Check failed:', e);
+    }
+    
+    // If DB check triggered early return, we wouldn't reach here, but TypeScript doesn't know it inside try/catch if we returned.
+    // Wait, the return inside try is fine. If it caught an error, we continue sending just in case it was a DB timeout.
     
     let lastError: Error | null = null;
     const attempts: Array<{
