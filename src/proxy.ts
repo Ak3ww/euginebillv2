@@ -77,10 +77,17 @@ export default async function proxy(req: NextRequest) {
       const isSystem = pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.startsWith('/favicon');
       const isStaticFile = /\.(ico|png|jpg|jpeg|gif|svg|js|css|woff|woff2|ttf|mp4|webp|json|txt|xml)$/.test(pathname);
       if (!isSystem && !isStaticFile) {
-        // Only rewrite if the path doesn't already start with the target base
         if (!pathname.startsWith(targetBase)) {
           const url = req.nextUrl.clone();
           url.pathname = targetBase + (pathname === '/' ? '' : pathname);
+          
+          // CRITICAL FIX: Force protocol to http: for the internal rewrite.
+          // Because Nginx sends X-Forwarded-Proto: https, Next.js thinks the URL is https:.
+          // But the local Node server runs on http:. 
+          // If we rewrite to an https: URL, Next.js thinks it's an external proxy and tries to fetch it,
+          // causing an SSL EPROTO error because localhost:3000 doesn't speak HTTPS.
+          url.protocol = 'http:';
+          
           return NextResponse.rewrite(url);
         }
       }
