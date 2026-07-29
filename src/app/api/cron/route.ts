@@ -118,8 +118,8 @@ export async function POST(request: NextRequest) {
         })
         
       case 'invoice_reminder':
-        // Pass force=true to bypass time check for manual trigger
-        result = await sendInvoiceReminders(true)
+        // Only force time bypass if body.force === true (explicit manual trigger from admin UI)
+        result = await sendInvoiceReminders(body.force === true)
         return NextResponse.json({
           success: result.success,
           sent: result.sent,

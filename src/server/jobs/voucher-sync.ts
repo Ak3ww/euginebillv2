@@ -767,7 +767,10 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
     const currentMinute = now.getUTCMinutes()
 
     // Check if current time matches reminder time (skip check if force=true for manual trigger)
-    if (!force && currentHour !== targetHour) {
+    const tMin = isNaN(targetMinute) ? 0 : targetMinute;
+    const minDiff = Math.abs(currentMinute - tMin);
+
+    if (!force && (currentHour !== targetHour || minDiff > 15)) {
       const completedAt = new Date()
       await prisma.cronHistory.update({
         where: { id: history.id },
@@ -775,7 +778,7 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           status: 'success',
           completedAt,
           duration: completedAt.getTime() - startedAt.getTime(),
-          result: `Not time yet (current: ${currentHour}:${currentMinute}, target: ${targetHour}:${targetMinute})`,
+          result: `Not time yet (current: ${currentHour}:${currentMinute}, target: ${targetHour}:${tMin})`,
         },
       })
       return { success: true, sent: 0, skipped: 0 }
@@ -899,6 +902,43 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           async (msg) => {
             const { invoice, reminderDay } = msg.data
 
+            // 🛡️ ATOMIC CONCURRENCY CHECK: Re-verify DB & Pre-mark sentReminders BEFORE sending WA message
+            const freshInvoice = await prisma.invoice.findUnique({
+              where: { id: invoice.id },
+              select: { sentReminders: true, lastReminderSentAt: true },
+            })
+
+            const currentSent: number[] = freshInvoice?.sentReminders
+              ? JSON.parse(freshInvoice.sentReminders)
+              : []
+
+            if (currentSent.includes(reminderDay)) {
+              console.log(`[Invoice Reminder] 🛡️ Skipped ${invoice.invoiceNumber}: H${reminderDay} already sent (atomic concurrency check)`)
+              skippedCount++
+              return
+            }
+
+            if (freshInvoice?.lastReminderSentAt) {
+              const hoursSinceLast = (Date.now() - new Date(freshInvoice.lastReminderSentAt).getTime()) / (1000 * 60 * 60)
+              if (hoursSinceLast < 4) {
+                console.log(`[Invoice Reminder] 🛡️ Skipped ${invoice.invoiceNumber}: reminder sent ${hoursSinceLast.toFixed(1)}h ago`)
+                skippedCount++
+                return
+              }
+            }
+
+            // 🛡️ PRE-MARK DB ATOMICALLY BEFORE CALLING WA API:
+            currentSent.push(reminderDay)
+            await prisma.invoice.update({
+              where: { id: invoice.id },
+              data: {
+                sentReminders: JSON.stringify(currentSent),
+                lastReminderSentAt: new Date(),
+                waNotified: true,
+                waNotifiedAt: new Date(),
+              },
+            })
+
             // Determine if overdue (reminderDay > 0 means days after due date)
             const isOverdue = reminderDay > 0
 
@@ -945,7 +985,6 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
                 })
               } catch (emailError) {
                 console.error(`[Invoice Reminder] Email error for ${invoice.invoiceNumber}:`, emailError)
-                // Don't fail the whole process if email fails
               }
             }
 
@@ -973,19 +1012,7 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
                 console.error(`[Invoice Reminder] Push notification error for ${invoice.invoiceNumber}:`, pushError)
               }
             }
-
-            // Mark this reminder as sent
-            const sentReminders = invoice.sentReminders
-              ? JSON.parse(invoice.sentReminders)
-              : []
-            sentReminders.push(reminderDay)
-
-            await prisma.invoice.update({
-              where: { id: invoice.id },
-              data: {
-                sentReminders: JSON.stringify(sentReminders)
-              }
-            })
+            sentCount++
           },
           {}, // Use default config: 5 msg/10sec
           (progress) => {
