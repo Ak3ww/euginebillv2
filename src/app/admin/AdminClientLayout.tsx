@@ -364,6 +364,7 @@ const menuGroups: MenuGroup[] = [
         icon: <MessageCircle className="w-4 h-4" />,
         requiredPermission: 'whatsapp.view',
         children: [
+          { titleKey: 'Audit WA & Proteksi', href: '/admin/whatsapp/audit', requiredPermission: 'whatsapp.view' },
           { titleKey: 'nav.settings', href: '/admin/settings/whatsapp', requiredPermission: 'whatsapp.view' },
           { titleKey: 'nav.history', href: '/admin/whatsapp/history', requiredPermission: 'whatsapp.view' },
           { titleKey: 'nav.templates', href: '/admin/whatsapp/templates', requiredPermission: 'whatsapp.view' },
