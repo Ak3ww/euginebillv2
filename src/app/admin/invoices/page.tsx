@@ -41,24 +41,21 @@ interface Invoice {
   paymentLink: string | null;
   createdAt: string;
   waNotifiedAt: string | null;
-  waRetryCount: number;       // Total kirim/retry attempts (termasuk gagal)
-  sentReminders: string | null; // JSON array of sent reminder days
+  waRetryCount: number;
+  sentReminders: string | null;
   baseAmount?: number;
   notes?: string | null;
   additionalFees?: { name: string; amount: number }[] | null;
   user: {
-    customerId: string | null;  // ID Pelanggan
+    customerId: string | null;
     name: string;
     phone: string;
     email: string | null;
     username: string;
-    profile: {
-      name: string;
-    } | null;
-    area: {  // Area
-      id: string;
-      name: string;
-    } | null;
+    routerId: string | null;
+    profile: { name: string } | null;
+    area: { id: string; name: string } | null;
+    router: { id: string; name: string } | null;
   } | null;
 }
 
@@ -122,15 +119,34 @@ export default function InvoicesPage() {
   const [genLoadingUsers, setGenLoadingUsers] = useState(false);
   const [genSkipExisting, setGenSkipExisting] = useState(true);
   const [genSendWa, setGenSendWa] = useState(false);
-  const [genAreaId, setGenAreaId] = useState('all');
+  // Filter & Sort state
+  const [filterRouterId, setFilterRouterId] = useState('all');
+  const [filterAreaId, setFilterAreaId] = useState('all');
+  const [filterWaStatus, setFilterWaStatus] = useState('all'); // all | sent | failed | unsent
+  const [filterProfile, setFilterProfile] = useState('all');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc'|'desc'>('desc');
+  const [showFilter, setShowFilter] = useState(false);
   const [areaOptions, setAreaOptions] = useState<{ id: string; name: string; userCount?: number }[]>([]);
+  const [routerOptions, setRouterOptions] = useState<{ id: string; name: string }[]>([]);
+  const [genAreaId, setGenAreaId] = useState('all');
   const [genAdditionalFees, setGenAdditionalFees] = useState<{name: string, amount: number}[]>([]);
   const [genResult, setGenResult] = useState<{ generated: number; skipped: number; errors: { username: string; error: string }[]; message: string } | null>(null);
 
+
   useEffect(() => {
+    // Fetch areas
     fetch('/api/pppoe/areas')
       .then(res => res.json())
       .then(data => { if (data.areas) setAreaOptions(data.areas); })
+      .catch(() => {});
+    // Fetch routers/mikrotik
+    fetch('/api/network/routers')
+      .then(res => res.json())
+      .then(data => {
+        const routers = data.routers || data || [];
+        if (Array.isArray(routers)) setRouterOptions(routers.map((r: any) => ({ id: r.id, name: r.name })));
+      })
       .catch(() => {});
   }, []);
 
@@ -150,7 +166,7 @@ export default function InvoicesPage() {
   useEffect(() => {
     loadInvoices();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, invoiceMonth, searchQuery]);
+  }, [activeTab, invoiceMonth, searchQuery, filterRouterId, filterAreaId, filterWaStatus, filterProfile, sortBy, sortOrder]);
 
   const loadInvoices = async () => {
     try {
@@ -159,6 +175,12 @@ export default function InvoicesPage() {
       const params = new URLSearchParams({ status, limit: '500' });
       if (invoiceMonth) params.set('month', invoiceMonth);
       if (searchQuery) params.set('search', searchQuery);
+      if (filterRouterId && filterRouterId !== 'all') params.set('routerId', filterRouterId);
+      if (filterAreaId && filterAreaId !== 'all') params.set('areaId', filterAreaId);
+      if (filterWaStatus && filterWaStatus !== 'all') params.set('waStatus', filterWaStatus);
+      if (filterProfile && filterProfile !== 'all') params.set('profileName', filterProfile);
+      if (sortBy) params.set('sortBy', sortBy);
+      if (sortOrder) params.set('sortOrder', sortOrder);
       const res = await fetch(`/api/invoices?${params}`);
       const data = await res.json();
       setInvoices(data.invoices || []);
@@ -1134,7 +1156,100 @@ export default function InvoicesPage() {
                 className="w-full sm:w-48 pl-8 pr-3 py-1.5 text-xs bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
+            <button
+              onClick={() => setShowFilter(!showFilter)}
+              className={`p-1.5 rounded border transition-colors flex items-center justify-center ${showFilter ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted border-border text-muted-foreground hover:bg-muted/80'}`}
+              title="Filter Lanjutan"
+            >
+              <Filter className="w-4 h-4" />
+            </button>
           </div>
+
+          {/* Advanced Filter Bar */}
+          {showFilter && (
+            <div className="p-3 bg-muted/20 border-b border-border grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {/* Mikrotik Filter */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-medium text-muted-foreground">Router / Mikrotik</label>
+                <select 
+                  value={filterRouterId} 
+                  onChange={e => setFilterRouterId(e.target.value)}
+                  className="w-full text-xs bg-background border border-border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="all">Semua Router</option>
+                  {routerOptions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
+
+              {/* Area Filter */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-medium text-muted-foreground">Wilayah / Area</label>
+                <select 
+                  value={filterAreaId} 
+                  onChange={e => setFilterAreaId(e.target.value)}
+                  className="w-full text-xs bg-background border border-border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="all">Semua Wilayah</option>
+                  {areaOptions.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </div>
+
+              {/* WA Status Filter */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-medium text-muted-foreground">Status WhatsApp</label>
+                <select 
+                  value={filterWaStatus} 
+                  onChange={e => setFilterWaStatus(e.target.value)}
+                  className="w-full text-xs bg-background border border-border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="all">Semua Status</option>
+                  <option value="sent">✅ Terkirim</option>
+                  <option value="failed">❌ Gagal Kirim</option>
+                  <option value="unsent">⬜ Belum Kirim</option>
+                </select>
+              </div>
+
+              {/* Paket Filter (Text Input as placeholder, could be select if we load profiles) */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-medium text-muted-foreground">Paket / Layanan</label>
+                <input 
+                  type="text"
+                  placeholder="Cari nama paket..."
+                  value={filterProfile === 'all' ? '' : filterProfile} 
+                  onChange={e => setFilterProfile(e.target.value || 'all')}
+                  className="w-full text-xs bg-background border border-border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              {/* Sort By Filter */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-medium text-muted-foreground">Urutkan Berdasarkan</label>
+                <select 
+                  value={sortBy} 
+                  onChange={e => setSortBy(e.target.value)}
+                  className="w-full text-xs bg-background border border-border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="createdAt">Tanggal Dibuat</option>
+                  <option value="dueDate">Jatuh Tempo</option>
+                  <option value="name">Nama Pelanggan</option>
+                  <option value="amount">Jumlah Tagihan</option>
+                </select>
+              </div>
+
+              {/* Sort Order Filter */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-medium text-muted-foreground">Arah Urutan</label>
+                <select 
+                  value={sortOrder} 
+                  onChange={e => setSortOrder(e.target.value as 'asc'|'desc')}
+                  className="w-full text-xs bg-background border border-border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="desc">Terbaru / Tertinggi (Desc)</option>
+                  <option value="asc">Terlama / Terendah (Asc)</option>
+                </select>
+              </div>
+            </div>
+          )}
 
           {/* Table */}
           <div className="overflow-x-auto hidden md:block">
@@ -1215,25 +1330,6 @@ export default function InvoicesPage() {
                               Belum WA (0x)
                             </div>
                           )}
-                          {invoice.paymentLink && (
-                            <button onClick={() => handleCopyPaymentLink(invoice)} className="p-1 hover:bg-muted rounded" title="Salin Link Pembayaran">
-                              {copiedId === invoice.id ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => {
-                              const origin = typeof window !== 'undefined' ? window.location.origin : '';
-                              navigator.clipboard.writeText(`${origin}/invoice/${invoice.invoiceNumber}`);
-                              showToast('Link Invoice disalin', 'success');
-                            }} 
-                            className="p-1 hover:bg-muted rounded" 
-                            title="Salin Link Invoice"
-                          >
-                            <Copy className="h-3 w-3 text-emerald-600" />
-                          </button>
-                          <Link href={`/invoice/${invoice.invoiceNumber}`} target="_blank" className="p-1 hover:bg-muted rounded text-blue-500" title="Buka Web Invoice">
-                            <ExternalLink className="h-3 w-3" />
-                          </Link>
                           <button onClick={() => setPrintDialogInvoice(invoice)} className="p-1 hover:bg-muted rounded" title="Cetak Invoice">
                             <Printer className="h-3 w-3 text-muted-foreground" />
                           </button>
@@ -1910,4 +2006,5 @@ export default function InvoicesPage() {
       </div>
     </div>
   );
+
 }

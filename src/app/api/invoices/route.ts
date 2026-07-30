@@ -64,6 +64,13 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '500');
     const monthParam = searchParams.get('month'); // YYYY-MM
     const search = searchParams.get('search');
+    // New filters
+    const routerId = searchParams.get('routerId');   // Filter by mikrotik/router
+    const areaId = searchParams.get('areaId');       // Filter by wilayah
+    const waStatus = searchParams.get('waStatus');   // sent | failed | unsent
+    const profileName = searchParams.get('profileName'); // Filter by paket name
+    const sortBy = searchParams.get('sortBy') || 'createdAt'; // name|amount|dueDate|createdAt
+    const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
 
     const where: any = {};
 
@@ -104,6 +111,48 @@ export async function GET(request: NextRequest) {
       where.userId = userId;
     }
 
+    // Filter by Mikrotik/Router — via user.routerId
+    if (routerId && routerId !== 'all') {
+      where.user = { ...where.user, routerId };
+    }
+
+    // Filter by Wilayah/Area — via user.area.id
+    if (areaId && areaId !== 'all') {
+      where.user = { ...where.user, areaId };
+    }
+
+    // Filter by WA Status
+    if (waStatus && waStatus !== 'all') {
+      if (waStatus === 'sent') {
+        where.waNotifiedAt = { not: null };
+      } else if (waStatus === 'failed') {
+        // waRetryCount > 0 but waNotifiedAt is null = failed attempt
+        where.waNotifiedAt = null;
+        where.waRetryCount = { gt: 0 };
+      } else if (waStatus === 'unsent') {
+        // Never attempted — both null/zero
+        where.waNotifiedAt = null;
+        where.waRetryCount = { equals: 0 };
+      }
+    }
+
+    // Filter by Paket/Profile Name
+    if (profileName && profileName !== 'all') {
+      where.user = { ...where.user, profile: { name: { contains: profileName } } };
+    }
+
+    // Build orderBy
+    let orderBy: any = { createdAt: 'desc' };
+    if (sortBy === 'name') {
+      orderBy = { customerName: sortOrder };
+    } else if (sortBy === 'amount') {
+      orderBy = { amount: sortOrder };
+    } else if (sortBy === 'dueDate') {
+      orderBy = { dueDate: sortOrder };
+    } else if (sortBy === 'createdAt') {
+      orderBy = { createdAt: sortOrder };
+    }
+
     const invoices = await prisma.invoice.findMany({
       where,
       include: {
@@ -114,6 +163,7 @@ export async function GET(request: NextRequest) {
             phone: true,
             email: true,
             username: true,
+            routerId: true,
             profile: {
               select: {
                 name: true,
@@ -125,12 +175,16 @@ export async function GET(request: NextRequest) {
                 name: true,
               },
             },
+            router: {  // Mikrotik/Router pelanggan
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy,
       take: limit,
     });
 

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { startOfDayWIBtoUTC, endOfDayWIBtoUTC } from "@/lib/timezone";
 import { logActivity } from "@/server/services/activity-log.service";
@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const search = searchParams.get("search");
+    const routerId = searchParams.get("routerId"); // Filter by Mikrotik/Router
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
     const skip = (page - 1) * limit;
@@ -48,12 +49,42 @@ export async function GET(request: NextRequest) {
         lte: endFilter,
       };
     }
+
+    // Filter by Mikrotik/Router — find usernames in that router,
+    // then filter transactions whose reference contains those usernames
+    if (routerId && routerId !== 'all') {
+      const usersInRouter = await prisma.pppoeUser.findMany({
+        where: { routerId },
+        select: { username: true },
+      });
+      if (usersInRouter.length > 0) {
+        const usernames = usersInRouter.map(u => u.username);
+        // Build OR: reference contains any of the usernames
+        const refConditions = usernames.map(u => ({ reference: { contains: u } }));
+        where.OR = refConditions;
+      } else {
+        // No users in this router → return empty
+        where.id = 'no-match-router-filter';
+      }
+    }
+
     if (search) {
-      where.OR = [
+      // If routerId filter already set OR conditions, merge with search
+      const searchConditions = [
         { description: { contains: search } },
         { reference: { contains: search } },
         { notes: { contains: search } }
       ];
+      if (where.OR) {
+        // Combine: (routerFilter OR) AND (search OR)
+        where.AND = [
+          { OR: where.OR },
+          { OR: searchConditions }
+        ];
+        delete where.OR;
+      } else {
+        where.OR = searchConditions;
+      }
     }
 
     // Get transactions

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -100,6 +100,8 @@ export default function KeuanganPage() {
   const [total, setTotal] = useState(0);
   const [filterType, setFilterType] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [filterRouterId, setFilterRouterId] = useState("all");
+  const [routerOptions, setRouterOptions] = useState<{ id: string; name: string }[]>([]);
   
   // Default: show all transactions (no date filter)
   const [startDate, setStartDate] = useState("");
@@ -152,12 +154,22 @@ export default function KeuanganPage() {
   }, [searchQuery]);
 
   useEffect(() => {
+    fetch('/api/network/routers')
+      .then(res => res.json())
+      .then(data => {
+        const routers = data.routers || data || [];
+        if (Array.isArray(routers)) setRouterOptions(routers.map((r: any) => ({ id: r.id, name: r.name })));
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     setPage(1);
     setTransactions([]);
     setHasMore(true);
     loadData(1, true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterType, filterCategory, startDate, endDate, debouncedSearch]);
+  }, [filterType, filterCategory, filterRouterId, startDate, endDate, debouncedSearch]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -177,6 +189,7 @@ export default function KeuanganPage() {
       let url = `/api/keuangan/transactions?page=${pageNum}&limit=50`;
       if (filterType !== "all") url += `&type=${filterType}`;
       if (filterCategory !== "all") url += `&categoryId=${filterCategory}`;
+      if (filterRouterId !== "all") url += `&routerId=${filterRouterId}`;
       if (startDate && endDate) url += `&startDate=${startDate}&endDate=${endDate}`;
       if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
 
@@ -384,6 +397,7 @@ export default function KeuanganPage() {
   const resetFilters = () => {
     setFilterType("all");
     setFilterCategory("all");
+    setFilterRouterId("all");
     setStartDate("");
     setEndDate("");
     setSearchQuery("");
@@ -418,6 +432,7 @@ export default function KeuanganPage() {
       let url = `/api/keuangan/export?format=${format}&type=${filterType}`;
       if (startDate && endDate) url += `&startDate=${startDate}&endDate=${endDate}`;
       if (filterCategory !== "all") url += `&categoryId=${filterCategory}`;
+      if (filterRouterId !== "all") url += `&routerId=${filterRouterId}`;
       if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
 
       if (format === "excel") {
@@ -582,8 +597,8 @@ export default function KeuanganPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-          <div className="relative col-span-2 sm:col-span-1">
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+          <div className="relative col-span-2 sm:col-span-2">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <input
               type="text"
@@ -607,11 +622,22 @@ export default function KeuanganPage() {
             onChange={(e) => setFilterCategory(e.target.value)}
             className="px-2 py-1.5 text-xs bg-muted border border-border rounded-md"
           >
-            <option value="all">{t('common.all')} {t('common.category')}</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            <option value="all">{t('keuangan.allCategories')}</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
+          <select
+            value={filterRouterId}
+            onChange={(e) => setFilterRouterId(e.target.value)}
+            className="px-2 py-1.5 text-xs bg-muted border border-border rounded-md"
+          >
+            <option value="all">Semua Mikrotik</option>
+            {routerOptions.map((r) => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+          <div className="flex items-center gap-1 col-span-2 sm:col-span-1">
           <input
             type="date"
             value={startDate}
@@ -625,6 +651,7 @@ export default function KeuanganPage() {
             className="px-2 py-1.5 text-xs bg-muted border border-border rounded-md"
           />
         </div>
+      </div>
       </div>
 
       {/* Transactions */}
