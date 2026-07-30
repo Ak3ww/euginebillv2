@@ -397,6 +397,8 @@ export default function InvoicesPage() {
       if (data.success) {
         await showSuccess(`Broadcast ${t('common.success').toLowerCase()}!\n✅ ${t('whatsapp.sent')}: ${data.successCount}\n❌ ${t('whatsapp.failed')}: ${data.failCount}`);
         setSelectedInvoices(new Set());
+        // Reload invoices so WA status badges (waNotifiedAt, waRetryCount) are refreshed
+        loadInvoices();
       } else {
         await showError(data.error || t('whatsapp.broadcastFailed'));
       }

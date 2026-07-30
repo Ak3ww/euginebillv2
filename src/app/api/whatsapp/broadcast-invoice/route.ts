@@ -127,7 +127,18 @@ export async function POST(request: NextRequest) {
     // ========================
     if (channel === 'whatsapp' || channel === 'both') {
       const messagesToSend = invoiceDataList
-        .filter(({ invoice }) => invoice.customerPhone)
+        .filter(({ invoice }) => {
+          if (!invoice.customerPhone) return false;
+          // 🛡️ STOP-LOSS: Max 3 WA per invoice (Anti-Spam)
+          const sentArr = invoice.sentReminders ? (() => { try { return JSON.parse(invoice.sentReminders); } catch { return []; } })() : [];
+          const retryCount = (invoice as any).waRetryCount || 0;
+          if (sentArr.length >= 3 || retryCount >= 3) {
+            console.log(`[Invoice Broadcast] 🛑 STOP-LOSS: Skipping ${invoice.invoiceNumber} (already sent ${retryCount}x)`);
+            results.whatsapp.skipped++;
+            return false;
+          }
+          return true;
+        })
         .map(({ invoice, daysRemaining, dueDateStr, isOverdue, daysOverdue }) => {
           // Pick DB template (overdue vs reminder), fallback to the other one
           const templateContent = isOverdue
@@ -170,7 +181,7 @@ export async function POST(request: NextRequest) {
 
       // Track invoices without phone numbers
       const invoicesWithoutPhone = invoiceDataList.filter(({ invoice }) => !invoice.customerPhone);
-      results.whatsapp.skipped = invoicesWithoutPhone.length;
+      results.whatsapp.skipped += invoicesWithoutPhone.length;
 
       if (messagesToSend.length > 0) {
         console.log(`[Invoice Broadcast] Sending WhatsApp to ${messagesToSend.length} customers`);
@@ -185,8 +196,40 @@ export async function POST(request: NextRequest) {
               message: msg.message,
             });
             if (!sendResult.success) {
+              // ❌ Sending failed - still increment waRetryCount so stop-loss tracks total attempts
+              await prisma.invoice.update({
+                where: { id: msg.invoiceId },
+                data: { waRetryCount: { increment: 1 } }
+              }).catch(() => {});
               throw new Error(sendResult.error || 'Gagal mengirim pesan WA via provider');
             }
+
+            // ✅ SUCCESS: Update waNotifiedAt, waRetryCount, and sentReminders in DB
+            try {
+              const freshInv = await prisma.invoice.findUnique({
+                where: { id: msg.invoiceId },
+                select: { sentReminders: true },
+              });
+              const existingSent: number[] = freshInv?.sentReminders
+                ? JSON.parse(freshInv.sentReminders)
+                : [];
+              // Add 0 (broadcast day) as marker in sentReminders
+              const broadcastMarker = Date.now(); // use timestamp as unique broadcast marker
+              const updatedSent = [...existingSent, broadcastMarker];
+
+              await prisma.invoice.update({
+                where: { id: msg.invoiceId },
+                data: {
+                  waNotifiedAt: new Date(),
+                  waRetryCount: { increment: 1 },
+                  sentReminders: JSON.stringify(updatedSent),
+                },
+              });
+              console.log(`[Invoice Broadcast] ✅ Updated DB for ${msg.invoiceNumber}`);
+            } catch (dbErr) {
+              console.error(`[Invoice Broadcast] ⚠️ Failed to update DB for ${msg.invoiceNumber}:`, dbErr);
+            }
+
             return sendResult;
           },
           {},
