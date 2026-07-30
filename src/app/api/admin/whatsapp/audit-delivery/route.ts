@@ -268,6 +268,16 @@ export async function POST(request: NextRequest) {
           select: { waNotifiedAt: true, sentReminders: true },
         });
 
+        const sentReminders = fresh?.sentReminders ? JSON.parse(fresh.sentReminders) : [];
+        const totalSentCount = Array.isArray(sentReminders) ? sentReminders.length : 0;
+        const totalRetryCount = (inv as any).waRetryCount || 0;
+
+        if (totalSentCount >= 3 || totalRetryCount >= 3) {
+          results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: false, error: 'Stop-Loss: Maksimal 3x pengiriman telah tercapai (Anti-Spam)' });
+          failedCount++;
+          continue;
+        }
+
         if (fresh?.waNotifiedAt) {
           const hoursAgo = (Date.now() - new Date(fresh.waNotifiedAt).getTime()) / (1000 * 60 * 60);
           if (hoursAgo < 6) {
@@ -282,6 +292,7 @@ export async function POST(request: NextRequest) {
           where: { id: inv.id },
           data: {
             waNotifiedAt: new Date(),
+            waRetryCount: { increment: 1 },
             sentReminders: ALL_DAYS_LOCK,
           },
         });

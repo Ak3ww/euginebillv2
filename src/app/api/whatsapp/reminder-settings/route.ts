@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/server/db/client'
 import { nanoid } from 'nanoid'
 import { getServerSession } from 'next-auth'
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         data: {
           id: nanoid(),
           enabled: true,
-          reminderDays: JSON.stringify([-7, -5, -3, 0]), // Default: H-7, H-5, H-3, H
+          reminderDays: JSON.stringify([-7, -1]), // Default: H-7 and H-1
           reminderTime: '09:00' // Default: 9 AM WIB
         }
       })

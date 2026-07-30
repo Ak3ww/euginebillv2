@@ -49,6 +49,18 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
+    // 🛡️ STOP-LOSS SAFETY BRAKE: Maximum 3 WhatsApp reminders per invoice (Anti-Spam / Safehaven)
+    const sentReminders = invoice.sentReminders ? JSON.parse(invoice.sentReminders) : []
+    const totalSentCount = Array.isArray(sentReminders) ? sentReminders.length : 0
+    const totalRetryCount = (invoice as any).waRetryCount || 0
+
+    if (totalSentCount >= 3 || totalRetryCount >= 3) {
+      return NextResponse.json({
+        success: false,
+        error: 'Batas maksimal pengiriman (3x WA) telah tercapai. Pengiriman dibatalkan demi keamanan nomor WA (Anti-Spam).'
+      }, { status: 400 })
+    }
+
     // Get company info
     const company = await prisma.company.findFirst()
 
@@ -130,7 +142,10 @@ export async function POST(request: NextRequest) {
             // Log WA send timestamp to database
             await prisma.invoice.update({
               where: { id: invoice.id },
-              data: { waNotifiedAt: new Date() }
+              data: {
+                waNotifiedAt: new Date(),
+                waRetryCount: { increment: 1 }
+              }
             })
             results.whatsapp = { success: true }
             hasSuccess = true

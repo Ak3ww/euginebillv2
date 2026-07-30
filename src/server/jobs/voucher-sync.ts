@@ -825,13 +825,13 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
       const targetMs = Date.UTC(nowInWIB.getUTCFullYear(), nowInWIB.getUTCMonth(), nowInWIB.getUTCDate() - reminderDay)
       const targetDateWIB = new Date(targetMs)
 
-      // Get WIB date boundaries for database query (WIB-as-UTC)
-      const targetDateUTC = startOfDayWIBtoUTC(targetDateWIB)
-      const nextDayUTC = endOfDayWIBtoUTC(targetDateWIB)
+      // Get WIB & UTC date boundaries for database query (covers 00:00 WIB to 23:59 UTC of target date)
+      const targetDateUTC = new Date(Date.UTC(targetDateWIB.getUTCFullYear(), targetDateWIB.getUTCMonth(), targetDateWIB.getUTCDate() - 1, 17, 0, 0, 0))
+      const nextDayUTC = new Date(Date.UTC(targetDateWIB.getUTCFullYear(), targetDateWIB.getUTCMonth(), targetDateWIB.getUTCDate(), 23, 59, 59, 999))
 
-      console.log(`[Invoice Reminder] Checking H${reminderDay}: Looking for invoices due on ${formatWIB(targetDateWIB, 'yyyy-MM-dd')} WIB`)
+      console.log(`[Invoice Reminder] Checking H${reminderDay}: Looking for invoices due on ${formatWIB(targetDateWIB, 'yyyy-MM-dd')} (Range: ${targetDateUTC.toISOString()} - ${nextDayUTC.toISOString()})`)
 
-      // Find unpaid invoices (PENDING or OVERDUE) with dueDate matching target (database stores UTC)
+      // Find unpaid invoices (PENDING or OVERDUE) with dueDate matching target (database stores UTC/WIB)
       const invoices = await prisma.invoice.findMany({
         where: {
           status: {
@@ -839,7 +839,7 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           },
           dueDate: {
             gte: targetDateUTC,
-            lt: nextDayUTC
+            lte: nextDayUTC
           }
         },
         include: {
@@ -885,6 +885,16 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
         const sentReminders = invoice.sentReminders
           ? JSON.parse(invoice.sentReminders)
           : []
+
+        // 🛡️ STOP-LOSS SAFETY BRAKE: Maximum 3 WhatsApp reminders per invoice (Anti-Spam / Safehaven)
+        const totalSentCount = Array.isArray(sentReminders) ? sentReminders.length : 0
+        const totalRetryCount = (invoice as any).waRetryCount || 0
+
+        if (totalSentCount >= 3 || totalRetryCount >= 3) {
+          console.log(`[Invoice Reminder] 🛑 STOP-LOSS SKIPPED ${invoice.invoiceNumber}: Max 3 reminders reached (sent: ${totalSentCount}, retries: ${totalRetryCount})`)
+          skippedCount++
+          continue
+        }
 
         if (sentReminders.includes(reminderDay)) {
           console.log(`[Invoice Reminder] Skipped ${invoice.invoiceNumber}: H${reminderDay} already sent`)
@@ -953,6 +963,7 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
               data: {
                 sentReminders: JSON.stringify(currentSent),
                 waNotifiedAt: new Date(),
+                waRetryCount: { increment: 1 },
               },
             })
 
