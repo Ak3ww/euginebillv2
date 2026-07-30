@@ -720,12 +720,42 @@ export function initCronJobs() {
   console.log('[CRON] Telegram backup & health check crons initialized (other jobs handled by cron-service.js)')
 }
 
+// In-memory set to track aborted jobs for instant batch cancellation
+const activeAbortedJobs = new Set<string>()
+
+/**
+ * Emergency Kill Switch function to immediately cancel running cron jobs in DB and memory
+ */
+export async function abortJob(jobType: string = 'invoice_reminder'): Promise<{ count: number }> {
+  activeAbortedJobs.add(jobType)
+
+  const whereCondition = jobType === 'all'
+    ? { status: 'running' }
+    : { status: 'running', jobType }
+
+  const updated = await prisma.cronHistory.updateMany({
+    where: whereCondition,
+    data: {
+      status: 'error',
+      error: 'Dihentikan paksa oleh Admin (Kill Switch Activated)',
+      completedAt: new Date()
+    }
+  })
+
+  console.log(`[CRON KILL] Kill switch activated for ${jobType}. Stopped ${updated.count} jobs in DB.`)
+  return { count: updated.count }
+}
+
 /**
  * Send invoice reminder WhatsApp notifications based on settings
  * @param force - If true, bypass time check (for manual trigger from UI)
  */
 export async function sendInvoiceReminders(force: boolean = false): Promise<{ success: boolean; sent: number; skipped: number; error?: string }> {
   const startedAt = new Date()
+
+  // Clear any previous kill switch flag for a fresh run
+  activeAbortedJobs.delete('invoice_reminder')
+  activeAbortedJobs.delete('all')
 
   // Prevent concurrent execution (Race Condition Lock)
   const runningJob = await prisma.cronHistory.findFirst({
@@ -929,6 +959,13 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
         const result = await sendWithRateLimit(
           messagesToSend,
           async (msg) => {
+            // 🛑 EMERGENCY KILL SWITCH CHECK: Immediately stop sending if admin triggered kill switch
+            if (activeAbortedJobs.has('invoice_reminder') || activeAbortedJobs.has('all')) {
+              console.log(`[Invoice Reminder] 🛑 KILL SWITCH ACTIVATED: Stopping batch sending for ${msg.data.invoice.invoiceNumber}`)
+              skippedCount++
+              return
+            }
+
             const { invoice, reminderDay } = msg.data
 
             // 🛡️ ATOMIC CONCURRENCY CHECK: Re-verify DB & Pre-mark sentReminders BEFORE sending WA message

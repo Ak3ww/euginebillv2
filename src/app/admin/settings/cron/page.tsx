@@ -249,6 +249,31 @@ export default function CronSettingsPage() {
     }
   };
 
+  const handleKillCron = async (jobType: string = 'invoice_reminder') => {
+    if (!confirm('AKSI DARURAT: Apakah Anda yakin ingin menghentikan paksa (Kill Switch) pengiriman cron WA yang sedang berjalan?')) {
+      return;
+    }
+    setTriggering(jobType);
+    try {
+      const res = await fetch('/api/cron/kill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: jobType })
+      });
+      const data = await res.json();
+      if (data.success) {
+        addToast({ type: 'success', title: 'KILL SWITCH AKTIF', description: data.message, duration: 4000 });
+      } else {
+        addToast({ type: 'error', title: 'Gagal Kill Switch', description: data.error || 'Gagal menghentikan job' });
+      }
+      loadData();
+    } catch {
+      addToast({ type: 'error', title: 'Gagal', description: 'Gagal menghentikan job cron' });
+    } finally {
+      setTriggering(null);
+    }
+  };
+
   const saveSchedule = async (jobType: string, schedule: string, enabled: boolean) => {
     try {
       const res = await fetch('/api/cron/schedules', {
@@ -343,10 +368,21 @@ export default function CronSettingsPage() {
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('settings.cronSubtitle')}</p>
           </div>
-          <button onClick={loadData} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted transition-colors">
-            <RefreshCw className="w-4 h-4" />
-            {t('common.refresh')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleKillCron('invoice_reminder')}
+              disabled={triggering === 'invoice_reminder'}
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-white bg-destructive hover:bg-destructive/90 rounded-lg shadow-md transition-all active:scale-95"
+              title="Aksi Darurat: Hentikan paksa Cron WA / Bulk Send yang sedang berjalan"
+            >
+              {triggering === 'invoice_reminder' ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+              HENTIKAN CRON (KILL SWITCH)
+            </button>
+            <button onClick={loadData} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted transition-colors">
+              <RefreshCw className="w-4 h-4" />
+              {t('common.refresh')}
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
