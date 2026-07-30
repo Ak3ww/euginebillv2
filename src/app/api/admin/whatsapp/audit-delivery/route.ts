@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
           area: inv.user?.area?.name || '-',
           status: inv.status,
           sentCount: matchingLogs.length,
-          lastSentAt: matchingLogs[0]?.sentAt || inv.waNotifiedAt || inv.lastReminderSentAt,
+          lastSentAt: matchingLogs[0]?.sentAt || inv.waNotifiedAt,
           providerName: matchingLogs[0]?.providerName || 'WhatsApp Service',
           isLocked: isLockedInDb,
         });
@@ -213,9 +213,7 @@ export async function POST(request: NextRequest) {
         await prisma.invoice.updateMany({
           where: { id: { in: targetIds } },
           data: {
-            waNotified: true,
             waNotifiedAt: new Date(),
-            lastReminderSentAt: new Date(),
             sentReminders: ALL_DAYS_LOCK,
           },
         });
@@ -267,11 +265,11 @@ export async function POST(request: NextRequest) {
         // 🛡️ DOUBLE ATOMIC LOCK BEFORE SENDING
         const fresh = await prisma.invoice.findUnique({
           where: { id: inv.id },
-          select: { waNotified: true, sentReminders: true, lastReminderSentAt: true },
+          select: { waNotifiedAt: true, sentReminders: true },
         });
 
-        if (fresh?.waNotified && fresh?.lastReminderSentAt) {
-          const hoursAgo = (Date.now() - new Date(fresh.lastReminderSentAt).getTime()) / (1000 * 60 * 60);
+        if (fresh?.waNotifiedAt) {
+          const hoursAgo = (Date.now() - new Date(fresh.waNotifiedAt).getTime()) / (1000 * 60 * 60);
           if (hoursAgo < 6) {
             results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: false, error: 'Sudah terkunci/terkirim sebelumnya (proteksi duplikat)' });
             failedCount++;
@@ -283,9 +281,7 @@ export async function POST(request: NextRequest) {
         await prisma.invoice.update({
           where: { id: inv.id },
           data: {
-            waNotified: true,
             waNotifiedAt: new Date(),
-            lastReminderSentAt: new Date(),
             sentReminders: ALL_DAYS_LOCK,
           },
         });

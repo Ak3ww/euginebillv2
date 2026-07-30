@@ -924,7 +924,7 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
             // 🛡️ ATOMIC CONCURRENCY CHECK: Re-verify DB & Pre-mark sentReminders BEFORE sending WA message
             const freshInvoice = await prisma.invoice.findUnique({
               where: { id: invoice.id },
-              select: { sentReminders: true, lastReminderSentAt: true },
+              select: { sentReminders: true, waNotifiedAt: true },
             })
 
             const currentSent: number[] = freshInvoice?.sentReminders
@@ -937,8 +937,8 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
               return
             }
 
-            if (freshInvoice?.lastReminderSentAt) {
-              const hoursSinceLast = (Date.now() - new Date(freshInvoice.lastReminderSentAt).getTime()) / (1000 * 60 * 60)
+            if (freshInvoice?.waNotifiedAt) {
+              const hoursSinceLast = (Date.now() - new Date(freshInvoice.waNotifiedAt).getTime()) / (1000 * 60 * 60)
               if (hoursSinceLast < 4) {
                 console.log(`[Invoice Reminder] 🛡️ Skipped ${invoice.invoiceNumber}: reminder sent ${hoursSinceLast.toFixed(1)}h ago`)
                 skippedCount++
@@ -952,8 +952,6 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
               where: { id: invoice.id },
               data: {
                 sentReminders: JSON.stringify(currentSent),
-                lastReminderSentAt: new Date(),
-                waNotified: true,
                 waNotifiedAt: new Date(),
               },
             })
