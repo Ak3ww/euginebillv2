@@ -263,7 +263,8 @@ export async function createPppoeUser(
   const defaultBillingDay = company?.fixedBillingDate || 1;
   const validBillingDay = billingDay ? Math.min(Math.max(parseInt(String(billingDay)), 1), 31) : defaultBillingDay;
   
-  if (company?.enableProrate) {
+  const requestedFirstInvoice = (data as any).firstInvoice as 'none' | 'prorate' | 'full' | undefined;
+  if (company?.enableProrate && requestedFirstInvoice !== 'full') {
     // PRORATE LOGIC
     finalExpiredAt = new Date(now.getFullYear(), now.getMonth(), validBillingDay, 23, 59, 59, 999);
     if (now.getDate() >= validBillingDay) {
@@ -398,7 +399,10 @@ export async function createPppoeUser(
       const companyConfig = await prisma.company.findFirst();
       
       let invoiceAmount = profile.price;
-      if (firstInvoice === 'prorate' || (companyConfig?.enableProrate && subscriptionType !== 'PREPAID')) {
+      const isExplicitProrate = firstInvoice === 'prorate';
+      const isExplicitFull = firstInvoice === 'full';
+
+      if (isExplicitProrate || (!isExplicitFull && companyConfig?.enableProrate && subscriptionType !== 'PREPAID')) {
         // Calculate prorate: days from today to next billing date
         const registrationDate = registeredAt ? new Date(registeredAt + 'T00:00:00') : new Date();
         registrationDate.setHours(0, 0, 0, 0);
