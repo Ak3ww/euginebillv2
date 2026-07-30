@@ -494,8 +494,10 @@ export async function sendInvoiceReminder(data: {
     }
 
     if (!templateContent) {
-      console.warn(`[WA] No template found for ${templateType}`);
-      return;
+      console.warn(`[WA] No template found for ${templateType}, using default fallback template`);
+      templateContent = isOverdue
+        ? `📄 *TAGIHAN INTERNET (JATUH TEMPO)*\n\nHalo *{{customerName}}*,\nTagihan internet Anda telah melewati tanggal jatuh tempo (*{{dueDate}}*).\n\nNo. Tagihan: *{{invoiceNumber}}*\nPaket: *{{profileName}}*\nTotal: *{{amount}}*\n\nSilakan lakukan pembayaran melalui link berikut:\n{{paymentLink}}\n\n*{{companyName}}*`
+        : `📄 *TAGIHAN INTERNET*\n\nHalo *{{customerName}}*,\nBerikut adalah rincian tagihan internet Anda:\n\nNo. Tagihan: *{{invoiceNumber}}*\nPaket: *{{profileName}}*\nJatuh Tempo: *{{dueDate}}*\nTotal: *{{amount}}*\n\nSilakan lakukan pembayaran melalui link berikut:\n{{paymentLink}}\n\n*{{companyName}}*`;
     }
 
     // Fetch bank accounts for payment templates

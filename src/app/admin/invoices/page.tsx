@@ -1444,36 +1444,54 @@ export default function InvoicesPage() {
                       <span className="text-muted-foreground">{t('invoices.dueDate')}:</span>
                       <span className="text-muted-foreground">{formatDate(invoice.dueDate)}</span>
                     </div>
+                    <div className="flex justify-between items-center pt-0.5">
+                      <span className="text-muted-foreground">Status WA:</span>
+                      {invoice.waNotifiedAt ? (
+                        <span className="text-[10px] font-medium text-success flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Terkirim ({invoice.waRetryCount || 1}x)
+                        </span>
+                      ) : invoice.waRetryCount > 0 ? (
+                        <span className="text-[10px] font-medium text-destructive flex items-center gap-1">
+                          <XCircle className="w-3 h-3" /> Gagal ({invoice.waRetryCount}x)
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          Belum WA (0x)
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-end gap-1 mt-2 ml-6">
-                    {invoice.paymentLink && (
-                      <button onClick={() => handleCopyPaymentLink(invoice)} className="p-1.5 hover:bg-muted rounded" title="Salin Link Pembayaran">
-                        {copiedId === invoice.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => {
-                        const origin = typeof window !== 'undefined' ? window.location.origin : '';
-                        navigator.clipboard.writeText(`${origin}/invoice/${invoice.invoiceNumber}`);
-                        showToast('Link Invoice disalin', 'success');
-                      }} 
-                      className="p-1.5 hover:bg-muted rounded" 
-                      title="Salin Link Invoice"
-                    >
-                      <Copy className="h-3.5 w-3.5 text-emerald-600" />
-                    </button>
-                    <Link href={`/invoice/${invoice.invoiceNumber}`} target="_blank" className="p-1.5 hover:bg-muted rounded text-blue-500" title="Buka Web Invoice">
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </Link>
                     <button onClick={() => setPrintDialogInvoice(invoice)} className="p-1.5 hover:bg-muted rounded" title="Cetak Invoice">
                       <Printer className="h-3.5 w-3.5 text-muted-foreground" />
                     </button>
                     <button onClick={() => handleViewDetail(invoice)} className="p-1.5 hover:bg-muted rounded" title="Lihat Detail">
                       <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                     </button>
+                    {(invoice.status === 'PENDING' || invoice.status === 'OVERDUE') && (
+                      <button onClick={() => handleEditInvoice(invoice)} className="p-1.5 hover:bg-muted rounded" title="Edit Tagihan">
+                        <svg className="h-3.5 w-3.5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    )}
                     {(invoice.status === 'PENDING' || invoice.status === 'OVERDUE') && invoice.customerPhone && (
-                      <button onClick={() => handleSendWhatsApp(invoice)} disabled={sendingWA === invoice.id} className="p-1.5 hover:bg-muted rounded" title="WhatsApp">
-                        {sendingWA === invoice.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />}
+                      <button 
+                        onClick={() => handleSendWhatsApp(invoice)} 
+                        disabled={sendingWA === invoice.id} 
+                        className={`p-1.5 hover:bg-muted rounded ${!invoice.waNotifiedAt && invoice.waRetryCount > 0 ? 'text-destructive bg-destructive/10 hover:bg-destructive/20 font-medium px-2 py-1' : ''}`} 
+                        title={!invoice.waNotifiedAt && invoice.waRetryCount > 0 ? `Kirim Ulang WA (Gagal ${invoice.waRetryCount}x)` : 'Kirim WA'}
+                      >
+                        {sendingWA === invoice.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : !invoice.waNotifiedAt && invoice.waRetryCount > 0 ? (
+                          <span className="flex items-center gap-1 text-[10px] text-destructive font-medium">
+                            <RefreshCw className="h-3 w-3" />
+                            Kirim Ulang WA
+                          </span>
+                        ) : (
+                          <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
                       </button>
                     )}
                     {(invoice.status === 'PENDING' || invoice.status === 'OVERDUE') && (
