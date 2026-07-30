@@ -188,6 +188,58 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
+    // Auto-reconcile WA status: Cross-check unnotified invoices against actual whatsapp_history sent logs
+    const unnotifiedInvoices = invoices.filter(inv => !inv.waNotifiedAt);
+    if (unnotifiedInvoices.length > 0) {
+      try {
+        const waSentLogs = await prisma.whatsapp_history.findMany({
+          where: { status: 'sent' },
+          select: { phone: true, message: true, sentAt: true },
+          orderBy: { sentAt: 'desc' },
+          take: 1000,
+        });
+
+        if (waSentLogs.length > 0) {
+          const norm = (p: string) => {
+            if (!p) return '';
+            let c = p.replace(/[^0-9]/g, '');
+            if (c.startsWith('0')) c = '62' + c.slice(1);
+            else if (c.startsWith('8')) c = '628' + c.slice(1);
+            return c;
+          };
+
+          for (const inv of unnotifiedInvoices) {
+            const custPhone = inv.customerPhone || inv.user?.phone || '';
+            const normPhone = norm(custPhone);
+            const invTime = new Date(inv.createdAt).getTime() - 24 * 60 * 60 * 1000; // -24h tolerance
+
+            const match = waSentLogs.find(log => {
+              const logNorm = norm(log.phone);
+              const logTime = new Date(log.sentAt).getTime();
+              const hasInvNum = inv.invoiceNumber && log.message.includes(inv.invoiceNumber);
+              const isSameCust = normPhone && logNorm === normPhone && logTime >= invTime;
+              return hasInvNum || isSameCust;
+            });
+
+            if (match) {
+              inv.waNotifiedAt = match.sentAt;
+              if (!inv.waRetryCount) inv.waRetryCount = 1;
+              // Backfill DB asynchronously so it's permanently recorded
+              prisma.invoice.update({
+                where: { id: inv.id },
+                data: {
+                  waNotifiedAt: match.sentAt,
+                  waRetryCount: inv.waRetryCount || 1,
+                },
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch (reconErr) {
+        console.error('[Invoices API] Auto-reconcile WA status error:', reconErr);
+      }
+    }
+
     // Calculate stats — run all 7 queries in parallel applying current filter conditions
     const [total, unpaid, paid, pending, overdue, totalUnpaidAgg, totalPaidAgg] = await Promise.all([
       prisma.invoice.count({ where }),
