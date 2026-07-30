@@ -538,7 +538,6 @@ export async function sendInvoiceReminder(data: {
       await prisma.invoice.updateMany({
         where: { invoiceNumber: data.invoiceNumber },
         data: {
-          waNotified: true,
           waNotifiedAt: new Date(),
           waRetryCount: { increment: 1 }
         }

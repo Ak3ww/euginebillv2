@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
         return containsInvoice || logTime >= invCreatedAt;
       });
 
-      const isLockedInDb = inv.waNotified === true || (inv.sentReminders && inv.sentReminders.length > 2);
+      const isLockedInDb = Boolean(inv.waNotifiedAt) || (inv.sentReminders && inv.sentReminders.length > 2);
 
       if (matchingLogs.length > 0 || isLockedInDb) {
         verifiedSentList.push({
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
         targetIds = invoicesToLock
           .filter(inv => {
             const p = normalizePhone(inv.customerPhone || inv.user?.phone || '');
-            return normPhones.has(p) || inv.waNotified === true;
+            return normPhones.has(p) || Boolean(inv.waNotifiedAt);
           })
           .map(inv => inv.id);
       }
@@ -323,7 +323,7 @@ export async function POST(request: NextRequest) {
           await prisma.invoice.update({
             where: { id: inv.id },
             data: {
-              waNotified: false,
+              waNotifiedAt: null,
               sentReminders: '[]',
             },
           }).catch(() => {});
