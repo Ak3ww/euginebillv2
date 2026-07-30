@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/auth/config'
-import { unauthorized, ok, internalError } from '@/lib/api-response'
+import { unauthorized, ok, serverError } from '@/lib/api-response'
 import { abortJob } from '@/server/jobs/voucher-sync'
 
 /**
@@ -27,6 +27,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('[CRON KILL API] Error:', error)
-    return internalError(error.message || 'Gagal menghentikan cron job')
+    return serverError(error.message || 'Gagal menghentikan cron job')
   }
 }
