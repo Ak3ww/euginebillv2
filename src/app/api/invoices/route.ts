@@ -188,18 +188,16 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    // Auto-reconcile WA status: Cross-check unnotified invoices against actual whatsapp_history sent logs
-    const unnotifiedInvoices = invoices.filter(inv => !inv.waNotifiedAt);
-    if (unnotifiedInvoices.length > 0) {
+    // Smart Auto-Reconcile WA Status: Check latest whatsapp_history logs for ALL invoices
+    if (invoices.length > 0) {
       try {
-        const waSentLogs = await prisma.whatsapp_history.findMany({
-          where: { status: 'sent' },
-          select: { phone: true, message: true, sentAt: true },
+        const waLogs = await prisma.whatsapp_history.findMany({
+          select: { phone: true, message: true, status: true, sentAt: true },
           orderBy: { sentAt: 'desc' },
-          take: 1000,
+          take: 2000,
         });
 
-        if (waSentLogs.length > 0) {
+        if (waLogs.length > 0) {
           const norm = (p: string) => {
             if (!p) return '';
             let c = p.replace(/[^0-9]/g, '');
@@ -208,12 +206,13 @@ export async function GET(request: NextRequest) {
             return c;
           };
 
-          for (const inv of unnotifiedInvoices) {
+          for (const inv of invoices) {
             const custPhone = inv.customerPhone || inv.user?.phone || '';
             const normPhone = norm(custPhone);
-            const invTime = new Date(inv.createdAt).getTime() - 24 * 60 * 60 * 1000; // -24h tolerance
+            const invTime = new Date(inv.createdAt).getTime() - 48 * 60 * 60 * 1000; // -48h tolerance
 
-            const match = waSentLogs.find(log => {
+            // Find the LATEST log matching invoice number OR customer phone
+            const latestLog = waLogs.find(log => {
               const logNorm = norm(log.phone);
               const logTime = new Date(log.sentAt).getTime();
               const hasInvNum = inv.invoiceNumber && log.message.includes(inv.invoiceNumber);
@@ -221,17 +220,30 @@ export async function GET(request: NextRequest) {
               return hasInvNum || isSameCust;
             });
 
-            if (match) {
-              inv.waNotifiedAt = match.sentAt;
-              if (!inv.waRetryCount) inv.waRetryCount = 1;
-              // Backfill DB asynchronously so it's permanently recorded
-              prisma.invoice.update({
-                where: { id: inv.id },
-                data: {
-                  waNotifiedAt: match.sentAt,
-                  waRetryCount: inv.waRetryCount || 1,
-                },
-              }).catch(() => {});
+            if (latestLog) {
+              if (latestLog.status === 'sent') {
+                inv.waNotifiedAt = latestLog.sentAt;
+                if (!inv.waRetryCount) inv.waRetryCount = 1;
+                // Sync DB if different
+                prisma.invoice.update({
+                  where: { id: inv.id },
+                  data: {
+                    waNotifiedAt: latestLog.sentAt,
+                    waRetryCount: inv.waRetryCount || 1,
+                  },
+                }).catch(() => {});
+              } else if (latestLog.status === 'failed') {
+                // Latest attempt FAILED! Clear waNotifiedAt so UI displays "WA Gagal" and "Kirim Ulang"
+                inv.waNotifiedAt = null;
+                if (!inv.waRetryCount) inv.waRetryCount = 1;
+                prisma.invoice.update({
+                  where: { id: inv.id },
+                  data: {
+                    waNotifiedAt: null,
+                    waRetryCount: inv.waRetryCount || 1,
+                  },
+                }).catch(() => {});
+              }
             }
           }
         }
