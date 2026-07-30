@@ -194,11 +194,9 @@ export class WhatsAppService {
     if (!phone) return '';
     let clean = phone.replace(/[^0-9]/g, '');
 
-    // Fix double '8' prepend error (e.g. 62885254837611 [14 digits] -> 6285254837611 [13 digits])
-    if (clean.startsWith('6288') && clean.length >= 14) {
-      clean = '628' + clean.slice(4);
-    } else if (clean.startsWith('088') && clean.length >= 13) {
-      clean = '08' + clean.slice(3);
+    // Handle double country code prefix (e.g. 62628xxx or 6208xxx)
+    if (clean.startsWith('6262')) {
+      clean = clean.slice(2);
     }
 
     if (clean.startsWith('620')) {
