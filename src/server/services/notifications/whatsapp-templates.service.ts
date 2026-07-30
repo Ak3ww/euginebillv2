@@ -5,6 +5,28 @@ import { prisma } from '@/server/db/client';
  * Render template with variables
  * Replace {{variable}} with actual values
  */
+function formatDateIndonesian(val: any): string {
+  if (!val || val === '-') return '-';
+  let dateObj: Date;
+  if (val instanceof Date) {
+    dateObj = val;
+  } else if (typeof val === 'string') {
+    if (/[a-zA-Z]/.test(val) && !val.includes('T') && !val.includes('Z')) {
+      return val;
+    }
+    dateObj = new Date(val);
+  } else {
+    return String(val);
+  }
+  if (isNaN(dateObj.getTime())) return String(val);
+  return dateObj.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Asia/Jakarta',
+  });
+}
+
 function renderTemplate(template: string, variables: Record<string, any>): string {
   if (!template || !template.trim()) return '';
   let rendered = template;
@@ -21,8 +43,9 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
 
   const customerId = variables.customerId && variables.customerId !== '-' ? variables.customerId : (variables.customerUsername || variables.username || '-');
   const profileName = variables.profileName && variables.profileName !== '-' ? variables.profileName : (variables.packageName || '-');
-  const expiredAt = variables.expiredAt || variables.dueDate || variables.expiredDate || '-';
-  const dueDate = variables.dueDate || variables.expiredAt || variables.expiredDate || '-';
+  
+  const rawDate = variables.dueDate || variables.expiredAt || variables.expiredDate || variables.expiredat || variables.tgl_expired || '-';
+  const formattedDate = formatDateIndonesian(rawDate);
 
   const defaultVars: Record<string, any> = {
     customerName: variables.customerName || 'Pelanggan',
@@ -34,8 +57,17 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
     jumlah: formattedAmount,
     nominal: formattedAmount,
     harga: formattedAmount,
-    expiredAt,
-    dueDate,
+    expiredAt: formattedDate,
+    expiredat: formattedDate,
+    expired_at: formattedDate,
+    expiredDate: formattedDate,
+    tgl_expired: formattedDate,
+    tanggal_expired: formattedDate,
+    dueDate: formattedDate,
+    due_date: formattedDate,
+    jatuh_tempo: formattedDate,
+    tgl_jatuh_tempo: formattedDate,
+    tanggal_jatuh_tempo: formattedDate,
     link_download_aplikasi: downloadAppUrl,
     link_download_apk: downloadAppUrl,
     paymentMethod: variables.paymentMethod || variables.metodePembayaran || '-',
@@ -51,6 +83,10 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
     // Replace {key}
     rendered = rendered.replace(new RegExp(`{${key}}`, 'gi'), valStr);
   }
+
+  // Fallback: replace bare words like "expiredat" or "expired_at" if written without brackets in custom templates
+  rendered = rendered.replace(/\bexpiredat\b/gi, formattedDate);
+  rendered = rendered.replace(/\bexpired_at\b/gi, formattedDate);
 
   return rendered;
 }
