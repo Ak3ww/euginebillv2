@@ -916,12 +916,10 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           ? JSON.parse(invoice.sentReminders)
           : []
 
-        // 🛡️ STOP-LOSS SAFETY BRAKE: Maximum 3 WhatsApp reminders per invoice (Anti-Spam / Safehaven)
-        const totalSentCount = Array.isArray(sentReminders) ? sentReminders.length : 0
+        // Protect against duplicate sends for the same invoice number (max 3 failed retries per invoice)
         const totalRetryCount = (invoice as any).waRetryCount || 0
-
-        if (totalSentCount >= 3 || totalRetryCount >= 3) {
-          console.log(`[Invoice Reminder] 🛑 STOP-LOSS SKIPPED ${invoice.invoiceNumber}: Max 3 reminders reached (sent: ${totalSentCount}, retries: ${totalRetryCount})`)
+        if (totalRetryCount >= 3 && !invoice.waNotifiedAt) {
+          console.log(`[Invoice Reminder] 🛑 SKIPPED ${invoice.invoiceNumber}: Max 3 failed retries reached for this invoice`)
           skippedCount++
           continue
         }

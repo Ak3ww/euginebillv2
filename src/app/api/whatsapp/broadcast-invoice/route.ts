@@ -129,11 +129,18 @@ export async function POST(request: NextRequest) {
       const messagesToSend = invoiceDataList
         .filter(({ invoice }) => {
           if (!invoice.customerPhone) return false;
-          // 🛡️ STOP-LOSS: Max 3 WA per invoice (Anti-Spam)
-          const sentArr = invoice.sentReminders ? (() => { try { return JSON.parse(invoice.sentReminders); } catch { return []; } })() : [];
+          // Protect against duplicate broadcast for an invoice already sent today
+          if (invoice.waNotifiedAt) {
+            const isToday = new Date(invoice.waNotifiedAt).toDateString() === new Date().toDateString();
+            if (isToday) {
+              console.log(`[Invoice Broadcast] Skipping ${invoice.invoiceNumber}: Already sent today`);
+              results.whatsapp.skipped++;
+              return false;
+            }
+          }
           const retryCount = (invoice as any).waRetryCount || 0;
-          if (sentArr.length >= 3 || retryCount >= 3) {
-            console.log(`[Invoice Broadcast] 🛑 STOP-LOSS: Skipping ${invoice.invoiceNumber} (already sent ${retryCount}x)`);
+          if (retryCount >= 3 && !invoice.waNotifiedAt) {
+            console.log(`[Invoice Broadcast] Skipping ${invoice.invoiceNumber}: Max 3 failed retries reached for this invoice`);
             results.whatsapp.skipped++;
             return false;
           }

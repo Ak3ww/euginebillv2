@@ -268,23 +268,16 @@ export async function POST(request: NextRequest) {
           select: { waNotifiedAt: true, sentReminders: true },
         });
 
-        const sentReminders = fresh?.sentReminders ? JSON.parse(fresh.sentReminders) : [];
-        const totalSentCount = Array.isArray(sentReminders) ? sentReminders.length : 0;
-        const totalRetryCount = (inv as any).waRetryCount || 0;
-
-        if (totalSentCount >= 3 || totalRetryCount >= 3) {
-          results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: false, error: 'Stop-Loss: Maksimal 3x pengiriman telah tercapai (Anti-Spam)' });
+        if (fresh?.waNotifiedAt) {
+          results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: false, error: 'Tagihan ini sudah terkirim sebelumnya (proteksi duplikat)' });
           failedCount++;
           continue;
         }
 
-        if (fresh?.waNotifiedAt) {
-          const hoursAgo = (Date.now() - new Date(fresh.waNotifiedAt).getTime()) / (1000 * 60 * 60);
-          if (hoursAgo < 6) {
-            results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: false, error: 'Sudah terkunci/terkirim sebelumnya (proteksi duplikat)' });
-            failedCount++;
-            continue;
-          }
+        if (totalRetryCount >= 3) {
+          results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: false, error: 'Maksimal 3x percobaan gagal untuk tagihan ini' });
+          failedCount++;
+          continue;
         }
 
         // Lock in DB first

@@ -49,16 +49,23 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
-    // 🛡️ STOP-LOSS SAFETY BRAKE: Maximum 3 WhatsApp reminders per invoice (Anti-Spam / Safehaven)
-    const sentReminders = invoice.sentReminders ? JSON.parse(invoice.sentReminders) : []
-    const totalSentCount = Array.isArray(sentReminders) ? sentReminders.length : 0
-    const totalRetryCount = (invoice as any).waRetryCount || 0
+    // Protect against duplicate sends for the SAME invoice number if already notified within 60 minutes
+    if (invoice.waNotifiedAt) {
+      const minsSince = (Date.now() - new Date(invoice.waNotifiedAt).getTime()) / (1000 * 60);
+      if (minsSince < 60) {
+        return NextResponse.json({
+          success: false,
+          error: `Pesan WA untuk tagihan ${invoice.invoiceNumber} sudah terkirim (${Math.round(minsSince)} menit yang lalu).`
+        }, { status: 400 });
+      }
+    }
 
-    if (totalSentCount >= 3 || totalRetryCount >= 3) {
+    const totalRetryCount = (invoice as any).waRetryCount || 0;
+    if (totalRetryCount >= 3 && !invoice.waNotifiedAt) {
       return NextResponse.json({
         success: false,
-        error: 'Batas maksimal pengiriman (3x WA) telah tercapai. Pengiriman dibatalkan demi keamanan nomor WA (Anti-Spam).'
-      }, { status: 400 })
+        error: `Batas maksimal 3x percobaan gagal telah tercapai untuk tagihan ${invoice.invoiceNumber}.`
+      }, { status: 400 });
     }
 
     // Get company info
