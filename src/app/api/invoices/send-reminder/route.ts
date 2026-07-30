@@ -49,23 +49,15 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
-    // Protect against duplicate sends for the SAME invoice number if already notified within 60 minutes
+    // 🛡️ Admin Manual Send Protection: 2-minute debounce to prevent accidental double-clicking
     if (invoice.waNotifiedAt) {
       const minsSince = (Date.now() - new Date(invoice.waNotifiedAt).getTime()) / (1000 * 60);
-      if (minsSince < 60) {
+      if (minsSince < 2) {
         return NextResponse.json({
           success: false,
-          error: `Pesan WA untuk tagihan ${invoice.invoiceNumber} sudah terkirim (${Math.round(minsSince)} menit yang lalu).`
+          error: `Pesan WA baru saja sukses terkirim ${Math.round(minsSince * 60)} detik yang lalu. Mohon tunggu 2 menit untuk mengirim ulang.`
         }, { status: 400 });
       }
-    }
-
-    const totalRetryCount = (invoice as any).waRetryCount || 0;
-    if (totalRetryCount >= 3 && !invoice.waNotifiedAt) {
-      return NextResponse.json({
-        success: false,
-        error: `Batas maksimal 3x percobaan gagal telah tercapai untuk tagihan ${invoice.invoiceNumber}.`
-      }, { status: 400 });
     }
 
     // Get company info

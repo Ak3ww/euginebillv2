@@ -912,20 +912,17 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
         }
 
         // Check if this reminder day already sent
-        const sentReminders = invoice.sentReminders
-          ? JSON.parse(invoice.sentReminders)
-          : []
-
-        // Protect against duplicate sends for the same invoice number (max 3 failed retries per invoice)
-        const totalRetryCount = (invoice as any).waRetryCount || 0
-        if (totalRetryCount >= 3 && !invoice.waNotifiedAt) {
-          console.log(`[Invoice Reminder] 🛑 SKIPPED ${invoice.invoiceNumber}: Max 3 failed retries reached for this invoice`)
+        // Cron Protection: Skip if this specific reminder schedule (H-7 / H-1) was already sent
+        if (sentReminders.includes(reminderDay)) {
+          console.log(`[Invoice Reminder] Skipped ${invoice.invoiceNumber}: H${reminderDay} already sent`)
           skippedCount++
           continue
         }
 
-        if (sentReminders.includes(reminderDay)) {
-          console.log(`[Invoice Reminder] Skipped ${invoice.invoiceNumber}: H${reminderDay} already sent`)
+        // Limit automatic cron retries for permanently failed numbers (max 5 failed attempts)
+        const totalRetryCount = (invoice as any).waRetryCount || 0
+        if (totalRetryCount >= 5 && !invoice.waNotifiedAt) {
+          console.log(`[Invoice Reminder] 🛑 SKIPPED ${invoice.invoiceNumber}: Max 5 failed cron retries reached`)
           skippedCount++
           continue
         }
