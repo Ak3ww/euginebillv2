@@ -129,43 +129,57 @@ export async function POST(request: NextRequest) {
     if (channel === 'whatsapp' || channel === 'both') {
       if (invoice.customerPhone) {
         try {
-          // Check if WhatsApp provider is available
           const activeProviders = await prisma.whatsapp_providers.findMany({
             where: { isActive: true },
           })
 
           if (activeProviders.length > 0) {
-            await sendInvoiceReminder({
+            // sendInvoiceReminder handles DB updates internally:
+            // - Success → sets waNotifiedAt + increments waRetryCount
+            // - Failure → only increments waRetryCount (so UI shows "WA Gagal")
+            const waResult = await sendInvoiceReminder({
               phone: invoice.customerPhone,
               ...reminderData
             })
-            // Log WA send timestamp to database
+
+            if (waResult && waResult.success === false) {
+              // sendInvoiceReminder already incremented waRetryCount on failure
+              results.whatsapp = { success: false, error: waResult.error || 'Gagal mengirim WA' }
+              if (channel === 'whatsapp') {
+                errors.push(waResult.error || 'Gagal mengirim WA')
+              }
+            } else {
+              // sendInvoiceReminder already updated waNotifiedAt + waRetryCount on success
+              results.whatsapp = { success: true }
+              hasSuccess = true
+            }
+          } else {
+            // No provider - increment waRetryCount so UI shows "WA Gagal"
             await prisma.invoice.update({
               where: { id: invoice.id },
-              data: {
-                waNotifiedAt: new Date(),
-                waRetryCount: { increment: 1 }
-              }
-            })
-            results.whatsapp = { success: true }
-            hasSuccess = true
-          } else {
-            results.whatsapp = { success: false, error: 'No active WhatsApp provider configured' }
+              data: { waRetryCount: { increment: 1 } }
+            }).catch(() => {})
+            results.whatsapp = { success: false, error: 'Tidak ada provider WhatsApp aktif' }
             if (channel === 'whatsapp') {
-              errors.push('No active WhatsApp provider configured')
+              errors.push('Tidak ada provider WhatsApp aktif')
             }
           }
         } catch (waError: any) {
           console.error('[Send Reminder] WhatsApp error:', waError)
-          results.whatsapp = { success: false, error: waError.message || 'Failed to send WhatsApp' }
+          // Increment waRetryCount so UI shows "WA Gagal" not "Belum WA"
+          await prisma.invoice.update({
+            where: { id: invoice.id },
+            data: { waRetryCount: { increment: 1 } }
+          }).catch(() => {})
+          results.whatsapp = { success: false, error: waError.message || 'Gagal mengirim WA' }
           if (channel === 'whatsapp') {
-            errors.push(waError.message || 'Failed to send WhatsApp')
+            errors.push(waError.message || 'Gagal mengirim WA')
           }
         }
       } else {
-        results.whatsapp = { success: false, error: 'Customer phone number not found' }
+        results.whatsapp = { success: false, error: 'Nomor telepon pelanggan tidak ditemukan' }
         if (channel === 'whatsapp') {
-          errors.push('Customer phone number not found')
+          errors.push('Nomor telepon pelanggan tidak ditemukan')
         }
       }
     }

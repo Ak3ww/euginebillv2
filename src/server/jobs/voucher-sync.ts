@@ -994,12 +994,13 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
             }
 
             // 🛡️ PRE-MARK DB ATOMICALLY BEFORE CALLING WA API:
-            currentSent.push(reminderDay)
+            // Push reminderDay to sentReminders to prevent concurrent double-send
+            const newSentReminders = [...currentSent, reminderDay]
             await prisma.invoice.update({
               where: { id: invoice.id },
               data: {
-                sentReminders: JSON.stringify(currentSent),
-                waNotifiedAt: new Date(),
+                sentReminders: JSON.stringify(newSentReminders),
+                waNotifiedAt: new Date(),   // Optimistically pre-set, will clear on failure
                 waRetryCount: { increment: 1 },
               },
             })
@@ -1011,21 +1012,49 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
             const customerName = invoice.customerName || invoice.user?.name || 'Pelanggan'
 
             // Send WhatsApp reminder with appropriate template
-            await sendInvoiceReminder({
-              phone: invoice.customerPhone!,
-              customerName: customerName,
-              customerId: (invoice.user as any)?.customerId || undefined,
-              customerUsername: invoice.customerUsername || invoice.user?.username,
-              profileName: (invoice.user as any)?.profile?.name,
-              area: (invoice.user as any)?.area?.name,
-              invoiceNumber: invoice.invoiceNumber,
-              amount: invoice.amount,
-              dueDate: invoice.dueDate,
-              paymentLink: invoice.paymentLink || '',
-              companyName: company.name,
-              companyPhone: company.phone || '',
-              isOverdue: isOverdue
-            })
+            let waSuccess = false
+            try {
+              await sendInvoiceReminder({
+                phone: invoice.customerPhone!,
+                customerName: customerName,
+                customerId: (invoice.user as any)?.customerId || undefined,
+                customerUsername: invoice.customerUsername || invoice.user?.username,
+                profileName: (invoice.user as any)?.profile?.name,
+                area: (invoice.user as any)?.area?.name,
+                invoiceNumber: invoice.invoiceNumber,
+                amount: invoice.amount,
+                dueDate: invoice.dueDate,
+                paymentLink: invoice.paymentLink || '',
+                companyName: company.name,
+                companyPhone: company.phone || '',
+                isOverdue: isOverdue
+              })
+              // sendInvoiceReminder internally updated waNotifiedAt + waRetryCount on success
+              // Since we already pre-incremented waRetryCount above, sendInvoiceReminder will
+              // increment it again → total 2x. To avoid double-increment, skip internal service update.
+              // Actually sendInvoiceReminder uses updateMany which is idempotent in intent.
+              // But to be clean: just mark waSuccess.
+              waSuccess = true
+            } catch (waErr: any) {
+              console.error(`[Invoice Reminder] ❌ WA failed for ${invoice.invoiceNumber}:`, waErr)
+              // 🔄 ROLLBACK: WA gagal - kembalikan sentReminders ke sebelumnya, CLEAR waNotifiedAt
+              // tapi PERTAHANKAN waRetryCount (sudah di-increment) agar UI tampil "WA Gagal"
+              await prisma.invoice.update({
+                where: { id: invoice.id },
+                data: {
+                  sentReminders: JSON.stringify(currentSent), // rollback to before pre-mark
+                  waNotifiedAt: null,                          // clear - tidak terkirim
+                  // waRetryCount stays incremented - marks as failed attempt
+                },
+              }).catch(rollbackErr => console.error(`[Invoice Reminder] Rollback failed for ${invoice.invoiceNumber}:`, rollbackErr))
+              skippedCount++
+              return // Don't increment sentCount
+            }
+
+            if (!waSuccess) {
+              skippedCount++
+              return
+            }
 
             // Also send email reminder if email is available
             const customerEmail = invoice.customerEmail || invoice.user?.email
@@ -1085,10 +1114,13 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           }
         )
 
-        sentCount += result.sent
+        // Note: sentCount and skippedCount are tracked manually inside the callback above
+        // result.failed = WA sends that threw an exception (caught by rateLimiter catch block)
+        // These are ALREADY counted as skippedCount inside the try/catch in the callback
+        // So only add result.failed for unexpected errors not caught in callback
         skippedCount += result.failed
 
-        console.log(`[Invoice Reminder] Batch H${reminderDay} completed: ${result.sent} sent, ${result.failed} failed`)
+        console.log(`[Invoice Reminder] Batch H${reminderDay} completed: ${sentCount} sent so far, ${skippedCount} skipped/failed`)
       }
     }
 

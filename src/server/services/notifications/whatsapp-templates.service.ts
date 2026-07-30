@@ -531,9 +531,17 @@ export async function sendInvoiceReminder(data: {
     });
 
     if (!waRes.success) {
+      // ❌ GAGAL: Selalu increment waRetryCount agar UI bisa deteksi kegagalan
+      if (data.invoiceNumber) {
+        await prisma.invoice.updateMany({
+          where: { invoiceNumber: data.invoiceNumber },
+          data: { waRetryCount: { increment: 1 } }
+        }).catch(e => console.error(`[WA] Failed to update waRetryCount for ${data.invoiceNumber}:`, e));
+      }
       throw new Error(waRes.error || 'WhatsApp provider failed to send message');
     }
 
+    // ✅ SUKSES: Update waNotifiedAt DAN waRetryCount
     if (data.invoiceNumber) {
       await prisma.invoice.updateMany({
         where: { invoiceNumber: data.invoiceNumber },

@@ -41,6 +41,8 @@ interface Invoice {
   paymentLink: string | null;
   createdAt: string;
   waNotifiedAt: string | null;
+  waRetryCount: number;       // Total kirim/retry attempts (termasuk gagal)
+  sentReminders: string | null; // JSON array of sent reminder days
   baseAmount?: number;
   notes?: string | null;
   additionalFees?: { name: string; amount: number }[] | null;
@@ -1199,14 +1201,14 @@ export default function InvoicesPage() {
                       <TableCell className="py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {invoice.waNotifiedAt ? (
-                            <div className="flex items-center mr-1 px-1.5 py-0.5 rounded bg-success/10 text-success text-[9px] font-medium" title={`Terakhir WA dikirim: ${formatWIB(invoice.waNotifiedAt)} (Terkirim ${(invoice as any).waRetryCount || 1}x)`}>
+                            <div className="flex items-center mr-1 px-1.5 py-0.5 rounded bg-success/10 text-success text-[9px] font-medium" title={`Terakhir WA dikirim: ${formatWIB(invoice.waNotifiedAt)} (Terkirim ${invoice.waRetryCount || 1}x)`}>
                               <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
-                              WA Terkirim ({(invoice as any).waRetryCount || 1}x)
+                              WA Terkirim ({invoice.waRetryCount || 1}x)
                             </div>
-                          ) : (invoice as any).waRetryCount > 0 ? (
-                            <div className="flex items-center mr-1 px-1.5 py-0.5 rounded bg-destructive/10 text-destructive text-[9px] font-medium" title="Gagal mengirim WA">
+                          ) : invoice.waRetryCount > 0 ? (
+                            <div className="flex items-center mr-1 px-1.5 py-0.5 rounded bg-destructive/10 text-destructive text-[9px] font-medium" title={`Gagal mengirim WA sebanyak ${invoice.waRetryCount}x`}>
                               <XCircle className="w-2.5 h-2.5 mr-1" />
-                              WA Gagal ({(invoice as any).waRetryCount}x)
+                              WA Gagal ({invoice.waRetryCount}x)
                             </div>
                           ) : (
                             <div className="flex items-center mr-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[9px] font-medium" title="Belum pernah terkirim WA">
@@ -1249,12 +1251,12 @@ export default function InvoicesPage() {
                             <button
                               onClick={() => handleSendWhatsApp(invoice)}
                               disabled={sendingWA === invoice.id}
-                              className={`p-1 hover:bg-muted rounded ${!invoice.waNotifiedAt && (invoice as any).waRetryCount > 0 ? 'text-destructive hover:bg-destructive/10' : ''}`}
-                              title={!invoice.waNotifiedAt && (invoice as any).waRetryCount > 0 ? 'Kirim Ulang WA (Gagal)' : 'Kirim WA'}
+                              className={`p-1 hover:bg-muted rounded ${!invoice.waNotifiedAt && invoice.waRetryCount > 0 ? 'text-destructive hover:bg-destructive/10' : ''}`}
+                              title={!invoice.waNotifiedAt && invoice.waRetryCount > 0 ? `Kirim Ulang WA (Gagal ${invoice.waRetryCount}x)` : 'Kirim WA'}
                             >
                               {sendingWA === invoice.id ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : !invoice.waNotifiedAt && (invoice as any).waRetryCount > 0 ? (
+                              ) : !invoice.waNotifiedAt && invoice.waRetryCount > 0 ? (
                                 <RefreshCw className="h-3 w-3 text-destructive" />
                               ) : (
                                 <MessageCircle className="h-3 w-3 text-muted-foreground" />

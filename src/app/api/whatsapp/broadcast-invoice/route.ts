@@ -188,34 +188,39 @@ export async function POST(request: NextRequest) {
 
         const { sendWithRateLimit } = await import('@/lib/utils/rateLimiter');
 
+        // Build a map for O(1) lookup by phone+invoiceId combo
+        const msgMap = new Map(messagesToSend.map(m => [m.invoiceId, m]));
+
         const waResult = await sendWithRateLimit(
           messagesToSend,
           async (msg) => {
+            // Each pesan sudah unik (invoiceNumber + customerName berbeda) → anti-spam OK
             const sendResult = await WhatsAppService.sendMessage({
               phone: msg.phone,
               message: msg.message,
             });
+
             if (!sendResult.success) {
-              // ❌ Sending failed - still increment waRetryCount so stop-loss tracks total attempts
+              // ❌ GAGAL: increment waRetryCount agar UI tampil "WA Gagal (Nx)"
               await prisma.invoice.update({
                 where: { id: msg.invoiceId },
                 data: { waRetryCount: { increment: 1 } }
               }).catch(() => {});
+              console.error(`[Invoice Broadcast] ❌ Failed ${msg.invoiceNumber}: ${sendResult.error}`);
               throw new Error(sendResult.error || 'Gagal mengirim pesan WA via provider');
             }
 
-            // ✅ SUCCESS: Update waNotifiedAt, waRetryCount, and sentReminders in DB
+            // ✅ SUKSES: Update waNotifiedAt, waRetryCount, sentReminders
             try {
               const freshInv = await prisma.invoice.findUnique({
                 where: { id: msg.invoiceId },
                 select: { sentReminders: true },
               });
-              const existingSent: number[] = freshInv?.sentReminders
-                ? JSON.parse(freshInv.sentReminders)
+              const existingSent: string[] = freshInv?.sentReminders
+                ? (() => { try { return JSON.parse(freshInv.sentReminders); } catch { return []; } })()
                 : [];
-              // Add 0 (broadcast day) as marker in sentReminders
-              const broadcastMarker = Date.now(); // use timestamp as unique broadcast marker
-              const updatedSent = [...existingSent, broadcastMarker];
+              // Mark broadcast with 'broadcast' tag + timestamp
+              const updatedSent = [...existingSent, `broadcast_${Date.now()}`];
 
               await prisma.invoice.update({
                 where: { id: msg.invoiceId },
@@ -225,9 +230,9 @@ export async function POST(request: NextRequest) {
                   sentReminders: JSON.stringify(updatedSent),
                 },
               });
-              console.log(`[Invoice Broadcast] ✅ Updated DB for ${msg.invoiceNumber}`);
+              console.log(`[Invoice Broadcast] ✅ DB updated for ${msg.invoiceNumber}`);
             } catch (dbErr) {
-              console.error(`[Invoice Broadcast] ⚠️ Failed to update DB for ${msg.invoiceNumber}:`, dbErr);
+              console.error(`[Invoice Broadcast] ⚠️ DB update failed for ${msg.invoiceNumber}:`, dbErr);
             }
 
             return sendResult;
@@ -240,9 +245,10 @@ export async function POST(request: NextRequest) {
 
         results.whatsapp.sent = waResult.sent;
         results.whatsapp.failed = waResult.failed;
-        results.whatsapp.details = waResult.results.map(r => ({
-          invoiceId: messagesToSend.find(m => m.phone === r.phone)?.invoiceId,
-          invoiceNumber: messagesToSend.find(m => m.phone === r.phone)?.invoiceNumber,
+        // Use data.invoiceId from result for accurate mapping (not phone - can collide)
+        results.whatsapp.details = waResult.results.map((r, idx) => ({
+          invoiceId: messagesToSend[idx]?.invoiceId,
+          invoiceNumber: messagesToSend[idx]?.invoiceNumber,
           phone: r.phone,
           success: r.success,
           error: r.error,
