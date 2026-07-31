@@ -711,6 +711,7 @@ ${names}
 
   /**
    * Tarik DHCP lease dari MikroTik dan paksa ONT untuk Inform dengan mengirim Connection Request.
+   * Hanya untuk IP yang BELUM online di ACS untuk menghindari spamming.
    */
   static async syncAcsFromDhcp(): Promise<{ triggered: number; errors: number }> {
     let triggered = 0;
@@ -719,6 +720,13 @@ ${names}
     const routers = await prisma.router.findMany({
       where: { isActive: true },
     });
+
+    // Ambil IP yang sudah online di ACS
+    const onlineDevices = await prisma.acsDevice.findMany({
+      where: { status: 'online', ipAddress: { not: null } },
+      select: { ipAddress: true }
+    });
+    const onlineIps = new Set(onlineDevices.map(d => d.ipAddress));
 
     for (const router of routers) {
       const apiPort = router.port || 8728;
@@ -736,33 +744,35 @@ ${names}
         // Ambil lease DHCP yang bound (aktif)
         const leases = await conn.execute('/ip/dhcp-server/lease/print', ['?status=bound']);
         
-        for (const lease of leases) {
-          const ip = lease.address;
-          if (!ip) continue;
+        const chunkSize = 20;
+        for (let i = 0; i < leases.length; i += chunkSize) {
+          const chunk = leases.slice(i, i + chunkSize);
+          await Promise.all(chunk.map(async (lease: any) => {
+            const ip = lease.address;
+            // Skip jika IP sudah online di ACS, jangan di-spam!
+            if (!ip || onlineIps.has(ip)) return;
 
-          // Coba kirim Connection Request mentah ke port 7547
-          // Jika ini ONT ZTE/Huawei, ia akan merespons dengan 401 dan memicu Inform ke ACS URL (dari DHCP Option 43)
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 detik timeout (krn banyak IP yg mungkin bukan ONT)
+            try {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 1500); // 1.5 detik timeout
 
-            const res = await fetch(`http://${ip}:7547/`, {
-              method: 'GET',
-              signal: controller.signal,
-              headers: {
-                'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'),
+              const res = await fetch(`http://${ip}:7547/`, {
+                method: 'GET',
+                signal: controller.signal,
+                headers: {
+                  'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'),
+                }
+              }).catch(() => null);
+
+              clearTimeout(timeoutId);
+
+              if (res) {
+                triggered++;
               }
-            }).catch(() => null);
-
-            clearTimeout(timeoutId);
-
-            if (res) {
-              triggered++;
-              console.log(`[Built-in ACS] 📡 DHCP Sync triggered Inform from ONT at ${ip}`);
+            } catch (e) {
+              // Ignore
             }
-          } catch (e) {
-            // Abaikan error fetch, IP mungkin bukan ONT atau diblokir firewall
-          }
+          }));
         }
 
         await conn.disconnect();
