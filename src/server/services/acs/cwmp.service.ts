@@ -1,4 +1,5 @@
 import { prisma } from '@/server/db/client';
+import { MikroTikConnection } from '../mikrotik/client';
 
 const SOAP_NS = 'http://schemas.xmlsoap.org/soap/envelope/';
 const CWMP_NS = 'urn:dslforum-org:cwmp-1-0';
@@ -642,23 +643,135 @@ ${names}
 
   /**
    * Tandai device sebagai offline jika lastInform > thresholdMinutes menit yang lalu.
-   * Jalankan via cron setiap 5 menit.
+   * Disempurnakan: Sebelum menandai offline, periksa apakah ada sesi PPPoE aktif di radacct.
+   * Jika sesi aktif, device PASTI online.
    */
   static async runOfflineDetection(thresholdMinutes: number = 12): Promise<{ marked: number }> {
     const threshold = new Date(Date.now() - thresholdMinutes * 60 * 1000);
 
-    const result = await prisma.acsDevice.updateMany({
+    // Ambil device yang berpotensi offline (online tapi lastInform lewat batas)
+    const candidates = await prisma.acsDevice.findMany({
       where: {
         status: 'online',
         lastInform: { lt: threshold }
-      },
-      data: { status: 'offline' }
+      }
     });
 
-    if (result.count > 0) {
-      console.log(`[Built-in ACS] 🔴 Marked ${result.count} device(s) as offline (lastInform > ${thresholdMinutes} min ago)`);
+    if (candidates.length === 0) return { marked: 0 };
+
+    let marked = 0;
+
+    for (const device of candidates) {
+      let isReallyOffline = true;
+
+      // Cek apakah device ini punya pppoeUserId
+      if (device.pppoeUserId) {
+        // Cek sesi aktif di radacct melalui username PPPoE-nya
+        const user = await prisma.pppoeUser.findUnique({
+          where: { id: device.pppoeUserId },
+          select: { username: true }
+        });
+
+        if (user && user.username) {
+          const activeSession = await prisma.$queryRaw<any[]>`
+            SELECT radacctid FROM radacct 
+            WHERE username = ${user.username} 
+              AND acctstoptime IS NULL
+            LIMIT 1
+          `;
+          
+          if (activeSession && activeSession.length > 0) {
+            // Sesi PPPoE aktif! Modem ini sebenarnya masih online.
+            // Kita skip menandai offline, dan sekalian update lastInform biar gak terus masuk kandidat
+            isReallyOffline = false;
+            await prisma.acsDevice.update({
+              where: { id: device.id },
+              data: { lastInform: new Date() }
+            });
+            console.log(`[Built-in ACS] 🛡️ ${device.serialNumber} saved from offline status (PPPoE session is active)`);
+          }
+        }
+      }
+
+      if (isReallyOffline) {
+        await prisma.acsDevice.update({
+          where: { id: device.id },
+          data: { status: 'offline' }
+        });
+        marked++;
+      }
     }
 
-    return { marked: result.count };
+    if (marked > 0) {
+      console.log(`[Built-in ACS] 🔴 Marked ${marked} device(s) as offline`);
+    }
+
+    return { marked };
+  }
+
+  /**
+   * Tarik DHCP lease dari MikroTik dan paksa ONT untuk Inform dengan mengirim Connection Request.
+   */
+  static async syncAcsFromDhcp(): Promise<{ triggered: number; errors: number }> {
+    let triggered = 0;
+    let errors = 0;
+
+    const routers = await prisma.router.findMany({
+      where: { isActive: true },
+    });
+
+    for (const router of routers) {
+      const apiPort = router.port || 8728;
+      const conn = new MikroTikConnection({
+        host: router.ipAddress,
+        username: router.username,
+        password: router.password,
+        port: apiPort,
+        tls: false,
+      });
+
+      try {
+        await conn.connect();
+        
+        // Ambil lease DHCP yang bound (aktif)
+        const leases = await conn.execute('/ip/dhcp-server/lease/print', ['?status=bound']);
+        
+        for (const lease of leases) {
+          const ip = lease.address;
+          if (!ip) continue;
+
+          // Coba kirim Connection Request mentah ke port 7547
+          // Jika ini ONT ZTE/Huawei, ia akan merespons dengan 401 dan memicu Inform ke ACS URL (dari DHCP Option 43)
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 detik timeout (krn banyak IP yg mungkin bukan ONT)
+
+            const res = await fetch(`http://${ip}:7547/`, {
+              method: 'GET',
+              signal: controller.signal,
+              headers: {
+                'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'),
+              }
+            }).catch(() => null);
+
+            clearTimeout(timeoutId);
+
+            if (res) {
+              triggered++;
+              console.log(`[Built-in ACS] 📡 DHCP Sync triggered Inform from ONT at ${ip}`);
+            }
+          } catch (e) {
+            // Abaikan error fetch, IP mungkin bukan ONT atau diblokir firewall
+          }
+        }
+
+        await conn.disconnect();
+      } catch (err: any) {
+        console.error(`[Built-in ACS] DHCP Sync failed for router ${router.name}:`, err.message);
+        errors++;
+      }
+    }
+
+    return { triggered, errors };
   }
 }

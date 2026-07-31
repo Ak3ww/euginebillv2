@@ -66,50 +66,20 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const params = (device.parameters as Record<string, any>) || {};
-
-    // Extract rxPower (redaman PON)
-    let rxPower = '-';
-    const rawRxPower = params['InternetGatewayDevice.WANDevice.1.X_ZTE-COM_PONInterfaceConfig.RxPower'] || 
-                       params['InternetGatewayDevice.WANDevice.1.WANDSLDiagnostics.ReceiveAttenuation'] || 
-                       params['InternetGatewayDevice.WANDevice.1.WANDSLInterfaceConfig.OpticalSignalLevel'];
-    if (rawRxPower) {
-      const parsed = parseFloat(rawRxPower);
-      if (!isNaN(parsed)) {
-        rxPower = parsed > 0 || parsed < -100 ? (parsed / 100).toFixed(2) : parsed.toFixed(2);
-      }
-    }
-
-    // Extract Connected Devices / Hosts from TR-069 parameters
-    const connectedHosts: any[] = [];
-    const hostIndices = new Set<string>();
+    // Gunakan nilai langsung dari database (yang sudah di-parse oleh Built-in ACS)
+    const rxPower = device.rxPower !== null ? device.rxPower.toFixed(2) : '-';
     
-    for (const key of Object.keys(params)) {
-      const match = key.match(/LANDevice\.\d+\.Hosts\.Host\.(\d+)\./i);
-      if (match) {
-        hostIndices.add(match[1]);
-      }
-    }
-
-    for (const idx of hostIndices) {
-      const prefix = `InternetGatewayDevice.LANDevice.1.Hosts.Host.${idx}.`;
-      const mac = params[`${prefix}MACAddress`] || '';
-      const ip = params[`${prefix}IPAddress`] || '';
-      const hostname = params[`${prefix}HostName`] || params[`${prefix}HostName`] || params[`${prefix}HostName`] || 'Perangkat Tanpa Nama';
-      const activeRaw = params[`${prefix}Active`];
-      const active = activeRaw === '1' || activeRaw === 'true' || activeRaw === true;
-      const interfaceType = params[`${prefix}InterfaceType`] || 'Wi-Fi';
-
-      if (mac || ip) {
-        connectedHosts.push({
-          macAddress: mac,
-          ipAddress: ip,
-          hostname: hostname,
-          associatedDevice: interfaceType.toLowerCase().includes('802.11') || interfaceType.toLowerCase().includes('wifi') || interfaceType.toLowerCase().includes('wlan') ? 'Wi-Fi' : 'LAN',
-          active: active,
-          signalStrength: active ? 'Bagus' : 'Terputus',
-        });
-      }
+    // Connected devices dari JSON di database
+    let connectedHosts: any[] = [];
+    if (Array.isArray(device.connectedDevices)) {
+      connectedHosts = device.connectedDevices.map((host: any) => ({
+        macAddress: host.mac || '',
+        ipAddress: host.ip || '',
+        hostname: host.hostname || 'Perangkat Tanpa Nama',
+        associatedDevice: (host.interface || '').toLowerCase().includes('802.11') || (host.interface || '').toLowerCase().includes('wifi') || (host.interface || '').toLowerCase().includes('wlan') ? 'Wi-Fi' : 'LAN',
+        active: !!host.active,
+        signalStrength: host.active ? 'Bagus' : 'Terputus',
+      }));
     }
 
     const processedDevice = {
@@ -120,17 +90,17 @@ export async function GET(request: NextRequest) {
       manufacturer: device.manufacturer || 'ZTE',
       softwareVersion: device.softwareVersion || '-',
       ipAddress: device.ipAddress || '-',
-      uptime: '-',
+      uptime: device.deviceUptime ? `${Math.floor(device.deviceUptime / 3600)}j ${Math.floor((device.deviceUptime % 3600) / 60)}m` : '-',
       status: device.status || 'online',
       wlanConfigs: [
         {
           index: 1,
-          ssid: ssid,
+          ssid: device.ssid || '-',
           enabled: true,
           channel: '-',
           standard: '-',
           security: 'WPA2-PSK',
-          password: password,
+          password: device.wifiPassword || '-',
           band: '2.4GHz',
           totalAssociations: connectedHosts.filter(h => h.active).length,
           bssid: '-'
@@ -205,6 +175,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Client IP validation - memastikan pelanggan terkoneksi ke modemnya sendiri
+    let clientIp = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || request.headers.get('x-real-ip') || '';
+    clientIp = clientIp.replace('::ffff:', '');
+
+    if (device.wanIpAddress && clientIp !== device.wanIpAddress) {
+      // Fallback check against radacct if wanIpAddress is outdated
+      const activeSession = await prisma.$queryRaw<any[]>`
+        SELECT framedipaddress FROM radacct 
+        WHERE username = ${user.username} 
+          AND acctstoptime IS NULL 
+        ORDER BY radacctid DESC LIMIT 1
+      `;
+      const pppoeIp = activeSession?.[0]?.framedipaddress;
+      
+      if (clientIp !== pppoeIp) {
+        return NextResponse.json(
+          { success: false, error: 'Akses Ditolak: Anda harus terhubung ke jaringan WiFi rumah Anda untuk mengganti password.' },
+          { status: 403 }
+        );
+      }
+    }
+
     // 1. Update database immediately to reflect change on UI
     const existingParams = (device.parameters as Record<string, any>) || {};
     const newParams = { ...existingParams };
@@ -215,7 +207,11 @@ export async function POST(request: NextRequest) {
 
     await prisma.acsDevice.update({
       where: { id: device.id },
-      data: { parameters: newParams }
+      data: { 
+        parameters: newParams,
+        ssid: ssid,
+        ...(password ? { wifiPassword: password } : {})
+      }
     });
 
     // 2. Queue ACS setParameterValues task

@@ -440,6 +440,20 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ success: false, error: acsErr.message })
         }
 
+      case 'acs_dhcp_sync':
+        try {
+          const { CwmpService } = await import('@/server/services/acs/cwmp.service')
+          const dhcpSyncResult = await CwmpService.syncAcsFromDhcp()
+          return NextResponse.json({
+            success: true,
+            triggered: dhcpSyncResult.triggered,
+            errors: dhcpSyncResult.errors,
+            message: `ACS DHCP sync: triggered ${dhcpSyncResult.triggered} ONT(s), ${dhcpSyncResult.errors} error(s)`
+          })
+        } catch (acsErr: any) {
+          return NextResponse.json({ success: false, error: acsErr.message })
+        }
+
       default:
         return NextResponse.json({
           success: false,

@@ -182,6 +182,7 @@ async function start() {
   scheduleJob('mikrotik_session_cleanup', '0 3 * * *', 'MikroTik Session Cleanup', { lockTtl: 120 });
   scheduleJob('acs_offline_check', '*/5 * * * *', 'ACS Offline Detection');       // Tandai device ACS yg tdk Inform sebagai offline
   scheduleJob('acs_session_cleanup', '*/30 * * * *', 'ACS Session Cleanup');       // Bersihkan sesi CWMP kedaluwarsa dari DB
+  scheduleJob('acs_dhcp_sync', '*/2 * * * *', 'ACS DHCP Lease Sync');              // Tarik DHCP lease dan trigger Connection Request
 
   // Telegram crons integration (dynamic settings)
   setTimeout(async () => {
