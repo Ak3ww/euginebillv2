@@ -45,21 +45,25 @@ export const ZteParamMap = {
   hostCount:        'InternetGatewayDevice.LANDevice.1.Hosts.HostNumberOfEntries',
 };
 
-// Parameter set yang di-request saat Inform pertama / refresh berkala
-export const FULL_PARAM_SET = [
+// Parameter set yang standar (pasti ada di semua ONT)
+export const BASIC_PARAM_SET = [
   ZteParamMap.ssid,
   ZteParamMap.wifiPassword,
-  ZteParamMap.ssid5g,
-  ZteParamMap.wifiPassword5g,
   ZteParamMap.pppoeUsername,
   ZteParamMap.wanExternalIp,
-  ZteParamMap.rxPower,
-  ZteParamMap.txPower,
   ZteParamMap.hardwareVersion,
   ZteParamMap.softwareVersion,
   ZteParamMap.uptime,
   ZteParamMap.periodicInformInterval,
   ZteParamMap.hostCount,
+];
+
+// Parameter set tambahan (5GHz, Redaman GPON) yang mungkin gagal di ONT tertentu
+export const ADVANCED_PARAM_SET = [
+  ZteParamMap.ssid5g,
+  ZteParamMap.wifiPassword5g,
+  ZteParamMap.rxPower,
+  ZteParamMap.txPower,
 ];
 
 // Parameter untuk ambil daftar connected devices (Hosts)
@@ -345,16 +349,28 @@ ${names}
         where: { deviceId: device.id, name: 'GetParameterValues', status: 'pending' }
       });
 
+      // Task 1: Basic Parameters (Pasti sukses)
       await prisma.acsTask.create({
         data: {
           name: 'GetParameterValues',
           command: 'GetParameterValues',
-          payload: JSON.stringify({ parameterNames: FULL_PARAM_SET }),
+          payload: JSON.stringify({ parameterNames: BASIC_PARAM_SET }),
           status: 'pending',
           deviceId: device.id,
         }
       });
-      console.log(`[Built-in ACS] 📡 Queued full parameter refresh for ${deviceId}`);
+      
+      // Task 2: Advanced Parameters (Bisa jadi gagal jika ONT single-band atau bukan ZTE, tapi tidak akan membatalkan Task 1)
+      await prisma.acsTask.create({
+        data: {
+          name: 'GetParameterValues',
+          command: 'GetParameterValues',
+          payload: JSON.stringify({ parameterNames: ADVANCED_PARAM_SET }),
+          status: 'pending',
+          deviceId: device.id,
+        }
+      });
+      console.log(`[Built-in ACS] 📡 Queued basic & advanced parameter refresh for ${deviceId}`);
     }
 
     return device;
@@ -515,7 +531,17 @@ ${names}
       data: {
         name: 'GetParameterValues',
         command: 'GetParameterValues',
-        payload: JSON.stringify({ parameterNames: FULL_PARAM_SET }),
+        payload: JSON.stringify({ parameterNames: BASIC_PARAM_SET }),
+        status: 'pending',
+        deviceId: device.id,
+      }
+    });
+
+    await prisma.acsTask.create({
+      data: {
+        name: 'GetParameterValues',
+        command: 'GetParameterValues',
+        payload: JSON.stringify({ parameterNames: ADVANCED_PARAM_SET }),
         status: 'pending',
         deviceId: device.id,
       }
