@@ -673,14 +673,14 @@ ${names}
         });
 
         if (user && user.username) {
-          const activeSession = await prisma.$queryRaw<any[]>`
-            SELECT radacctid FROM radacct 
-            WHERE username = ${user.username} 
-              AND acctstoptime IS NULL
-            LIMIT 1
-          `;
+          const activeSession = await prisma.mikrotikSession.findFirst({
+            where: {
+              username: user.username,
+              stopTime: null
+            }
+          });
           
-          if (activeSession && activeSession.length > 0) {
+          if (activeSession) {
             // Sesi PPPoE aktif! Modem ini sebenarnya masih online.
             // Kita skip menandai offline, dan sekalian update lastInform biar gak terus masuk kandidat
             isReallyOffline = false;

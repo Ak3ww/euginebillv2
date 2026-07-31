@@ -15,14 +15,14 @@ async function recover() {
 
   for (const device of offlineDevices) {
     if (device.pppoeUser?.username) {
-      const activeSession = await prisma.$queryRaw<any[]>`
-        SELECT radacctid FROM radacct 
-        WHERE username = ${device.pppoeUser.username} 
-          AND acctstoptime IS NULL
-        LIMIT 1
-      `;
+      const activeSession = await prisma.mikrotikSession.findFirst({
+        where: {
+          username: device.pppoeUser.username,
+          stopTime: null
+        }
+      });
       
-      if (activeSession && activeSession.length > 0) {
+      if (activeSession) {
         // Device is actually online!
         await prisma.acsDevice.update({
           where: { id: device.id },
