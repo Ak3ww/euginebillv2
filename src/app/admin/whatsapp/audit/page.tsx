@@ -392,6 +392,7 @@ export default function WhatsAppAuditPage() {
                 <XCircle className="w-4 h-4" />
                 Daftar Pelanggan yang SAMA SEKALI BELUM Menerima WA Tagihan ({filteredUnsent.length})
               </span>
+            </div>
 
             {filteredUnsent.length === 0 ? (
               <div className="p-8 text-center text-xs text-muted-foreground">
