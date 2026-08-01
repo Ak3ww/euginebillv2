@@ -128,6 +128,12 @@ export async function POST(request: NextRequest) {
     if (channel === 'whatsapp' || channel === 'both') {
       if (invoice.customerPhone) {
         try {
+          // Reset waRetryCount to 0 because admin manually bypassed the 3x failed limit
+          await prisma.invoice.update({
+            where: { id: invoice.id },
+            data: { waRetryCount: 0 }
+          }).catch(() => {})
+
           const activeProviders = await prisma.whatsapp_providers.findMany({
             where: { isActive: true },
           })
