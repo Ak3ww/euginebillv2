@@ -22,7 +22,7 @@ async function main() {
   console.log(`Target Area ID: ${targetArea.id}`);
 
   // 2. Find users without an area
-  const usersWithoutArea = await prisma.user.findMany({
+  const usersWithoutArea = await prisma.users.findMany({
     where: {
       areaId: null,
       role: 'USER' // Only target actual customers
@@ -33,7 +33,7 @@ async function main() {
 
   if (usersWithoutArea.length > 0) {
     // 3. Update them
-    const result = await prisma.user.updateMany({
+    const result = await prisma.users.updateMany({
       where: {
         areaId: null,
         role: 'USER'
