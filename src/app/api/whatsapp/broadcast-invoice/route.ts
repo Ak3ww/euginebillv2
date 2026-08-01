@@ -166,10 +166,12 @@ export async function POST(request: NextRequest) {
               daysRemaining: String(Math.max(0, daysRemaining)),
               daysOverdue: String(daysOverdue),
               paymentLink: invoice.paymentLink || '-',
+              invoiceWebLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invoice/${invoice.invoiceNumber}`,
+              invoicePdfLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invoice/${invoice.invoiceNumber}`,
               bankAccounts: bankAccountsText,
-              companyName: company.name,
-              companyPhone: company.phone || '',
-              companyEmail: company.email || '',
+              companyName: company.name || '-',
+              companyPhone: company.phone || '-',
+              companyEmail: company.email || '-',
             };
             message = renderTemplate(templateContent, variables);
           } else {

@@ -919,10 +919,10 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           continue
         }
 
-        // Limit automatic cron retries for permanently failed numbers (max 5 failed attempts)
+        // Limit automatic cron retries for permanently failed numbers (max 3 failed attempts)
         const totalRetryCount = (invoice as any).waRetryCount || 0
-        if (totalRetryCount >= 5 && !invoice.waNotifiedAt) {
-          console.log(`[Invoice Reminder] 🛑 SKIPPED ${invoice.invoiceNumber}: Max 5 failed cron retries reached`)
+        if (totalRetryCount >= 3 && !invoice.waNotifiedAt) {
+          console.log(`[Invoice Reminder] 🛑 SKIPPED ${invoice.invoiceNumber}: Max 3 failed cron retries reached`)
           skippedCount++
           continue
         }
@@ -996,7 +996,6 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
               data: {
                 sentReminders: JSON.stringify(newSentReminders),
                 waNotifiedAt: new Date(),   // Optimistically pre-set, will clear on failure
-                waRetryCount: { increment: 1 },
               },
             })
 
@@ -1024,22 +1023,17 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
                 companyPhone: company.phone || '',
                 isOverdue: isOverdue
               })
-              // sendInvoiceReminder internally updated waNotifiedAt + waRetryCount on success
-              // Since we already pre-incremented waRetryCount above, sendInvoiceReminder will
-              // increment it again → total 2x. To avoid double-increment, skip internal service update.
-              // Actually sendInvoiceReminder uses updateMany which is idempotent in intent.
-              // But to be clean: just mark waSuccess.
+              // sendInvoiceReminder internally handles updating waNotifiedAt (on success) 
+              // and waRetryCount (on failure) accurately.
               waSuccess = true
             } catch (waErr: any) {
               console.error(`[Invoice Reminder] ❌ WA failed for ${invoice.invoiceNumber}:`, waErr)
               // 🔄 ROLLBACK: WA gagal - kembalikan sentReminders ke sebelumnya, CLEAR waNotifiedAt
-              // tapi PERTAHANKAN waRetryCount (sudah di-increment) agar UI tampil "WA Gagal"
               await prisma.invoice.update({
                 where: { id: invoice.id },
                 data: {
                   sentReminders: JSON.stringify(currentSent), // rollback to before pre-mark
                   waNotifiedAt: null,                          // clear - tidak terkirim
-                  // waRetryCount stays incremented - marks as failed attempt
                 },
               }).catch(rollbackErr => console.error(`[Invoice Reminder] Rollback failed for ${invoice.invoiceNumber}:`, rollbackErr))
               skippedCount++

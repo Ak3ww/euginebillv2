@@ -541,8 +541,8 @@ export async function sendInvoiceReminder(data: {
     const bankAccountsText = formatBankAccountsForWA(company?.bankAccounts);
 
     // Prepare variables (supports both templates)
-    const variables = {
-      customerName: data.customerName,
+    const variables: Record<string, string> = {
+      customerName: data.customerName || data.customerUsername || '-',
       customerId: data.customerId || '-',
       username: data.customerUsername || '-',
       profileName: data.profileName || '-',
@@ -552,12 +552,12 @@ export async function sendInvoiceReminder(data: {
       dueDate: dueDateStr,
       daysRemaining: daysRemaining.toString(),
       daysOverdue: daysOverdue.toString(),
-      paymentLink: data.paymentLink,
+      paymentLink: data.paymentLink || '-',
       invoiceWebLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invoice/${data.invoiceNumber}`,
       invoicePdfLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invoice/${data.invoiceNumber}`,
       bankAccounts: bankAccountsText,
-      companyName: data.companyName,
-      companyPhone: data.companyPhone,
+      companyName: data.companyName || '-',
+      companyPhone: data.companyPhone || '-',
     };
 
     // Render template
@@ -579,13 +579,12 @@ export async function sendInvoiceReminder(data: {
       throw new Error(waRes.error || 'WhatsApp provider failed to send message');
     }
 
-    // ✅ SUKSES: Update waNotifiedAt DAN waRetryCount
+    // ✅ SUKSES: Hanya Update waNotifiedAt (Jangan increment waRetryCount lagi)
     if (data.invoiceNumber) {
       await prisma.invoice.updateMany({
         where: { invoiceNumber: data.invoiceNumber },
         data: {
-          waNotifiedAt: new Date(),
-          waRetryCount: { increment: 1 }
+          waNotifiedAt: new Date()
         }
       }).catch(e => console.error(`[WA] Failed to update waNotifiedAt for ${data.invoiceNumber}:`, e));
     }
