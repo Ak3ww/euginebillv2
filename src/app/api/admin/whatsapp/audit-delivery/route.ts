@@ -141,16 +141,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const failedList = unsentList.filter(inv => inv.waRetryCount > 0);
+    const pureUnsentList = unsentList.filter(inv => inv.waRetryCount === 0);
+
     return ok({
       success: true,
       summary: {
         totalInvoices: invoices.length,
         verifiedSent: verifiedSentList.length,
-        unsent: unsentList.length,
+        unsent: pureUnsentList.length,
+        failed: failedList.length,
         duplicates: duplicateList.length,
       },
       verifiedSentList,
-      unsentList,
+      unsentList: pureUnsentList,
+      failedList,
       duplicateList,
     });
   } catch (error: any) {
@@ -275,18 +280,11 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        if (totalRetryCount >= 3) {
-          results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: false, error: 'Maksimal 3x percobaan gagal untuk tagihan ini' });
-          failedCount++;
-          continue;
-        }
-
-        // Lock in DB first
+        // Lock in DB first (Pre-mark)
         await prisma.invoice.update({
           where: { id: inv.id },
           data: {
             waNotifiedAt: new Date(),
-            waRetryCount: { increment: 1 },
             sentReminders: ALL_DAYS_LOCK,
           },
         });
@@ -298,8 +296,8 @@ export async function POST(request: NextRequest) {
             customerName,
             customerId: (inv.user as any)?.customerId || undefined,
             customerUsername: inv.customerUsername || inv.user?.username,
-            profileName: (inv.user as any)?.profile?.name,
-            area: (inv.user as any)?.area?.name,
+            profileName: (inv.user as any)?.profile?.name || (inv.user as any)?.profile?.name || '-',
+            area: (inv.user as any)?.area?.name || '-',
             invoiceNumber: inv.invoiceNumber,
             amount: inv.amount,
             dueDate: inv.dueDate,

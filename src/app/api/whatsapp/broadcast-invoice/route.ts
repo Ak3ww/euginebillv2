@@ -155,10 +155,10 @@ export async function POST(request: NextRequest) {
           let message: string;
           if (templateContent) {
             const variables: Record<string, string> = {
-              customerName: invoice.customerName || invoice.customerUsername || 'Pelanggan',
+              customerName: invoice.customerName || invoice.user?.name || invoice.customerUsername || 'Pelanggan',
               customerId: invoice.user?.customerId || '-',
               username: invoice.customerUsername || invoice.user?.username || '-',
-              profileName: invoice.user?.profile?.name || '-',
+              profileName: invoice.user?.profile?.name || invoice.user?.profile?.name || '-', // Profile name is the package name
               area: invoice.user?.area?.name || '-',
               invoiceNumber: invoice.invoiceNumber,
               amount: `Rp ${invoice.amount.toLocaleString('id-ID')}`,

@@ -52,18 +52,20 @@ export default function WhatsAppAuditPage() {
   const { addToast } = useToast();
 
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'sent' | 'unsent' | 'duplicates'>('unsent');
+  const [activeTab, setActiveTab] = useState<'sent' | 'unsent' | 'failed' | 'duplicates'>('unsent');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [summary, setSummary] = useState({
     totalInvoices: 0,
     verifiedSent: 0,
     unsent: 0,
+    failed: 0,
     duplicates: 0,
   });
 
   const [verifiedSentList, setVerifiedSentList] = useState<VerifiedSentItem[]>([]);
   const [unsentList, setUnsentList] = useState<UnsentItem[]>([]);
+  const [failedList, setFailedList] = useState<UnsentItem[]>([]);
   const [duplicateList, setDuplicateList] = useState<DuplicateItem[]>([]);
 
   // Selection state for unsent list sending
@@ -81,6 +83,7 @@ export default function WhatsAppAuditPage() {
         setSummary(data.summary);
         setVerifiedSentList(data.verifiedSentList || []);
         setUnsentList(data.unsentList || []);
+        setFailedList(data.failedList || []);
         setDuplicateList(data.duplicateList || []);
       } else {
         addToast({ type: 'error', title: 'Gagal', description: data.error || 'Gagal memuat audit data WhatsApp' });
@@ -97,16 +100,19 @@ export default function WhatsAppAuditPage() {
     fetchAuditData();
   }, []);
 
-  // Handle select all unsent
-  const toggleSelectAllUnsent = () => {
-    if (selectedUnsentIds.size === unsentList.length) {
-      setSelectedUnsentIds(new Set());
+  const handleSelectAllUnsent = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      if (activeTab === 'failed') {
+        setSelectedUnsentIds(new Set(filteredFailed.map(i => i.invoiceId)));
+      } else {
+        setSelectedUnsentIds(new Set(filteredUnsent.map(i => i.invoiceId)));
+      }
     } else {
-      setSelectedUnsentIds(new Set(unsentList.map(u => u.invoiceId)));
+      setSelectedUnsentIds(new Set());
     }
   };
 
-  const toggleSelectUnsent = (id: string) => {
+  const handleToggleUnsent = (id: string) => {
     const next = new Set(selectedUnsentIds);
     if (next.has(id)) next.delete(id);
     else next.add(id);
@@ -188,6 +194,12 @@ export default function WhatsAppAuditPage() {
     item.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredFailed = failedList.filter(item =>
+    item.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.phone.includes(searchQuery) ||
+    item.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
 
@@ -215,7 +227,7 @@ export default function WhatsAppAuditPage() {
       </div>
 
       {/* Summary Cards Bento */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-card border border-border rounded-2xl p-4 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
             <div>
@@ -248,6 +260,18 @@ export default function WhatsAppAuditPage() {
             </div>
             <div className="p-3 rounded-xl bg-rose-500/20 text-rose-600">
               <XCircle className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card border border-rose-500/30 rounded-2xl p-4 shadow-sm relative overflow-hidden bg-rose-500/5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-mono font-bold uppercase text-rose-600 dark:text-rose-400">Gagal Terkirim</p>
+              <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">{summary.failed}</h3>
+            </div>
+            <div className="p-3 rounded-xl bg-rose-500/20 text-rose-600">
+              <AlertCircle className="w-5 h-5" />
             </div>
           </div>
         </div>
@@ -287,14 +311,14 @@ export default function WhatsAppAuditPage() {
             🔒 Kunci Permanen ({summary.verifiedSent}) Tagihan Terkirim
           </button>
 
-          {activeTab === 'unsent' && (
+          {(activeTab === 'unsent' || activeTab === 'failed') && (
             <button
               onClick={handleSendUnsentWA}
               disabled={processing || selectedUnsentIds.size === 0}
               className="px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-all disabled:opacity-50"
             >
               {processing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              🚀 Kirim WA HANYA ke ({selectedUnsentIds.size}) Pelanggan Belum Terkirim
+              🚀 Kirim Ulang WA ke ({selectedUnsentIds.size}) Pelanggan
             </button>
           )}
         </div>
@@ -307,10 +331,19 @@ export default function WhatsAppAuditPage() {
             onClick={() => setActiveTab('unsent')}
             className={cn(
               'px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 flex-1 sm:flex-initial justify-center',
-              activeTab === 'unsent' ? 'bg-rose-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              activeTab === 'unsent' ? 'bg-slate-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <XCircle className="w-4 h-4" /> Belum Terkirim ({summary.unsent})
+          </button>
+          <button
+            onClick={() => setActiveTab('failed')}
+            className={cn(
+              'px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 flex-1 sm:flex-initial justify-center',
+              activeTab === 'failed' ? 'bg-rose-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <AlertCircle className="w-4 h-4" /> Gagal Terkirim ({summary.failed})
           </button>
           <button
             onClick={() => setActiveTab('sent')}
@@ -354,18 +387,11 @@ export default function WhatsAppAuditPage() {
         ) : activeTab === 'unsent' ? (
           /* Tab Belum Terkirim */
           <div className="p-4 space-y-4">
-            <div className="flex items-center justify-between bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl">
-              <span className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
+            <div className="flex items-center justify-between bg-slate-500/10 border border-slate-500/20 p-3 rounded-xl">
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                <XCircle className="w-4 h-4" />
                 Daftar Pelanggan yang SAMA SEKALI BELUM Menerima WA Tagihan ({filteredUnsent.length})
               </span>
-              <button
-                onClick={toggleSelectAllUnsent}
-                className="text-xs font-bold text-primary hover:underline"
-              >
-                {selectedUnsentIds.size === unsentList.length ? 'Batal Pilih Semua' : 'Pilih Semua'}
-              </button>
-            </div>
 
             {filteredUnsent.length === 0 ? (
               <div className="p-8 text-center text-xs text-muted-foreground">
@@ -380,7 +406,7 @@ export default function WhatsAppAuditPage() {
                         <input
                           type="checkbox"
                           checked={selectedUnsentIds.size === unsentList.length && unsentList.length > 0}
-                          onChange={toggleSelectAllUnsent}
+                          onChange={handleSelectAllUnsent}
                           className="rounded border-input"
                         />
                       </th>
@@ -399,7 +425,7 @@ export default function WhatsAppAuditPage() {
                           <input
                             type="checkbox"
                             checked={selectedUnsentIds.has(item.invoiceId)}
-                            onChange={() => toggleSelectUnsent(item.invoiceId)}
+                            onChange={() => handleToggleUnsent(item.invoiceId)}
                             className="rounded border-input"
                           />
                         </td>
@@ -417,10 +443,76 @@ export default function WhatsAppAuditPage() {
                               WA Gagal ({item.waRetryCount}x)
                             </span>
                           ) : (
-                            <span className="px-2.5 py-1 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full font-mono text-[10px] font-bold uppercase">
-                              Belum Terkirim
+                            <span className="px-2.5 py-1 bg-slate-500/10 text-slate-600 border border-slate-500/20 rounded-full font-mono text-[10px] font-bold uppercase">
+                              Belum Dikirim
                             </span>
                           )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'failed' ? (
+          /* Tab Gagal Terkirim */
+          <div className="p-4 space-y-4">
+            <div className="flex items-center justify-between bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl">
+              <span className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                Daftar Pelanggan dengan Pengiriman WA Gagal ({filteredFailed.length})
+              </span>
+            </div>
+
+            {filteredFailed.length === 0 ? (
+              <div className="p-8 text-center text-xs text-muted-foreground">
+                🎉 Tidak ada pelanggan dengan status pengiriman WA gagal!
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted border-b border-border">
+                    <tr>
+                      <th className="p-3 text-left">
+                        <input
+                          type="checkbox"
+                          checked={selectedUnsentIds.size === failedList.length && failedList.length > 0}
+                          onChange={handleSelectAllUnsent}
+                          className="rounded border-input"
+                        />
+                      </th>
+                      <th className="p-3 text-left font-mono font-bold uppercase">Pelanggan</th>
+                      <th className="p-3 text-left font-mono font-bold uppercase">No. Invoice</th>
+                      <th className="p-3 text-left font-mono font-bold uppercase">Wilayah</th>
+                      <th className="p-3 text-left font-mono font-bold uppercase">Nominal</th>
+                      <th className="p-3 text-left font-mono font-bold uppercase">Jatuh Tempo</th>
+                      <th className="p-3 text-left font-mono font-bold uppercase">Status Gagal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {filteredFailed.map(item => (
+                      <tr key={item.invoiceId} className="hover:bg-muted/40 transition-colors">
+                        <td className="p-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedUnsentIds.has(item.invoiceId)}
+                            onChange={() => handleToggleUnsent(item.invoiceId)}
+                            className="rounded border-input"
+                          />
+                        </td>
+                        <td className="p-3">
+                          <div className="font-bold text-foreground">{item.customerName}</div>
+                          <div className="font-mono text-[10px] text-muted-foreground">{item.phone}</div>
+                        </td>
+                        <td className="p-3 font-mono font-bold text-primary">{item.invoiceNumber}</td>
+                        <td className="p-3 font-mono text-muted-foreground">{item.area}</td>
+                        <td className="p-3 font-mono font-bold">Rp {item.amount.toLocaleString('id-ID')}</td>
+                        <td className="p-3 font-mono text-muted-foreground">{formatWIB(item.dueDate, 'dd/MM/yyyy')}</td>
+                        <td className="p-3">
+                          <span className="px-2.5 py-1 bg-rose-500/10 text-rose-600 border border-rose-500/20 rounded-full font-mono text-[10px] font-bold uppercase">
+                            Gagal ({item.waRetryCount}x)
+                          </span>
                         </td>
                       </tr>
                     ))}
