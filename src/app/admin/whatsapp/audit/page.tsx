@@ -36,6 +36,7 @@ interface UnsentItem {
   area: string;
   status: string;
   paymentLink: string;
+  waRetryCount?: number;
 }
 
 interface DuplicateItem {
@@ -411,9 +412,15 @@ export default function WhatsAppAuditPage() {
                         <td className="p-3 font-mono font-bold">Rp {item.amount.toLocaleString('id-ID')}</td>
                         <td className="p-3 font-mono text-muted-foreground">{formatWIB(item.dueDate, 'dd/MM/yyyy')}</td>
                         <td className="p-3">
-                          <span className="px-2.5 py-1 bg-rose-500/10 text-rose-600 border border-rose-500/20 rounded-full font-mono text-[10px] font-bold uppercase">
-                            Belum Terkirim
-                          </span>
+                          {item.waRetryCount && item.waRetryCount > 0 ? (
+                            <span className="px-2.5 py-1 bg-rose-500/10 text-rose-600 border border-rose-500/20 rounded-full font-mono text-[10px] font-bold uppercase">
+                              WA Gagal ({item.waRetryCount}x)
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full font-mono text-[10px] font-bold uppercase">
+                              Belum Terkirim
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}

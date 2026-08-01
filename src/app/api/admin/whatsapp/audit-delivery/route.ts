@@ -136,6 +136,7 @@ export async function GET(request: NextRequest) {
           area: inv.user?.area?.name || '-',
           status: inv.status,
           paymentLink: inv.paymentLink,
+          waRetryCount: inv.waRetryCount,
         });
       }
     }
