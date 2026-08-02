@@ -19,6 +19,7 @@ interface Invoice {
   customerPhone: string;
   amount: number;
   status: string;
+  invoiceType?: string;
   dueDate: string;
   createdAt: string;
   paidAt: string | null;
@@ -338,7 +339,14 @@ export default function PaymentPage() {
       <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden overflow-hidden flex flex-col p-0">
         <div className="bg-[var(--color-paper-3)] px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-rule)]">
           <div>
-            <p className="text-[var(--color-muted)] text-xs font-medium uppercase tracking-wider mb-1">Total Tagihan</p>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-[var(--color-muted)] text-xs font-medium uppercase tracking-wider">Total Tagihan</p>
+              {invoice.invoiceType === 'INSTALLATION' && (
+                <span className="bg-blue-500/10 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30 flex items-center gap-1">
+                  🔧 Invoice Pasang Baru (PSB)
+                </span>
+              )}
+            </div>
             <p className="text-3xl font-bold">{formatCurrency(invoice.amount)}</p>
           </div>
           <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2">
