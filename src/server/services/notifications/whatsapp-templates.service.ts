@@ -385,7 +385,13 @@ Yth. Bapak/Ibu *{{customerName}}*
 1. Selesaikan pembayaran melalui link: {{paymentLink}}
 2. Atau scan QR Code pembayaran: {{paymentLink}}
 
-${COMMON_FOOTER}`;
+-----------------------------------------
+📱 *Aplikasi Pelanggan:* {{link_download_aplikasi}}
+📢 *WA Channel Info & Promo:* https://whatsapp.com/channel/0029Vb80GhZ1CYoX3FVC4m2v
+
+Ada kendala? Balas chat ini.
+Terima kasih,
+*{{companyName}}*`;
     }
 
     // Prepare variables
