@@ -349,6 +349,8 @@ export async function sendInstallationInvoice(data: {
   paymentLink: string;
   dueDate: Date;
   profileName?: string;
+  customerId?: string;
+  username?: string;
 }) {
   try {
     const company = await prisma.company.findFirst();

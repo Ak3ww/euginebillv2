@@ -438,7 +438,8 @@ export async function createPppoeUser(
         : 3;
       const installationDueDate = new Date(registeredAt ? new Date(registeredAt + 'T00:00:00') : new Date());
       installationDueDate.setDate(installationDueDate.getDate() + installationDays);
-      installationDueDate.setHours(23, 59, 59, 999);
+      const paymentToken = randomBytes(32).toString('hex');
+      const paymentLink = `${baseUrl}/pay/${paymentToken}`;
 
       await prisma.invoice.create({
         data: {
