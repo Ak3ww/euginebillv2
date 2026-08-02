@@ -279,12 +279,11 @@ export async function createPppoeUser(
   const validBillingDay = billingDay ? Math.min(Math.max(parseInt(String(billingDay)), 1), 31) : defaultBillingDay;
   
   if (subscriptionType === 'POSTPAID') {
-    if (currentDay >= 1 && currentDay <= 5) {
-      // Tanggal 1 s/d 5: Tidak ada prorate (bayar full), expiredAt = tanggal 5 bulan berikutnya
-      finalExpiredAt = new Date(year, month + 1, 5, 23, 59, 59, 999);
+    const targetDay = validBillingDay || 5;
+    if (currentDay < targetDay) {
+      finalExpiredAt = new Date(year, month, targetDay, 23, 59, 59, 999);
     } else {
-      // Dari tanggal 6 ke atas: Prorate s/d tanggal 1 bulan depan
-      finalExpiredAt = new Date(year, month + 1, 1, 23, 59, 59, 999);
+      finalExpiredAt = new Date(year, month + 1, targetDay, 23, 59, 59, 999);
     }
   } else {
     if (expiredAt) {
@@ -418,19 +417,13 @@ export async function createPppoeUser(
         registrationDate.setHours(0, 0, 0, 0);
         const year = registrationDate.getFullYear();
         const month = registrationDate.getMonth();
-        const currentDay = registrationDate.getDate();
 
-        if (currentDay >= 1 && currentDay <= 5) {
-          // Tanggal 1 s/d 5: Tidak ada prorate (bayar full 1 bulan)
-          invoiceAmount = profile.price;
-        } else {
-          // Dari tanggal 6 ke atas: Prorate s/d tanggal 1 bulan depan
-          const nextBilling = new Date(year, month + 1, 1);
-          const msPerDay = 1000 * 60 * 60 * 24;
-          const daysActive = Math.max(1, Math.ceil((nextBilling.getTime() - registrationDate.getTime()) / msPerDay));
-          const pricePerDay = profile.proratePricePerDay || (profile.price / 30);
-          invoiceAmount = Math.ceil(daysActive * pricePerDay);
-        }
+        // Hitung Prorate: selalu dari tanggal daftar s/d tanggal 1 bulan depan
+        const nextMonthFirst = new Date(year, month + 1, 1);
+        const msPerDay = 1000 * 60 * 60 * 24;
+        const daysActive = Math.max(1, Math.ceil((nextMonthFirst.getTime() - registrationDate.getTime()) / msPerDay));
+        const pricePerDay = profile.proratePricePerDay || (profile.price / 30);
+        invoiceAmount = Math.ceil(daysActive * pricePerDay);
       }
       const invoiceId = crypto.randomUUID();
       const invoiceNumber = generateInvoiceNumber();
