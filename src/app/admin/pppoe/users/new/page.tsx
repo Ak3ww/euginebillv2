@@ -169,13 +169,24 @@ export default function NewPppoeUserPage() {
     const targetDay = parseInt(formData.billingDay) || 5;
     const nextBilling = new Date(year, month + (currentDay < targetDay ? 0 : 1), targetDay);
 
-    const nextMonthFirst = new Date(year, month + 1, 1);
-    const msPerDay = 1000 * 60 * 60 * 24;
-    const daysActive = Math.max(1, Math.ceil((nextMonthFirst.getTime() - today.getTime()) / msPerDay));
-    const rawProrate = profile.proratePricePerDay;
-    const proratePrice = rawProrate ? Number(rawProrate) : Math.ceil(profile.price / 30);
-    const pricePerDay = proratePrice > 0 ? proratePrice : Math.ceil(profile.price / 30);
-    const prorateAmount = Math.ceil(daysActive * pricePerDay);
+    let daysActive: number;
+    let prorateAmount: number;
+    let isNoProratePeriod = false;
+
+    if (currentDay >= 1 && currentDay <= 5) {
+      isNoProratePeriod = true;
+      daysActive = 30;
+      prorateAmount = profile.price;
+    } else {
+      const nextMonthFirst = new Date(year, month + 1, 1);
+      const msPerDay = 1000 * 60 * 60 * 24;
+      daysActive = Math.max(1, Math.ceil((nextMonthFirst.getTime() - today.getTime()) / msPerDay));
+      const rawProrate = profile.proratePricePerDay;
+      const proratePrice = rawProrate ? Number(rawProrate) : Math.ceil(profile.price / 30);
+      const pricePerDay = proratePrice > 0 ? proratePrice : Math.ceil(profile.price / 30);
+      prorateAmount = Math.ceil(daysActive * pricePerDay);
+    }
+
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
     return {
@@ -185,6 +196,7 @@ export default function NewPppoeUserPage() {
       prorateAmount,
       fullPrice: profile.price,
       profileName: profile.name,
+      isNoProratePeriod,
     };
   }, [formData.subscriptionType, formData.profileId, formData.billingDay, formData.registeredAt, profiles]);
 
@@ -334,7 +346,9 @@ export default function NewPppoeUserPage() {
                                 <>
                                   <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">Rp {prorateInfo.prorateAmount.toLocaleString('id-ID')}</span>
                                   <span className="text-[8px] text-muted-foreground leading-tight">
-                                    {prorateInfo.daysActive} hari s/d tgl 1 bulan depan
+                                    {prorateInfo.isNoProratePeriod
+                                      ? 'Tgl 1-5: Full s/d tgl 5 bulan depan'
+                                      : `${prorateInfo.daysActive} hari s/d tgl 1 bulan depan`}
                                   </span>
                                 </>
                               ) : (
