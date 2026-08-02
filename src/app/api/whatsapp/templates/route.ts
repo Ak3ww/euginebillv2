@@ -69,15 +69,14 @@ Yth. Bapak/Ibu *{{customerName}}*
 • *No. Invoice:* {{invoiceNumber}}
 • *Paket Layanan:* {{profileName}}
 • *Total Tagihan:* {{total_bayar}}
+• *Batas Jatuh Tempo:* {{dueDate}}
 
 📌 _Pemasangan perangkat & layanan internet Anda telah selesai dilakukan oleh tim teknisi kami._
 
-⚠️ _Mohon lakukan pembayaran biaya instalasi/bulan pertama sebelum *{{dueDate}}* agar koneksi internet dapat digunakan secara penuh._
-
 -----------------------------------------
 *Selesaikan Pembayaran Instalasi:*
-1. Klik link pembayaran: {{paymentLink}}
-2. Pilih metode pembayaran favorit Anda (QRIS, Bank Transfer, E-Wallet).
+1. Selesaikan pembayaran melalui link: {{paymentLink}}
+2. Atau scan QR Code pembayaran: {{paymentLink}}
 
 ${COMMON_FOOTER}`;
 

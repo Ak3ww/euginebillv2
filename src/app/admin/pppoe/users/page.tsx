@@ -213,38 +213,38 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
               <div className="space-y-3 bg-muted/40 p-3 rounded-lg border border-border">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <ModalLabel><Calendar className="w-3 h-3 inline mr-0.5" />{t('pppoe.billingDate')}</ModalLabel>
+                    <ModalLabel><Calendar className="w-3 h-3 inline mr-0.5" />Tanggal Tagihan Utama</ModalLabel>
                     <ModalSelect value={formData.billingDay} onChange={(e) => setFormData(prev => ({ ...prev, billingDay: e.target.value }))}>
                       {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                        <option key={day} value={day} className="dark:bg-[#0a0520]">{t('pppoe.dayOf')} {day}</option>
+                        <option key={day} value={day} className="dark:bg-[#0a0520]">Tanggal {day} setiap bulan</option>
                       ))}
                     </ModalSelect>
-                    <p className="text-[9px] text-muted-foreground mt-1">Siklus tagihan bulanan rutin setelah pasang baru</p>
+                    <p className="text-[9px] text-muted-foreground mt-1">Siklus tagihan rutin bulanan</p>
                   </div>
 
                   <div>
-                    <ModalLabel>Tagihan Pasang Baru</ModalLabel>
+                    <ModalLabel>💳 Tagihan Pertama (Pasang Baru)</ModalLabel>
                     <ModalSelect value={formData.firstInvoice} onChange={(e) => setFormData(prev => ({ ...prev, firstInvoice: e.target.value }))}>
-                      <option value="prorate" className="dark:bg-[#0a0520]">Bayar Prorate (Proporsional)</option>
-                      <option value="full" className="dark:bg-[#0a0520]">Bayar Full 1 Bulan</option>
-                      <option value="none" className="dark:bg-[#0a0520]">Tanpa Tagihan Pertama</option>
+                      <option value="prorate" className="dark:bg-[#0a0520]">📅 Prorate (Bayar sesuai hari pakai)</option>
+                      <option value="full" className="dark:bg-[#0a0520]">💰 Sebulan Penuh (Bayar 1 bulan full)</option>
                     </ModalSelect>
-                    <p className="text-[9px] text-muted-foreground mt-1">Metode hitungan invoice instalasi pertama</p>
+                    <p className="text-[9px] text-muted-foreground mt-1">Metode perhitungan invoice pasang baru</p>
                   </div>
                 </div>
 
-                {formData.firstInvoice !== 'none' && (
-                  <div>
-                    <ModalLabel>Batas Tempo Invoice Pasang Baru</ModalLabel>
-                    <ModalSelect value={formData.installationDueDateDays} onChange={(e) => setFormData(prev => ({ ...prev, installationDueDateDays: e.target.value }))}>
-                      <option value="1" className="dark:bg-[#0a0520]">1 Hari setelah pasang</option>
-                      <option value="3" className="dark:bg-[#0a0520]">3 Hari setelah pasang (Default)</option>
-                      <option value="7" className="dark:bg-[#0a0520]">7 Hari setelah pasang</option>
-                      <option value="14" className="dark:bg-[#0a0520]">14 Hari setelah pasang</option>
-                    </ModalSelect>
-                    <p className="text-[9px] text-muted-foreground mt-1">Hanya berlaku untuk invoice pasang baru pertama. Tagihan bulanan rutin tetap di Tanggal {formData.billingDay}.</p>
-                  </div>
-                )}
+                <div>
+                  <ModalLabel>⏰ Batas Jatuh Tempo Invoice Pasang Baru</ModalLabel>
+                  <ModalSelect value={formData.installationDueDateDays} onChange={(e) => setFormData(prev => ({ ...prev, installationDueDateDays: e.target.value }))}>
+                    <option value="1" className="dark:bg-[#0a0520]">1 Hari setelah pasang</option>
+                    <option value="3" className="dark:bg-[#0a0520]">3 Hari setelah pasang (Default)</option>
+                    <option value="7" className="dark:bg-[#0a0520]">7 Hari setelah pasang</option>
+                    <option value="14" className="dark:bg-[#0a0520]">14 Hari setelah pasang</option>
+                  </ModalSelect>
+                  <p className="text-[9px] text-muted-foreground mt-1">Batas waktu bayar khusus invoice pertama. Tagihan rutin berikutnya tetap Tanggal {formData.billingDay}.</p>
+                </div>
+                <div className="text-[9px] text-blue-500 bg-blue-500/10 p-2 rounded border border-blue-500/20">
+                  ℹ️ Invoice PENDING pasang baru dibuat saat simpan — dapat dibayar pelanggan via link / portal.
+                </div>
               </div>
             )}
             {formData.subscriptionType === 'PREPAID' && (
