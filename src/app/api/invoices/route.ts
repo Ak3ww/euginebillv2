@@ -89,13 +89,12 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Month filter — applies to paidAt for PAID invoices, createdAt for others
+    // Month filter — applies to dueDate to accurately reflect billing period
     if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
       const [y, m] = monthParam.split('-').map(Number);
       const start = startOfDayWIBtoUTC(new Date(Date.UTC(y, m - 1, 1)));
       const end = endOfDayWIBtoUTC(new Date(Date.UTC(y, m, 0))); // last day of month
-      const isPaidTab = status === 'PAID';
-      where[isPaidTab ? 'paidAt' : 'createdAt'] = { gte: start, lte: end };
+      where.dueDate = { gte: start, lte: end };
     }
 
     if (status && status !== 'all') {
