@@ -151,46 +151,54 @@ export async function PUT(request: Request) {
         const { MikroTikConnection } = await import('@/server/services/mikrotik/client');
         const router = await prisma.router.findUnique({ where: { id: routerId } });
         if (router) {
-          const conn = new MikroTikConnection({
-            host: router.ipAddress,
-            username: router.username,
-            password: router.password,
-            port: router.apiPort,
-          });
-          try {
-            await conn.connect();
-            const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`]);
-            if (existing.length > 0) {
-              if (status === 'blocked' || status === 'stop') {
-                await conn.execute('/ppp/secret/set', [
-                  `=.id=${existing[0]['.id']}`,
-                  `=disabled=yes`,
-                ]);
-              } else if (status === 'active') {
-                const normalProfile = user.profile.mikrotikProfileName || user.profile.name || user.profile.groupName;
-                await conn.execute('/ppp/secret/set', [
-                  `=.id=${existing[0]['.id']}`,
-                  `=disabled=no`,
-                  `=profile=${normalProfile}`,
-                ]);
-              } else if (status === 'isolated') {
-                await conn.execute('/ppp/secret/set', [
-                  `=.id=${existing[0]['.id']}`,
-                  `=disabled=no`,
-                  `=profile=isolir`,
-                ]);
+          const portsToTry = [router.port || 8728, router.apiPort || 8729].filter((p, i, arr) => arr.indexOf(p) === i);
+          let connected = false;
+          for (const port of portsToTry) {
+            if (connected) break;
+            const useTls = port === 8729;
+            const conn = new MikroTikConnection({
+              host: router.ipAddress,
+              username: router.username,
+              password: router.password,
+              port,
+              tls: useTls,
+            });
+            try {
+              await conn.connect();
+              connected = true;
+              const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`]);
+              if (existing.length > 0) {
+                if (status === 'blocked' || status === 'stop') {
+                  await conn.execute('/ppp/secret/set', [
+                    `=.id=${existing[0]['.id']}`,
+                    `=disabled=yes`,
+                  ]);
+                } else if (status === 'active') {
+                  const normalProfile = user.profile.mikrotikProfileName || user.profile.name || user.profile.groupName;
+                  await conn.execute('/ppp/secret/set', [
+                    `=.id=${existing[0]['.id']}`,
+                    `=disabled=no`,
+                    `=profile=${normalProfile}`,
+                  ]);
+                } else if (status === 'isolated') {
+                  await conn.execute('/ppp/secret/set', [
+                    `=.id=${existing[0]['.id']}`,
+                    `=disabled=no`,
+                    `=profile=isolir`,
+                  ]);
+                }
               }
+              // Kick active connection in MikroTik
+              const active = await conn.execute('/ppp/active/print', [`?name=${user.username}`]);
+              for (const session of active) {
+                await conn.execute('/ppp/active/remove', [`=.id=${session['.id']}`]);
+              }
+              await conn.disconnect();
+              console.log(`[Status Change] MikroTik API sync complete for ${user.username} (status: ${status}, port: ${port})`);
+            } catch (err) {
+              console.error(`[Status Change] MikroTik API sync error for ${user.username} on port ${port}:`, err);
+              try { await conn.disconnect(); } catch { /* ignore */ }
             }
-            // Kick active connection in MikroTik
-            const active = await conn.execute('/ppp/active/print', [`?name=${user.username}`]);
-            for (const session of active) {
-              await conn.execute('/ppp/active/remove', [`=.id=${session['.id']}`]);
-            }
-            await conn.disconnect();
-            console.log(`[Status Change] MikroTik API sync complete for ${user.username} (status: ${status})`);
-          } catch (err) {
-            console.error(`[Status Change] MikroTik API sync error for ${user.username}:`, err);
-            try { await conn.disconnect(); } catch { /* ignore */ }
           }
         }
       }
