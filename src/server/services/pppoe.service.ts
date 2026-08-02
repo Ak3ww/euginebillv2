@@ -422,7 +422,16 @@ export async function createPppoeUser(
         const nextMonthFirst = new Date(year, month + 1, 1);
         const msPerDay = 1000 * 60 * 60 * 24;
         const daysActive = Math.max(1, Math.ceil((nextMonthFirst.getTime() - registrationDate.getTime()) / msPerDay));
-        const pricePerDay = profile.proratePricePerDay || (profile.price / 30);
+        
+        // Utamakan proratePricePerDay dari settingan paket
+        const rawProrate = profile.proratePricePerDay;
+        const proratePrice = rawProrate
+          ? (typeof rawProrate === 'object' && 'toNumber' in rawProrate
+              ? (rawProrate as any).toNumber()
+              : Number(rawProrate))
+          : Math.ceil(Number(profile.price) / 30);
+
+        const pricePerDay = proratePrice > 0 ? proratePrice : Math.ceil(Number(profile.price) / 30);
         invoiceAmount = Math.ceil(daysActive * pricePerDay);
       }
       const invoiceId = crypto.randomUUID();
