@@ -695,12 +695,48 @@ export default function PaymentPage() {
                   const ctx = canvas.getContext('2d');
                   const img = new Image();
                   img.onload = () => {
-                    canvas.width = img.width + 40;
-                    canvas.height = img.height + 40;
+                    const width = 400;
+                    const height = 550;
+                    canvas.width = width;
+                    canvas.height = height;
                     if (ctx) {
-                      ctx.fillStyle = 'white';
-                      ctx.fillRect(0, 0, canvas.width, canvas.height);
-                      ctx.drawImage(img, 20, 20);
+                      // Background
+                      ctx.fillStyle = '#ffffff';
+                      ctx.fillRect(0, 0, width, height);
+
+                      // Header (Oceanic Blue)
+                      ctx.fillStyle = '#002c60';
+                      ctx.fillRect(0, 0, width, 120);
+
+                      // Header Text
+                      ctx.fillStyle = '#ffffff';
+                      ctx.font = 'bold 28px sans-serif';
+                      ctx.textAlign = 'center';
+                      ctx.fillText(company?.name || 'EugineMediaGroup', width / 2, 55);
+                      
+                      ctx.font = '16px sans-serif';
+                      ctx.fillStyle = '#93c5fd'; // light blue
+                      ctx.fillText('Scan QRIS untuk Membayar', width / 2, 85);
+
+                      // Draw QR Code Background (shadow effect)
+                      ctx.fillStyle = '#f1f5f9';
+                      ctx.beginPath();
+                      ctx.roundRect ? ctx.roundRect(60, 150, 280, 280, 16) : ctx.fillRect(60, 150, 280, 280);
+                      ctx.fill();
+
+                      // Draw QR Code
+                      ctx.drawImage(img, 75, 165, 250, 250);
+
+                      // Amount
+                      ctx.fillStyle = '#0f172a';
+                      ctx.font = 'bold 32px sans-serif';
+                      ctx.fillText(`Rp ${invoice.amount.toLocaleString('id-ID')}`, width / 2, 480);
+
+                      // Invoice details
+                      ctx.fillStyle = '#64748b';
+                      ctx.font = '14px sans-serif';
+                      ctx.fillText(`INV: ${invoice.invoiceNumber}`, width / 2, 510);
+                      ctx.fillText(`Pelanggan: ${invoice.user?.name || invoice.customerName}`, width / 2, 530);
                     }
                     const a = document.createElement('a');
                     a.download = `QRIS-${invoice.invoiceNumber}.png`;
