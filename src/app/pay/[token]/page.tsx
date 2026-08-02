@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { 
   CheckCircle, Clock, AlertCircle, CreditCard, Building2, 
   Loader2, User, Phone, Package, Calendar, MapPin, 
-  Mail, Hash, Zap, ChevronRight, Lock, CheckCircle2, ShieldCheck, FileText, Image as ImageIcon, X, QrCode
+  Mail, Hash, Zap, ChevronRight, Lock, CheckCircle2, ShieldCheck, FileText, Image as ImageIcon, X, QrCode, Download
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { BankInstructions } from './BankInstructions';
@@ -424,52 +424,61 @@ export default function PaymentPage() {
         
         <div className="p-6 sm:p-8 space-y-6">
 
-          {/* Official QRIS MP-EUGINE MEDIA Card */}
-          <div className="border border-[var(--color-rule)] rounded-[var(--radius-lg)] overflow-hidden bg-[var(--color-paper-2)] shadow-sm p-6 space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-rule)] pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center font-bold border border-red-500/20">
-                  <QrCode className="w-5 h-5" />
+          {/* Official QRIS MP-EUGINE MEDIA Card (HANYA UNTUK PASANG BARU / INSTALLATION) */}
+          {(invoice.invoiceType === 'INSTALLATION' || (invoice as any).type === 'INSTALLATION') && (
+            <div className="border border-[var(--color-rule)] rounded-[var(--radius-lg)] overflow-hidden bg-[var(--color-paper-2)] shadow-sm p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-rule)] pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center font-bold border border-red-500/20">
+                    <QrCode className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[var(--color-ink)]">QRIS Official MP-EUGINE MEDIA</h3>
+                    <p className="text-xs text-[var(--color-muted)] font-mono mt-0.5">NMID: ID1026483172874</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-[var(--color-ink)]">QRIS Official MP-EUGINE MEDIA</h3>
-                  <p className="text-xs text-[var(--color-muted)] font-mono mt-0.5">NMID: ID1026483172874</p>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 self-start sm:self-auto">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Pembayaran Instant Pasang Baru
+                </span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-6 bg-[var(--color-paper-3)] p-4 rounded-xl border border-[var(--color-rule)]">
+                <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-md flex-shrink-0 text-center">
+                  <img 
+                    src="/images/qris-official-eugine.png" 
+                    alt="QRIS Official MP-EUGINE MEDIA" 
+                    className="w-56 h-auto mx-auto rounded-lg object-contain" 
+                  />
+                  <p className="text-[10px] text-gray-500 font-mono mt-2">NMID: ID1026483172874</p>
+                  <a
+                    href="/images/qris-official-eugine.png"
+                    download="qris-official-eugine-media.png"
+                    className="inline-flex items-center justify-center gap-1.5 mt-2.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--color-paper-2)] border border-[var(--color-rule)] hover:bg-[var(--color-paper)] text-[var(--color-accent)] transition-colors w-full"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Download Gambar QRIS
+                  </a>
+                </div>
+
+                <div className="space-y-4 text-xs text-[var(--color-ink)] flex-1">
+                  <div className="bg-[var(--color-paper)] p-3 rounded-lg border border-[var(--color-rule)]">
+                    <p className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-0.5">Total yang Harus Dibayar</p>
+                    <p className="text-2xl font-bold text-[var(--color-accent)]">{formatCurrency(invoice.amount)}</p>
+                  </div>
+
+                  <div className="space-y-1.5 leading-relaxed text-[var(--color-muted)]">
+                    <p className="font-bold text-[var(--color-ink)] text-xs">Cara Bayar Pakai QRIS:</p>
+                    <ol className="list-decimal list-inside space-y-1 pl-1 text-[11px]">
+                      <li>Buka aplikasi Banking (BCA, Mandiri, BRI, BNI) atau E-Wallet (GoPay, OVO, Dana, ShopeePay, LinkAja).</li>
+                      <li>Pilih menu <strong>Scan QR / QRIS</strong>.</li>
+                      <li>Scan gambar QRIS <strong>MP-EUGINE MEDIA</strong> di atas.</li>
+                      <li>Pastikan nama merchant tertera: <strong>MP-EUGINE MEDIA</strong>.</li>
+                      <li>Masukkan nominal <strong>{formatCurrency(invoice.amount)}</strong> dan selesaikan pembayaran.</li>
+                    </ol>
+                  </div>
                 </div>
               </div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 self-start sm:self-auto">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Pembayaran Instant Resmi
-              </span>
             </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-6 bg-[var(--color-paper-3)] p-4 rounded-xl border border-[var(--color-rule)]">
-              <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-md flex-shrink-0 text-center">
-                <img 
-                  src="/images/qris-official-eugine.png" 
-                  alt="QRIS Official MP-EUGINE MEDIA" 
-                  className="w-56 h-auto mx-auto rounded-lg object-contain" 
-                />
-                <p className="text-[10px] text-gray-500 font-mono mt-2">NMID: ID1026483172874</p>
-              </div>
-
-              <div className="space-y-4 text-xs text-[var(--color-ink)] flex-1">
-                <div className="bg-[var(--color-paper)] p-3 rounded-lg border border-[var(--color-rule)]">
-                  <p className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-0.5">Total yang Harus Dibayar</p>
-                  <p className="text-2xl font-bold text-[var(--color-accent)]">{formatCurrency(invoice.amount)}</p>
-                </div>
-
-                <div className="space-y-1.5 leading-relaxed text-[var(--color-muted)]">
-                  <p className="font-bold text-[var(--color-ink)] text-xs">Cara Bayar Pakai QRIS:</p>
-                  <ol className="list-decimal list-inside space-y-1 pl-1 text-[11px]">
-                    <li>Buka aplikasi Banking (BCA, Mandiri, BRI, BNI) atau E-Wallet (GoPay, OVO, Dana, ShopeePay, LinkAja).</li>
-                    <li>Pilih menu <strong>Scan QR / QRIS</strong>.</li>
-                    <li>Scan gambar QRIS <strong>MP-EUGINE MEDIA</strong> di atas.</li>
-                    <li>Pastikan nama merchant tertera: <strong>MP-EUGINE MEDIA</strong>.</li>
-                    <li>Masukkan nominal <strong>{formatCurrency(invoice.amount)}</strong> dan selesaikan pembayaran.</li>
-                  </ol>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
           
           {/* Manual Transfer Option */}
           <div className="border border-[var(--color-rule)] rounded-[var(--radius-lg)] overflow-hidden bg-[var(--color-paper-2)] shadow-sm">
