@@ -122,7 +122,9 @@ export async function PUT(request: Request) {
             await conn.connect();
             const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`]);
             if (existing.length > 0) {
-              if (status === 'blocked' || status === 'stop') {
+              if (status === 'stop') {
+                await conn.execute('/ppp/secret/remove', [`=.id=${existing[0]['.id']}`]);
+              } else if (status === 'blocked') {
                 await conn.execute('/ppp/secret/set', [
                   `=.id=${existing[0]['.id']}`,
                   `=disabled=yes`,

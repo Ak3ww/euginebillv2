@@ -246,10 +246,14 @@ export async function createPppoeUser(
   }
   if (!resolvedName) resolvedName = username;
 
-  // Check duplicate
+  // Check duplicate username in active billing users
   const existingUser = await prisma.pppoeUser.findUnique({ where: { username } });
   if (existingUser) {
-    throw Object.assign(new Error(`Username "${username}" already exists`), { code: 'DUPLICATE_USERNAME' });
+    if (!['stop', 'suspended'].includes(existingUser.status)) {
+      throw Object.assign(new Error(`Username "${username}" sedang digunakan oleh pelanggan aktif lain`), { code: 'DUPLICATE_USERNAME' });
+    }
+    // Remove old suspended user record to reuse secret & username for new customer
+    await prisma.pppoeUser.delete({ where: { id: existingUser.id } }).catch(() => {});
   }
 
   // Load profile
@@ -765,25 +769,30 @@ export async function updatePppoeUser(
 export async function deletePppoeUser(
   id: string,
   session: Session | null,
-  request: NextRequest
+  request: NextRequest,
+  options?: { deleteSecretFromMikrotik?: boolean }
 ) {
   const user = await prisma.pppoeUser.findUnique({ where: { id } });
   if (!user) throw Object.assign(new Error('User not found'), { code: 'NOT_FOUND' });
 
+  const shouldDeleteSecret = options?.deleteSecretFromMikrotik !== false;
   const company = await prisma.company.findFirst();
   const isRadiusEnabled = company?.radiusEnabled ?? false;
 
-  // RADIUS or MikroTik cleanup
-  if (isRadiusEnabled) {
-    try {
-      await prisma.radcheck.deleteMany({ where: { username: user.username } });
-      await prisma.radreply.deleteMany({ where: { username: user.username } });
-      await prisma.radusergroup.deleteMany({ where: { username: user.username } });
-    } catch (syncError) {
-      console.error('RADIUS cleanup error:', syncError);
+  // RADIUS or MikroTik cleanup (only if requested)
+  if (shouldDeleteSecret) {
+    if (isRadiusEnabled) {
+      try {
+        await prisma.radcheck.deleteMany({ where: { username: user.username } });
+        await prisma.radreply.deleteMany({ where: { username: user.username } });
+        await prisma.radusergroup.deleteMany({ where: { username: user.username } });
+      } catch (syncError) {
+        console.error('RADIUS cleanup error:', syncError);
+      }
     }
-  } else if (user.routerId) {
-    await PPPSecretService.removeSecret(user.routerId, user.username);
+    if (user.routerId) {
+      await PPPSecretService.removeSecret(user.routerId, user.username);
+    }
   }
 
   await prisma.pppoeUser.delete({ where: { id } });

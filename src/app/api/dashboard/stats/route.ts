@@ -51,7 +51,9 @@ export async function GET(request: NextRequest) {
     // ==================== 1. Total PPPoE Users ====================
     let totalPppoeUsers = 0;
     try {
-      totalPppoeUsers = await prisma.pppoeUser.count();
+      totalPppoeUsers = await prisma.pppoeUser.count({
+        where: { status: { notIn: ['stop', 'suspended'] } },
+      });
     } catch (e) {
       console.error('[Dashboard] Error counting pppoeUser:', e);
     }

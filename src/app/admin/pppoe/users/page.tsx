@@ -328,6 +328,7 @@ export default function PppoeUsersPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<PppoeUser | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [deleteSecretFromMikrotik, setDeleteSecretFromMikrotik] = useState<boolean>(true);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [modalLatLng, setModalLatLng] = useState<{ lat: string; lng: string } | undefined>();
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
@@ -735,7 +736,7 @@ export default function PppoeUsersPage() {
   const handleDelete = async () => {
     if (!deleteUserId) return;
     try {
-      const res = await fetch(`/api/pppoe/users?id=${deleteUserId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/pppoe/users?id=${deleteUserId}&deleteSecret=${deleteSecretFromMikrotik}`, { method: 'DELETE' });
       const result = await res.json();
       if (res.ok) { 
         await showSuccess(t('management.userDeleted')); 
@@ -898,7 +899,7 @@ export default function PppoeUsersPage() {
     const confirmed = await showConfirm(t('pppoe.deleteConfirmUsers').replace('{count}', String(selectedUsers.size)));
     if (!confirmed) return;
     try {
-      await Promise.all(Array.from(selectedUsers).map(id => fetch(`/api/pppoe/users?id=${id}`, { method: 'DELETE' })));
+      await Promise.all(Array.from(selectedUsers).map(id => fetch(`/api/pppoe/users?id=${id}&deleteSecret=${deleteSecretFromMikrotik}`, { method: 'DELETE' })));
       await showSuccess(t('pppoe.usersDeleted').replace('{count}', String(selectedUsers.size))); setSelectedUsers(new Set()); loadData();
     } catch (error) { console.error('Bulk delete error:', error); await showError(t('common.failed')); }
   };
@@ -1864,6 +1865,16 @@ export default function PppoeUsersPage() {
             </div>
             <h2 className="text-base font-bold text-foreground mb-2">{t('pppoe.deleteUser')}</h2>
             <p className="text-xs text-muted-foreground">{t('pppoe.deleteConfirm')}</p>
+            
+            <label className="flex items-center justify-center gap-2 mt-4 text-xs font-medium text-foreground cursor-pointer bg-muted/50 p-2.5 rounded-lg border border-border">
+              <input
+                type="checkbox"
+                checked={deleteSecretFromMikrotik}
+                onChange={(e) => setDeleteSecretFromMikrotik(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"
+              />
+              <span>Hapus juga PPP Secret dari Router MikroTik</span>
+            </label>
           </ModalBody>
           <ModalFooter className="justify-center">
             <ModalButton variant="secondary" onClick={() => setDeleteUserId(null)}>{t('common.cancel')}</ModalButton>

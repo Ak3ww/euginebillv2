@@ -84,9 +84,10 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    if (!id) return badRequest('User ID is required');
+    const deleteSecretParam = searchParams.get('deleteSecret');
+    const deleteSecretFromMikrotik = deleteSecretParam === null ? true : deleteSecretParam !== 'false';
 
-    const result = await deletePppoeUser(id, session, request);
+    const result = await deletePppoeUser(id, session, request, { deleteSecretFromMikrotik });
     return ok({ success: true, message: 'User deleted successfully', ...result });
   } catch (error: unknown) {
     const err = error as { code?: string; message?: string };
