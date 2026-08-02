@@ -81,9 +81,13 @@ export interface UpdatePppoeUserInput {
 export async function listPppoeUsers(params: { status?: string | null }) {
   const whereClause: Record<string, unknown> = {};
   if (params.status) {
-    whereClause.status = params.status;
+    if (params.status === 'stop' || params.status === 'stopped' || params.status === 'suspended') {
+      whereClause.status = { in: ['stop', 'stopped', 'suspended'] };
+    } else {
+      whereClause.status = params.status;
+    }
   } else {
-    whereClause.status = { not: 'stop' };
+    whereClause.status = { notIn: ['stop', 'stopped', 'suspended'] };
   }
 
   const users = await prisma.pppoeUser.findMany({
@@ -252,8 +256,11 @@ export async function createPppoeUser(
     if (!['stop', 'suspended'].includes(existingUser.status)) {
       throw Object.assign(new Error(`Username "${username}" sedang digunakan oleh pelanggan aktif lain`), { code: 'DUPLICATE_USERNAME' });
     }
-    // Remove old suspended user record to reuse secret & username for new customer
-    await prisma.pppoeUser.delete({ where: { id: existingUser.id } }).catch(() => {});
+    // Archive old suspended user's username so they remain in /admin/pppoe/stopped while releasing clean username
+    await prisma.pppoeUser.update({
+      where: { id: existingUser.id },
+      data: { username: `${existingUser.username}-OFF-${existingUser.id.slice(-4)}` },
+    }).catch(() => {});
   }
 
   // Load profile
