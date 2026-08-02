@@ -30,6 +30,7 @@ export default function NewPppoeUserPage() {
   const [uploadingInstallation, setUploadingInstallation] = useState(false);
   const [hasPppoeAccount, setHasPppoeAccount] = useState(true);
   const [firstInvoice, setFirstInvoice] = useState<'none' | 'prorate' | 'full'>('prorate');
+  const [installationDueDateDays, setInstallationDueDateDays] = useState<string>('3');
 
   const [formData, setFormData] = useState<any>({
     username: '',
@@ -113,6 +114,7 @@ export default function NewPppoeUserPage() {
         password: hasPppoeAccount ? formData.password : '',
         noPppoeAccount: !hasPppoeAccount,
         firstInvoice,
+        installationDueDateDays,
         ...(formData.expiredAt && {
           expiredAt: (() => {
             const raw = formData.expiredAt;
@@ -339,6 +341,25 @@ export default function NewPppoeUserPage() {
                           {!prorateInfo && (
                             <p className="text-[9px] text-amber-600 dark:text-amber-400 mt-1.5">⚠️ Pilih profil paket untuk melihat estimasi tagihan</p>
                           )}
+                          <div className="mt-2.5 pt-2 border-t border-emerald-500/20 space-y-1">
+                            <ModalLabel className="text-[9px] font-semibold text-muted-foreground">
+                              ⏰ Batas Tempo Invoice Pasang Baru:
+                            </ModalLabel>
+                            <ModalSelect 
+                              value={installationDueDateDays} 
+                              onChange={(e) => setInstallationDueDateDays(e.target.value)}
+                              className="text-xs py-1"
+                            >
+                              <option value="1">1 Hari setelah pasang</option>
+                              <option value="3">3 Hari setelah pasang (Default)</option>
+                              <option value="7">7 Hari setelah pasang</option>
+                              <option value="14">14 Hari setelah pasang</option>
+                              <option value="30">30 Hari setelah pasang</option>
+                            </ModalSelect>
+                            <p className="text-[8px] text-muted-foreground">
+                              Batas waktu bayar khusus invoice pertama. Tagihan bulanan rutin tetap di Tanggal {formData.billingDay}.
+                            </p>
+                          </div>
                           <p className="text-[9px] text-muted-foreground mt-1.5">
                             ℹ️ Invoice <span className="font-semibold">PENDING</span> dibuat saat simpan — bisa dibayar via portal pelanggan.
                           </p>
