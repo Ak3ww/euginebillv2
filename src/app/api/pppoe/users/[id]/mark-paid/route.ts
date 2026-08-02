@@ -23,7 +23,8 @@ export async function POST(
         username: true,
         password: true,
         ipAddress: true,
-        profile: { select: { groupName: true } },
+        routerId: true,
+        profile: { select: { groupName: true, mikrotikProfileName: true, name: true } },
       },
     });
 

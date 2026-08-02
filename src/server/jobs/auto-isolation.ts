@@ -376,6 +376,7 @@ export async function isolateUser(username: string, reason?: string) {
         name: true,
         password: true,
         status: true,
+        routerId: true,
       },
     });
 
@@ -391,7 +392,7 @@ export async function isolateUser(username: string, reason?: string) {
     }
 
     const company = await prisma.company.findFirst();
-    const isRadius = company?.radiusEnabled !== false;
+    const isRadius = company?.radiusEnabled ?? false;
     const isolateProfileName = company?.isolateProfileName || 'isolir';
 
     // Same isolation logic as auto-isolate
@@ -400,13 +401,14 @@ export async function isolateUser(username: string, reason?: string) {
       data: { status: 'isolated' },
     });
 
-    if (!isRadius) {
-      // DIRECT MIKROTIK ISOLATION
-      if (user.routerId) {
-        const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
-        await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, isolateProfileName);
-      }
-    } else {
+    // 1. PRIMARY: DIRECT MIKROTIK ISOLATION (always run)
+    if (user.routerId) {
+      const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+      await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, isolateProfileName);
+    }
+
+    // 2. SECONDARY: RADIUS ISOLATION (only if RADIUS mode enabled)
+    if (isRadius) {
       // RADIUS ISOLATION
       // Keep password, remove Auth-Type Reject
     await prisma.$executeRaw`
