@@ -76,6 +76,8 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
     email: '', address: '', latitude: '', longitude: '', ipAddress: '', expiredAt: '',
     subscriptionType: 'POSTPAID' as 'POSTPAID' | 'PREPAID',
     billingDay: '1',
+    firstInvoice: 'prorate',
+    installationDueDateDays: '3',
     macAddress: '', comment: '', referralCode: '',
     idCardNumber: '', idCardPhoto: '',
     installationPhotos: [] as string[],
@@ -92,7 +94,7 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
   const prevIsOpen = useRef(isOpen);
   useEffect(() => {
     if (prevIsOpen.current && !isOpen) {
-      setFormData({ username: '', password: 'eugine0909', portalPassword: '123', profileId: '', routerId: '', areaId: '', name: '', phone: '', email: '', address: '', latitude: '', longitude: '', ipAddress: '', expiredAt: '', subscriptionType: 'POSTPAID', billingDay: '1', macAddress: '', comment: '', referralCode: '', idCardNumber: '', idCardPhoto: '', installationPhotos: [], followRoad: false, registeredAt: new Date().toISOString().slice(0, 10) });
+      setFormData({ username: '', password: 'eugine0909', portalPassword: '123', profileId: '', routerId: '', areaId: '', name: '', phone: '', email: '', address: '', latitude: '', longitude: '', ipAddress: '', expiredAt: '', subscriptionType: 'POSTPAID', billingDay: '1', firstInvoice: 'prorate', installationDueDateDays: '3', macAddress: '', comment: '', referralCode: '', idCardNumber: '', idCardPhoto: '', installationPhotos: [], followRoad: false, registeredAt: new Date().toISOString().slice(0, 10) });
       setShowPassword(false);
     }
     if (!prevIsOpen.current && isOpen && !formData.password) {
@@ -208,7 +210,42 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
               </div>
             </div>
             {formData.subscriptionType === 'POSTPAID' && (
-              <div><ModalLabel><Calendar className="w-3 h-3 inline mr-0.5" />{t('pppoe.billingDate')}</ModalLabel><ModalSelect value={formData.billingDay} onChange={(e) => setFormData(prev => ({ ...prev, billingDay: e.target.value }))}>{Array.from({ length: 31 }, (_, i) => i + 1).map(day => (<option key={day} value={day} className="dark:bg-[#0a0520]">{t('pppoe.dayOf')} {day}</option>))}</ModalSelect><p className="text-[10px] text-muted-foreground mt-1">{t('pppoe.monthlyDueDateDesc')}</p></div>
+              <div className="space-y-3 bg-muted/40 p-3 rounded-lg border border-border">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <ModalLabel><Calendar className="w-3 h-3 inline mr-0.5" />{t('pppoe.billingDate')}</ModalLabel>
+                    <ModalSelect value={formData.billingDay} onChange={(e) => setFormData(prev => ({ ...prev, billingDay: e.target.value }))}>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day} className="dark:bg-[#0a0520]">{t('pppoe.dayOf')} {day}</option>
+                      ))}
+                    </ModalSelect>
+                    <p className="text-[9px] text-muted-foreground mt-1">Siklus tagihan bulanan rutin setelah pasang baru</p>
+                  </div>
+
+                  <div>
+                    <ModalLabel>Tagihan Pasang Baru</ModalLabel>
+                    <ModalSelect value={formData.firstInvoice} onChange={(e) => setFormData(prev => ({ ...prev, firstInvoice: e.target.value }))}>
+                      <option value="prorate" className="dark:bg-[#0a0520]">Bayar Prorate (Proporsional)</option>
+                      <option value="full" className="dark:bg-[#0a0520]">Bayar Full 1 Bulan</option>
+                      <option value="none" className="dark:bg-[#0a0520]">Tanpa Tagihan Pertama</option>
+                    </ModalSelect>
+                    <p className="text-[9px] text-muted-foreground mt-1">Metode hitungan invoice instalasi pertama</p>
+                  </div>
+                </div>
+
+                {formData.firstInvoice !== 'none' && (
+                  <div>
+                    <ModalLabel>Batas Tempo Invoice Pasang Baru</ModalLabel>
+                    <ModalSelect value={formData.installationDueDateDays} onChange={(e) => setFormData(prev => ({ ...prev, installationDueDateDays: e.target.value }))}>
+                      <option value="1" className="dark:bg-[#0a0520]">1 Hari setelah pasang</option>
+                      <option value="3" className="dark:bg-[#0a0520]">3 Hari setelah pasang (Default)</option>
+                      <option value="7" className="dark:bg-[#0a0520]">7 Hari setelah pasang</option>
+                      <option value="14" className="dark:bg-[#0a0520]">14 Hari setelah pasang</option>
+                    </ModalSelect>
+                    <p className="text-[9px] text-muted-foreground mt-1">Hanya berlaku untuk invoice pasang baru pertama. Tagihan bulanan rutin tetap di Tanggal {formData.billingDay}.</p>
+                  </div>
+                )}
+              </div>
             )}
             {formData.subscriptionType === 'PREPAID' && (
               <div>
