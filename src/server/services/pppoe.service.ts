@@ -268,29 +268,29 @@ export async function createPppoeUser(
   if (!profile) throw Object.assign(new Error('Profile not found'), { code: 'NOT_FOUND' });
 
   // Calculate expiredAt
-  const now = new Date();
+  const registrationDate = registeredAt ? new Date(registeredAt + 'T00:00:00') : new Date();
+  registrationDate.setHours(0, 0, 0, 0);
+  const currentDay = registrationDate.getDate();
+  const year = registrationDate.getFullYear();
+  const month = registrationDate.getMonth();
   let finalExpiredAt: Date;
   
   const defaultBillingDay = company?.fixedBillingDate || 1;
   const validBillingDay = billingDay ? Math.min(Math.max(parseInt(String(billingDay)), 1), 31) : defaultBillingDay;
   
-  const requestedFirstInvoice = (data as any).firstInvoice as 'none' | 'prorate' | 'full' | undefined;
-  if (company?.enableProrate && requestedFirstInvoice !== 'full') {
-    // PRORATE LOGIC
-    finalExpiredAt = new Date(now.getFullYear(), now.getMonth(), validBillingDay, 23, 59, 59, 999);
-    if (now.getDate() >= validBillingDay) {
-      finalExpiredAt.setMonth(finalExpiredAt.getMonth() + 1);
+  if (subscriptionType === 'POSTPAID') {
+    if (currentDay >= 1 && currentDay <= 5) {
+      // Tanggal 1 s/d 5: Tidak ada prorate (bayar full), expiredAt = tanggal 5 bulan berikutnya
+      finalExpiredAt = new Date(year, month + 1, 5, 23, 59, 59, 999);
+    } else {
+      // Dari tanggal 6 ke atas: Prorate s/d tanggal 1 bulan depan
+      finalExpiredAt = new Date(year, month + 1, 1, 23, 59, 59, 999);
     }
-  } else if (subscriptionType === 'POSTPAID') {
-    finalExpiredAt = new Date(now);
-    finalExpiredAt.setMonth(finalExpiredAt.getMonth() + 1);
-    finalExpiredAt.setDate(validBillingDay);
-    finalExpiredAt.setHours(23, 59, 59, 999);
   } else {
     if (expiredAt) {
       finalExpiredAt = new Date(expiredAt);
     } else {
-      finalExpiredAt = new Date(now);
+      finalExpiredAt = new Date(registrationDate);
       if (profile.validityUnit === 'MONTHS') {
         finalExpiredAt.setMonth(finalExpiredAt.getMonth() + profile.validityValue);
       } else {
@@ -414,20 +414,23 @@ export async function createPppoeUser(
       const isExplicitFull = firstInvoice === 'full';
 
       if (isExplicitProrate || (!isExplicitFull && companyConfig?.enableProrate && subscriptionType !== 'PREPAID')) {
-        // Calculate prorate: days from today to next billing date
         const registrationDate = registeredAt ? new Date(registeredAt + 'T00:00:00') : new Date();
         registrationDate.setHours(0, 0, 0, 0);
         const year = registrationDate.getFullYear();
         const month = registrationDate.getMonth();
         const currentDay = registrationDate.getDate();
-        const bd = validBillingDay;
-        let nextBilling: Date;
-        if (currentDay < bd) { nextBilling = new Date(year, month, bd); }
-        else { nextBilling = new Date(year, month + 1, bd); }
-        const msPerDay = 1000 * 60 * 60 * 24;
-        const daysActive = Math.max(1, Math.ceil((nextBilling.getTime() - registrationDate.getTime()) / msPerDay));
-        const pricePerDay = profile.proratePricePerDay || 0;
-        invoiceAmount = Math.ceil(daysActive * pricePerDay);
+
+        if (currentDay >= 1 && currentDay <= 5) {
+          // Tanggal 1 s/d 5: Tidak ada prorate (bayar full 1 bulan)
+          invoiceAmount = profile.price;
+        } else {
+          // Dari tanggal 6 ke atas: Prorate s/d tanggal 1 bulan depan
+          const nextBilling = new Date(year, month + 1, 1);
+          const msPerDay = 1000 * 60 * 60 * 24;
+          const daysActive = Math.max(1, Math.ceil((nextBilling.getTime() - registrationDate.getTime()) / msPerDay));
+          const pricePerDay = profile.proratePricePerDay || (profile.price / 30);
+          invoiceAmount = Math.ceil(daysActive * pricePerDay);
+        }
       }
       const invoiceId = crypto.randomUUID();
       const invoiceNumber = generateInvoiceNumber();

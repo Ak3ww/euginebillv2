@@ -162,19 +162,39 @@ export default function NewPppoeUserPage() {
     if (formData.subscriptionType !== 'POSTPAID') return null;
     const profile = profiles.find(p => p.id === formData.profileId);
     if (!profile) return null;
-    const billingDay = parseInt(formData.billingDay) || 1;
     const today = formData.registeredAt ? new Date(formData.registeredAt + 'T00:00:00') : new Date();
     today.setHours(0, 0, 0, 0);
     const year = today.getFullYear(); const month = today.getMonth(); const currentDay = today.getDate();
+
     let nextBilling: Date;
-    if (currentDay < billingDay) { nextBilling = new Date(year, month, billingDay); }
-    else { nextBilling = new Date(year, month + 1, billingDay); }
-    const msPerDay = 1000 * 60 * 60 * 24;
-    const daysActive = Math.max(1, Math.ceil((nextBilling.getTime() - today.getTime()) / msPerDay));
+    let daysActive: number;
+    let prorateAmount: number;
+    let isNoProratePeriod = false;
+
+    if (currentDay >= 1 && currentDay <= 5) {
+      isNoProratePeriod = true;
+      nextBilling = new Date(year, month + 1, 5);
+      daysActive = 30;
+      prorateAmount = profile.price;
+    } else {
+      nextBilling = new Date(year, month + 1, 1);
+      const msPerDay = 1000 * 60 * 60 * 24;
+      daysActive = Math.max(1, Math.ceil((nextBilling.getTime() - today.getTime()) / msPerDay));
+      const pricePerDay = profile.proratePricePerDay || (profile.price / 30);
+      prorateAmount = Math.ceil(daysActive * pricePerDay);
+    }
+
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const prorateAmount = Math.ceil(daysActive * (profile.proratePricePerDay || 0));
-    return { daysActive, daysInMonth, nextBilling, prorateAmount, fullPrice: profile.price, profileName: profile.name, isFullMonth: daysActive >= daysInMonth };
-  }, [formData.subscriptionType, formData.profileId, formData.billingDay, formData.registeredAt, profiles]);
+    return {
+      daysActive,
+      daysInMonth,
+      nextBilling,
+      prorateAmount,
+      fullPrice: profile.price,
+      profileName: profile.name,
+      isNoProratePeriod,
+    };
+  }, [formData.subscriptionType, formData.profileId, formData.registeredAt, profiles]);
 
   return (
     <div className="flex flex-col min-h-screen p-4 max-w-2xl mx-auto gap-3">
@@ -321,7 +341,11 @@ export default function NewPppoeUserPage() {
                               {prorateInfo ? (
                                 <>
                                   <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">Rp {prorateInfo.prorateAmount.toLocaleString('id-ID')}</span>
-                                  <span className="text-[8px] text-muted-foreground leading-tight">{prorateInfo.daysActive} hari s/d tgl {prorateInfo.nextBilling.getDate()}</span>
+                                  <span className="text-[8px] text-muted-foreground leading-tight">
+                                    {prorateInfo.isNoProratePeriod
+                                      ? 'Tgl 1-5: Full s/d tgl 5 bulan depan'
+                                      : `${prorateInfo.daysActive} hari s/d tgl 1 bulan depan`}
+                                  </span>
                                 </>
                               ) : (
                                 <span className="text-[8px] text-muted-foreground leading-tight">Bayar sesuai hari pakai</span>
