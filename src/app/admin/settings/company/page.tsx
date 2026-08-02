@@ -500,10 +500,10 @@ export default function CompanySettingsPage() {
                     onChange={(e) => setSettings({ ...settings, radiusEnabled: e.target.checked })}
                     className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"
                   />
-                  <span className="text-[12px] font-medium text-foreground">Aktifkan RADIUS</span>
+                  <span className="text-[12px] font-medium text-foreground">Aktifkan Add-on RADIUS (Opsional)</span>
                 </label>
                 <p className="mt-1 text-[10px] text-muted-foreground ml-6">
-                  Gunakan FreeRADIUS untuk autentikasi dan isolir. Jika dimatikan, MikroTik API yang akan mengelola isolir (ubah profile/disconnect).
+                  Sistem beroperasi utama menggunakan <b>MikroTik Direct API</b> (/ppp/secret). Aktifkan opsi ini hanya jika Anda menggunakan server FreeRADIUS sebagai lapisan autentikasi tambahan.
                 </p>
                 
                 {!settings.radiusEnabled && (

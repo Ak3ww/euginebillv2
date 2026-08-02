@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const result = await (async () => {
     const now = nowWIB();
     const company = await prisma.company.findFirst();
-    const radiusEnabled = company?.radiusEnabled ?? true;
+    const radiusEnabled = company?.radiusEnabled ?? false;
     const startOfMonth = new Date(Date.UTC(selectedYear, selectedMonth, 1));
     const startOfNextMonth = new Date(Date.UTC(selectedYear, selectedMonth + 1, 1));
     // last day of selected month (handles 28/29/30/31 days correctly)

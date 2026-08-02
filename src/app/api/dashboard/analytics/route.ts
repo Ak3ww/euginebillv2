@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
     // ==================== SESSION MONITORING ====================
     if (type === 'all' || type === 'sessions') {
       const company = await prisma.company.findFirst();
-      const radiusEnabled = company?.radiusEnabled ?? true;
+      const radiusEnabled = company?.radiusEnabled ?? false;
 
       // Session counts for last 24 hours (hourly)
       const sessionsData = [];

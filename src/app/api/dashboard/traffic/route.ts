@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     }
 
     const company = await prisma.company.findFirst();
-    const radiusEnabled = company?.radiusEnabled ?? true;
+    const radiusEnabled = company?.radiusEnabled ?? false;
 
     const aggByNas = new Map<string, { rxBytes: number; txBytes: number; sessions: number }>();
     const aggByRouterId = new Map<string, { rxBytes: number; txBytes: number; sessions: number }>();

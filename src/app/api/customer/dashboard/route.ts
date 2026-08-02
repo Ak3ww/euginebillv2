@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     const dashboardData = await (async () => {
 
     const company = await prisma.company.findFirst();
-    const radiusEnabled = company?.radiusEnabled ?? true;
+    const radiusEnabled = company?.radiusEnabled ?? false;
 
     let activeSession = null;
     if (radiusEnabled) {

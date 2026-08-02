@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
@@ -100,10 +100,20 @@ export async function POST(
       select: { username: true },
     });
 
-    // Restore RADIUS tables so the user reconnects with correct profile.
-    // Critical when user was isolated (radusergroup = 'isolir') — without this
-    // they would still get restricted isolir access even after paying.
-    if (userRecord.profile) {
+    // 1. PRIMARY: Sync MikroTik Direct API (restore normal profile & kick active session)
+    if (userRecord.profile && userRecord.routerId) {
+      try {
+        const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+        const normalProfileName = userRecord.profile.mikrotikProfileName || userRecord.profile.name || userRecord.profile.groupName;
+        await PPPSecretService.setProfileAndDisconnect(userRecord.routerId, userRecord.username, normalProfileName);
+      } catch (mtErr: any) {
+        console.error('[Mark Paid] MikroTik Direct API sync error (non-fatal):', mtErr?.message);
+      }
+    }
+
+    // 2. SECONDARY: Restore RADIUS tables if RADIUS mode is enabled
+    const company = await prisma.company.findFirst();
+    if (company?.radiusEnabled && userRecord.profile) {
       try {
         // Remove any old rejection/suspension markers
         await prisma.radcheck.deleteMany({
@@ -144,12 +154,10 @@ export async function POST(
           `;
         }
 
-        // Send CoA disconnect so user immediately reconnects with restored profile
         const { disconnectPPPoEUser } = await import('@/server/services/radius/coa-handler.service');
-        const coaResult = await disconnectPPPoEUser(userRecord.username);
-        console.log(`[MarkPaid] RADIUS restored + CoA disconnect for ${userRecord.username}:`, coaResult);
+        await disconnectPPPoEUser(userRecord.username);
       } catch (radiusError: any) {
-        console.error('[MarkPaid] RADIUS restore error (non-fatal):', radiusError?.message);
+        console.error('[Mark Paid] RADIUS restore error (non-fatal):', radiusError?.message);
       }
     }
 

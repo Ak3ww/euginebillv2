@@ -174,7 +174,7 @@ export async function autoIsolatePPPoEUsers(): Promise<{
 
   // Get company settings to check radiusEnabled
   const company = await prisma.company.findFirst()
-  const isRadiusEnabled = company?.radiusEnabled ?? true
+  const isRadiusEnabled = company?.radiusEnabled ?? false
 
   let history: { id: string } | undefined
 

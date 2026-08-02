@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     let totalBytes = 0;
 
     const company = await prisma.company.findFirst();
-    const radiusEnabled = company?.radiusEnabled ?? true;
+    const radiusEnabled = company?.radiusEnabled ?? false;
 
     if (radiusEnabled) {
       const usageStats = await prisma.radacct.aggregate({

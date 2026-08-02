@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
@@ -56,59 +56,65 @@ export async function POST(
       },
     });
 
-    // Restore RADIUS tables so user reconnects with the correct profile.
-    // This is critical when user was previously isolated (radusergroup = 'isolir').
-    // Without this, the user would get restricted isolir access even after extension.
+    // 1. PRIMARY: Sync MikroTik Direct API (restore normal package profile & kick active session)
     try {
-      // Remove any old rejection / suspension markers
-      await prisma.radcheck.deleteMany({
-        where: { username: user.username, attribute: 'Auth-Type' },
-      });
-      await prisma.radcheck.deleteMany({
-        where: { username: user.username, attribute: 'NAS-IP-Address' },
-      });
-      await prisma.radreply.deleteMany({
-        where: { username: user.username, attribute: 'Reply-Message' },
-      });
-
-      // Ensure password exists in radcheck
-      await prisma.$executeRaw`
-        INSERT INTO radcheck (username, attribute, op, value)
-        VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
-        ON DUPLICATE KEY UPDATE value = ${user.password}
-      `;
-
-      // Restore subscription group (newProfile is the extended/changed profile)
-      await prisma.$executeRaw`
-        DELETE FROM radusergroup WHERE username = ${user.username}
-      `;
-      await prisma.$executeRaw`
-        INSERT INTO radusergroup (username, groupname, priority)
-        VALUES (${user.username}, ${newProfile.groupName}, 1)
-      `;
-
-      // Restore static IP (remove old, re-add if exists)
-      await prisma.radreply.deleteMany({
-        where: { username: user.username, attribute: 'Framed-IP-Address' },
-      });
-      if (user.ipAddress) {
-        await prisma.$executeRaw`
-          INSERT INTO radreply (username, attribute, op, value)
-          VALUES (${user.username}, 'Framed-IP-Address', ':=', ${user.ipAddress})
-          ON DUPLICATE KEY UPDATE value = ${user.ipAddress}
-        `;
+      const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+      const normalProfileName = newProfile.mikrotikProfileName || newProfile.name || newProfile.groupName;
+      if (user.routerId) {
+        await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, normalProfileName);
       }
+    } catch (mtErr: any) {
+      console.error('[Extend] MikroTik Direct API sync error (non-fatal):', mtErr?.message);
+    }
 
-      // Only send CoA disconnect if the user was previously isolated — they need to
-      // re-authenticate to get the normal (non-isolir) profile.
-      // If the user is already ACTIVE, do NOT disconnect (avoid interrupting live sessions).
-      const wasIsolated = user.status === 'isolated';
-      if (wasIsolated) {
-        const { disconnectPPPoEUser } = await import('@/server/services/radius/coa-handler.service');
-        const coaResult = await disconnectPPPoEUser(user.username);
-        console.log(`[Extend] RADIUS restored + CoA disconnect for ${user.username} (was isolated):`, coaResult);
-      } else {
-        console.log(`[Extend] RADIUS group/IP updated for ${user.username} (was active — session kept, no disconnect)`);
+    // 2. SECONDARY: Restore RADIUS tables if RADIUS mode is enabled
+    try {
+      const company = await prisma.company.findFirst();
+      if (company?.radiusEnabled) {
+        // Remove any old rejection / suspension markers
+        await prisma.radcheck.deleteMany({
+          where: { username: user.username, attribute: 'Auth-Type' },
+        });
+        await prisma.radcheck.deleteMany({
+          where: { username: user.username, attribute: 'NAS-IP-Address' },
+        });
+        await prisma.radreply.deleteMany({
+          where: { username: user.username, attribute: 'Reply-Message' },
+        });
+
+        // Ensure password exists in radcheck
+        await prisma.$executeRaw`
+          INSERT INTO radcheck (username, attribute, op, value)
+          VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
+          ON DUPLICATE KEY UPDATE value = ${user.password}
+        `;
+
+        // Restore subscription group (newProfile is the extended/changed profile)
+        await prisma.$executeRaw`
+          DELETE FROM radusergroup WHERE username = ${user.username}
+        `;
+        await prisma.$executeRaw`
+          INSERT INTO radusergroup (username, groupname, priority)
+          VALUES (${user.username}, ${newProfile.groupName}, 1)
+        `;
+
+        // Restore static IP (remove old, re-add if exists)
+        await prisma.radreply.deleteMany({
+          where: { username: user.username, attribute: 'Framed-IP-Address' },
+        });
+        if (user.ipAddress) {
+          await prisma.$executeRaw`
+            INSERT INTO radreply (username, attribute, op, value)
+            VALUES (${user.username}, 'Framed-IP-Address', ':=', ${user.ipAddress})
+            ON DUPLICATE KEY UPDATE value = ${user.ipAddress}
+          `;
+        }
+
+        const wasIsolated = user.status === 'isolated';
+        if (wasIsolated) {
+          const { disconnectPPPoEUser } = await import('@/server/services/radius/coa-handler.service');
+          await disconnectPPPoEUser(user.username);
+        }
       }
     } catch (radiusError: any) {
       console.error('[Extend] RADIUS restore error (non-fatal):', radiusError?.message);

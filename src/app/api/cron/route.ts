@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     const { prisma: dbPrisma } = await import('@/server/db/client')
     const company = await dbPrisma.company.findFirst({ select: { radiusEnabled: true } })
-    const radiusEnabled = company?.radiusEnabled ?? true
+    const radiusEnabled = company?.radiusEnabled ?? false
 
     const radiusOnlyJobs = [
       'hotspot_sync', 

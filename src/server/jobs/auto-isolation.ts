@@ -76,93 +76,78 @@ export async function autoIsolateExpiredUsers() {
           data: { status: 'isolated' },
         });
 
-        if (!isRadius) {
-          // DIRECT MIKROTIK ISOLATION
-          if (user.routerId) {
+        // 1. PRIMARY: DIRECT MIKROTIK ISOLATION (always run)
+        if (user.routerId) {
+          try {
             const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
             await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, isolateProfileName);
             console.log(`[AUTO-ISOLATE] ✓ Swapped profile to '${isolateProfileName}' and kicked ${user.username} via MikroTik API`);
-          } else {
-            console.log(`[AUTO-ISOLATE] ⚠️ Cannot isolate via MikroTik API (no routerId) for ${user.username}`);
+          } catch (mtErr: any) {
+            console.log(`[AUTO-ISOLATE] ⚠️ Direct MikroTik isolation error for ${user.username}: ${mtErr.message}`);
           }
         } else {
-          // RADIUS ISOLATION
-          // 2. KEEP password in radcheck (ALLOW authentication!)
-        // This is critical - user MUST be able to login
-        await prisma.$executeRaw`
-          INSERT INTO radcheck (username, attribute, op, value)
-          VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
-          ON DUPLICATE KEY UPDATE value = ${user.password}
-        `;
-
-        // 2b. REMOVE Auth-Type Reject if exists (allow login!)
-        await prisma.$executeRaw`
-          DELETE FROM radcheck 
-          WHERE username = ${user.username} 
-            AND attribute = 'Auth-Type'
-        `;
-
-        // 2c. REMOVE reject message if exists
-        await prisma.$executeRaw`
-          DELETE FROM radreply 
-          WHERE username = ${user.username} 
-            AND attribute = 'Reply-Message'
-        `;
-
-        // 4. Set radusergroup to 'isolir'
-        // This tells RADIUS to assign isolated profile
-        await prisma.$executeRaw`
-          DELETE FROM radusergroup WHERE username = ${user.username}
-        `;
-        await prisma.$executeRaw`
-          INSERT INTO radusergroup (username, groupname, priority)
-          VALUES (${user.username}, 'isolir', 1)
-        `;
-
-        // 5. Remove static IP assignment
-        // User will get IP from pool-isolir (192.168.200.x)
-        await prisma.$executeRaw`
-          DELETE FROM radreply 
-          WHERE username = ${user.username} 
-            AND attribute = 'Framed-IP-Address'
-        `;
-
-        // 5. Disconnect user session (force re-authentication)  
-        try {
-          // STEP 5a: Get current session IP BEFORE marking it stopped,
-          // so we can immediately add it to MikroTik address-list 'isolir'.
-          // This blocks internet right away even if disconnect fails.
-          const activeSession = await prisma.radacct.findFirst({
-            where: { username: user.username, acctstoptime: null },
-            select: { framedipaddress: true, nasipaddress: true },
-          });
-
-          // STEP 5b: Add current IP to MikroTik firewall address-list immediately.
-          // MikroTik firewall rule (chain=forward src-address-list=isolir action=drop)
-          // will block internet for this IP right away, before reconnect.
-          if (activeSession?.framedipaddress && activeSession.framedipaddress !== '0.0.0.0') {
-            try {
-              const { addToMikrotikAddressList } = await import('@/server/services/radius/coa-handler.service');
-              await addToMikrotikAddressList(
-                activeSession.nasipaddress || '',
-                activeSession.framedipaddress,
-                'isolir'
-              );
-              console.log(`[AUTO-ISOLATE] ✓ Added ${activeSession.framedipaddress} to MikroTik address-list 'isolir'`);
-            } catch (addrErr: any) {
-              console.log(`[AUTO-ISOLATE] ⚠️ Address-list add failed (non-fatal): ${addrErr.message}`);
-            }
-          }
-
-          // STEP 5c: CoA disconnect + MikroTik API disconnect (handles DB + CoA + API fallback)
-          const { disconnectPPPoEUser } = await import('@/server/services/radius/coa-handler.service');
-          await disconnectPPPoEUser(user.username);
-          console.log(`[AUTO-ISOLATE] ✓ Disconnected ${user.username} via CoA`);
-        } catch (coaError: any) {
-          console.log(`[AUTO-ISOLATE] ⚠️ Disconnect failed: ${coaError.message}`);
+          console.log(`[AUTO-ISOLATE] ⚠️ Cannot isolate via MikroTik API (no routerId) for ${user.username}`);
         }
 
-          // 6. Close session in radacct
+        // 2. SECONDARY: RADIUS ISOLATION (only if RADIUS mode enabled)
+        if (isRadius) {
+          await prisma.$executeRaw`
+            INSERT INTO radcheck (username, attribute, op, value)
+            VALUES (${user.username}, 'Cleartext-Password', ':=', ${user.password})
+            ON DUPLICATE KEY UPDATE value = ${user.password}
+          `;
+
+          await prisma.$executeRaw`
+            DELETE FROM radcheck 
+            WHERE username = ${user.username} 
+              AND attribute = 'Auth-Type'
+          `;
+
+          await prisma.$executeRaw`
+            DELETE FROM radreply 
+            WHERE username = ${user.username} 
+              AND attribute = 'Reply-Message'
+          `;
+
+          await prisma.$executeRaw`
+            DELETE FROM radusergroup WHERE username = ${user.username}
+          `;
+          await prisma.$executeRaw`
+            INSERT INTO radusergroup (username, groupname, priority)
+            VALUES (${user.username}, 'isolir', 1)
+          `;
+
+          await prisma.$executeRaw`
+            DELETE FROM radreply 
+            WHERE username = ${user.username} 
+              AND attribute = 'Framed-IP-Address'
+          `;
+
+          try {
+            const activeSession = await prisma.radacct.findFirst({
+              where: { username: user.username, acctstoptime: null },
+              select: { framedipaddress: true, nasipaddress: true },
+            });
+
+            if (activeSession?.framedipaddress && activeSession.framedipaddress !== '0.0.0.0') {
+              try {
+                const { addToMikrotikAddressList } = await import('@/server/services/radius/coa-handler.service');
+                await addToMikrotikAddressList(
+                  activeSession.nasipaddress || '',
+                  activeSession.framedipaddress,
+                  'isolir'
+                );
+              } catch (addrErr: any) {
+                console.log(`[AUTO-ISOLATE] ⚠️ Address-list add failed (non-fatal): ${addrErr.message}`);
+              }
+            }
+
+            const { disconnectPPPoEUser } = await import('@/server/services/radius/coa-handler.service');
+            await disconnectPPPoEUser(user.username);
+          } catch (coaError: any) {
+            console.log(`[AUTO-ISOLATE] ⚠️ Disconnect failed: ${coaError.message}`);
+          }
+
           await prisma.$executeRaw`
             UPDATE radacct 
             SET acctstoptime = NOW(), 
@@ -170,7 +155,7 @@ export async function autoIsolateExpiredUsers() {
             WHERE username = ${user.username} 
               AND acctstoptime IS NULL
           `;
-        } // end if isRadius
+        }
 
         // 7. Create activity log
         await prisma.activityLog.create({

@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
 
     // ── 2. Query active sessions (RADIUS or MikroTik) ───────────────────────
     const company = await prisma.company.findFirst();
-    const radiusEnabled = company?.radiusEnabled ?? true;
+    const radiusEnabled = company?.radiusEnabled ?? false;
 
     let activeSessions: any[] = [];
 
