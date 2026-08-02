@@ -402,6 +402,7 @@ export async function autoIsolatePPPoEUsers(): Promise<{
           await sendIsolationNotification({
             id: user.id,
             username: user.username,
+            customerId: (user as any).customerId || (user as any).pppoeCustomerId,
             name: user.name || user.username,
             phone: user.phone,
             email: user.email,

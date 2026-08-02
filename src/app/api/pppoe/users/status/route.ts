@@ -40,6 +40,8 @@ export async function PUT(request: Request) {
       select: { 
         id: true, 
         username: true, 
+        customerId: true,
+        pppoeCustomerId: true,
         name: true, 
         status: true,
         password: true,
@@ -237,6 +239,7 @@ export async function PUT(request: Request) {
           sendIsolationNotification({
             id: user.id,
             username: user.username,
+            customerId: user.customerId || user.pppoeCustomerId,
             name: user.name || user.username,
             phone: user.phone,
             email: user.email,

@@ -236,13 +236,24 @@ export async function sendIsolationNotification(user: {
   phone?: string | null;
   email?: string | null;
   expiredAt?: Date | null;
+  customerId?: string | null;
 }) {
   try {
     const company = await prisma.company.findFirst();
     if (!company) return;
 
-    const baseUrl = company.baseUrl || 'http://localhost:3000';
+    let realCustomerId = user.customerId;
+    if (!realCustomerId) {
+      const dbUser = await prisma.pppoeUser.findUnique({
+        where: { id: user.id },
+        select: { customerId: true, pppoeCustomerId: true },
+      });
+      realCustomerId = dbUser?.customerId || dbUser?.pppoeCustomerId || user.username;
+    }
+
+    const baseUrl = company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://euginemediagroup.com';
     const isolatedUrl = `${baseUrl}/isolated?username=${encodeURIComponent(user.username)}`;
+    const appDownloadUrl = (company as any).appDownloadUrl || `${baseUrl}/download-app`;
     const expiredDate = user.expiredAt
       ? new Date(user.expiredAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
       : '-';
@@ -251,6 +262,7 @@ export async function sendIsolationNotification(user: {
     const templateVars: Record<string, string> = {
       customerName: user.name || user.username,
       username: user.username,
+      customerId: realCustomerId || user.username,
       expiredDate,
       rateLimit,
       paymentLink: isolatedUrl,
@@ -259,6 +271,9 @@ export async function sendIsolationNotification(user: {
       companyName: company.name || '',
       companyPhone: company.phone || '',
       companyEmail: company.email || '',
+      link_download_aplikasi: appDownloadUrl,
+      link_download_apk: appDownloadUrl,
+      appDownloadLink: appDownloadUrl,
     };
 
     // -- WhatsApp ------------------------------------------------------------
@@ -273,7 +288,8 @@ export async function sendIsolationNotification(user: {
         if (waTemplate?.message) {
           message = waTemplate.message;
           for (const [key, val] of Object.entries(templateVars)) {
-            message = message.replace(new RegExp(`{{${key}}}`, 'g'), val);
+            message = message.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'gi'), val);
+            message = message.replace(new RegExp(`\\{${key}\\}`, 'gi'), val);
           }
         } else {
           message =
