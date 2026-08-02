@@ -62,6 +62,25 @@ Yth. Bapak/Ibu *{{customerName}}*
 
 ${COMMON_FOOTER}`;
 
+const INSTALLATION_INVOICE_MSG = `🔧 *INVOICE INSTALASI LAYANAN INTERNET*
+
+Yth. Bapak/Ibu *{{customerName}}*
+• *ID Pelanggan:* {{customerId}}
+• *No. Invoice:* {{invoiceNumber}}
+• *Paket Layanan:* {{profileName}}
+• *Total Tagihan:* {{total_bayar}}
+
+📌 _Pemasangan perangkat & layanan internet Anda telah selesai dilakukan oleh tim teknisi kami._
+
+⚠️ _Mohon lakukan pembayaran biaya instalasi/bulan pertama sebelum *{{dueDate}}* agar koneksi internet dapat digunakan secara penuh._
+
+-----------------------------------------
+*Selesaikan Pembayaran Instalasi:*
+1. Klik link pembayaran: {{paymentLink}}
+2. Pilih metode pembayaran favorit Anda (QRIS, Bank Transfer, E-Wallet).
+
+${COMMON_FOOTER}`;
+
 // Default 14 Master WhatsApp Templates (EUGBILL V2.0 Specification)
 export const defaultTemplates = [
   // 1️⃣ Konfirmasi Pendaftaran
@@ -101,7 +120,7 @@ ${COMMON_FOOTER}`,
   {
     name: '🔧 Invoice Instalasi',
     type: 'installation-invoice',
-    message: UNIVERSAL_INVOICE_MSG,
+    message: INSTALLATION_INVOICE_MSG,
     isActive: true,
   },
   {

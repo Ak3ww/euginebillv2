@@ -364,16 +364,38 @@ export async function sendInstallationInvoice(data: {
     });
 
     // Get template from database
-    const templateContent = await getTemplate('installation-invoice');
+    let templateContent = await getTemplate('installation-invoice');
 
     if (!templateContent) {
-      console.warn('[WA] No template found for installation-invoice');
-      return;
+      templateContent = `🔧 *INVOICE INSTALASI LAYANAN INTERNET*
+
+Yth. Bapak/Ibu *{{customerName}}*
+• *ID Pelanggan:* {{customerId}}
+• *No. Invoice:* {{invoiceNumber}}
+• *Paket Layanan:* {{profileName}}
+• *Total Tagihan:* {{amount}}
+• *Jatuh Tempo:* {{dueDate}}
+
+📌 _Pemasangan perangkat & layanan internet Anda telah selesai dilakukan oleh tim teknisi kami._
+
+-----------------------------------------
+*Selesaikan Pembayaran Instalasi:*
+1. Klik link pembayaran: {{paymentLink}}
+2. Pilih metode pembayaran favorit Anda (QRIS, Bank Transfer, E-Wallet).
+
+{{bankAccounts}}
+
+Jika ada kendala, silakan hubungi tim kami.
+Terima kasih,
+*{{companyName}}*`;
     }
 
     // Prepare variables
     const variables = {
       customerName: data.customerName,
+      customerId: data.customerId || data.username || '-',
+      username: data.username || '-',
+      customerUsername: data.username || '-',
       invoiceNumber: data.invoiceNumber,
       amount: `Rp ${data.amount.toLocaleString('id-ID')}`,
       dueDate: dueDateStr,

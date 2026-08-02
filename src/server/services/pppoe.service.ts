@@ -432,8 +432,14 @@ export async function createPppoeUser(
       const invoiceId = crypto.randomUUID();
       const invoiceNumber = generateInvoiceNumber();
       const baseUrl = companyConfig?.baseUrl || 'http://localhost:3000';
-      const paymentToken = randomBytes(32).toString('hex');
-      const paymentLink = `${baseUrl}/pay/${paymentToken}`;
+      // Calculate installation invoice due date: X days after installation (default 3 days)
+      const installationDays = (data as any).installationDueDateDays
+        ? parseInt(String((data as any).installationDueDateDays))
+        : 3;
+      const installationDueDate = new Date(registeredAt ? new Date(registeredAt + 'T00:00:00') : new Date());
+      installationDueDate.setDate(installationDueDate.getDate() + installationDays);
+      installationDueDate.setHours(23, 59, 59, 999);
+
       await prisma.invoice.create({
         data: {
           id: invoiceId,
@@ -441,9 +447,9 @@ export async function createPppoeUser(
           userId: user.id,
           amount: invoiceAmount,
           baseAmount: invoiceAmount,
-          dueDate: finalExpiredAt,
+          dueDate: installationDueDate,
           status: 'PENDING',
-          invoiceType: 'MONTHLY',
+          invoiceType: 'INSTALLATION',
           customerName: resolvedName,
           customerPhone: resolvedPhone,
           customerUsername: username,
