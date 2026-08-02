@@ -46,11 +46,17 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Update all users status in DB
-    await prisma.pppoeUser.updateMany({
-      where: { id: { in: userIds } },
-      data: { status },
-    });
+    // Update all users status in DB (and archive username if status is stop to release clean username)
+    for (const user of users) {
+      let newUsername = user.username;
+      if (status === 'stop' && !user.username.includes('-OFF-')) {
+        newUsername = `${user.username}-OFF-${user.id.slice(-4)}`;
+      }
+      await prisma.pppoeUser.update({
+        where: { id: user.id },
+        data: { status, username: newUsername },
+      });
+    }
 
     // Apply network-level changes per user
     for (const user of users) {
@@ -122,9 +128,7 @@ export async function PUT(request: Request) {
             await conn.connect();
             const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`]);
             if (existing.length > 0) {
-              if (status === 'stop') {
-                await conn.execute('/ppp/secret/remove', [`=.id=${existing[0]['.id']}`]);
-              } else if (status === 'blocked') {
+              if (status === 'stop' || status === 'blocked') {
                 await conn.execute('/ppp/secret/set', [
                   `=.id=${existing[0]['.id']}`,
                   `=disabled=yes`,

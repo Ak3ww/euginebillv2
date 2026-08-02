@@ -65,10 +65,19 @@ export async function PUT(request: Request) {
     const oldStatus = currentUser.status;
     const user = currentUser;
 
+    // If status is changed to stop, archive username so clean username (e.g. emg014) is released for new customers
+    let newUsername = user.username;
+    if (status === 'stop' && !user.username.includes('-OFF-')) {
+      newUsername = `${user.username}-OFF-${user.id.slice(-4)}`;
+    }
+
     // Update user status in database
     const updatedUser = await prisma.pppoeUser.update({
       where: { id: userId },
-      data: { status },
+      data: { 
+        status,
+        username: newUsername,
+      },
     });
 
     if (isRadiusEnabled) {
@@ -164,9 +173,7 @@ export async function PUT(request: Request) {
             await conn.connect();
             const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`]);
             if (existing.length > 0) {
-              if (status === 'stop') {
-                await conn.execute('/ppp/secret/remove', [`=.id=${existing[0]['.id']}`]);
-              } else if (status === 'blocked') {
+              if (status === 'stop' || status === 'blocked') {
                 await conn.execute('/ppp/secret/set', [
                   `=.id=${existing[0]['.id']}`,
                   `=disabled=yes`,
