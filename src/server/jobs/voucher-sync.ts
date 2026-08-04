@@ -923,10 +923,10 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           continue
         }
 
-        // Limit automatic cron retries for permanently failed numbers (max 3 failed attempts)
+        // Limit automatic cron retries for permanently failed numbers (max 4 failed attempts)
         const totalRetryCount = (invoice as any).waRetryCount || 0
-        if (totalRetryCount >= 3 && !invoice.waNotifiedAt) {
-          console.log(`[Invoice Reminder] 🛑 SKIPPED ${invoice.invoiceNumber}: Max 3 failed cron retries reached`)
+        if (totalRetryCount >= 4 && !invoice.waNotifiedAt) {
+          console.log(`[Invoice Reminder] 🛑 SKIPPED ${invoice.invoiceNumber}: Max 4 failed cron retries reached`)
           skippedCount++
           continue
         }
