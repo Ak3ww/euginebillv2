@@ -457,13 +457,14 @@ export async function POST(request: NextRequest) {
       default:
         try {
           const { CRON_JOBS } = await import('@/server/jobs/jobs.config');
-          const matchedJob = CRON_JOBS.find(j => j.type === type);
+          const matchedJob = CRON_JOBS.find(j => j.type === jobType);
           if (matchedJob) {
             const start = Date.now();
             const startedAt = new Date();
-            const history = await prisma.cronHistory.create({
+            const history = await dbPrisma.cronHistory.create({
               data: {
-                jobType: type,
+                id: crypto.randomUUID(),
+                jobType,
                 status: 'running',
                 startedAt,
               },
@@ -472,7 +473,7 @@ export async function POST(request: NextRequest) {
             try {
               const res = await matchedJob.handler();
               const duration = Math.round(Date.now() - start);
-              await prisma.cronHistory.update({
+              await dbPrisma.cronHistory.update({
                 where: { id: history.id },
                 data: {
                   status: res?.success !== false ? 'success' : 'error',
@@ -489,7 +490,7 @@ export async function POST(request: NextRequest) {
                 message: `Job '${matchedJob.name}' triggered successfully`
               });
             } catch (execErr: any) {
-              await prisma.cronHistory.update({
+              await dbPrisma.cronHistory.update({
                 where: { id: history.id },
                 data: {
                   status: 'error',
@@ -507,7 +508,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
           success: false,
-          error: `Invalid job type: '${type}'`
+          error: `Invalid job type: '${jobType}'`
         }, { status: 400 })
     }
   } catch (error: any) {

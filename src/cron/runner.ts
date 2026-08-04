@@ -51,6 +51,7 @@ async function runJob(type: string, description: string): Promise<void> {
     const { prisma } = await import('@/server/db/client');
     const history = await prisma.cronHistory.create({
       data: {
+        id: crypto.randomUUID(),
         jobType: type,
         status: 'running',
         startedAt,
