@@ -373,19 +373,12 @@ export default function NewPppoeUserPage() {
                             <ModalLabel className="text-[9px] font-semibold text-muted-foreground">
                               ⏰ Batas Tempo Invoice Pasang Baru:
                             </ModalLabel>
-                            <ModalSelect 
-                              value={installationDueDateDays} 
-                              onChange={(e) => setInstallationDueDateDays(e.target.value)}
-                              className="text-xs py-1"
-                            >
-                              <option value="1">1 Hari setelah pasang</option>
-                              <option value="3">3 Hari setelah pasang (Default)</option>
-                              <option value="7">7 Hari setelah pasang</option>
-                              <option value="14">14 Hari setelah pasang</option>
-                              <option value="30">30 Hari setelah pasang</option>
-                            </ModalSelect>
+                            <div className="flex items-center gap-1.5 px-2 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300/40 rounded-lg">
+                              <span className="text-emerald-600 dark:text-emerald-400 text-xs">⏱️</span>
+                              <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">2 Hari setelah pasang</span>
+                            </div>
                             <p className="text-[8px] text-muted-foreground">
-                              Batas waktu bayar khusus invoice pertama. Tagihan bulanan rutin tetap di Tanggal {formData.billingDay}.
+                              Bayar dulu baru pakai. Tagihan bulanan rutin tetap di Tanggal {formData.billingDay}.
                             </p>
                           </div>
                           <p className="text-[9px] text-muted-foreground mt-1.5">

@@ -234,13 +234,11 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
 
                 <div>
                   <ModalLabel>⏰ Batas Jatuh Tempo Invoice Pasang Baru</ModalLabel>
-                  <ModalSelect value={formData.installationDueDateDays} onChange={(e) => setFormData(prev => ({ ...prev, installationDueDateDays: e.target.value }))}>
-                    <option value="1" className="dark:bg-[#0a0520]">1 Hari setelah pasang</option>
-                    <option value="3" className="dark:bg-[#0a0520]">3 Hari setelah pasang (Default)</option>
-                    <option value="7" className="dark:bg-[#0a0520]">7 Hari setelah pasang</option>
-                    <option value="14" className="dark:bg-[#0a0520]">14 Hari setelah pasang</option>
-                  </ModalSelect>
-                  <p className="text-[9px] text-muted-foreground mt-1">Batas waktu bayar khusus invoice pertama. Tagihan rutin berikutnya tetap Tanggal {formData.billingDay}.</p>
+                  <div className="flex items-center gap-1.5 px-2.5 py-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300/40 rounded-lg">
+                    <span className="text-emerald-600 dark:text-emerald-400 text-xs">⏱️</span>
+                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">2 Hari setelah pasang</span>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground mt-1">Bayar dulu baru pakai. Tagihan rutin berikutnya tetap Tanggal {formData.billingDay}.</p>
                 </div>
                 <div className="text-[9px] text-blue-500 bg-blue-500/10 p-2 rounded border border-blue-500/20">
                   ℹ️ Invoice PENDING pasang baru dibuat saat simpan — dapat dibayar pelanggan via link / portal.

@@ -442,12 +442,9 @@ export async function createPppoeUser(
       const invoiceId = crypto.randomUUID();
       const invoiceNumber = generateInvoiceNumber();
       const baseUrl = companyConfig?.baseUrl || 'http://localhost:3000';
-      // Calculate installation invoice due date: X days after installation (default 3 days)
-      const installationDays = (data as any).installationDueDateDays
-        ? parseInt(String((data as any).installationDueDateDays))
-        : 3;
+      // Installation invoice due date: fixed 2 days after installation (bayar dulu baru pakai)
       const installationDueDate = new Date(registeredAt ? new Date(registeredAt + 'T00:00:00') : new Date());
-      installationDueDate.setDate(installationDueDate.getDate() + installationDays);
+      installationDueDate.setDate(installationDueDate.getDate() + 2);
       const paymentToken = randomBytes(32).toString('hex');
       const paymentLink = `${baseUrl}/pay/${paymentToken}`;
 
