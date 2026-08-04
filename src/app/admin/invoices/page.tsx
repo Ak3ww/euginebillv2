@@ -82,7 +82,7 @@ export default function InvoicesPage() {
     totalUnpaidAmount: 0,
     totalPaidAmount: 0,
   });
-  const [activeTab, setActiveTab] = useState('unpaid');
+  const [activeTab, setActiveTab] = useState('all');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -104,7 +104,10 @@ export default function InvoicesPage() {
   const [broadcasting, setBroadcasting] = useState(false);
   const [exportDateFrom, setExportDateFrom] = useState('');
   const [exportDateTo, setExportDateTo] = useState('');
-  const [invoiceMonth, setInvoiceMonth] = useState<string>(''); // '' = all-time, 'YYYY-MM' = filtered
+  const [invoiceMonth, setInvoiceMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // Generate Invoice dialog
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
@@ -1133,9 +1136,12 @@ export default function InvoicesPage() {
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={() => setInvoiceMonth('')}
+                onClick={() => {
+                  const d = new Date();
+                  setInvoiceMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                }}
                 className="text-xs font-medium text-foreground min-w-[90px] text-center hover:text-primary transition-colors"
-                title="Klik untuk reset ke semua"
+                title="Klik untuk reset ke bulan ini"
               >
                 {getMonthLabel(invoiceMonth)}
               </button>
