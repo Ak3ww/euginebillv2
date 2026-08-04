@@ -913,7 +913,11 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
 
         // Check if this reminder day already sent
         // Cron Protection: Skip if this specific reminder schedule (H-7 / H-1) was already sent
-        if (sentReminders.includes(reminderDay)) {
+        const invoiceSentReminders: number[] = invoice.sentReminders
+          ? (() => { try { return JSON.parse(invoice.sentReminders); } catch { return []; } })()
+          : []
+
+        if (invoiceSentReminders.includes(reminderDay)) {
           console.log(`[Invoice Reminder] Skipped ${invoice.invoiceNumber}: H${reminderDay} already sent`)
           skippedCount++
           continue
