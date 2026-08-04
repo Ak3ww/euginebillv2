@@ -455,9 +455,59 @@ export async function POST(request: NextRequest) {
         }
 
       default:
+        try {
+          const { CRON_JOBS } = await import('@/server/jobs/jobs.config');
+          const matchedJob = CRON_JOBS.find(j => j.type === type);
+          if (matchedJob) {
+            const start = Date.now();
+            const startedAt = new Date();
+            const history = await prisma.cronHistory.create({
+              data: {
+                jobType: type,
+                status: 'running',
+                startedAt,
+              },
+            });
+
+            try {
+              const res = await matchedJob.handler();
+              const duration = Math.round(Date.now() - start);
+              await prisma.cronHistory.update({
+                where: { id: history.id },
+                data: {
+                  status: res?.success !== false ? 'success' : 'error',
+                  completedAt: new Date(),
+                  duration,
+                  result: res ? JSON.stringify(res) : 'Success',
+                  error: res?.error || null,
+                },
+              });
+
+              return NextResponse.json({
+                success: true,
+                result: res,
+                message: `Job '${matchedJob.name}' triggered successfully`
+              });
+            } catch (execErr: any) {
+              await prisma.cronHistory.update({
+                where: { id: history.id },
+                data: {
+                  status: 'error',
+                  completedAt: new Date(),
+                  duration: Math.round(Date.now() - start),
+                  error: execErr?.message ?? String(execErr),
+                },
+              });
+              return NextResponse.json({ success: false, error: execErr.message }, { status: 500 });
+            }
+          }
+        } catch (jobErr: any) {
+          return NextResponse.json({ success: false, error: jobErr.message }, { status: 500 });
+        }
+
         return NextResponse.json({
           success: false,
-          error: 'Invalid job type'
+          error: `Invalid job type: '${type}'`
         }, { status: 400 })
     }
   } catch (error: any) {

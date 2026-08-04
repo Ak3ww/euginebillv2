@@ -44,15 +44,68 @@ async function runJob(type: string, description: string): Promise<void> {
 
   if (LOCK_JOBS.has(type)) runningJobs.add(type);
   const start = Date.now();
+  const startedAt = new Date();
+  let historyId: string | null = null;
+
+  try {
+    const { prisma } = await import('@/server/db/client');
+    const history = await prisma.cronHistory.create({
+      data: {
+        jobType: type,
+        status: 'running',
+        startedAt,
+      },
+    });
+    historyId = history.id;
+  } catch (dbErr: any) {
+    console.warn(`[CRON] Failed to log start to DB for ${type}:`, dbErr?.message);
+  }
 
   try {
     console.log(`[CRON] Starting: ${description}`);
     const result = await job.handler();
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+    const completedAt = new Date();
+    const duration = Math.round(Date.now() - start);
     console.log(`[CRON] Done: ${description} (${elapsed}s)`, result?.success !== false ? '✓' : '✗');
+
+    if (historyId) {
+      try {
+        const { prisma } = await import('@/server/db/client');
+        await prisma.cronHistory.update({
+          where: { id: historyId },
+          data: {
+            status: result?.success !== false ? 'success' : 'error',
+            completedAt,
+            duration,
+            result: result ? JSON.stringify(result) : 'Success',
+            error: result?.error || null,
+          },
+        });
+      } catch (dbErr: any) {
+        console.warn(`[CRON] Failed to update history DB for ${type}:`, dbErr?.message);
+      }
+    }
   } catch (err: any) {
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
     console.error(`[CRON] Error: ${description} (${elapsed}s)`, err?.message ?? err);
+
+    if (historyId) {
+      try {
+        const { prisma } = await import('@/server/db/client');
+        await prisma.cronHistory.update({
+          where: { id: historyId },
+          data: {
+            status: 'error',
+            completedAt: new Date(),
+            duration: Math.round(Date.now() - start),
+            error: err?.message ?? String(err),
+          },
+        });
+      } catch (dbErr: any) {
+        console.warn(`[CRON] Failed to update error history DB for ${type}:`, dbErr?.message);
+      }
+    }
   } finally {
     runningJobs.delete(type);
   }
