@@ -5,8 +5,13 @@ async function main() {
 
   // Ensure routerId column exists in pppoe_areas table via Raw SQL
   try {
-    await prisma.$executeRawUnsafe(`ALTER TABLE pppoe_areas ADD COLUMN routerId VARCHAR(191) NULL;`);
-    console.log('🛠️ Added column "routerId" to table "pppoe_areas".');
+    const columns: any[] = await prisma.$queryRawUnsafe(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pppoe_areas' AND COLUMN_NAME = 'routerId';`
+    );
+    if (columns.length === 0) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE pppoe_areas ADD COLUMN routerId VARCHAR(191) NULL;`);
+      console.log('🛠️ Added column "routerId" to table "pppoe_areas".');
+    }
   } catch {
     // Column already exists or alter skipped
   }
