@@ -1059,21 +1059,21 @@ export default function InvoicesPage() {
             </button>
             <button
               onClick={handleRestoreFromWa}
-              className="inline-flex items-center px-2.5 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-sm transition-colors"
+              className="inline-flex items-center px-2.5 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-xs transition-colors"
               title="Pulihkan tagihan yang terhapus persis sesuai link & nomor tagihan di WA (Kecuali KMB)"
             >
-              ⚡ Pulihkan dari WA (Link Sama)
+              <Zap className="h-3.5 w-3.5 mr-1" /> Pulihkan dari WA
             </button>
           </div>
         </div>
 
-        {/* Router / NAS Summary Breakdown Section */}
+        {/* Router / NAS Summary Breakdown Section - Clean Shadcn UI */}
         {routerSummaries.length > 0 && (
-          <div className="bg-card rounded-xl border border-border p-3 sm:p-4 space-y-2.5">
+          <div className="bg-card rounded-xl border border-border p-4 space-y-3 shadow-xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
-                  📡 Ringkasan Tagihan per Router / NAS
+                <span className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  <Server className="h-4 w-4 text-primary" /> Ringkasan Tagihan per Router / NAS
                 </span>
                 <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full hidden sm:inline-block">
                   Klik kartu untuk filter 1-klik
@@ -1084,42 +1084,42 @@ export default function InvoicesPage() {
                   onClick={() => setFilterRouterId('all')}
                   className="text-xs text-primary hover:underline font-medium flex items-center gap-1"
                 >
-                  ✕ Reset Filter Router
+                  <X className="h-3.5 w-3.5" /> Reset Filter Router
                 </button>
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {routerSummaries.map((r) => {
                 const isSelected = filterRouterId === r.id;
                 return (
                   <div
                     key={r.id}
                     onClick={() => setFilterRouterId(isSelected ? 'all' : r.id)}
-                    className={`cursor-pointer rounded-lg p-3 transition-all border ${
+                    className={`cursor-pointer rounded-xl p-3.5 transition-all border ${
                       isSelected
-                        ? 'bg-[#002c60]/10 border-[#002c60] dark:bg-[#002c60]/30 dark:border-blue-400 ring-2 ring-[#002c60]'
-                        : 'bg-muted/30 border-border hover:border-primary/50'
+                        ? 'bg-primary/10 border-primary ring-2 ring-primary'
+                        : 'bg-card border-border hover:border-slate-400 dark:hover:border-slate-600'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold text-foreground flex items-center gap-1">
-                        📡 {r.name}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <Server className="h-3.5 w-3.5 text-muted-foreground" /> {r.name}
                       </span>
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                         {r.totalCount} Tagihan
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs pt-1.5 border-t border-border/50">
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-border">
                       <div>
-                        <p className="text-[9px] text-rose-600 dark:text-rose-400 font-semibold uppercase">Belum Bayar ({r.unpaidCount})</p>
+                        <p className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold uppercase">Belum Bayar ({r.unpaidCount})</p>
                         <p className="text-xs font-bold text-rose-600 dark:text-rose-400 truncate mt-0.5">
                           {formatCurrency(r.unpaidAmount)}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase">Lunas ({r.paidCount})</p>
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase">Lunas ({r.paidCount})</p>
                         <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 truncate mt-0.5">
                           {formatCurrency(r.paidAmount)}
                         </p>

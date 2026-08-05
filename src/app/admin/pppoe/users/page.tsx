@@ -1290,97 +1290,90 @@ export default function PppoeUsersPage() {
   if (loading) { return <div className="flex items-center justify-center min-h-[60vh]"><div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#bc13fe]/20 rounded-full blur-3xl animate-pulse"></div><div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#00f7ff]/20 rounded-full blur-3xl animate-pulse delay-1000"></div></div><Loader2 className="w-12 h-12 animate-spin text-brand-500 dark:text-[#00f7ff] dark:drop-shadow-[0_0_20px_rgba(0,247,255,0.6)] relative z-10" /></div>; }
 
   return (
-    <div className="bg-background relative">
-      {/* Background ambient lighting */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#002c60]/20 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#1b437c]/20 rounded-full blur-3xl"></div>
+    <div className="bg-background space-y-5">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+              {t('pppoe.title')}
+              {filterRouter && (
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-muted text-foreground border border-border inline-flex items-center gap-1">
+                  <Server className="w-3 h-3 text-primary" /> NAS: {activeNasName}
+                </span>
+              )}
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{t('pppoe.subtitle')}</p>
+          </div>
+          {/* Tombol Kirim Notifikasi di Header */}
+          {selectedUsers.size > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setShowNotificationMenu(!showNotificationMenu)}
+                className="inline-flex items-center px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 gap-1.5"
+              >
+                <Bell className="h-3.5 w-3.5" />
+                {t('pppoe.sendNotification')}
+                <span className="bg-primary/100 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1">
+                  {selectedUsers.size}
+                </span>
+              </button>
+              {showNotificationMenu && (
+                <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded shadow-lg z-50 min-w-[180px]">
+                  <button
+                    onClick={() => handleOpenNotificationMenu('outage')}
+                    className="w-full px-3 py-2 text-xs text-left hover:bg-muted flex items-center gap-2"
+                  >
+                    <Bell className="h-3.5 w-3.5 text-destructive" />
+                    <span>{t('pppoe.outageNotification')}</span>
+                  </button>
+                  <button
+                    onClick={() => handleOpenNotificationMenu('invoice')}
+                    className="w-full px-3 py-2 text-xs text-left hover:bg-muted flex items-center gap-2 border-t border-border"
+                  >
+                    <DollarSign className="h-3.5 w-3.5 text-warning" />
+                    <span>{t('pppoe.sendInvoice')}</span>
+                  </button>
+                  <button
+                    onClick={() => handleOpenNotificationMenu('payment')}
+                    className="w-full px-3 py-2 text-xs text-left hover:bg-muted flex items-center gap-2 border-t border-border"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                    <span>{t('pppoe.paymentReceipt')}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          <button onClick={() => handleDownloadTemplate('xlsx')} className="inline-flex items-center px-2.5 py-1.5 text-xs border border-border rounded-lg bg-card text-foreground hover:bg-muted font-medium"><Download className="h-3.5 w-3.5 mr-1 text-muted-foreground" />{t('pppoe.templateExcel')}</button>
+          <button onClick={handleExportExcel} className="inline-flex items-center px-2.5 py-1.5 text-xs border border-border rounded-lg bg-card text-foreground hover:bg-muted font-medium"><Download className="h-3.5 w-3.5 mr-1 text-emerald-600 dark:text-emerald-400" />Export</button>
+          <button onClick={() => setIsImportDialogOpen(true)} className="inline-flex items-center px-2.5 py-1.5 text-xs border border-border rounded-lg bg-card text-foreground hover:bg-muted font-medium"><Upload className="h-3.5 w-3.5 mr-1 text-muted-foreground" />Import Excel</button>
+          {canCreate && (<button onClick={() => router.push('/admin/pppoe/users/new')} className="inline-flex items-center px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-lg shadow-xs hover:bg-primary/90 transition-all"><Plus className="h-3.5 w-3.5 mr-1" />{t('pppoe.addUser')}</button>)}
+        </div>
       </div>
 
-      <div className="relative z-10 space-y-5">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
-                {t('pppoe.title')}
-                {filterRouter && (
-                  <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-[#002c60] text-white border border-[#1b437c]">
-                    📡 NAS: {activeNasName}
-                  </span>
-                )}
-              </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{t('pppoe.subtitle')}</p>
+      {/* Stats Bento Grid Layout - Clean Shadcn UI */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        {/* Total Pelanggan */}
+        <div 
+          onClick={() => { setFilterStatus(''); setFilterPaymentStatus(''); }}
+          className={`col-span-2 md:col-span-2 lg:col-span-2 cursor-pointer bg-card rounded-xl p-4 border border-border shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-all ${filterStatus === '' && filterPaymentStatus === '' ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+        >
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Pelanggan</p>
+              <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{totalPelangganCount}</p>
+              <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-muted-foreground" /> {activeNasName}
+              </p>
             </div>
-            {/* Tombol Kirim Notifikasi di Header */}
-            {selectedUsers.size > 0 && (
-              <div className="relative">
-                <button
-                  onClick={() => setShowNotificationMenu(!showNotificationMenu)}
-                  className="inline-flex items-center px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 gap-1.5"
-                >
-                  <Bell className="h-3.5 w-3.5" />
-                  {t('pppoe.sendNotification')}
-                  <span className="bg-primary/100 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1">
-                    {selectedUsers.size}
-                  </span>
-                </button>
-                {showNotificationMenu && (
-                  <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded shadow-lg z-50 min-w-[180px]">
-                    <button
-                      onClick={() => handleOpenNotificationMenu('outage')}
-                      className="w-full px-3 py-2 text-xs text-left hover:bg-muted flex items-center gap-2"
-                    >
-                      <Bell className="h-3.5 w-3.5 text-destructive" />
-                      <span>{t('pppoe.outageNotification')}</span>
-                    </button>
-                    <button
-                      onClick={() => handleOpenNotificationMenu('invoice')}
-                      className="w-full px-3 py-2 text-xs text-left hover:bg-muted flex items-center gap-2 border-t border-border"
-                    >
-                      <DollarSign className="h-3.5 w-3.5 text-warning" />
-                      <span>{t('pppoe.sendInvoice')}</span>
-                    </button>
-                    <button
-                      onClick={() => handleOpenNotificationMenu('payment')}
-                      className="w-full px-3 py-2 text-xs text-left hover:bg-muted flex items-center gap-2 border-t border-border"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                      <span>{t('pppoe.paymentReceipt')}</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="flex gap-1.5 flex-wrap">
-            <button onClick={() => handleDownloadTemplate('xlsx')} className="inline-flex items-center px-2 py-1.5 text-xs border border-border rounded hover:bg-muted"><Download className="h-3 w-3 mr-1" />{t('pppoe.templateExcel')}</button>
-            <button onClick={handleExportExcel} className="inline-flex items-center px-2 py-1.5 text-xs border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 rounded hover:bg-emerald-500/10"><Download className="h-3 w-3 mr-1" />Export</button>
-            <button onClick={() => setIsImportDialogOpen(true)} className="inline-flex items-center px-2 py-1.5 text-xs border border-border rounded hover:bg-muted"><Upload className="h-3 w-3 mr-1" />Import Excel</button>
-            {canCreate && (<button onClick={() => router.push('/admin/pppoe/users/new')} className="inline-flex items-center px-3 py-2 text-xs font-bold bg-[#002c60] hover:bg-[#1b437c] text-white rounded-lg shadow-sm transition-all"><Plus className="h-3.5 w-3.5 mr-1" />{t('pppoe.addUser')}</button>)}
+            <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+              <Users className="h-5 w-5" />
+            </div>
           </div>
         </div>
-
-        {/* Stats Bento Grid Layout - Clean Shadcn UI */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          {/* Total Pelanggan */}
-          <div 
-            onClick={() => { setFilterStatus(''); setFilterPaymentStatus(''); }}
-            className={`col-span-2 md:col-span-2 lg:col-span-2 cursor-pointer bg-card rounded-xl p-4 border border-border shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-all ${filterStatus === '' && filterPaymentStatus === '' ? 'ring-2 ring-primary bg-primary/5' : ''}`}
-          >
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Pelanggan</p>
-                <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{totalPelangganCount}</p>
-                <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-                  <span>📍</span> {activeNasName}
-                </p>
-              </div>
-              <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
-                <Users className="h-5 w-5" />
-              </div>
-            </div>
-          </div>
 
           {/* Aktif */}
           <div 
@@ -2225,6 +2218,5 @@ export default function PppoeUsersPage() {
           </ModalFooter>
         </SimpleModal>
       </div>
-    </div >
   );
 }
