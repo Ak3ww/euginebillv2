@@ -1257,17 +1257,26 @@ export default function PppoeUsersPage() {
     return 0;
   });
 
-  // Calculate stats
+  // Calculate stats based on active filter context (respects NAS / Router, Profile, Area)
+  const statsBaseUsers = users.filter((u) => {
+    const matchesRouter = filterRouter === '' || (filterRouter === 'global' ? !u.routerId : u.routerId === filterRouter);
+    const matchesArea = filterArea === '' || (filterArea === 'none' ? !u.areaId : (u.areaId === filterArea || u.area?.id === filterArea));
+    const matchesProfile = filterProfile === '' || u.profile.id === filterProfile;
+    return matchesRouter && matchesArea && matchesProfile;
+  });
+
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const registrationsThisMonth = users.filter((u) => new Date(u.createdAt) >= startOfMonth).length;
-  const renewalsThisMonth = users.filter((u) => {
-    const updated = new Date(u.updatedAt);
-    const created = new Date(u.createdAt);
-    return updated >= startOfMonth && updated.getTime() !== created.getTime();
-  }).length;
-  const isolatedExpired = users.filter((u) => u.status === 'isolated' || (u.expiredAt && isExpired(u.expiredAt))).length;
-  const blockedUsers = users.filter((u) => u.status === 'blocked').length;
+
+  const totalPelangganCount = statsBaseUsers.length;
+  const activeCount = statsBaseUsers.filter((u) => u.status === 'active' && !(u.expiredAt && isExpired(u.expiredAt))).length;
+  const isolatedCount = statsBaseUsers.filter((u) => u.status === 'isolated').length;
+  const expiredCount = statsBaseUsers.filter((u) => u.status !== 'isolated' && u.expiredAt && isExpired(u.expiredAt)).length;
+  const blockedStoppedCount = statsBaseUsers.filter((u) => u.status === 'blocked' || u.status === 'stop' || u.status === 'stopped').length;
+  const registrationsThisMonth = statsBaseUsers.filter((u) => new Date(u.createdAt) >= startOfMonth).length;
+  const unpaidInvoiceCount = statsBaseUsers.filter((u) => (invoiceCounts[u.id] || 0) > 0).length;
+
+  const activeNasName = filterRouter ? (filterRouter === 'global' ? 'Global' : routers.find(r => r.id === filterRouter)?.name || 'NAS Selected') : 'Semua NAS / Router';
 
   const canView = hasPermission('customers.view');
   const canCreate = hasPermission('customers.create');
@@ -1282,21 +1291,26 @@ export default function PppoeUsersPage() {
 
   return (
     <div className="bg-background relative">
-      {/* Neon Cyberpunk Background */}
+      {/* Background ambient lighting */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#bc13fe]/20 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#00f7ff]/20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-[#ff44cc]/20 rounded-full blur-3xl"></div>
-        <div className="hidden dark:block absolute inset-0 bg-[linear-gradient(rgba(188,19,254,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(188,19,254,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#002c60]/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#1b437c]/20 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="relative z-10 space-y-6">
+      <div className="relative z-10 space-y-5">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc] dark:drop-shadow-[0_0_30px_rgba(0,247,255,0.5)]">{t('pppoe.title')}</h1>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('pppoe.subtitle')}</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+                {t('pppoe.title')}
+                {filterRouter && (
+                  <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-[#002c60] text-white border border-[#1b437c]">
+                    📡 NAS: {activeNasName}
+                  </span>
+                )}
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{t('pppoe.subtitle')}</p>
             </div>
             {/* Tombol Kirim Notifikasi di Header */}
             {selectedUsers.size > 0 && (
@@ -1341,37 +1355,98 @@ export default function PppoeUsersPage() {
           </div>
           <div className="flex gap-1.5 flex-wrap">
             <button onClick={() => handleDownloadTemplate('xlsx')} className="inline-flex items-center px-2 py-1.5 text-xs border border-border rounded hover:bg-muted"><Download className="h-3 w-3 mr-1" />{t('pppoe.templateExcel')}</button>
-            <button onClick={handleExportExcel} className="inline-flex items-center px-2 py-1.5 text-xs border border-success text-success rounded hover:bg-success/10"><Download className="h-3 w-3 mr-1" />Export</button>
+            <button onClick={handleExportExcel} className="inline-flex items-center px-2 py-1.5 text-xs border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 rounded hover:bg-emerald-500/10"><Download className="h-3 w-3 mr-1" />Export</button>
             <button onClick={() => setIsImportDialogOpen(true)} className="inline-flex items-center px-2 py-1.5 text-xs border border-border rounded hover:bg-muted"><Upload className="h-3 w-3 mr-1" />Import Excel</button>
-            {canCreate && (<button onClick={() => router.push('/admin/pppoe/users/new')} className="inline-flex items-center px-3 py-2 text-xs font-bold bg-primary hover:bg-primary/90 text-white rounded-lg shadow-sm transition-all"><Plus className="h-3.5 w-3.5 mr-1" />{t('pppoe.addUser')}</button>)}
+            {canCreate && (<button onClick={() => router.push('/admin/pppoe/users/new')} className="inline-flex items-center px-3 py-2 text-xs font-bold bg-[#002c60] hover:bg-[#1b437c] text-white rounded-lg shadow-sm transition-all"><Plus className="h-3.5 w-3.5 mr-1" />{t('pppoe.addUser')}</button>)}
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
-          <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-2.5 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0"><p className="text-[10px] sm:text-xs text-[#00f7ff] uppercase tracking-wide">{t('pppoe.registrationsThisMonth')}</p><p className="text-lg sm:text-2xl font-bold text-foreground mt-1">{registrationsThisMonth}</p></div>
-              <UserPlus className="h-5 w-5 sm:h-8 sm:w-8 text-[#00f7ff] drop-shadow-[0_0_15px_rgba(0,247,255,0.6)] flex-shrink-0" />
+        {/* Stats Bento Grid Layout */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5">
+          {/* Total Pelanggan (Hero Card) */}
+          <div 
+            onClick={() => { setFilterStatus(''); setFilterPaymentStatus(''); }}
+            className={`col-span-2 md:col-span-2 lg:col-span-2 cursor-pointer bg-gradient-to-br from-[#002c60] via-[#103b70] to-[#1b437c] rounded-xl p-3.5 sm:p-4 text-white shadow-md hover:shadow-lg transition-all border border-[#1b437c] relative overflow-hidden group`}
+          >
+            <div className="absolute right-2 top-2 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Users className="w-20 h-20 text-white" />
+            </div>
+            <div className="flex justify-between items-start relative z-10">
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-blue-200/80 bg-white/10 px-2 py-0.5 rounded-full inline-block mb-1">
+                  Total Pelanggan
+                </span>
+                <p className="text-2xl sm:text-3xl font-extrabold text-white mt-1">{totalPelangganCount}</p>
+                <p className="text-[10px] text-blue-200 mt-1">
+                  📍 {activeNasName}
+                </p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-md">
+                <Users className="h-6 w-6 text-white" />
+              </div>
             </div>
           </div>
-          <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-2.5 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
+
+          {/* Aktif */}
+          <div 
+            onClick={() => setFilterStatus('active')}
+            className={`cursor-pointer bg-card rounded-xl border border-emerald-500/30 p-3 shadow-xs hover:border-emerald-500 transition-all ${filterStatus === 'active' ? 'ring-2 ring-emerald-500 bg-emerald-500/5' : ''}`}
+          >
             <div className="flex items-center justify-between">
-              <div className="min-w-0"><p className="text-[10px] sm:text-xs text-[#00f7ff] uppercase tracking-wide">{t('pppoe.renewalsThisMonth')}</p><p className="text-lg sm:text-2xl font-bold text-foreground mt-1">{renewalsThisMonth}</p></div>
-              <RefreshCw className="h-5 w-5 sm:h-8 sm:w-8 text-green-400 drop-shadow-[0_0_15px_rgba(34,197,94,0.6)] flex-shrink-0" />
+              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Aktif</span>
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             </div>
+            <p className="text-xl font-bold text-foreground mt-1.5">{activeCount}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Non-expired</p>
           </div>
-          <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-2.5 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
+
+          {/* Isolir */}
+          <div 
+            onClick={() => setFilterStatus('isolated')}
+            className={`cursor-pointer bg-card rounded-xl border border-amber-500/30 p-3 shadow-xs hover:border-amber-500 transition-all ${filterStatus === 'isolated' ? 'ring-2 ring-amber-500 bg-amber-500/5' : ''}`}
+          >
             <div className="flex items-center justify-between">
-              <div className="min-w-0"><p className="text-[10px] sm:text-xs text-[#00f7ff] uppercase tracking-wide">{t('pppoe.isolatedExpired')}</p><p className="text-lg sm:text-2xl font-bold text-foreground mt-1">{isolatedExpired}</p></div>
-              <Clock className="h-5 w-5 sm:h-8 sm:w-8 text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)] flex-shrink-0" />
+              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Isolir</span>
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
             </div>
+            <p className="text-xl font-bold text-foreground mt-1.5">{isolatedCount}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Terisolir sistem</p>
           </div>
-          <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-2.5 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
+
+          {/* Expired */}
+          <div 
+            onClick={() => setFilterStatus('')}
+            className="cursor-pointer bg-card rounded-xl border border-orange-500/30 p-3 shadow-xs hover:border-orange-500 transition-all"
+          >
             <div className="flex items-center justify-between">
-              <div className="min-w-0"><p className="text-[10px] sm:text-xs text-[#00f7ff] uppercase tracking-wide">{t('pppoe.blockedUsers')}</p><p className="text-lg sm:text-2xl font-bold text-foreground mt-1">{blockedUsers}</p></div>
-              <Ban className="h-5 w-5 sm:h-8 sm:w-8 text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.6)] flex-shrink-0" />
+              <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider">Expired</span>
+              <Clock className="h-4 w-4 text-orange-500" />
             </div>
+            <p className="text-xl font-bold text-foreground mt-1.5">{expiredCount}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Lewat jatuh tempo</p>
+          </div>
+
+          {/* Pendaftaran Bulan Ini */}
+          <div className="bg-card rounded-xl border border-cyan-500/30 p-3 shadow-xs hover:border-cyan-500 transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">PSB Bulan Ini</span>
+              <UserPlus className="h-4 w-4 text-cyan-500" />
+            </div>
+            <p className="text-xl font-bold text-foreground mt-1.5">{registrationsThisMonth}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Pelanggan baru</p>
+          </div>
+
+          {/* Tunggakan / Belum Bayar */}
+          <div 
+            onClick={() => setFilterPaymentStatus('unpaid')}
+            className={`cursor-pointer bg-card rounded-xl border border-rose-500/30 p-3 shadow-xs hover:border-rose-500 transition-all ${filterPaymentStatus === 'unpaid' ? 'ring-2 ring-rose-500 bg-rose-500/5' : ''}`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Tunggakan</span>
+              <DollarSign className="h-4 w-4 text-rose-500" />
+            </div>
+            <p className="text-xl font-bold text-foreground mt-1.5">{unpaidInvoiceCount}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Belum lunas</p>
           </div>
         </div>
 

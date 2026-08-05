@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { startOfDayWIBtoUTC, endOfDayWIBtoUTC, nowWIB, formatWIB } from '@/lib/timezone';
@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
     const status = searchParams.get('status') || 'all';
+    const routerId = searchParams.get('routerId');
 
     // Build date range with WIB-aware conversion
     const nowLocal = nowWIB();
@@ -43,6 +44,9 @@ export async function GET(request: NextRequest) {
       };
       if (status !== 'all') {
         where.status = status.toUpperCase();
+      }
+      if (routerId && routerId !== 'all') {
+        where.user = { routerId };
       }
 
       const invoices = await prisma.invoice.findMany({
@@ -93,10 +97,15 @@ export async function GET(request: NextRequest) {
 
     // ── PAYMENT REPORT ────────────────────────────────────────────────────
     if (type === 'payment') {
+      const paymentWhere: any = {
+        paidAt: { gte: from, lte: to },
+      };
+      if (routerId && routerId !== 'all') {
+        paymentWhere.invoice = { user: { routerId } };
+      }
+
       const payments = await prisma.payment.findMany({
-        where: {
-          paidAt: { gte: from, lte: to },
-        },
+        where: paymentWhere,
         orderBy: { paidAt: 'desc' },
         include: {
           invoice: {
@@ -139,6 +148,9 @@ export async function GET(request: NextRequest) {
       };
       if (status !== 'all') {
         where.status = status;
+      }
+      if (routerId && routerId !== 'all') {
+        where.routerId = routerId;
       }
 
       const customers = await prisma.pppoeUser.findMany({

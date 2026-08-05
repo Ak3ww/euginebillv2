@@ -65,12 +65,24 @@ export default function LaporanPage() {
   const [dateFrom, setDateFrom] = useState(firstOfMonthStr());
   const [dateTo, setDateTo] = useState(todayStr());
   const [status, setStatus] = useState('all');
+  const [filterRouterId, setFilterRouterId] = useState('all');
+  const [routerOptions, setRouterOptions] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
   const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetch('/api/network/routers')
+      .then(res => res.json())
+      .then(data => {
+        const rList = data.routers || data || [];
+        if (Array.isArray(rList)) setRouterOptions(rList.map((r: any) => ({ id: r.id, name: r.name })));
+      })
+      .catch(() => {});
+  }, []);
 
   // ── Fetch data from API ──────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -87,6 +99,9 @@ export default function LaporanPage() {
         dateTo,
         status,
       });
+      if (filterRouterId && filterRouterId !== 'all') {
+        params.set('routerId', filterRouterId);
+      }
       const res = await fetch(`/api/admin/laporan?${params}`);
       const data = await res.json();
 
@@ -100,7 +115,7 @@ export default function LaporanPage() {
     } finally {
       setLoading(false);
     }
-  }, [reportType, dateFrom, dateTo, status]);
+  }, [reportType, dateFrom, dateTo, status, filterRouterId]);
 
   // ── Export Excel ─────────────────────────────────────────────────────────
   const exportExcel = async () => {
@@ -261,6 +276,21 @@ export default function LaporanPage() {
               onChange={(e) => setDateTo(e.target.value)}
               className="w-full px-3 py-2.5 bg-input border border-border text-foreground rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all"
             />
+          </div>
+
+          {/* Router / NAS Filter */}
+          <div>
+            <label className="block text-xs font-bold text-[#00f7ff] mb-2 uppercase tracking-wider">Router / NAS</label>
+            <select
+              value={filterRouterId}
+              onChange={(e) => setFilterRouterId(e.target.value)}
+              className="w-full px-3 py-2.5 bg-input border border-border text-foreground rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all"
+            >
+              <option value="all">Semua Router / NAS</option>
+              {routerOptions.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
           </div>
 
           {/* Status filter (invoice & customer only) */}

@@ -69,10 +69,22 @@ interface Stats {
   totalPaidAmount: number;
 }
 
+interface RouterSummary {
+  id: string;
+  name: string;
+  nasname: string;
+  totalCount: number;
+  unpaidCount: number;
+  paidCount: number;
+  unpaidAmount: number;
+  paidAmount: number;
+}
+
 export default function InvoicesPage() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [routerSummaries, setRouterSummaries] = useState<RouterSummary[]>([]);
   const [stats, setStats] = useState<Stats>({
     total: 0,
     unpaid: 0,
@@ -188,6 +200,7 @@ export default function InvoicesPage() {
       const data = await res.json();
       setInvoices(data.invoices || []);
       setStats(data.stats || stats);
+      if (data.routerSummaries) setRouterSummaries(data.routerSummaries);
     } catch (error) {
       console.error('Load invoices error:', error);
     } finally {
@@ -1051,9 +1064,73 @@ export default function InvoicesPage() {
             >
               ⚡ Pulihkan dari WA (Link Sama)
             </button>
-
           </div>
         </div>
+
+        {/* Router / NAS Summary Breakdown Section */}
+        {routerSummaries.length > 0 && (
+          <div className="bg-card rounded-xl border border-border p-3 sm:p-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
+                  📡 Ringkasan Tagihan per Router / NAS
+                </span>
+                <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full hidden sm:inline-block">
+                  Klik kartu untuk filter 1-klik
+                </span>
+              </div>
+              {filterRouterId !== 'all' && (
+                <button 
+                  onClick={() => setFilterRouterId('all')}
+                  className="text-xs text-primary hover:underline font-medium flex items-center gap-1"
+                >
+                  ✕ Reset Filter Router
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {routerSummaries.map((r) => {
+                const isSelected = filterRouterId === r.id;
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => setFilterRouterId(isSelected ? 'all' : r.id)}
+                    className={`cursor-pointer rounded-lg p-3 transition-all border ${
+                      isSelected
+                        ? 'bg-[#002c60]/10 border-[#002c60] dark:bg-[#002c60]/30 dark:border-blue-400 ring-2 ring-[#002c60]'
+                        : 'bg-muted/30 border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1">
+                        📡 {r.name}
+                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                        {r.totalCount} Tagihan
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1.5 border-t border-border/50">
+                      <div>
+                        <p className="text-[9px] text-rose-600 dark:text-rose-400 font-semibold uppercase">Belum Bayar ({r.unpaidCount})</p>
+                        <p className="text-xs font-bold text-rose-600 dark:text-rose-400 truncate mt-0.5">
+                          {formatCurrency(r.unpaidAmount)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase">Lunas ({r.paidCount})</p>
+                        <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 truncate mt-0.5">
+                          {formatCurrency(r.paidAmount)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">

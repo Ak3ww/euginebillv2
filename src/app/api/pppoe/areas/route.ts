@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { logActivity } from '@/server/services/activity-log.service';
 import { getServerSession } from 'next-auth';
@@ -9,6 +9,9 @@ export async function GET() {
   try {
     const areas = await prisma.pppoeArea.findMany({
       include: {
+        router: {
+          select: { id: true, name: true, nasname: true },
+        },
         _count: {
           select: { users: true },
         },
@@ -34,15 +37,19 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     const body = await request.json();
-    const { name, description, isActive } = body;
+    const { name, description, routerId, isActive } = body;
 
-    if (!name) {
+    if (!name || !name.trim()) {
       return NextResponse.json({ error: 'Nama area wajib diisi' }, { status: 400 });
+    }
+
+    if (!routerId || !routerId.trim()) {
+      return NextResponse.json({ error: 'Router / NAS wajib dipilih untuk area ini' }, { status: 400 });
     }
 
     // Check if area name already exists
     const existingArea = await prisma.pppoeArea.findUnique({
-      where: { name },
+      where: { name: name.trim() },
     });
 
     if (existingArea) {
@@ -52,9 +59,13 @@ export async function POST(request: NextRequest) {
     const area = await prisma.pppoeArea.create({
       data: {
         id: crypto.randomUUID(),
-        name,
+        name: name.trim(),
         description: description || null,
+        routerId: routerId.trim(),
         isActive: isActive !== false,
+      },
+      include: {
+        router: { select: { id: true, name: true } },
       },
     });
 
@@ -63,10 +74,10 @@ export async function POST(request: NextRequest) {
       username: session?.user?.name || 'System',
       userRole: session?.user?.role,
       action: 'CREATE_AREA',
-      description: `Area "${area.name}" dibuat`,
+      description: `Area "${area.name}" dibuat (NAS: ${area.router?.name || routerId})`,
       module: 'pppoe',
       status: 'success',
-      metadata: { areaId: area.id, areaName: area.name },
+      metadata: { areaId: area.id, areaName: area.name, routerId },
       request,
     });
 
@@ -82,14 +93,18 @@ export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     const body = await request.json();
-    const { id, name, description, isActive } = body;
+    const { id, name, description, routerId, isActive } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'ID area wajib diisi' }, { status: 400 });
     }
 
-    if (!name) {
+    if (!name || !name.trim()) {
       return NextResponse.json({ error: 'Nama area wajib diisi' }, { status: 400 });
+    }
+
+    if (!routerId || !routerId.trim()) {
+      return NextResponse.json({ error: 'Router / NAS wajib dipilih untuk area ini' }, { status: 400 });
     }
 
     // Check if area exists
@@ -102,9 +117,9 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if new name conflicts with another area
-    if (name !== existingArea.name) {
+    if (name.trim() !== existingArea.name) {
       const conflictArea = await prisma.pppoeArea.findUnique({
-        where: { name },
+        where: { name: name.trim() },
       });
       if (conflictArea) {
         return NextResponse.json({ error: `Area "${name}" sudah ada` }, { status: 400 });
@@ -114,10 +129,20 @@ export async function PUT(request: NextRequest) {
     const area = await prisma.pppoeArea.update({
       where: { id },
       data: {
-        name,
+        name: name.trim(),
         description: description || null,
+        routerId: routerId.trim(),
         isActive: isActive !== false,
       },
+      include: {
+        router: { select: { id: true, name: true } },
+      },
+    });
+
+    // Also update all users belonging to this area to match area's routerId
+    await prisma.pppoeUser.updateMany({
+      where: { areaId: id },
+      data: { routerId: routerId.trim() },
     });
 
     // Log activity

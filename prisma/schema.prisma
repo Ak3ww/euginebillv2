@@ -350,6 +350,7 @@ model router {
   vouchers       hotspotVoucher[]
   agents         agent[]            // Agents assigned to this router
   oltRouters     networkOLTRouter[] // OLT router assignments
+  areas          pppoeArea[]        // Areas assigned to this router
   vpnClient      vpnClient?         @relation(fields: [vpnClientId], references: [id], onDelete: SetNull)
   mikrotikSessions mikrotikSession[]
 
@@ -500,13 +501,16 @@ model pppoeArea {
   id          String      @id
   name        String      @unique
   description String?
+  routerId    String?
   isActive    Boolean     @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  router      router?     @relation(fields: [routerId], references: [id])
   users       pppoeUser[]
   customers   pppoeCustomer[]
   registrations registrationRequest[]
 
+  @@index([routerId])
   @@map("pppoe_areas")
 }
 

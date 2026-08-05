@@ -13,6 +13,7 @@ import {
   ModalBody,
   ModalFooter,
   ModalInput,
+  ModalSelect,
   ModalTextarea,
   ModalLabel,
   ModalButton,
@@ -22,10 +23,17 @@ interface Area {
   id: string;
   name: string;
   description: string | null;
+  routerId?: string | null;
+  router?: { id: string; name: string } | null;
   isActive: boolean;
   userCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+interface RouterOption {
+  id: string;
+  name: string;
 }
 
 export default function AreasPage() {
@@ -33,6 +41,7 @@ export default function AreasPage() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [areas, setAreas] = useState<Area[]>([]);
+  const [routers, setRouters] = useState<RouterOption[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingArea, setEditingArea] = useState<Area | null>(null);
   const [deleteAreaId, setDeleteAreaId] = useState<string | null>(null);
@@ -40,6 +49,7 @@ export default function AreasPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    routerId: '',
     isActive: true,
   });
 
@@ -49,9 +59,17 @@ export default function AreasPage() {
 
   const loadData = async () => {
     try {
-      const res = await fetch('/api/pppoe/areas');
-      const data = await res.json();
-      setAreas(data.areas || []);
+      const [areasRes, routersRes] = await Promise.all([
+        fetch('/api/pppoe/areas'),
+        fetch('/api/network/routers')
+      ]);
+      const areasData = await areasRes.json();
+      const routersData = await routersRes.json();
+      setAreas(areasData.areas || []);
+      const rList = routersData.routers || routersData || [];
+      if (Array.isArray(rList)) {
+        setRouters(rList.map((r: any) => ({ id: r.id, name: r.name })));
+      }
     } catch (error) {
       console.error('Load areas error:', error);
     } finally {
@@ -61,6 +79,10 @@ export default function AreasPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.routerId) {
+      await showError('Router / NAS wajib dipilih untuk area ini');
+      return;
+    }
     try {
       const method = editingArea ? 'PUT' : 'POST';
       const payload = { ...formData, ...(editingArea && { id: editingArea.id }) };
@@ -92,6 +114,7 @@ export default function AreasPage() {
     setFormData({
       name: area.name,
       description: area.description || '',
+      routerId: area.routerId || area.router?.id || '',
       isActive: area.isActive,
     });
     setIsDialogOpen(true);
@@ -121,7 +144,7 @@ export default function AreasPage() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', description: '', isActive: true });
+    setFormData({ name: '', description: '', routerId: '', isActive: true });
   };
 
   const filteredAreas = areas.filter((area) => {
@@ -306,6 +329,9 @@ export default function AreasPage() {
                     {t('pppoe.areaName')}
                   </th>
                   <th className="px-3 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">
+                    Router / NAS
+                  </th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">
                     {t('common.description')}
                   </th>
                   <th className="px-3 py-2 text-center text-[10px] font-medium text-muted-foreground uppercase">
@@ -322,7 +348,7 @@ export default function AreasPage() {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {filteredAreas.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground text-xs">
+                    <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground text-xs">
                       {areas.length === 0 ? t('pppoe.noArea') : t('pppoe.noMatchArea')}
                     </td>
                   </tr>
@@ -334,6 +360,11 @@ export default function AreasPage() {
                           <MapPin className="h-3.5 w-3.5 text-primary" />
                           <span className="font-medium text-xs">{area.name}</span>
                         </div>
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                          📡 {area.router?.name || 'Belum di-set'}
+                        </span>
                       </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">
                         {area.description || '-'}
@@ -391,6 +422,24 @@ export default function AreasPage() {
               <div>
                 <ModalLabel required>{t('pppoe.areaName')}</ModalLabel>
                 <ModalInput type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required placeholder={t('pppoe.areaExample')} />
+              </div>
+              <div>
+                <ModalLabel required>Router / NAS Wilayah</ModalLabel>
+                <ModalSelect
+                  value={formData.routerId}
+                  onChange={(e) => setFormData({ ...formData, routerId: e.target.value })}
+                  required
+                >
+                  <option value="">-- Pilih Router / NAS Wajib --</option>
+                  {routers.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </ModalSelect>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Wajib memilih NAS untuk pengelompokan pelanggan per wilayah.
+                </p>
               </div>
               <div>
                 <ModalLabel>{t('common.description')}</ModalLabel>

@@ -263,6 +263,40 @@ export async function GET(request: NextRequest) {
     ]);
     const stats = { total, unpaid, paid, pending, overdue, totalUnpaidAmount: totalUnpaidAgg, totalPaidAmount: totalPaidAgg };
 
+    // Compute routerSummaries for invoice breakdown per NAS
+    const allRouters = await prisma.router.findMany({
+      select: { id: true, name: true, nasname: true },
+      orderBy: { name: 'asc' },
+    });
+
+    // Clean where condition for router summaries (excluding routerId filter)
+    const baseFilterWhere = { ...where };
+    delete baseFilterWhere.user;
+
+    const routerSummaries = await Promise.all(
+      allRouters.map(async (r) => {
+        const routerWhere = { ...baseFilterWhere, user: { routerId: r.id } };
+        const [totalCount, unpaidCount, paidCount, unpaidSum, paidSum] = await Promise.all([
+          prisma.invoice.count({ where: routerWhere }),
+          prisma.invoice.count({ where: { ...routerWhere, status: { in: ['PENDING', 'OVERDUE'] } } }),
+          prisma.invoice.count({ where: { ...routerWhere, status: 'PAID' } }),
+          prisma.invoice.aggregate({ where: { ...routerWhere, status: { in: ['PENDING', 'OVERDUE'] } }, _sum: { amount: true } }),
+          prisma.invoice.aggregate({ where: { ...routerWhere, status: 'PAID' }, _sum: { amount: true } }),
+        ]);
+
+        return {
+          id: r.id,
+          name: r.name,
+          nasname: r.nasname,
+          totalCount,
+          unpaidCount,
+          paidCount,
+          unpaidAmount: unpaidSum._sum.amount || 0,
+          paidAmount: paidSum._sum.amount || 0,
+        };
+      })
+    );
+
     return ok({
       invoices,
       stats: {
@@ -270,6 +304,7 @@ export async function GET(request: NextRequest) {
         totalUnpaidAmount: stats.totalUnpaidAmount._sum.amount || 0,
         totalPaidAmount: stats.totalPaidAmount._sum.amount || 0,
       },
+      routerSummaries,
     });
   } catch (error) {
     console.error('Get invoices error:', error);
