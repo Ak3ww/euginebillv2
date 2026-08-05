@@ -29,6 +29,7 @@ function DaftarPageInner() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [companyName, setCompanyName] = useState('EugineBill RADIUS');
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [poweredBy, setPoweredBy] = useState('EugineBill RADIUS');
 
   const [formData, setFormData] = useState({
@@ -67,6 +68,7 @@ function DaftarPageInner() {
       const res = await fetch('/api/public/company');
       const data = await res.json();
       if (data.success && data.company.name) setCompanyName(data.company.name);
+      if (data.success && data.company.logo) setCompanyLogo(data.company.logo);
       if (data.success && data.company.poweredBy) setPoweredBy(data.company.poweredBy);
     } catch (error) { console.error('Load company error:', error); }
   };
@@ -171,9 +173,15 @@ function DaftarPageInner() {
       <div className="max-w-lg mx-auto space-y-6">
         {/* Header */}
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-[#002c60] text-white rounded-2xl shadow-md mb-3">
-            <Wifi className="w-7 h-7" />
-          </div>
+          {companyLogo ? (
+            <div className="flex justify-center mb-3">
+              <img src={companyLogo} alt={companyName} className="h-16 max-w-[220px] object-contain drop-shadow-sm" />
+            </div>
+          ) : (
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-[#002c60] text-white rounded-2xl shadow-md mb-3">
+              <Wifi className="w-7 h-7" />
+            </div>
+          )}
           <h1 className="text-2xl font-extrabold text-[#002c60]">
             {companyName}
           </h1>
