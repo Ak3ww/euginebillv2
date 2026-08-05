@@ -1,10 +1,12 @@
 # Workspace Rules
 
-## Hallmark Enterprise Standard
-For ALL UI development, redesigns, or component updates in this workspace (EugineBill), you MUST generate a **fresh design** by strictly following the local `hallmark` skill.
+## Admin Dashboard UI Standard (/admin/*)
+1. **Shadcn UI & Lucide Icons**: All `/admin/*` pages, components, modals, and summary cards must strictly follow standard Shadcn UI design patterns (`@/components/ui/card`, `@/components/ui/badge`, `@/components/ui/button`, etc.) and Lucide React icons.
+2. **Clean SaaS Aesthetic**: Use clean hairline borders (`border-border`), subtle muted backgrounds (`bg-muted/30`, `bg-card`), crisp typography, and standard data tables. Do NOT use cyberpunk gradients, neon glow shadows, or non-standard dark/alien elements in the admin portal.
+3. **Interactive & Functional**: Every summary card or filter pill must be 100% interactive and directly update the table filter when clicked.
 
-**Rules to strictly follow:**
-1. **No Fake Jargon**: Never use fake terminal/hacker text (e.g., `EXEC_PAY`, `TX_LOGS`, `[sys.process]`). Use normal, professional, human-readable Indonesian text for all customer-facing labels (e.g., "Bayar Sekarang", "Riwayat Transaksi").
-2. **Fresh Hallmark Colors (Oceanic Blue)**: Do NOT rely on the legacy EugineBill brand colors (Red `#ff2a4b`) OR any custom generated palettes. You MUST use the **Oceanic Blue** theme as specified in the local `design.md` artifact (e.g., `--color-primary: #002c60`, `--color-accent: #1b437c`). Maintain this specific theme for all customer-facing UI.
-3. **Professional Aesthetic**: Focus on hairline borders, proper typography (sans-serif for display, mono for data), and structured layouts (Bento Grids, simple tables) without any cyberpunk gradients or heavy shadows.
-4. **Dark Mode Disabled**: Dark mode is currently disabled in the customer portal. Ensure all styling assumes a light background (Surface Bright/Lowest).
+## Hallmark Enterprise Standard (Customer Portal & Public Pages)
+For ALL customer-facing UI development (customer portal, payment pages, public landing pages), follow the local `hallmark` skill with the **Oceanic Blue** theme.
+1. **No Fake Jargon**: Never use fake terminal/hacker text. Use normal, professional Indonesian text.
+2. **Fresh Hallmark Colors (Oceanic Blue)**: `--color-primary: #002c60`, `--color-accent: #1b437c`.
+3. **Dark Mode Disabled**: Dark mode is disabled for the customer portal (light background).

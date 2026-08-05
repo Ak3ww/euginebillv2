@@ -1197,7 +1197,7 @@ export default function PppoeUsersPage() {
     const matchesProfile = filterProfile === '' || user.profile.id === filterProfile;
     const matchesRouter = filterRouter === '' || (filterRouter === 'global' ? !user.routerId : user.routerId === filterRouter);
     const matchesArea = filterArea === '' || (filterArea === 'none' ? !user.areaId : (user.areaId === filterArea || user.area?.id === filterArea));
-    const matchesStatus = filterStatus === '' || user.status === filterStatus;
+    const matchesStatus = filterStatus === '' || (filterStatus === 'expired' ? (user.expiredAt && isExpired(user.expiredAt)) : user.status === filterStatus);
     const matchesSession = filterSession === '' || (filterSession === 'online' ? user.isOnline === true : user.isOnline !== true);
     const matchesPaymentStatus = filterPaymentStatus === '' ||
       (filterPaymentStatus === 'unpaid' && (invoiceCounts[user.id] || 0) > 0) ||
@@ -1361,28 +1361,23 @@ export default function PppoeUsersPage() {
           </div>
         </div>
 
-        {/* Stats Bento Grid Layout */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5">
-          {/* Total Pelanggan (Hero Card) */}
+        {/* Stats Bento Grid Layout - Clean Shadcn UI */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          {/* Total Pelanggan */}
           <div 
             onClick={() => { setFilterStatus(''); setFilterPaymentStatus(''); }}
-            className={`col-span-2 md:col-span-2 lg:col-span-2 cursor-pointer bg-gradient-to-br from-[#002c60] via-[#103b70] to-[#1b437c] rounded-xl p-3.5 sm:p-4 text-white shadow-md hover:shadow-lg transition-all border border-[#1b437c] relative overflow-hidden group`}
+            className={`col-span-2 md:col-span-2 lg:col-span-2 cursor-pointer bg-card rounded-xl p-4 border border-border shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-all ${filterStatus === '' && filterPaymentStatus === '' ? 'ring-2 ring-primary bg-primary/5' : ''}`}
           >
-            <div className="absolute right-2 top-2 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Users className="w-20 h-20 text-white" />
-            </div>
-            <div className="flex justify-between items-start relative z-10">
+            <div className="flex justify-between items-start">
               <div>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-blue-200/80 bg-white/10 px-2 py-0.5 rounded-full inline-block mb-1">
-                  Total Pelanggan
-                </span>
-                <p className="text-2xl sm:text-3xl font-extrabold text-white mt-1">{totalPelangganCount}</p>
-                <p className="text-[10px] text-blue-200 mt-1">
-                  📍 {activeNasName}
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Pelanggan</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{totalPelangganCount}</p>
+                <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                  <span>📍</span> {activeNasName}
                 </p>
               </div>
-              <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-md">
-                <Users className="h-6 w-6 text-white" />
+              <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+                <Users className="h-5 w-5" />
               </div>
             </div>
           </div>
@@ -1390,93 +1385,99 @@ export default function PppoeUsersPage() {
           {/* Aktif */}
           <div 
             onClick={() => setFilterStatus('active')}
-            className={`cursor-pointer bg-card rounded-xl border border-emerald-500/30 p-3 shadow-xs hover:border-emerald-500 transition-all ${filterStatus === 'active' ? 'ring-2 ring-emerald-500 bg-emerald-500/5' : ''}`}
+            className={`cursor-pointer bg-card rounded-xl border border-border p-3.5 shadow-xs hover:border-emerald-500 transition-all ${filterStatus === 'active' ? 'ring-2 ring-emerald-500 bg-emerald-500/5 border-emerald-500' : ''}`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Aktif</span>
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Aktif</span>
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             </div>
-            <p className="text-xl font-bold text-foreground mt-1.5">{activeCount}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5">Non-expired</p>
+            <p className="text-xl font-bold text-foreground mt-2">{activeCount}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Non-expired</p>
           </div>
 
           {/* Isolir */}
           <div 
             onClick={() => setFilterStatus('isolated')}
-            className={`cursor-pointer bg-card rounded-xl border border-amber-500/30 p-3 shadow-xs hover:border-amber-500 transition-all ${filterStatus === 'isolated' ? 'ring-2 ring-amber-500 bg-amber-500/5' : ''}`}
+            className={`cursor-pointer bg-card rounded-xl border border-border p-3.5 shadow-xs hover:border-amber-500 transition-all ${filterStatus === 'isolated' ? 'ring-2 ring-amber-500 bg-amber-500/5 border-amber-500' : ''}`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Isolir</span>
+              <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Isolir</span>
               <AlertTriangle className="h-4 w-4 text-amber-500" />
             </div>
-            <p className="text-xl font-bold text-foreground mt-1.5">{isolatedCount}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5">Terisolir sistem</p>
+            <p className="text-xl font-bold text-foreground mt-2">{isolatedCount}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Terisolir sistem</p>
           </div>
 
           {/* Expired */}
           <div 
-            onClick={() => setFilterStatus('')}
-            className="cursor-pointer bg-card rounded-xl border border-orange-500/30 p-3 shadow-xs hover:border-orange-500 transition-all"
+            onClick={() => setFilterStatus('expired')}
+            className={`cursor-pointer bg-card rounded-xl border border-border p-3.5 shadow-xs hover:border-orange-500 transition-all ${filterStatus === 'expired' ? 'ring-2 ring-orange-500 bg-orange-500/5 border-orange-500' : ''}`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider">Expired</span>
+              <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">Expired</span>
               <Clock className="h-4 w-4 text-orange-500" />
             </div>
-            <p className="text-xl font-bold text-foreground mt-1.5">{expiredCount}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5">Lewat jatuh tempo</p>
+            <p className="text-xl font-bold text-foreground mt-2">{expiredCount}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Jatuh tempo</p>
           </div>
 
-          {/* Pendaftaran Bulan Ini */}
-          <div className="bg-card rounded-xl border border-cyan-500/30 p-3 shadow-xs hover:border-cyan-500 transition-all">
+          {/* PSB Bulan Ini */}
+          <div className="bg-card rounded-xl border border-border p-3.5 shadow-xs hover:border-sky-500 transition-all">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">PSB Bulan Ini</span>
-              <UserPlus className="h-4 w-4 text-cyan-500" />
+              <span className="text-xs font-semibold text-sky-600 dark:text-sky-400">PSB Baru</span>
+              <UserPlus className="h-4 w-4 text-sky-500" />
             </div>
-            <p className="text-xl font-bold text-foreground mt-1.5">{registrationsThisMonth}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5">Pelanggan baru</p>
+            <p className="text-xl font-bold text-foreground mt-2">{registrationsThisMonth}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Bulan ini</p>
           </div>
 
           {/* Tunggakan / Belum Bayar */}
           <div 
             onClick={() => setFilterPaymentStatus('unpaid')}
-            className={`cursor-pointer bg-card rounded-xl border border-rose-500/30 p-3 shadow-xs hover:border-rose-500 transition-all ${filterPaymentStatus === 'unpaid' ? 'ring-2 ring-rose-500 bg-rose-500/5' : ''}`}
+            className={`cursor-pointer bg-card rounded-xl border border-border p-3.5 shadow-xs hover:border-rose-500 transition-all ${filterPaymentStatus === 'unpaid' ? 'ring-2 ring-rose-500 bg-rose-500/5 border-rose-500' : ''}`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Tunggakan</span>
+              <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">Tunggakan</span>
               <DollarSign className="h-4 w-4 text-rose-500" />
             </div>
-            <p className="text-xl font-bold text-foreground mt-1.5">{unpaidInvoiceCount}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5">Belum lunas</p>
+            <p className="text-xl font-bold text-foreground mt-2">{unpaidInvoiceCount}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Belum lunas</p>
           </div>
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-card rounded-lg border border-border p-3">
+        <div className="bg-card rounded-xl border border-border p-3.5 shadow-xs space-y-2.5">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <div className="md:col-span-2 relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <input type="text" placeholder={t('common.search')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-7 pr-7 py-1.5 text-xs border border-border rounded bg-muted" />
-              {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"><X className="h-3 w-3" /></button>}
+              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <input type="text" placeholder={t('common.search')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-8 pr-7 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /></button>}
             </div>
-            <select value={filterProfile} onChange={(e) => setFilterProfile(e.target.value)} className="px-2 py-1.5 text-xs border border-border rounded bg-muted">
+            <select value={filterProfile} onChange={(e) => setFilterProfile(e.target.value)} className="px-2.5 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
               <option value="">{t('pppoe.allProfiles')}</option>
               {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            <select value={filterRouter} onChange={(e) => setFilterRouter(e.target.value)} className="px-2 py-1.5 text-xs border border-border rounded bg-muted">
+            <select value={filterRouter} onChange={(e) => setFilterRouter(e.target.value)} className="px-2.5 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-medium">
               <option value="">{t('pppoe.allNas')}</option><option value="global">{t('pppoe.global')}</option>
               {routers.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
-            <select value={filterArea} onChange={(e) => setFilterArea(e.target.value)} className="px-2 py-1.5 text-xs border border-border rounded bg-muted font-medium">
+            <select value={filterArea} onChange={(e) => setFilterArea(e.target.value)} className="px-2.5 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-medium">
               <option value="">Semua Wilayah / Area</option>
               <option value="none">Tanpa Wilayah</option>
               {areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
-          <div className="flex items-center gap-1.5 mt-2">
-            <Filter className="h-3 w-3 text-muted-foreground" /><span className="text-[10px] text-muted-foreground">{t('common.status')}:</span>
-            {['', 'active', 'isolated', 'blocked'].map(s => (
-              <button key={s} onClick={() => setFilterStatus(s)} className={`px-2 py-0.5 text-[10px] rounded-full transition ${filterStatus === s ? (s === '' ? 'bg-teal-600 text-white' : s === 'active' ? 'bg-success text-white' : s === 'isolated' ? 'bg-warning text-white' : 'bg-destructive text-destructive-foreground') : 'bg-gray-100 bg-muted text-muted-foreground'}`}>
-                {s === '' ? t('common.all') : s === 'active' ? t('pppoe.active') : s === 'isolated' ? t('pppoe.isolir') : t('pppoe.block')}
+          <div className="flex items-center gap-1.5 pt-1">
+            <Filter className="h-3 w-3 text-muted-foreground" /><span className="text-[10px] text-muted-foreground font-medium">{t('common.status')}:</span>
+            {[
+              { val: '', label: t('common.all'), color: 'bg-primary text-primary-foreground' },
+              { val: 'active', label: t('pppoe.active'), color: 'bg-emerald-600 text-white' },
+              { val: 'isolated', label: t('pppoe.isolir'), color: 'bg-amber-600 text-white' },
+              { val: 'expired', label: 'Expired', color: 'bg-orange-600 text-white' },
+              { val: 'blocked', label: t('pppoe.block'), color: 'bg-rose-600 text-white' },
+            ].map(item => (
+              <button key={item.val} onClick={() => setFilterStatus(item.val)} className={`px-2.5 py-0.5 text-[10px] font-semibold rounded-full transition ${filterStatus === item.val ? item.color : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
+                {item.label}
               </button>
             ))}
           </div>
