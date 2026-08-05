@@ -54,7 +54,7 @@ async function main() {
 
     // Update all users in this area via raw SQL
     const userUpdateCount: any = await prisma.$executeRawUnsafe(
-      `UPDATE pppoeUser SET routerId = ? WHERE areaId = ?`,
+      `UPDATE pppoe_users SET routerId = ? WHERE areaId = ?`,
       targetRouter.id,
       area.id
     );
