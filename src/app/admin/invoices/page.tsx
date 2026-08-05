@@ -502,6 +502,28 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleSendBulkReminders = async () => {
+    const confirm = await showConfirm(
+      'Kirim Reminder WA Sekarang?',
+      'Sistem akan langsung memproses seluruh tagihan belum lunas dan mengirimkan notifikasi pesan WhatsApp (Bypass jam 10 pagi).'
+    );
+    if (!confirm) return;
+
+    try {
+      showToast('Memproses pengiriman reminder WA...', 'info');
+      const res = await fetch('/api/invoices/send-reminders-bulk', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        showSuccess('Berhasil!', data.message || `Terpakai mengirim ${data.sent} pesan WhatsApp.`);
+        fetchInvoices();
+      } else {
+        showError('Gagal', data.error || 'Gagal mengirim reminder WA');
+      }
+    } catch (err: any) {
+      showError('Error', err.message);
+    }
+  };
+
   // Export functions
   const handleExportExcel = async () => {
     try {
@@ -1063,6 +1085,13 @@ export default function InvoicesPage() {
               title="Pulihkan tagihan yang terhapus persis sesuai link & nomor tagihan di WA (Kecuali KMB)"
             >
               <Zap className="h-3.5 w-3.5 mr-1" /> Pulihkan dari WA
+            </button>
+            <button
+              onClick={handleSendBulkReminders}
+              className="inline-flex items-center px-2.5 py-1.5 text-xs bg-primary text-primary-foreground font-semibold rounded-lg shadow-xs hover:bg-primary/90 transition-colors"
+              title="Kirim pesan reminder WhatsApp ke seluruh tagihan belum lunas sekarang (Bypass jam 10 pagi)"
+            >
+              <MessageCircle className="h-3.5 w-3.5 mr-1" /> Kirim Reminder WA Sekarang
             </button>
           </div>
         </div>
