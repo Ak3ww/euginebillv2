@@ -769,7 +769,8 @@ html.theme-transitioning *::after {
 :root:not(.dark) .text-white[class*="bg-success"],
 :root:not(.dark) .text-white[class*="bg-warning"],
 :root:not(.dark) .text-white[class*="bg-info"],
-:root:not(.dark) .text-white[class*="bg-accent"] {
+:root:not(.dark) .text-white[class*="bg-accent"],
+:root:not(.dark) .text-white[class*="bg-["] {
   color: #ffffff !important;
 }
 

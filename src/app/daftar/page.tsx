@@ -336,12 +336,12 @@ function DaftarPageInner() {
                         );
                       }}
                       disabled={submitting}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold bg-[#002c60] hover:bg-[#1b437c] disabled:bg-slate-300 text-white rounded-xl transition-all shadow-xs"
+                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold bg-[#002c60] hover:bg-[#1b437c] disabled:bg-slate-300 !text-white rounded-xl transition-all shadow-xs"
                     >
                       {submitting ? (
-                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Mengambil...</>
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin text-white" /> <span className="!text-white">Mengambil...</span></>
                       ) : (
-                        <><MapPin className="w-3.5 h-3.5" /> GPS Otomatis</>
+                        <><MapPin className="w-3.5 h-3.5 text-white" /> <span className="!text-white">GPS Otomatis</span></>
                       )}
                     </button>
 
@@ -514,12 +514,12 @@ function DaftarPageInner() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#002c60] hover:bg-[#1b437c] disabled:bg-slate-300 text-white text-sm font-bold rounded-xl transition-all shadow-md hover:shadow-lg mt-6"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-[#002c60] hover:bg-[#1b437c] disabled:bg-slate-300 !text-white text-sm font-bold rounded-xl transition-all shadow-md hover:shadow-lg mt-6"
             >
               {submitting ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Mengirim Pendaftaran...</>
+                <><Loader2 className="w-4 h-4 animate-spin text-white" /> <span className="!text-white">Mengirim Pendaftaran...</span></>
               ) : (
-                <><UserPlus className="w-4 h-4" /> Kirim Pendaftaran Sekarang</>
+                <><UserPlus className="w-4 h-4 text-white" /> <span className="!text-white">Kirim Pendaftaran Sekarang</span></>
               )}
             </button>
 
