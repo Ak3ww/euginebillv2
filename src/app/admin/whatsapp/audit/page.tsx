@@ -308,7 +308,7 @@ export default function WhatsAppAuditPage() {
             className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
           >
             {lockLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-            🔒 Kunci Permanen ({summary.verifiedSent}) Tagihan Terkirim
+            Kunci Permanen ({summary.verifiedSent}) Tagihan Terkirim
           </button>
 
           {(activeTab === 'unsent' || activeTab === 'failed') && (
@@ -318,7 +318,7 @@ export default function WhatsAppAuditPage() {
               className="px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-all disabled:opacity-50"
             >
               {processing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              🚀 Kirim Ulang WA ke ({selectedUnsentIds.size}) Pelanggan
+              Kirim Ulang WA ke ({selectedUnsentIds.size}) Pelanggan
             </button>
           )}
         </div>
@@ -395,8 +395,9 @@ export default function WhatsAppAuditPage() {
             </div>
 
             {filteredUnsent.length === 0 ? (
-              <div className="p-8 text-center text-xs text-muted-foreground">
-                🎉 Semua pelanggan yang memiliki tagihan aktif telah berhasil menerima notifikasi WA!
+              <div className="p-8 text-center text-xs text-muted-foreground font-medium flex items-center justify-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                Semua pelanggan yang memiliki tagihan aktif telah berhasil menerima notifikasi WA!
               </div>
             ) : (
               <div className="overflow-x-auto">
