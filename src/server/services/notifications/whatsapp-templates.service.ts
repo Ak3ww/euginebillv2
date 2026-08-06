@@ -85,6 +85,7 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
     gracePeriodEnd: formattedGracePeriod,
     paymentLink,
     payment_link: paymentLink,
+    isolatedUrl: variables.isolatedUrl || `${baseUrl}/isolated?username=${encodeURIComponent(variables.username || '')}`,
     qrCode,
     qrCodeImage: qrCode,
     baseUrl,
