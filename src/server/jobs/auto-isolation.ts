@@ -3,6 +3,7 @@ import { prisma } from '@/server/db/client';
 import { WhatsAppService } from '@/server/services/notifications/whatsapp.service';
 import { EmailService } from '@/server/services/notifications/email.service';
 import { sendPushToUser } from '@/server/services/notifications/push-templates.service';
+import { ensureHttpsUrl } from '@/lib/utils';
 
 /**
  * Enhanced Auto-Isolation for expired PPPoE users
@@ -228,34 +229,59 @@ export async function sendIsolationNotification(user: {
     if (!company) return;
 
     let realCustomerId = user.customerId;
-    if (!realCustomerId) {
+    if (!realCustomerId || realCustomerId === user.username) {
       const dbUser = await prisma.pppoeUser.findUnique({
         where: { id: user.id },
         select: { customerId: true, pppoeCustomerId: true },
       });
-      realCustomerId = dbUser?.customerId || dbUser?.pppoeCustomerId || user.username;
+      realCustomerId = dbUser?.customerId || dbUser?.pppoeCustomerId || user.customerId || user.username;
     }
 
-    const baseUrl = company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://euginemediagroup.com';
-    const isolatedUrl = `${baseUrl}/isolated?username=${encodeURIComponent(user.username)}`;
-    const appDownloadUrl = (company as any).appDownloadUrl || `${baseUrl}/download-app`;
+    // Fetch latest pending/overdue invoice for totalUnpaid calculation
+    const unpaidInvoice = await prisma.invoice.findFirst({
+      where: { userId: user.id, status: { in: ['PENDING', 'OVERDUE'] } },
+      orderBy: { createdAt: 'desc' },
+      select: { amount: true, paymentToken: true },
+    });
+
+    const rawBaseUrl = company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://euginemediagroup.com';
+    const baseUrl = ensureHttpsUrl(rawBaseUrl);
+
+    // If paymentToken is present, construct direct payment link
+    const paymentLink = unpaidInvoice?.paymentToken
+      ? ensureHttpsUrl(`${baseUrl}/pay/${unpaidInvoice.paymentToken}`)
+      : ensureHttpsUrl(`${baseUrl}/isolated?username=${encodeURIComponent(user.username)}`);
+
+    const isolatedUrl = ensureHttpsUrl(`${baseUrl}/isolated?username=${encodeURIComponent(user.username)}`);
+    const appDownloadUrl = ensureHttpsUrl((company as any).appDownloadUrl || `${baseUrl}/download-app`);
     const expiredDate = user.expiredAt
       ? new Date(user.expiredAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
       : '-';
+
+    const totalUnpaidFormatted = unpaidInvoice?.amount
+      ? `Rp ${unpaidInvoice.amount.toLocaleString('id-ID')}`
+      : '-';
+
     const rateLimit = (company as any).isolationRateLimit || '64k/64k';
 
     const templateVars: Record<string, string> = {
       customerName: user.name || user.username,
       username: user.username,
       customerId: realCustomerId || user.username,
+      phoneNumber: user.phone || '-',
       expiredDate,
+      gracePeriodEnd: expiredDate,
       rateLimit,
-      paymentLink: isolatedUrl,
+      totalUnpaid: totalUnpaidFormatted,
+      paymentLink,
       isolatedUrl,
-      qrCode: isolatedUrl,
+      qrCode: paymentLink,
+      qrCodeImage: paymentLink,
       companyName: company.name || '',
       companyPhone: company.phone || '',
+      companyWhatsapp: company.phone || '',
       companyEmail: company.email || '',
+      companyWebsite: baseUrl,
       link_download_aplikasi: appDownloadUrl,
       link_download_apk: appDownloadUrl,
       appDownloadLink: appDownloadUrl,
@@ -278,12 +304,12 @@ export async function sendIsolationNotification(user: {
           }
         } else {
           message =
-            `?? *Layanan Internet Diisolir*\n\n` +
+            `⚠️ *Layanan Internet Diisolir*\n\n` +
             `Halo ${templateVars.customerName},\n\n` +
-            `Akun internet Anda (*${user.username}*) telah diisolir karena masa berlangganan habis.\n\n` +
-            `?? Expired: ${expiredDate}\n\n` +
-            `Untuk mengaktifkan kembali, buka halaman berikut dan lakukan pembayaran:\n?? ${isolatedUrl}\n\n` +
-            `Butuh bantuan?\n?? ${company.phone || '-'}\n\n` +
+            `Akun internet Anda (*${realCustomerId}*) telah diisolir karena masa berlangganan habis.\n\n` +
+            `📅 Expired: ${expiredDate}\n\n` +
+            `Untuk mengaktifkan kembali, buka halaman berikut dan lakukan pembayaran:\n🔗 ${paymentLink}\n\n` +
+            `Butuh bantuan?\n📞 ${company.phone || '-'}\n\n` +
             `Terima kasih,\n*${company.name}*`;
         }
 

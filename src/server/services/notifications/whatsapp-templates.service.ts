@@ -1,5 +1,6 @@
 import { WhatsAppService } from '@/server/services/notifications/whatsapp.service';
 import { prisma } from '@/server/db/client';
+import { ensureHttpsUrl } from '@/lib/utils';
 
 /**
  * Render template with variables
@@ -31,15 +32,22 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
   if (!template || !template.trim()) return '';
   let rendered = template;
 
-  const rawAmount = variables.amount || variables.total_bayar || variables.total_tagihan || variables.jumlah || variables.nominal || variables.harga;
+  const rawAmount = variables.amount || variables.total_bayar || variables.total_tagihan || variables.totalUnpaid || variables.jumlah || variables.nominal || variables.harga;
   const formattedAmount = typeof rawAmount === 'number'
     ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(rawAmount)
     : (rawAmount || '');
 
-  const baseUrl = variables.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://euginemediagroup.com';
-  const downloadAppUrl = variables.link_download_aplikasi && variables.link_download_aplikasi.startsWith('http')
-    ? variables.link_download_aplikasi
-    : `${baseUrl}/download-app`;
+  const rawBaseUrl = variables.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://euginemediagroup.com';
+  const baseUrl = ensureHttpsUrl(rawBaseUrl);
+
+  const rawDownloadUrl = variables.link_download_aplikasi || variables.appDownloadLink || `${baseUrl}/download-app`;
+  const downloadAppUrl = ensureHttpsUrl(rawDownloadUrl);
+
+  const rawPaymentLink = variables.paymentLink || variables.payment_link || variables.paymentUrl || (variables.paymentToken ? `${baseUrl}/pay/${variables.paymentToken}` : '');
+  const paymentLink = ensureHttpsUrl(rawPaymentLink);
+
+  const rawQrCode = variables.qrCode || variables.qrCodeImage || paymentLink;
+  const qrCode = ensureHttpsUrl(rawQrCode);
 
   const customerId = variables.customerId && variables.customerId !== '-' ? variables.customerId : (variables.customerUsername || variables.username || '-');
   const profileName = variables.profileName && variables.profileName !== '-' ? variables.profileName : (variables.packageName || '-');
@@ -47,12 +55,18 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
   const rawDate = variables.dueDate || variables.expiredAt || variables.expiredDate || variables.expiredat || variables.tgl_expired || '-';
   const formattedDate = formatDateIndonesian(rawDate);
 
+  const rawGracePeriod = variables.gracePeriodEnd || variables.gracePeriod || '-';
+  const formattedGracePeriod = formatDateIndonesian(rawGracePeriod);
+
   const defaultVars: Record<string, any> = {
     customerName: variables.customerName || 'Pelanggan',
     customerId,
+    username: variables.username || variables.customerUsername || '-',
+    phoneNumber: variables.phoneNumber || variables.phone || '-',
     profileName,
     total_bayar: formattedAmount,
     total_tagihan: formattedAmount,
+    totalUnpaid: formattedAmount,
     amount: formattedAmount,
     jumlah: formattedAmount,
     nominal: formattedAmount,
@@ -68,10 +82,21 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
     jatuh_tempo: formattedDate,
     tgl_jatuh_tempo: formattedDate,
     tanggal_jatuh_tempo: formattedDate,
+    gracePeriodEnd: formattedGracePeriod,
+    paymentLink,
+    payment_link: paymentLink,
+    qrCode,
+    qrCodeImage: qrCode,
+    baseUrl,
     link_download_aplikasi: downloadAppUrl,
     link_download_apk: downloadAppUrl,
+    appDownloadLink: downloadAppUrl,
     paymentMethod: variables.paymentMethod || variables.metodePembayaran || '-',
     metodePembayaran: variables.metodePembayaran || variables.paymentMethod || '-',
+    companyPhone: variables.companyPhone || '-',
+    companyWhatsapp: variables.companyWhatsapp || variables.companyPhone || '-',
+    companyEmail: variables.companyEmail || '-',
+    companyWebsite: variables.companyWebsite || baseUrl,
   };
 
   const merged = { ...defaultVars, ...variables };

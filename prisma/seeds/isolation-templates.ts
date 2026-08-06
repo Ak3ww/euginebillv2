@@ -20,8 +20,9 @@ export async function seedIsolationTemplates() {
 Akun internet Anda telah dibatasi karena masa berlangganan telah habis.
 
 📋 *Detail Akun:*
-Username: {{username}}
-Expired: {{expiredDate}}
+• ID Pelanggan: {{customerId}}
+• Username: {{username}}
+• Expired: {{expiredDate}}
 
 🔒 *Status Saat Ini:*
 ✗ Akses internet dibatasi

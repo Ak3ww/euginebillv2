@@ -29,6 +29,25 @@ export function genCustomerId(): string {
 }
 
 /**
+ * Ensure URL uses HTTPS protocol (unless it is localhost or 127.0.0.1 for local dev).
+ */
+export function ensureHttpsUrl(url: string | null | undefined): string {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (trimmed.includes('localhost') || trimmed.includes('127.0.0.1')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('http://')) {
+    return trimmed.replace(/^http:\/\//i, 'https://');
+  }
+  if (!trimmed.startsWith('https://')) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+}
+
+/**
  * Compress an image File to JPEG, scaling down if larger than maxDimension.
  * Falls back to original file on any error.
  * @param file       Source image File
