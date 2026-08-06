@@ -54,11 +54,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Nomor WhatsApp pelanggan tidak tersedia' }, { status: 400 });
     }
 
-    // Determine payment method label
+    // Determine payment method label safely
     const paymentMethod =
-      invoice.payments[0]?.paymentMethod ||
-      invoice.manualPayments[0]?.paymentMethod ||
-      invoice.paymentMethod ||
+      (invoice.payments[0] as any)?.method ||
+      (invoice.payments[0] as any)?.paymentMethod ||
+      (invoice.manualPayments[0] as any)?.bankName ||
+      (invoice.manualPayments[0] as any)?.paymentMethod ||
+      (invoice as any).paymentMethod ||
+      (invoice as any).paymentChannel ||
       'MANUAL';
 
     const customerName = invoice.customerName || invoice.user?.name || 'Pelanggan';
