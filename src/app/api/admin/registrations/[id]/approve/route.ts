@@ -100,6 +100,7 @@ export async function POST(
     let prorateSubscriptionFee = 0;
     const now = new Date();
     
+    if (companyInfo?.enableProrate) {
       // Discount-based Prorate Logic starting after Day 5
       const currentDay = now.getDate();
       const pricePerDay = registration.profile.proratePricePerDay || Math.ceil(registration.profile.price / 30);
@@ -110,6 +111,7 @@ export async function POST(
       } else {
         prorateSubscriptionFee = registration.profile.price;
       }
+      expiredAt = new Date(now.getFullYear(), now.getMonth() + 1, activeBillingDay, 23, 59, 59, 999);
     } else {
       if (subscriptionType === 'POSTPAID') {
         expiredAt = new Date(now);
