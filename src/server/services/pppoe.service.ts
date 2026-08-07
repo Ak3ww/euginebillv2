@@ -420,14 +420,11 @@ export async function createPppoeUser(
         const currentDay = registrationDate.getDate();
 
         if (currentDay >= 1 && currentDay <= 5) {
-          // Tanggal 1 s/d 5: Tidak ada prorate sama sekali (Bayar Full 1 Bulan)
+          // Tanggal 1 s/d 5: Tidak ada prorate (Bayar Full 1 Bulan)
           invoiceAmount = profile.price;
         } else {
-          // Dari tanggal 6 ke atas: Prorate s/d tanggal 1 bulan depan
-          const nextMonthFirst = new Date(year, month + 1, 1);
-          const msPerDay = 1000 * 60 * 60 * 24;
-          const daysActive = Math.max(1, Math.ceil((nextMonthFirst.getTime() - registrationDate.getTime()) / msPerDay));
-          
+          // Dari tanggal 6 ke atas: Potong diskon per hari terlewat dari tanggal 5
+          const daysMissed = currentDay - 5;
           const rawProrate = profile.proratePricePerDay;
           const proratePrice = rawProrate
             ? (typeof rawProrate === 'object' && 'toNumber' in rawProrate
@@ -436,7 +433,8 @@ export async function createPppoeUser(
             : Math.ceil(Number(profile.price) / 30);
 
           const pricePerDay = proratePrice > 0 ? proratePrice : Math.ceil(Number(profile.price) / 30);
-          invoiceAmount = Math.ceil(daysActive * pricePerDay);
+          const totalDiscount = daysMissed * pricePerDay;
+          invoiceAmount = Math.max(pricePerDay, Number(profile.price) - totalDiscount);
         }
       }
       const invoiceId = crypto.randomUUID();

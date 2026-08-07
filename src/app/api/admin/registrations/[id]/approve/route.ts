@@ -100,21 +100,16 @@ export async function POST(
     let prorateSubscriptionFee = 0;
     const now = new Date();
     
-    if (companyInfo?.enableProrate) {
-      // PRORATE LOGIC
-      expiredAt = new Date(now.getFullYear(), now.getMonth(), activeBillingDay, 23, 59, 59, 999);
-      if (now.getDate() >= activeBillingDay) {
-        expiredAt.setMonth(expiredAt.getMonth() + 1);
+      // Discount-based Prorate Logic starting after Day 5
+      const currentDay = now.getDate();
+      const pricePerDay = registration.profile.proratePricePerDay || Math.ceil(registration.profile.price / 30);
+      if (currentDay > 5) {
+        const daysMissed = currentDay - 5;
+        const totalDiscount = daysMissed * pricePerDay;
+        prorateSubscriptionFee = Math.max(pricePerDay, registration.profile.price - totalDiscount);
+      } else {
+        prorateSubscriptionFee = registration.profile.price;
       }
-      
-      const msPerDay = 1000 * 60 * 60 * 24;
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const daysActive = Math.max(1, Math.ceil((expiredAt.getTime() - today.getTime()) / msPerDay));
-      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      
-      // 2026 update: calculate by proratePricePerDay
-      const pricePerDay = registration.profile.proratePricePerDay || 0;
-      prorateSubscriptionFee = Math.ceil(daysActive * pricePerDay);
     } else {
       if (subscriptionType === 'POSTPAID') {
         expiredAt = new Date(now);

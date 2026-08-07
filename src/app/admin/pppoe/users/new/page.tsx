@@ -178,13 +178,15 @@ export default function NewPppoeUserPage() {
       daysActive = 30;
       prorateAmount = profile.price;
     } else {
-      const nextMonthFirst = new Date(year, month + 1, 1);
-      const msPerDay = 1000 * 60 * 60 * 24;
-      daysActive = Math.max(1, Math.ceil((nextMonthFirst.getTime() - today.getTime()) / msPerDay));
+      const daysMissed = currentDay - 5;
       const rawProrate = profile.proratePricePerDay;
       const proratePrice = rawProrate ? Number(rawProrate) : Math.ceil(profile.price / 30);
       const pricePerDay = proratePrice > 0 ? proratePrice : Math.ceil(profile.price / 30);
-      prorateAmount = Math.ceil(daysActive * pricePerDay);
+      const totalDiscount = daysMissed * pricePerDay;
+      prorateAmount = Math.max(pricePerDay, profile.price - totalDiscount);
+      const nextMonthFirst = new Date(year, month + 1, 1);
+      const msPerDay = 1000 * 60 * 60 * 24;
+      daysActive = Math.max(1, Math.ceil((nextMonthFirst.getTime() - today.getTime()) / msPerDay));
     }
 
     const daysInMonth = new Date(year, month + 1, 0).getDate();

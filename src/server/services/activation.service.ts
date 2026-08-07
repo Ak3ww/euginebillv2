@@ -55,18 +55,15 @@ export async function activateAndBillUser(userId: string) {
   const count = await prisma.invoice.count({ where: { invoiceNumber: { startsWith: invPrefix } } });
   const invoiceNumber = `${invPrefix}${String(count + 1).padStart(4, '0')}`;
 
-  let prorateSubscriptionFee = 0;
+  let prorateSubscriptionFee = user.profile.price;
   if (companyInfo?.enableProrate) {
-    const activeBillingDay = user.billingDay || 1;
-    const expiredAt = new Date(now.getFullYear(), now.getMonth(), activeBillingDay, 23, 59, 59, 999);
-    if (now.getDate() >= activeBillingDay) {
-      expiredAt.setMonth(expiredAt.getMonth() + 1);
+    const currentDay = now.getDate();
+    if (currentDay > 5) {
+      const daysMissed = currentDay - 5;
+      const pricePerDay = user.profile.proratePricePerDay || Math.ceil(user.profile.price / 30);
+      const totalDiscount = daysMissed * pricePerDay;
+      prorateSubscriptionFee = Math.max(pricePerDay, user.profile.price - totalDiscount);
     }
-    const msPerDay = 1000 * 60 * 60 * 24;
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const daysActive = Math.max(1, Math.ceil((expiredAt.getTime() - today.getTime()) / msPerDay));
-    const pricePerDay = user.profile.proratePricePerDay || 0;
-    prorateSubscriptionFee = Math.ceil(daysActive * pricePerDay);
   }
 
   let baseAmount: number;
