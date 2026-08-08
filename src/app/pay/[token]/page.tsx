@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { 
   CheckCircle, Clock, AlertCircle, CreditCard, Building2, 
   Loader2, User, Phone, Package, Calendar, MapPin, 
-  Mail, Hash, Zap, ChevronRight, Lock, CheckCircle2, ShieldCheck, FileText, Image as ImageIcon, X, QrCode, Download
+  Mail, Hash, Zap, ChevronRight, Lock, CheckCircle2, ShieldCheck, FileText, Image as ImageIcon, X, QrCode, Download, Wrench
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { BankInstructions } from './BankInstructions';
@@ -343,7 +343,7 @@ export default function PaymentPage() {
               <p className="text-[var(--color-muted)] text-xs font-medium uppercase tracking-wider">Total Tagihan</p>
               {invoice.invoiceType === 'INSTALLATION' && (
                 <span className="bg-blue-500/10 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30 flex items-center gap-1">
-                  🔧 Invoice Pasang Baru (PSB)
+                  <Wrench className="w-3 h-3" /> Invoice Pasang Baru (PSB)
                 </span>
               )}
             </div>
