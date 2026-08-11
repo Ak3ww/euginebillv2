@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PT. Eugine Media Group — Internet FTTH, IT & Hardware Cibinong Bogor</title>
   <meta name="description" content="PT. Eugine Media Group menyediakan layanan Internet FTTH berkecepatan tinggi, infrastruktur IT, CCTV & Security, serta Hardware di Cibinong, Kabupaten Bogor." />
-  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
-  <link rel="apple-touch-icon" href="/assets/logo.png" />
+  <link rel="icon" id="siteFavicon" href="/api/pwa/icon?size=64" type="image/png" />
+  <link rel="shortcut icon" href="/api/pwa/icon?size=64" type="image/png" />
+  <link rel="apple-touch-icon" href="/api/pwa/icon?size=192" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -221,8 +221,8 @@
 <nav id="nav">
   <div class="nav-inner">
     <a href="#" class="nav-logo">
-      <img src="/assets/logo.png" alt="PT. Eugine Media Group Logo" class="nav-logo-img" />
-      <div><div class="nav-logo-text">PT. Eugine Media Group</div><div class="nav-logo-sub">Integrated IT Solutions</div></div>
+      <img src="/api/pwa/icon?size=512" alt="PT. Eugine Media Group Logo" class="nav-logo-img" id="navLogoImg" />
+      <div><div class="nav-logo-text" id="companyNameText">PT. Eugine Media Group</div><div class="nav-logo-sub">Integrated IT Solutions</div></div>
     </a>
     <ul class="nav-links">
       <li><a href="#services">Layanan</a></li>
@@ -483,8 +483,8 @@
     <div class="footer-grid">
       <div>
         <div class="footer-logo">
-          <img src="/assets/logo.png" alt="PT. Eugine Media Group Logo" class="nav-logo-img" />
-          <div class="footer-logo-text">PT. Eugine Media Group</div>
+          <img src="/api/pwa/icon?size=512" alt="PT. Eugine Media Group Logo" class="nav-logo-img" id="footerLogoImg" />
+          <div class="footer-logo-text" id="footerCompanyName">PT. Eugine Media Group</div>
         </div>
         <p class="footer-tagline">Integrated IT, Network &amp; Hardware Solutions. Melayani kebutuhan internet, infrastruktur IT, CCTV, dan hardware untuk rumah dan bisnis Anda.</p>
         <div class="footer-address"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span>Puri Nirwana 3, Blok CC1, Karadenan, Cibinong, Kab. Bogor, 16913</span></div>
@@ -510,6 +510,30 @@
 <script>
 (function(){
   'use strict';
+
+  // Fetch dynamic company logo & info directly from DB API
+  fetch('/api/public/company')
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.company) {
+        if (data.company.logo) {
+          const logoUrl = data.company.logo;
+          const navImg = document.getElementById('navLogoImg');
+          const footImg = document.getElementById('footerLogoImg');
+          const fav = document.getElementById('siteFavicon');
+          if (navImg) navImg.src = logoUrl;
+          if (footImg) footImg.src = logoUrl;
+          if (fav) fav.href = logoUrl;
+        }
+        if (data.company.name) {
+          const t1 = document.getElementById('companyNameText');
+          const t2 = document.getElementById('footerCompanyName');
+          if (t1) t1.textContent = data.company.name;
+          if (t2) t2.textContent = data.company.name;
+        }
+      }
+    })
+    .catch(() => {});
 
   const nav = document.getElementById('nav');
   window.addEventListener('scroll', () => { nav.classList.toggle('scrolled', window.scrollY > 60); });
