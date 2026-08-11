@@ -2,6 +2,6 @@
 -- Tambah kolom waNotificationEnabled dan waNotificationNote ke tabel pppoeUser
 -- Digunakan untuk menonaktifkan pengiriman WA isolir/pengingat per user
 
-ALTER TABLE `pppoeUser`
+ALTER TABLE `pppoe_users`
   ADD COLUMN `waNotificationEnabled` BOOLEAN NOT NULL DEFAULT true COMMENT 'Kirim WA isolir/pengingat ke user ini',
   ADD COLUMN `waNotificationNote` VARCHAR(500) NULL COMMENT 'Keterangan kenapa WA dinonaktifkan';
