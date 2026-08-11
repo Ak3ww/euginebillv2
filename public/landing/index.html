@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PT. Eugine Media Group — Internet FTTH, IT & Hardware Cibinong Bogor</title>
   <meta name="description" content="PT. Eugine Media Group menyediakan layanan Internet FTTH berkecepatan tinggi, infrastruktur IT, CCTV & Security, serta Hardware di Cibinong, Kabupaten Bogor." />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="/assets/logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -37,8 +40,8 @@
     #nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 20px 0; transition: background var(--transition), padding var(--transition); }
     #nav.scrolled { padding: 12px 0; background: rgba(13,13,13,0.92); backdrop-filter: blur(16px); border-bottom: 1px solid var(--color-border); }
     .nav-inner { display: flex; align-items: center; justify-content: space-between; max-width: 1200px; margin: 0 auto; padding: 0 24px; }
-    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--color-text); }
-    .nav-logo-icon { width: 36px; height: 36px; background: var(--color-accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; color: #fff; flex-shrink: 0; }
+    .nav-logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--color-text); }
+    .nav-logo-img { width: 38px; height: 38px; object-fit: contain; border-radius: 8px; flex-shrink: 0; }
     .nav-logo-text { font-size: 14px; font-weight: 700; line-height: 1.2; }
     .nav-logo-sub { font-size: 10px; font-weight: 400; color: var(--color-text-muted); }
     .nav-links { display: flex; align-items: center; gap: 32px; list-style: none; }
@@ -181,8 +184,7 @@
     /* FOOTER */
     footer { background: var(--color-surface); border-top: 1px solid var(--color-border); padding: 56px 0 32px; }
     .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
-    .footer-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-    .footer-logo-icon { width: 36px; height: 36px; background: var(--color-accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; color: #fff; flex-shrink: 0; }
+    .footer-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
     .footer-logo-text { font-weight: 700; font-size: 14px; }
     .footer-tagline { font-size: 13px; color: var(--color-text-muted); line-height: 1.7; margin-bottom: 16px; }
     .footer-address { font-size: 12px; color: var(--color-text-muted); line-height: 1.7; display: flex; align-items: flex-start; gap: 8px; }
@@ -219,7 +221,7 @@
 <nav id="nav">
   <div class="nav-inner">
     <a href="#" class="nav-logo">
-      <div class="nav-logo-icon">E</div>
+      <img src="/assets/logo.png" alt="PT. Eugine Media Group Logo" class="nav-logo-img" />
       <div><div class="nav-logo-text">PT. Eugine Media Group</div><div class="nav-logo-sub">Integrated IT Solutions</div></div>
     </a>
     <ul class="nav-links">
@@ -480,7 +482,10 @@
   <div class="container">
     <div class="footer-grid">
       <div>
-        <div class="footer-logo"><div class="footer-logo-icon">E</div><div class="footer-logo-text">PT. Eugine Media Group</div></div>
+        <div class="footer-logo">
+          <img src="/assets/logo.png" alt="PT. Eugine Media Group Logo" class="nav-logo-img" />
+          <div class="footer-logo-text">PT. Eugine Media Group</div>
+        </div>
         <p class="footer-tagline">Integrated IT, Network &amp; Hardware Solutions. Melayani kebutuhan internet, infrastruktur IT, CCTV, dan hardware untuk rumah dan bisnis Anda.</p>
         <div class="footer-address"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span>Puri Nirwana 3, Blok CC1, Karadenan, Cibinong, Kab. Bogor, 16913</span></div>
       </div>
