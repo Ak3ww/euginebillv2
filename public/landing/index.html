@@ -52,10 +52,10 @@
 
     /* HERO */
     #hero { position: relative; min-height: 100vh; display: flex; align-items: center; overflow: hidden; }
-    .hero-bg { position: absolute; inset: 0; background-image: url('./assets/hero_bg.jpg'); background-size: cover; background-position: center; }
+    .hero-bg { position: absolute; inset: 0; background-image: url('/assets/hero_bg.jpg'); background-size: cover; background-position: center; }
     .hero-overlay { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(13,13,13,0.90) 40%, rgba(13,13,13,0.65) 100%); }
     .hero-canvas { position: absolute; inset: 0; pointer-events: none; width: 100%; height: 100%; }
-    .hex-float { position: absolute; pointer-events: none; opacity: 0; will-change: transform; }
+    .hex-float { position: absolute; pointer-events: none; opacity: 0.6; will-change: transform; }
     .hex-shape { fill: none; stroke: var(--color-accent); stroke-width: 1; }
     .hero-content { position: relative; z-index: 2; max-width: 1200px; margin: 0 auto; padding: 0 24px; padding-top: 120px; }
     .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: var(--color-accent-glow); border: 1px solid rgba(230,51,41,0.3); border-radius: var(--radius-pill); padding: 6px 16px; font-size: 12px; font-weight: 600; color: var(--color-accent); margin-bottom: 24px; letter-spacing: 0.06em; }
@@ -78,8 +78,8 @@
     .service-card { background: #fff; border-radius: var(--radius-card); overflow: hidden; border: 1px solid var(--color-border-light); transition: var(--transition); box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
     .service-card:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(0,0,0,0.12); border-color: rgba(230,51,41,0.2); }
     .service-card:hover .service-img img { transform: scale(1.05); }
-    .service-img { height: 180px; overflow: hidden; }
-    .service-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+    .service-img { height: 180px; overflow: hidden; background: #222; }
+    .service-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; display: block; }
     .service-body { padding: 24px; }
     .service-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(230,51,41,0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
     .service-icon svg { width: 20px; height: 20px; stroke: var(--color-accent); }
@@ -196,9 +196,6 @@
     .footer-powered { font-size: 12px; color: var(--color-text-muted); }
     .footer-powered a { color: var(--color-accent); text-decoration: none; }
 
-    /* REVEAL */
-    .reveal { opacity: 0; transform: translateY(28px); }
-
     /* RESPONSIVE */
     @media (max-width:1100px) { .pricing-grid { grid-template-columns: repeat(3,1fr); } .pricing-card.popular { transform: none; } .services-grid { grid-template-columns: repeat(2,1fr); } }
     @media (max-width:768px) {
@@ -278,7 +275,7 @@
     </div>
     <div class="services-grid">
       <div class="service-card reveal">
-        <div class="service-img"><img src="./assets/service_internet.jpg" alt="Layanan Internet FTTH" loading="lazy"/></div>
+        <div class="service-img"><img src="/assets/service_internet.jpg" alt="Layanan Internet FTTH" loading="lazy"/></div>
         <div class="service-body">
           <div class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></div>
           <h3 class="service-name">Internet Service</h3>
@@ -287,7 +284,7 @@
         </div>
       </div>
       <div class="service-card reveal">
-        <div class="service-img"><img src="./assets/service_it.jpg" alt="IT Infrastructure" loading="lazy"/></div>
+        <div class="service-img"><img src="/assets/service_it.jpg" alt="IT Infrastructure" loading="lazy"/></div>
         <div class="service-body">
           <div class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
           <h3 class="service-name">IT Infrastructure</h3>
@@ -296,7 +293,7 @@
         </div>
       </div>
       <div class="service-card reveal">
-        <div class="service-img"><img src="./assets/service_cctv.jpg" alt="CCTV & Security" loading="lazy"/></div>
+        <div class="service-img"><img src="/assets/service_cctv.jpg" alt="CCTV & Security" loading="lazy"/></div>
         <div class="service-body">
           <div class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
           <h3 class="service-name">CCTV &amp; Security</h3>
@@ -305,7 +302,7 @@
         </div>
       </div>
       <div class="service-card reveal">
-        <div class="service-img"><img src="./assets/service_hardware.jpg" alt="Hardware Sales" loading="lazy"/></div>
+        <div class="service-img"><img src="/assets/service_hardware.jpg" alt="Hardware Sales" loading="lazy"/></div>
         <div class="service-body">
           <div class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
           <h3 class="service-name">Hardware Sales &amp; Services</h3>
@@ -403,10 +400,10 @@
 <section id="stats">
   <div class="container">
     <div class="stats-grid">
-      <div class="stat-item reveal"><div class="stat-number"><span class="count" data-target="500">0</span><span class="stat-suffix">+</span></div><div class="stat-label">Pelanggan Aktif</div></div>
-      <div class="stat-item reveal"><div class="stat-number"><span class="count" data-target="99">0</span><span class="stat-suffix">.9%</span></div><div class="stat-label">Uptime Jaringan</div></div>
-      <div class="stat-item reveal"><div class="stat-number"><span class="count" data-target="2">0</span><span class="stat-suffix"> Jam</span></div><div class="stat-label">Waktu Respons Teknis</div></div>
-      <div class="stat-item reveal"><div class="stat-number"><span class="count" data-target="5">0</span><span class="stat-suffix">+</span></div><div class="stat-label">Tahun Pengalaman</div></div>
+      <div class="stat-item reveal"><div class="stat-number"><span class="count" data-target="500">500</span><span class="stat-suffix">+</span></div><div class="stat-label">Pelanggan Aktif</div></div>
+      <div class="stat-item reveal"><div class="stat-number"><span class="count" data-target="99">99</span><span class="stat-suffix">.9%</span></div><div class="stat-label">Uptime Jaringan</div></div>
+      <div class="stat-item reveal"><div class="stat-number"><span class="count" data-target="2">2</span><span class="stat-suffix"> Jam</span></div><div class="stat-label">Waktu Respons Teknis</div></div>
+      <div class="stat-item reveal"><div class="stat-number"><span class="count" data-target="5">5</span><span class="stat-suffix">+</span></div><div class="stat-label">Tahun Pengalaman</div></div>
     </div>
   </div>
 </section>
@@ -508,7 +505,6 @@
 <script>
 (function(){
   'use strict';
-  gsap.registerPlugin(ScrollTrigger);
 
   const nav = document.getElementById('nav');
   window.addEventListener('scroll', () => { nav.classList.toggle('scrolled', window.scrollY > 60); });
@@ -517,57 +513,64 @@
   document.getElementById('closeNav').addEventListener('click', () => document.getElementById('mobileNav').classList.remove('open'));
   document.querySelectorAll('#mobileNav a').forEach(a => a.addEventListener('click', () => document.getElementById('mobileNav').classList.remove('open')));
 
-  gsap.timeline({ delay: 0.2 })
-    .from('#heroEyebrow', { y: 20, opacity: 0, duration: 0.6, ease: 'power3.out' })
-    .from('#heroTitle', { y: 40, opacity: 0, duration: 0.8, ease: 'power3.out' }, '-=0.3')
-    .from('#heroSub', { y: 30, opacity: 0, duration: 0.7, ease: 'power3.out' }, '-=0.5')
-    .from('#heroActions', { y: 20, opacity: 0, duration: 0.6, ease: 'power3.out' }, '-=0.4');
+  if (typeof gsap !== 'undefined') {
+    if (typeof ScrollTrigger !== 'undefined') gsap.registerPlugin(ScrollTrigger);
 
-  ['#hex1','#hex2','#hex3','#hex4'].forEach((id, i) => {
-    const el = document.querySelector(id);
-    if (!el) return;
-    gsap.to(el, { opacity: 0.6, duration: 0.8, delay: 0.6 + i * 0.2, ease: 'power2.out' });
-    gsap.to(el, { y: '+=18', rotation: '+=12', duration: 3 + i * 0.5, ease: 'sine.inOut', yoyo: true, repeat: -1, delay: 1 + i * 0.3 });
-  });
+    gsap.timeline({ delay: 0.2 })
+      .from('#heroEyebrow', { y: 20, opacity: 0, duration: 0.6, ease: 'power3.out' })
+      .from('#heroTitle', { y: 40, opacity: 0, duration: 0.8, ease: 'power3.out' }, '-=0.3')
+      .from('#heroSub', { y: 30, opacity: 0, duration: 0.7, ease: 'power3.out' }, '-=0.5')
+      .from('#heroActions', { y: 20, opacity: 0, duration: 0.6, ease: 'power3.out' }, '-=0.4');
+
+    ['#hex1','#hex2','#hex3','#hex4'].forEach((id, i) => {
+      const el = document.querySelector(id);
+      if (!el) return;
+      gsap.to(el, { y: '+=18', rotation: '+=12', duration: 3 + i * 0.5, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+    });
+
+    if (typeof ScrollTrigger !== 'undefined') {
+      gsap.utils.toArray('.reveal').forEach(el => {
+        gsap.from(el, { scrollTrigger: { trigger: el, start: 'top 88%', toggleActions: 'play none none none' }, y: 28, opacity: 0, duration: 0.65, ease: 'power3.out' });
+      });
+
+      gsap.utils.toArray('.count').forEach(counter => {
+        const target = parseInt(counter.dataset.target);
+        ScrollTrigger.create({ trigger: counter, start: 'top 85%', onEnter: () => {
+          gsap.to(counter, { innerHTML: target, duration: 1.8, ease: 'power2.out', snap: { innerHTML: 1 },
+            onUpdate: function() { counter.innerHTML = Math.round(parseFloat(counter.innerHTML)).toLocaleString('id-ID'); }
+          });
+        }});
+      });
+    }
+  }
 
   const canvas = document.getElementById('heroCanvas');
-  const ctx = canvas.getContext('2d');
-  let particles = [];
-  function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
-  resize(); window.addEventListener('resize', resize);
-  for (let i = 0; i < 55; i++) {
-    particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.8 + 0.4, vx: (Math.random()-.5)*.35, vy: (Math.random()-.5)*.35, a: Math.random()*.4+.1 });
-  }
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    particles.forEach(p => {
-      p.x += p.vx; p.y += p.vy;
-      if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0;
-      if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(230,51,41,' + p.a + ')'; ctx.fill();
-    });
-    for (let i = 0; i < particles.length; i++) for (let j = i+1; j < particles.length; j++) {
-      const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
-      const d = Math.sqrt(dx*dx + dy*dy);
-      if (d < 110) { ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y); ctx.strokeStyle = 'rgba(230,51,41,' + (0.1*(1-d/110)) + ')'; ctx.lineWidth = .4; ctx.stroke(); }
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
+    resize(); window.addEventListener('resize', resize);
+    for (let i = 0; i < 55; i++) {
+      particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.8 + 0.4, vx: (Math.random()-.5)*.35, vy: (Math.random()-.5)*.35, a: Math.random()*.4+.1 });
     }
-    requestAnimationFrame(draw);
-  }
-  draw();
-
-  gsap.utils.toArray('.reveal').forEach(el => {
-    gsap.from(el, { scrollTrigger: { trigger: el, start: 'top 88%', toggleActions: 'play none none none' }, y: 28, opacity: 0, duration: 0.65, ease: 'power3.out' });
-  });
-
-  gsap.utils.toArray('.count').forEach(counter => {
-    const target = parseInt(counter.dataset.target);
-    ScrollTrigger.create({ trigger: counter, start: 'top 85%', onEnter: () => {
-      gsap.to(counter, { innerHTML: target, duration: 1.8, ease: 'power2.out', snap: { innerHTML: 1 },
-        onUpdate: function() { counter.innerHTML = Math.round(parseFloat(counter.innerHTML)).toLocaleString('id-ID'); }
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(230,51,41,' + p.a + ')'; ctx.fill();
       });
-    }});
-  });
+      for (let i = 0; i < particles.length; i++) for (let j = i+1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < 110) { ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y); ctx.strokeStyle = 'rgba(230,51,41,' + (0.1*(1-d/110)) + ')'; ctx.lineWidth = .4; ctx.stroke(); }
+      }
+      requestAnimationFrame(draw);
+    }
+    draw();
+  }
 
   document.querySelectorAll('.faq-question').forEach(btn => {
     btn.addEventListener('click', () => {
