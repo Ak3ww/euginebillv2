@@ -547,6 +547,8 @@ model pppoeUser {
   // NEW: Billing configuration fields
   billingDay           Int?       @default(1) // 1-31, untuk POSTPAID (default: tanggal 1)
   autoIsolationEnabled Boolean    @default(true) // Allow auto isolation
+  waNotificationEnabled Boolean   @default(true) // Kirim WA isolir/pengingat ke user ini
+  waNotificationNote   String?    @db.VarChar(500) // Keterangan kenapa WA dinonaktifkan
   balance              Int        @default(0) // Saldo deposit (prepaid)
   autoRenewal          Boolean    @default(false) // Auto renew from balance
   connectionType       ConnectionType @default(PPPOE)
