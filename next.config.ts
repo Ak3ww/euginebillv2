@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
     // Type errors are caught in development; CI/lint checks should run separately
     ignoreBuildErrors: true,
   },
+  eslint: {
+    // Skip ESLint during build to drastically speed up build time and save memory
+    ignoreDuringBuilds: true,
+  },
   // Optimize for low-resource VPS (2GB RAM)
   output: 'standalone', // Minimal deployment bundle — only includes required files
   // Image optimization cache: default 60s → 1 hour (reduce CPU re-encoding)
