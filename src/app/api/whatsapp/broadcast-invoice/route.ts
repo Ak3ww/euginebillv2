@@ -129,6 +129,11 @@ export async function POST(request: NextRequest) {
       const messagesToSend = invoiceDataList
         .filter(({ invoice }) => {
           if (!invoice.customerPhone) return false;
+          if (invoice.user && invoice.user.waNotificationEnabled === false) {
+            console.log(`[Invoice Broadcast] Skipping ${invoice.invoiceNumber}: WA notification is OFF for user (${invoice.user.username})`);
+            results.whatsapp.skipped++;
+            return false;
+          }
           // Protect against duplicate broadcast for an invoice already sent today
           if (invoice.waNotifiedAt) {
             const isToday = new Date(invoice.waNotifiedAt).toDateString() === new Date().toDateString();

@@ -911,6 +911,13 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           continue
         }
 
+        // Skip if user has disabled WA notifications (Toggle WA OFF)
+        if (invoice.user && invoice.user.waNotificationEnabled === false) {
+          console.log(`[Invoice Reminder] 🛑 Skipped ${invoice.invoiceNumber}: WA notification toggle is OFF for user (${invoice.user.username})`)
+          skippedCount++
+          continue
+        }
+
         // Check if this reminder day already sent
         // Cron Protection: Skip if this specific reminder schedule (H-7 / H-1) was already sent
         const invoiceSentReminders: number[] = invoice.sentReminders

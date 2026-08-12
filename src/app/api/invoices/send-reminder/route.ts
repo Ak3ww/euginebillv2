@@ -126,7 +126,13 @@ export async function POST(request: NextRequest) {
 
     // Send WhatsApp reminder
     if (channel === 'whatsapp' || channel === 'both') {
-      if (invoice.customerPhone) {
+      if (invoice.user && invoice.user.waNotificationEnabled === false) {
+        console.log(`[Invoice Reminder] 🛑 WA skipped for ${invoice.invoiceNumber}: User ${invoice.user.username} has WA notification turned OFF`);
+        results.whatsapp = { success: false, error: 'Notifikasi WA dinonaktifkan untuk pelanggan ini (Toggle WA OFF)' };
+        if (channel === 'whatsapp') {
+          errors.push('Notifikasi WA dinonaktifkan untuk pelanggan ini (Toggle WA OFF)');
+        }
+      } else if (invoice.customerPhone) {
         try {
           const activeProviders = await prisma.whatsapp_providers.findMany({
             where: { isActive: true },

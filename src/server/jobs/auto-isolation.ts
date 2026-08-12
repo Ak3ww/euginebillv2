@@ -229,11 +229,11 @@ export async function sendIsolationNotification(user: {
     if (!company) return;
 
     let realCustomerId = user.customerId;
+    const dbUser = await prisma.pppoeUser.findUnique({
+      where: { id: user.id },
+      select: { customerId: true, pppoeCustomerId: true, waNotificationEnabled: true },
+    });
     if (!realCustomerId || realCustomerId === user.username) {
-      const dbUser = await prisma.pppoeUser.findUnique({
-        where: { id: user.id },
-        select: { customerId: true, pppoeCustomerId: true },
-      });
       realCustomerId = dbUser?.customerId || dbUser?.pppoeCustomerId || user.customerId || user.username;
     }
 
@@ -288,7 +288,8 @@ export async function sendIsolationNotification(user: {
     };
 
     // -- WhatsApp ------------------------------------------------------------
-    if (company.isolationNotifyWhatsapp && user.phone) {
+    const isWaEnabled = dbUser ? dbUser.waNotificationEnabled !== false : true;
+    if (company.isolationNotifyWhatsapp && user.phone && isWaEnabled) {
       try {
         // Prefer DB isolation template; fall back to plain message
         const waTemplate = await prisma.isolationTemplate.findFirst({
