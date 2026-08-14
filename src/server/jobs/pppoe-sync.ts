@@ -282,18 +282,36 @@ export async function autoIsolatePPPoEUsers(): Promise<{
     `
 
     if (expiredUsers.length === 0) {
-      // Diagnostic check: find any users where expiredAt <= NOW() regardless of status/gracePeriod
-      const potentialExpired = await prisma.$queryRaw<Array<{ username: string; status: string; expiredAt: Date; autoIsolationEnabled: boolean | null }>>`
+      // Diagnostic check: find un-isolated users where expiredAt <= NOW()
+      const potentialExpired = await prisma.$queryRaw<Array<{ username: string; status: string; expiredAt: Date; autoIsolationEnabled: any }>>`
         SELECT username, status, expiredAt, autoIsolationEnabled
         FROM pppoe_users
-        WHERE expiredAt IS NOT NULL AND expiredAt <= NOW()
-        LIMIT 5
+        WHERE status NOT IN ('isolated', 'suspended', 'blocked', 'stop')
+          AND expiredAt IS NOT NULL
+          AND expiredAt <= NOW()
+        LIMIT 10
       `.catch(() => []);
 
       let diagMsg = 'No expired users found';
       if (potentialExpired.length > 0) {
         const details = potentialExpired.map(u => `${u.username} (status:${u.status}, autoIso:${u.autoIsolationEnabled ?? 'null'}, exp:${u.expiredAt ? new Date(u.expiredAt).toISOString() : '-'})`).join('; ');
-        diagMsg = `0 isolated. Found ${potentialExpired.length} user(s) with expiredAt <= NOW(), but skipped by gracePeriod (${gracePeriodDays}d) or status: [${details}]`;
+        diagMsg = `0 isolated. Found ${potentialExpired.length} unisolated user(s) with expiredAt <= NOW(), but skipped by gracePeriod (${gracePeriodDays}d) or autoIso=0: [${details}]`;
+      } else {
+        // Check if any user has expiredAt in next 48h
+        const upcomingExpired = await prisma.$queryRaw<Array<{ username: string; expiredAt: Date }>>`
+          SELECT username, expiredAt
+          FROM pppoe_users
+          WHERE status NOT IN ('isolated', 'suspended', 'blocked', 'stop')
+            AND expiredAt IS NOT NULL
+            AND expiredAt > NOW()
+            AND expiredAt <= DATE_ADD(NOW(), INTERVAL 2 DAY)
+          LIMIT 5
+        `.catch(() => []);
+
+        if (upcomingExpired.length > 0) {
+          const details = upcomingExpired.map(u => `${u.username} (exp:${new Date(u.expiredAt).toISOString()})`).join('; ');
+          diagMsg = `0 isolated. Server NOW is ${startedAt.toISOString()}. Upcoming expiry in 48h: [${details}]`;
+        }
       }
 
       console.log(`[PPPoE Auto-Isolir] ${diagMsg}`);
