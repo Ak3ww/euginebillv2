@@ -282,20 +282,34 @@ export async function autoIsolatePPPoEUsers(): Promise<{
     `
 
     if (expiredUsers.length === 0) {
-      console.log('[PPPoE Auto-Isolir] No expired users found')
+      // Diagnostic check: find any users where expiredAt <= NOW() regardless of status/gracePeriod
+      const potentialExpired = await prisma.$queryRaw<Array<{ username: string; status: string; expiredAt: Date; autoIsolationEnabled: boolean | null }>>`
+        SELECT username, status, expiredAt, autoIsolationEnabled
+        FROM pppoe_users
+        WHERE expiredAt IS NOT NULL AND expiredAt <= NOW()
+        LIMIT 5
+      `.catch(() => []);
+
+      let diagMsg = 'No expired users found';
+      if (potentialExpired.length > 0) {
+        const details = potentialExpired.map(u => `${u.username} (status:${u.status}, autoIso:${u.autoIsolationEnabled ?? 'null'}, exp:${u.expiredAt ? new Date(u.expiredAt).toISOString() : '-'})`).join('; ');
+        diagMsg = `0 isolated. Found ${potentialExpired.length} user(s) with expiredAt <= NOW(), but skipped by gracePeriod (${gracePeriodDays}d) or status: [${details}]`;
+      }
+
+      console.log(`[PPPoE Auto-Isolir] ${diagMsg}`);
       
       const duration = new Date().getTime() - startedAt.getTime()
       await prisma.cronHistory.update({
         where: { id: history.id },
         data: {
           status: 'success',
-          result: 'No expired users found',
+          result: diagMsg,
           duration,
           completedAt: new Date(),
         },
       })
       
-      return { success: true, isolated: 0 }
+      return { success: true, isolated: 0, message: diagMsg }
     }
 
     console.log(`[PPPoE Auto-Isolir] Found ${expiredUsers.length} expired user(s) to isolate`)
