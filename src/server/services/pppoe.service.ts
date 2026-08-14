@@ -98,6 +98,17 @@ export async function listPppoeUsers(params: { status?: string | null }) {
       area: true,
       odpAssignment: { include: { odp: true } },
       pppoeCustomer: { select: { id: true, customerId: true, name: true, phone: true, email: true } },
+      workOrders: {
+        where: { issueType: { in: ['DISMANTLE', 'CABUT', 'PENCABUTAN'] } },
+        select: {
+          id: true,
+          status: true,
+          scheduledDate: true,
+          technician: { select: { id: true, name: true, phoneNumber: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
     },
     orderBy: { createdAt: 'desc' },
   });

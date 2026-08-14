@@ -132,6 +132,27 @@ export async function POST(
       }
     });
 
+    // Dismantle Logic
+    const isDismantle = wo.issueType?.toUpperCase().includes('DISMANTLE') || wo.issueType?.toUpperCase().includes('CABUT');
+    if (isDismantle && wo.linkedUserId) {
+      try {
+        await prisma.pppoeUser.update({
+          where: { id: wo.linkedUserId },
+          data: {
+            isDismantled: true,
+            dismantledAt: new Date(),
+            dismantledNote: body.notes || body.reportData?.notes || 'Perangkat berhasil dicabut oleh teknisi',
+          },
+        });
+        // Free ODP port
+        await prisma.odpCustomerAssignment.deleteMany({
+          where: { customerId: wo.linkedUserId },
+        }).catch(() => {});
+      } catch (dismantleErr) {
+        console.error('Failed to update dismantle status:', dismantleErr);
+      }
+    }
+
     // Auto-Billing Trigger & Admin Alert
     if (wo.linkedUserId) {
       // Find the first PENDING or OVERDUE invoice for this customer

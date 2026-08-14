@@ -396,12 +396,20 @@ export default function TechnicianWorkOrderWizardPage() {
   const [ratingResult, setRatingResult] = useState<PerformanceRating | null>(null);
   const [permModal, setPermModal] = useState<'camera' | 'location' | null>(null);
 
-  // Step 1
+  // Step 1 Installation Checklist
   const [checklist, setChecklist] = useState({
     modem: false, kabel: false, tang: false, konektor: false, klem: false,
   });
 
-  // Step 2 & 3 combined report data
+  // Step 1 Dismantle Checklist
+  const [dismantleChecklist, setDismantleChecklist] = useState({
+    modemOnt: true,
+    powerAdapter: false,
+  });
+
+  const [deviceCondition, setDeviceCondition] = useState('Bagus & Berfungsi');
+
+  // Report data
   const [reportData, setReportData] = useState({
     odpName: '',
     portNumber: null as number | null,
@@ -429,9 +437,8 @@ export default function TechnicianWorkOrderWizardPage() {
   const [selectedOdp, setSelectedOdp] = useState<OdpOption | null>(null);
   const [suggestedOdp, setSuggestedOdp] = useState<{ name: string; distMeters: number; odp: OdpOption } | null>(null);
 
-  // GPS for ODP location (Step 2)
+  // GPS
   const odpGps = useAccurateGps();
-  // GPS for Customer house (Step 3)
   const customerGps = useAccurateGps();
   const [lockedOdpGps, setLockedOdpGps] = useState<{ lat: number; lng: number } | null>(null);
   const [lockedCustomerGps, setLockedCustomerGps] = useState<{ lat: number; lng: number } | null>(null);
@@ -463,11 +470,13 @@ export default function TechnicianWorkOrderWizardPage() {
     return h > 0 ? `${p(h)}:${p(m)}:${p(ss)}` : `${p(m)}:${p(ss)}`;
   };
 
-  // ─── Save draft locally + to server ─────────────────────────────────────
+  // ─── Save draft ─────────────────────────────────────────────────────────
   const saveDraft = useCallback(async (newStep?: number, extras?: any) => {
     const draft = {
       step: newStep ?? step,
       checklist,
+      dismantleChecklist,
+      deviceCondition,
       reportData: extras?.reportData ?? reportData,
       photos: extras?.photos ?? photos,
       lockedOdpGps,
@@ -482,7 +491,7 @@ export default function TechnicianWorkOrderWizardPage() {
         body: JSON.stringify({ wizardStep: draft.step, wizardDraftData: draft }),
       });
     } catch { }
-  }, [step, checklist, reportData, photos, lockedOdpGps, lockedCustomerGps, startTimeMs, storageKey, params.id]);
+  }, [step, checklist, dismantleChecklist, deviceCondition, reportData, photos, lockedOdpGps, lockedCustomerGps, startTimeMs, storageKey, params.id]);
 
   // ─── Load WO + draft ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -514,6 +523,8 @@ export default function TechnicianWorkOrderWizardPage() {
         if (draft) {
           if (draft.step) setStep(draft.step);
           if (draft.checklist) setChecklist(draft.checklist);
+          if (draft.dismantleChecklist) setDismantleChecklist(draft.dismantleChecklist);
+          if (draft.deviceCondition) setDeviceCondition(draft.deviceCondition);
           if (draft.reportData) setReportData(prev => ({ ...prev, ...draft.reportData }));
           if (draft.photos) setPhotos(draft.photos);
           if (draft.lockedOdpGps) setLockedOdpGps(draft.lockedOdpGps);
@@ -540,13 +551,13 @@ export default function TechnicianWorkOrderWizardPage() {
       .catch(() => {});
   }, []);
 
-  // ─── ODP name change → find matching ODP ─────────────────────────────────
+  // ─── ODP name change ──────────────────────────────────────────────────────
   useEffect(() => {
     const found = existingOdps.find(o => o.name.toLowerCase() === reportData.odpName.toLowerCase());
     setSelectedOdp(found || null);
   }, [reportData.odpName, existingOdps]);
 
-  // ─── ODP GPS → suggest nearest ODP ───────────────────────────────────────
+  // ─── ODP GPS suggestion ──────────────────────────────────────────────────
   useEffect(() => {
     if (odpGps.gps.lat && odpGps.gps.lng) {
       let nearest: typeof suggestedOdp = null;
@@ -562,8 +573,17 @@ export default function TechnicianWorkOrderWizardPage() {
     }
   }, [odpGps.gps.lat, odpGps.gps.lng, existingOdps]);
 
+  const isDismantle = wo?.issueType?.toUpperCase().includes('DISMANTLE') || wo?.issueType?.toUpperCase().includes('CABUT');
+
   // ─── Validation ───────────────────────────────────────────────────────────
   const validateStep1 = () => {
+    if (isDismantle) {
+      if (!dismantleChecklist.modemOnt) {
+        addToast({ type: 'error', title: 'Ceklis Wajib', description: 'Modem ONT wajib dicentang' });
+        return false;
+      }
+      return true;
+    }
     if (!Object.values(checklist).every(Boolean)) {
       addToast({ type: 'error', title: 'Ceklis Belum Lengkap', description: 'Wajib centang semua 5 item peralatan!' });
       return false;
@@ -572,6 +592,17 @@ export default function TechnicianWorkOrderWizardPage() {
   };
 
   const validateStep2 = () => {
+    if (isDismantle) {
+      const missing: string[] = [];
+      if (!lockedCustomerGps) missing.push('GPS Lokasi Pencabutan');
+      if (!photos['Foto Perangkat Ditarik']) missing.push('Foto Perangkat Ditarik');
+      if (!photos['Foto Rumah']) missing.push('Foto Depan Rumah');
+      if (missing.length > 0) {
+        addToast({ type: 'error', title: 'Laporan Belum Lengkap', description: missing.join(', ') });
+        return false;
+      }
+      return true;
+    }
     const missing: string[] = [];
     if (!reportData.odpName.trim()) missing.push('Nama ODP');
     if (!reportData.portNumber) missing.push('Nomor Port ODP');
@@ -659,7 +690,7 @@ export default function TechnicianWorkOrderWizardPage() {
     addToast({ type: 'success', title: 'GPS Pelanggan Terkunci!', description: `±${Math.round(customerGps.gps.accuracy || 0)}m` });
   };
 
-  // ─── Upload photo with overlay ────────────────────────────────────────────
+  // ─── Upload photo ─────────────────────────────────────────────────────────
   const uploadPhoto = async (key: string, file: File) => {
     setUploadingKey(key);
     try {
@@ -743,8 +774,12 @@ export default function TechnicianWorkOrderWizardPage() {
 
   // ─── Submit ───────────────────────────────────────────────────────────────
   const submitComplete = async () => {
-    if (!validateStep3()) return;
-    if (!confirm('Konfirmasi: Semua data sudah benar dan pekerjaan selesai?')) return;
+    if (isDismantle) {
+      if (!validateStep2()) return;
+    } else {
+      if (!validateStep3()) return;
+    }
+    if (!confirm('Konfirmasi: Semua data pencabutan/instalasi sudah benar dan selesai?')) return;
     setSubmitting(true);
     try {
       const endTime = Date.now();
@@ -755,20 +790,15 @@ export default function TechnicianWorkOrderWizardPage() {
         lockedOdpGps?.lat ?? null, lockedOdpGps?.lng ?? null,
       );
 
-      const portFormatted = reportData.portNumber
-        ? `Port ${reportData.portNumber}`
-        : '';
-
       const res = await fetch(`/api/technician/work-orders/${params.id}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           isPrepared: true,
-          equipmentChecklist: checklist,
+          equipmentChecklist: isDismantle ? dismantleChecklist : checklist,
           reportData: {
             ...reportData,
-            port: portFormatted,
-            portCount: selectedOdp?.portCount || 16,
+            deviceCondition,
             customerLat: lockedCustomerGps?.lat,
             customerLng: lockedCustomerGps?.lng,
             performanceRating: rating,
@@ -776,6 +806,7 @@ export default function TechnicianWorkOrderWizardPage() {
           reportPhotos: photos,
           customerLat: lockedCustomerGps?.lat,
           customerLng: lockedCustomerGps?.lng,
+          notes: reportData.notes,
         }),
       });
 
@@ -817,10 +848,6 @@ export default function TechnicianWorkOrderWizardPage() {
           <div className="bg-white/10 rounded-2xl p-4 text-left space-y-2 text-sm text-white/80">
             <div className="flex justify-between"><span>Durasi</span><span className="font-mono text-white">{ratingResult.formattedDuration}</span></div>
             <div className="flex justify-between"><span>Target Waktu</span><span className="font-mono text-white">{ratingResult.targetMinutes} Menit</span></div>
-            <div className="flex justify-between"><span>Jarak Kantor</span><span className="font-mono text-white">{ratingResult.distOfficeToCustomerKm} km</span></div>
-            {ratingResult.distOdpToCustomerMeters > 0 && (
-              <div className="flex justify-between"><span>Jarak ODP ke CST</span><span className="font-mono text-white">{ratingResult.distOdpToCustomerMeters} m</span></div>
-            )}
           </div>
           <button
             onClick={() => router.push('/technician/work-orders')}
@@ -835,10 +862,8 @@ export default function TechnicianWorkOrderWizardPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-5 pb-28">
-      {/* Permission Modal */}
       {permModal && <PermissionModal type={permModal} onClose={() => setPermModal(null)} />}
 
-      {/* Top Bar */}
       <div className="flex justify-between items-center">
         <button onClick={() => router.push('/technician/work-orders')} className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-4 h-4" /> Kembali
@@ -885,7 +910,10 @@ export default function TechnicianWorkOrderWizardPage() {
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex justify-between items-center relative">
           <div className="absolute top-4 left-6 right-6 h-0.5 bg-border z-0" />
-          {[{ id: 1, title: 'Persiapan' }, { id: 2, title: 'ODP' }, { id: 3, title: 'Rumah' }].map(s => {
+          {(isDismantle
+            ? [{ id: 1, title: 'Ceklis Perangkat' }, { id: 2, title: 'Foto & GPS' }]
+            : [{ id: 1, title: 'Persiapan' }, { id: 2, title: 'ODP' }, { id: 3, title: 'Rumah' }]
+          ).map(s => {
             const isDone = step > s.id;
             const isActive = step === s.id;
             return (
@@ -902,8 +930,149 @@ export default function TechnicianWorkOrderWizardPage() {
         </div>
       </div>
 
-      {/* ═══ STEP 1 ══════════════════════════════════════════════════════════ */}
-      {step === 1 && (
+      {/* ═══ DISMANTLE STEP 1 ═════════════════════════════════════════════════ */}
+      {isDismantle && step === 1 && (
+        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
+          <div>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-500">SPK Penarikan / Dismantle</span>
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2 mt-0.5">
+              <Wrench className="w-5 h-5 text-amber-500" /> Ceklis Perangkat Dicabut
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            <label className="block text-xs font-bold text-foreground">Perangkat Ditarik</label>
+            <label className="flex items-center gap-3 p-3.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 cursor-pointer">
+              <input type="checkbox" checked={dismantleChecklist.modemOnt}
+                onChange={e => setDismantleChecklist(p => ({ ...p, modemOnt: e.target.checked }))}
+                className="w-4 h-4 rounded text-primary" />
+              <span className="text-xs font-bold">Modem ONT (ZTE / Huawei / FiberHome) *WAJIB</span>
+            </label>
+            <label className="flex items-center gap-3 p-3.5 rounded-xl border bg-background border-border cursor-pointer">
+              <input type="checkbox" checked={dismantleChecklist.powerAdapter}
+                onChange={e => setDismantleChecklist(p => ({ ...p, powerAdapter: e.target.checked }))}
+                className="w-4 h-4 rounded text-primary" />
+              <span className="text-xs font-bold">Adaptor Power 12V (Opsional)</span>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <label className="block font-bold text-foreground mb-1">Serial Number (SN) ONT</label>
+              <input type="text" placeholder="ZTEGDDODA7E0" value={reportData.sn}
+                onChange={e => setReportData(p => ({ ...p, sn: e.target.value.toUpperCase() }))}
+                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono uppercase" />
+            </div>
+            <div>
+              <label className="block font-bold text-foreground mb-1">Kondisi Perangkat</label>
+              <select
+                value={deviceCondition}
+                onChange={e => setDeviceCondition(e.target.value)}
+                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-bold"
+              >
+                <option value="Bagus & Berfungsi">Bagus &amp; Berfungsi</option>
+                <option value="Adaptor Rusak/Hilang">Adaptor Rusak/Hilang</option>
+                <option value="Modem Rusak/Mati">Modem Rusak/Mati</option>
+                <option value="Perangkat Hilang">Perangkat Hilang</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-border flex justify-end">
+            <button onClick={() => handleNextStep(2)}
+              className="w-full px-6 py-3.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-lg flex items-center justify-center gap-2">
+              Lanjut ke Foto &amp; Lokasi <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ DISMANTLE STEP 2 ═════════════════════════════════════════════════ */}
+      {isDismantle && step === 2 && (
+        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-6">
+          <div>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-500">Langkah 2 dari 2</span>
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2 mt-0.5">
+              <Camera className="w-5 h-5 text-amber-500" /> Foto Bukti &amp; Lokasi Pencabutan
+            </h2>
+          </div>
+
+          {/* GPS Customer */}
+          <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-bold text-foreground">GPS Lokasi Pencabutan *</span>
+                <GpsAccuracyBadge accuracy={customerGps.gps.accuracy} watching={customerGps.gps.watching} />
+              </div>
+              {!lockedCustomerGps ? (
+                !customerGps.gps.watching ? (
+                  <button onClick={() => customerGps.startWatch()}
+                    className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg font-mono text-[10px] font-bold flex items-center gap-1.5">
+                    <Navigation className="w-3.5 h-3.5" /> Aktifkan GPS
+                  </button>
+                ) : (
+                  <button onClick={lockCustomerGps}
+                    disabled={(customerGps.gps.accuracy || 999) > 50 || !customerGps.gps.lat}
+                    className={cn('px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold flex items-center gap-1.5 transition-all',
+                      (customerGps.gps.accuracy || 999) <= 50 && customerGps.gps.lat ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground cursor-not-allowed'
+                    )}>
+                    <Lock className="w-3.5 h-3.5" /> Kunci GPS
+                  </button>
+                )
+              ) : (
+                <button onClick={() => { setLockedCustomerGps(null); customerGps.startWatch(); }}
+                  className="px-3 py-1.5 bg-muted border border-border rounded-lg font-mono text-[10px] font-bold">
+                  <RefreshCw className="w-3 h-3 inline mr-1" /> Ubah
+                </button>
+              )}
+            </div>
+            {lockedCustomerGps && (
+              <div className="font-mono text-xs text-emerald-600 font-bold bg-background p-2 rounded border border-emerald-500/30">
+                Terkunci — Lat: {lockedCustomerGps.lat.toFixed(6)}, Lng: {lockedCustomerGps.lng.toFixed(6)}
+              </div>
+            )}
+          </div>
+
+          {/* Dismantle Photos */}
+          <div className="space-y-3">
+            <label className="block text-xs font-bold text-foreground flex items-center gap-1">
+              <Camera className="w-3.5 h-3.5 text-primary" /> Foto Bukti Pencabutan *
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {([
+                ['Foto Perangkat Ditarik', 'Foto ONT & Adaptor Ditarik (SN terlihat)'],
+                ['Foto Rumah', 'Foto Depan Rumah / Lokasi Pencabutan'],
+              ] as [string, string][]).map(([key, label]) => (
+                <PhotoSlot key={key} label={label} photoKey={key} required photoUrl={photos[key]}
+                  uploading={uploadingKey === key} gpsLat={lockedCustomerGps?.lat ?? null} gpsLng={lockedCustomerGps?.lng ?? null}
+                  spkLabel={spkLabel} onUpload={uploadPhoto} onOpenLive={openCameraModal} />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-bold text-xs text-foreground mb-1">Catatan Tambahan Teknisi</label>
+            <textarea rows={2} placeholder="Cth: Perangkat dalam kondisi mulus, pelanggan sudah titip ke tetangga" value={reportData.notes}
+              onChange={e => setReportData(p => ({ ...p, notes: e.target.value }))}
+              className="w-full p-2.5 bg-background border border-input rounded-xl outline-none font-mono text-xs" />
+          </div>
+
+          <div className="pt-4 border-t border-border flex justify-between gap-3">
+            <button onClick={() => setStep(1)} className="px-3.5 py-3 bg-muted text-foreground font-bold text-xs rounded-xl flex items-center gap-1 shrink-0">
+              <ChevronLeft className="w-4 h-4" /> Step 1
+            </button>
+            <button onClick={submitComplete} disabled={submitting}
+              className="flex-1 sm:flex-initial px-5 py-3.5 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-xl hover:bg-emerald-700 flex items-center justify-center gap-2">
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              Selesaikan SPK Cabut
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ INSTALLATION STEP 1 ═════════════════════════════════════════════ */}
+      {!isDismantle && step === 1 && (
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
           <div>
             <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Langkah 1 dari 3</span>
@@ -930,7 +1099,7 @@ export default function TechnicianWorkOrderWizardPage() {
               </label>
             ))}
           </div>
-          <div className="pt-4 border-t border-border sticky bottom-14 lg:static z-30 bg-card/95 backdrop-blur-md p-3 -mx-4 -mb-4 lg:p-0 lg:m-0 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] lg:shadow-none rounded-b-2xl">
+          <div className="pt-4 border-t border-border flex justify-end">
             <button onClick={() => handleNextStep(2)}
               className="w-full px-6 py-3.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-lg flex items-center justify-center gap-2">
               <Rocket className="w-4 h-4" /> Mulai Pekerjaan &amp; Berangkat <ChevronRight className="w-4 h-4" />
@@ -939,8 +1108,8 @@ export default function TechnicianWorkOrderWizardPage() {
         </div>
       )}
 
-      {/* ═══ STEP 2 ══════════════════════════════════════════════════════════ */}
-      {step === 2 && (
+      {/* ═══ INSTALLATION STEP 2 ═════════════════════════════════════════════ */}
+      {!isDismantle && step === 2 && (
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-6">
           <div>
             <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Langkah 2 dari 3</span>
@@ -949,7 +1118,6 @@ export default function TechnicianWorkOrderWizardPage() {
             </h2>
           </div>
 
-          {/* GPS ODP */}
           <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -959,23 +1127,15 @@ export default function TechnicianWorkOrderWizardPage() {
               </div>
               {!lockedOdpGps ? (
                 !odpGps.gps.watching ? (
-                  <button onClick={() => {
-                    navigator.permissions.query({ name: 'geolocation' as PermissionName }).then(p => {
-                      if (p.state === 'denied') { setPermModal('location'); return; }
-                      odpGps.startWatch();
-                    }).catch(() => odpGps.startWatch());
-                  }}
+                  <button onClick={() => odpGps.startWatch()}
                     className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg font-mono text-[10px] font-bold flex items-center gap-1.5">
                     <Navigation className="w-3.5 h-3.5" /> Aktifkan GPS
                   </button>
                 ) : (
-                  <button
-                    onClick={lockOdpGps}
+                  <button onClick={lockOdpGps}
                     disabled={(odpGps.gps.accuracy || 999) > 50 || !odpGps.gps.lat}
                     className={cn('px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold flex items-center gap-1.5 transition-all',
-                      (odpGps.gps.accuracy || 999) <= 50 && odpGps.gps.lat
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-muted text-muted-foreground cursor-not-allowed'
+                      (odpGps.gps.accuracy || 999) <= 50 && odpGps.gps.lat ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground cursor-not-allowed'
                     )}>
                     <Lock className="w-3.5 h-3.5" /> Kunci GPS ODP
                   </button>
@@ -987,30 +1147,18 @@ export default function TechnicianWorkOrderWizardPage() {
                 </button>
               )}
             </div>
-            {lockedOdpGps ? (
+            {lockedOdpGps && (
               <div className="font-mono text-xs text-emerald-600 font-bold bg-background p-2 rounded border border-emerald-500/30">
                 Terkunci — Lat: {lockedOdpGps.lat.toFixed(6)}, Lng: {lockedOdpGps.lng.toFixed(6)}
               </div>
-            ) : odpGps.gps.lat ? (
-              <div className="font-mono text-xs text-amber-600 bg-background p-2 rounded border border-border">
-                Live: {odpGps.gps.lat.toFixed(6)}, {odpGps.gps.lng?.toFixed(6)} — tunggu akurasi &lt;50m lalu kunci
-              </div>
-            ) : (
-              <p className="text-[11px] text-rose-500 font-bold italic">Aktifkan GPS lalu tunggu sinyal kuat sebelum kunci</p>
             )}
           </div>
 
-          {/* ODP Name + nearest suggestion */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-foreground">Nama ODP *</label>
-            <input
-              type="text"
-              list="odp-suggestions-list"
-              placeholder="Cth: ODP-KDS-07 / KPS-06"
-              value={reportData.odpName}
+            <input type="text" list="odp-suggestions-list" placeholder="Cth: ODP-KDS-07 / KPS-06" value={reportData.odpName}
               onChange={e => setReportData(p => ({ ...p, odpName: e.target.value }))}
-              className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono text-xs"
-            />
+              className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono text-xs" />
             <datalist id="odp-suggestions-list">
               {existingOdps.map(o => <option key={o.id} value={o.name} />)}
             </datalist>
@@ -1019,19 +1167,12 @@ export default function TechnicianWorkOrderWizardPage() {
                 <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
                   <MapPin className="w-3 h-3 text-emerald-600 inline" /> Terdekat: <strong>{suggestedOdp.name}</strong> ({suggestedOdp.distMeters}m)
                 </span>
-                <button
-                  onClick={() => {
-                    setReportData(p => ({ ...p, odpName: suggestedOdp.name }));
-                    setSelectedOdp(suggestedOdp.odp);
-                    setSuggestedOdp(null);
-                  }}
-                  className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold"
-                >Gunakan</button>
+                <button onClick={() => { setReportData(p => ({ ...p, odpName: suggestedOdp.name })); setSelectedOdp(suggestedOdp.odp); setSuggestedOdp(null); }}
+                  className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold">Gunakan</button>
               </div>
             )}
           </div>
 
-          {/* Port Grid */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-foreground">Port ODP *</label>
@@ -1040,19 +1181,14 @@ export default function TechnicianWorkOrderWizardPage() {
               )}
             </div>
             {selectedOdp ? (
-              <PortGrid
-                portCount={selectedOdp.portCount || 16}
-                usedPorts={selectedOdp.usedPorts}
-                selected={reportData.portNumber}
-                onSelect={port => setReportData(p => ({ ...p, portNumber: port }))}
-              />
+              <PortGrid portCount={selectedOdp.portCount || 16} usedPorts={selectedOdp.usedPorts} selected={reportData.portNumber}
+                onSelect={port => setReportData(p => ({ ...p, portNumber: port }))} />
             ) : (
               <div className="p-3 bg-muted/40 border border-dashed border-border rounded-xl text-center">
                 <p className="text-xs text-muted-foreground">Masukkan Nama ODP dulu untuk lihat port tersedia</p>
                 <div className="mt-3 grid grid-cols-4 gap-2">
                   {Array.from({length:16},(_,i)=>i+1).map(p => (
-                    <button key={p} type="button"
-                      onClick={() => setReportData(prev => ({...prev, portNumber: p}))}
+                    <button key={p} type="button" onClick={() => setReportData(prev => ({...prev, portNumber: p}))}
                       className={cn('h-10 rounded-xl font-mono text-xs font-bold border transition-all',
                         reportData.portNumber === p ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-foreground border-border hover:bg-muted/80'
                       )}>{String(p).padStart(2,'0')}</button>
@@ -1062,29 +1198,24 @@ export default function TechnicianWorkOrderWizardPage() {
             )}
           </div>
 
-          {/* Material inputs */}
           <div className="grid grid-cols-3 gap-3 text-xs">
             <div>
               <label className="block font-bold text-foreground mb-1">DW Roll (m)</label>
-              <input type="number" placeholder="150" value={reportData.dwRoll}
-                onChange={e => setReportData(p => ({...p, dwRoll: e.target.value}))}
+              <input type="number" placeholder="150" value={reportData.dwRoll} onChange={e => setReportData(p => ({...p, dwRoll: e.target.value}))}
                 className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono" />
             </div>
             <div>
               <label className="block font-bold text-foreground mb-1">Paku Klem</label>
-              <input type="text" placeholder="Secukupnya" value={reportData.pakuKlem}
-                onChange={e => setReportData(p => ({...p, pakuKlem: e.target.value}))}
+              <input type="text" placeholder="Secukupnya" value={reportData.pakuKlem} onChange={e => setReportData(p => ({...p, pakuKlem: e.target.value}))}
                 className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono" />
             </div>
             <div>
               <label className="block font-bold text-foreground mb-1">Solasi</label>
-              <input type="text" placeholder="Secukupnya" value={reportData.solasi}
-                onChange={e => setReportData(p => ({...p, solasi: e.target.value}))}
+              <input type="text" placeholder="Secukupnya" value={reportData.solasi} onChange={e => setReportData(p => ({...p, solasi: e.target.value}))}
                 className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono" />
             </div>
           </div>
 
-          {/* Step 2 Photos */}
           <div className="space-y-3">
             <label className="block text-xs font-bold text-foreground flex items-center gap-1">
               <Camera className="w-3.5 h-3.5 text-primary" /> Foto ODP *
@@ -1098,8 +1229,7 @@ export default function TechnicianWorkOrderWizardPage() {
             </div>
           </div>
 
-          {/* Nav */}
-          <div className="pt-4 border-t border-border flex justify-between gap-3 sticky bottom-14 lg:static z-30 bg-card/95 backdrop-blur-md p-3 -mx-4 -mb-4 lg:p-0 lg:m-0 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] lg:shadow-none rounded-b-2xl">
+          <div className="pt-4 border-t border-border flex justify-between gap-3">
             <button onClick={() => setStep(1)} className="px-4 py-3 bg-muted text-foreground font-bold text-xs rounded-xl flex items-center gap-1.5">
               <ChevronLeft className="w-4 h-4" /> Kembali
             </button>
@@ -1111,8 +1241,8 @@ export default function TechnicianWorkOrderWizardPage() {
         </div>
       )}
 
-      {/* ═══ STEP 3 ══════════════════════════════════════════════════════════ */}
-      {step === 3 && (
+      {/* ═══ INSTALLATION STEP 3 ═════════════════════════════════════════════ */}
+      {!isDismantle && step === 3 && (
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-6">
           <div>
             <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Langkah 3 dari 3</span>
@@ -1121,7 +1251,6 @@ export default function TechnicianWorkOrderWizardPage() {
             </h2>
           </div>
 
-          {/* GPS Customer */}
           <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -1131,12 +1260,7 @@ export default function TechnicianWorkOrderWizardPage() {
               </div>
               {!lockedCustomerGps ? (
                 !customerGps.gps.watching ? (
-                  <button onClick={() => {
-                    navigator.permissions.query({ name: 'geolocation' as PermissionName }).then(p => {
-                      if (p.state === 'denied') { setPermModal('location'); return; }
-                      customerGps.startWatch();
-                    }).catch(() => customerGps.startWatch());
-                  }}
+                  <button onClick={() => customerGps.startWatch()}
                     className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg font-mono text-[10px] font-bold flex items-center gap-1.5">
                     <Navigation className="w-3.5 h-3.5" /> Aktifkan GPS
                   </button>
@@ -1144,8 +1268,7 @@ export default function TechnicianWorkOrderWizardPage() {
                   <button onClick={lockCustomerGps}
                     disabled={(customerGps.gps.accuracy || 999) > 50 || !customerGps.gps.lat}
                     className={cn('px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold flex items-center gap-1.5 transition-all',
-                      (customerGps.gps.accuracy || 999) <= 50 && customerGps.gps.lat
-                        ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground cursor-not-allowed'
+                      (customerGps.gps.accuracy || 999) <= 50 && customerGps.gps.lat ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground cursor-not-allowed'
                     )}>
                     <Lock className="w-3.5 h-3.5" /> Kunci GPS
                   </button>
@@ -1157,54 +1280,41 @@ export default function TechnicianWorkOrderWizardPage() {
                 </button>
               )}
             </div>
-            {lockedCustomerGps ? (
+            {lockedCustomerGps && (
               <div className="font-mono text-xs text-emerald-600 font-bold bg-background p-2 rounded border border-emerald-500/30">
                 Terkunci — Lat: {lockedCustomerGps.lat.toFixed(6)}, Lng: {lockedCustomerGps.lng.toFixed(6)}
               </div>
-            ) : customerGps.gps.lat ? (
-              <div className="font-mono text-xs text-amber-600 bg-background p-2 rounded border border-border">
-                Live: {customerGps.gps.lat.toFixed(6)}, {customerGps.gps.lng?.toFixed(6)}
-              </div>
-            ) : (
-              <p className="text-[11px] text-rose-500 font-bold italic">Aktifkan GPS di rumah pelanggan lalu kunci</p>
             )}
           </div>
 
-          {/* Hardware fields */}
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
               <label className="block font-bold text-foreground mb-1">Type ONT *</label>
-              <input type="text" placeholder="ZTE F679D / Huawei HG8145" value={reportData.modemType}
-                onChange={e => setReportData(p => ({...p, modemType: e.target.value}))}
+              <input type="text" placeholder="ZTE F679D / Huawei HG8145" value={reportData.modemType} onChange={e => setReportData(p => ({...p, modemType: e.target.value}))}
                 className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono" />
             </div>
             <div>
               <label className="block font-bold text-foreground mb-1">Serial Number (SN) *</label>
-              <input type="text" placeholder="ZTEGDDODA7E0" value={reportData.sn}
-                onChange={e => setReportData(p => ({...p, sn: e.target.value.toUpperCase()}))}
+              <input type="text" placeholder="ZTEGDDODA7E0" value={reportData.sn} onChange={e => setReportData(p => ({...p, sn: e.target.value.toUpperCase()}))}
                 className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono uppercase" />
             </div>
             <div>
               <label className="block font-bold text-foreground mb-1">MAC Address</label>
-              <input type="text" placeholder="68-2A-DD-29-85-A5" value={reportData.mac}
-                onChange={e => setReportData(p => ({...p, mac: e.target.value}))}
+              <input type="text" placeholder="68-2A-DD-29-85-A5" value={reportData.mac} onChange={e => setReportData(p => ({...p, mac: e.target.value}))}
                 className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono" />
             </div>
             <div>
               <label className="block font-bold text-foreground mb-1">RX Signal (dBm) *</label>
-              <input type="text" placeholder="-22.33" value={reportData.rxSignal}
-                onChange={e => setReportData(p => ({...p, rxSignal: e.target.value}))}
+              <input type="text" placeholder="-22.33" value={reportData.rxSignal} onChange={e => setReportData(p => ({...p, rxSignal: e.target.value}))}
                 className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono" />
             </div>
             <div>
               <label className="block font-bold text-foreground mb-1">TX Signal (dBm)</label>
-              <input type="text" placeholder="-22.33" value={reportData.txSignal}
-                onChange={e => setReportData(p => ({...p, txSignal: e.target.value}))}
+              <input type="text" placeholder="-22.33" value={reportData.txSignal} onChange={e => setReportData(p => ({...p, txSignal: e.target.value}))}
                 className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono" />
             </div>
           </div>
 
-          {/* LED Indicators */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-foreground flex items-center gap-1">
               <Wifi className="w-3.5 h-3.5 text-primary" /> Indikator ONT
@@ -1219,7 +1329,6 @@ export default function TechnicianWorkOrderWizardPage() {
             </div>
           </div>
 
-          {/* Step 3 Photos */}
           <div className="space-y-3">
             <label className="block text-xs font-bold text-foreground flex items-center gap-1">
               <Camera className="w-3.5 h-3.5 text-primary" /> Foto Instalasi *
@@ -1238,8 +1347,7 @@ export default function TechnicianWorkOrderWizardPage() {
             </div>
           </div>
 
-          {/* Nav */}
-          <div className="pt-4 border-t border-border flex justify-between gap-3 sticky bottom-14 lg:static z-30 bg-card/95 backdrop-blur-md p-3 -mx-4 -mb-4 lg:p-0 lg:m-0 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] lg:shadow-none rounded-b-2xl">
+          <div className="pt-4 border-t border-border flex justify-between gap-3">
             <button onClick={() => setStep(2)} className="px-3.5 py-3 bg-muted text-foreground font-bold text-xs rounded-xl flex items-center gap-1 shrink-0">
               <ChevronLeft className="w-4 h-4" /> Step 2
             </button>

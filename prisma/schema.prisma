@@ -559,6 +559,9 @@ model pppoeUser {
   idCardNumber         String?    @db.VarChar(50) // NIK KTP
   idCardPhoto          String?    @db.VarChar(500) // URL foto KTP
   installationPhotos   Json?      // Array of installation photo URLs
+  isDismantled         Boolean    @default(false)
+  dismantledAt         DateTime?
+  dismantledNote       String?    @db.VarChar(500)
   followRoad           Boolean    @default(false) // Garis ke ODP ikuti jalanan
 
   // Referral system fields

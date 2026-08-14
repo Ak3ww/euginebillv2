@@ -30,10 +30,10 @@ export async function GET(
   try {
     const wo = await prisma.workOrder.findUnique({
       where: { id },
-      select: { wizardStep: true, wizardDraftData: true },
     });
     if (!wo) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json({ success: true, wizardStep: wo.wizardStep, wizardDraftData: wo.wizardDraftData });
+    const rawWo = wo as any;
+    return NextResponse.json({ success: true, wizardStep: rawWo.wizardStep || 1, wizardDraftData: rawWo.wizardDraftData || null });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
