@@ -41,26 +41,28 @@ async function main() {
     console.log(`🛡️  AutoIsolation:     ${targetUser.autoIsolationEnabled}`);
     console.log(`📱 Phone:              ${targetUser.phone}`);
     console.log(`🧾 Unpaid Invoices:    ${targetUser.invoices.length}`);
+
+    if (targetUser.autoIsolationEnabled === false) {
+      console.log('\n💡 [ANALYSIS] Auto-Isolation IS DISABLED for EMG083 (autoIsolationEnabled = false)!');
+      console.log('   Enabling autoIsolationEnabled = true for EMG083 now so it gets isolated when expired...');
+      await prisma.pppoeUser.update({
+        where: { id: targetUser.id },
+        data: { autoIsolationEnabled: true }
+      });
+      console.log('   ✅ autoIsolationEnabled updated to TRUE for EMG083!');
+    }
   }
 
-  // 2. SCAN ALL EXPIRED UN-ISOLATED USERS IN DB
+  // 2. SCAN ALL EXPIRED UN-ISOLATED USERS IN DB (using raw SQL query to avoid Prisma null filter issues)
   console.log('\n--- 🔍 Scanning All Expired Un-isolated Users in DB ---');
-  const expiredUsers = await prisma.pppoeUser.findMany({
-    where: {
-      status: { notIn: ['isolated', 'suspended', 'blocked', 'stop'] },
-      expiredAt: {
-        lte: now,
-      },
-      OR: [
-        { autoIsolationEnabled: true },
-        { autoIsolationEnabled: null },
-      ]
-    },
-    include: {
-      router: true,
-      profile: true
-    }
-  });
+  const expiredUsers = await prisma.$queryRaw`
+    SELECT id, username, name, phone, email, password, status, expiredAt, profileId, routerId
+    FROM pppoe_users
+    WHERE status NOT IN ('isolated', 'suspended', 'blocked', 'stop')
+      AND expiredAt IS NOT NULL
+      AND expiredAt <= NOW()
+      AND (autoIsolationEnabled = 1 OR autoIsolationEnabled IS NULL OR autoIsolationEnabled = true)
+  `;
 
   console.log(`📊 Total Expired Un-isolated Users Found: ${expiredUsers.length}`);
 
