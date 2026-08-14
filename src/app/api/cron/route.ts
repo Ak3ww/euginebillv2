@@ -63,8 +63,7 @@ export async function POST(request: NextRequest) {
       'freeradius_health', 
       'session_recovery',
       'pppoe_session_sync',
-      'disconnect_sessions',
-      'auto_isolir_users'
+      'disconnect_sessions'
     ]
     if (!radiusEnabled && radiusOnlyJobs.includes(jobType)) {
       console.log(`[CRON API] Skipping job '${jobType}' because RADIUS is disabled.`)
@@ -91,6 +90,7 @@ export async function POST(request: NextRequest) {
         
       case 'pppoe_auto_isolir':
       case 'auto_isolir': // Backward compatibility
+      case 'auto_isolir_users':
         const { autoIsolatePPPoEUsers } = await import('@/server/jobs/pppoe-sync')
         result = await autoIsolatePPPoEUsers()
         return NextResponse.json({
@@ -140,15 +140,6 @@ export async function POST(request: NextRequest) {
         const { NotificationService } = await import('@/server/services/notifications/dispatcher.service')
         result = await NotificationService.runNotificationCheck()
         return NextResponse.json(result)
-        
-      case 'auto_isolir_users':
-        const { autoIsolateExpiredUsers } = await import('@/server/jobs/voucher-sync')
-        result = await autoIsolateExpiredUsers()
-        return NextResponse.json({
-          success: result.success,
-          isolated: result.isolated,
-          error: result.error
-        })
         
       case 'telegram_backup':
         const { autoBackupToTelegram } = await import('@/server/jobs/telegram-cron')

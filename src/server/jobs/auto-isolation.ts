@@ -34,12 +34,15 @@ export async function autoIsolateExpiredUsers() {
     const expiredUsers = await prisma.pppoeUser.findMany({
       where: {
         expiredAt: {
-          lt: new Date(), // expired
+          lte: new Date(), // expired
         },
         status: {
           notIn: ['isolated', 'suspended', 'blocked', 'stop'], // not already isolated
         },
-        autoIsolationEnabled: true, // skip users who opted out of auto-isolation
+        OR: [
+          { autoIsolationEnabled: true },
+          { autoIsolationEnabled: null },
+        ],
       },
       select: {
         id: true,

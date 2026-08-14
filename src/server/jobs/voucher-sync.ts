@@ -1195,11 +1195,14 @@ export async function autoIsolateExpiredUsers(): Promise<{ success: boolean; iso
     // Exclude users with successful auto-renewal (check if they have recent paid invoice)
     const expiredPrepaidUsers = await prisma.pppoeUser.findMany({
       where: {
-        status: 'active',
+        status: { notIn: ['isolated', 'suspended', 'blocked', 'stop'] },
         subscriptionType: 'PREPAID',
-        autoIsolationEnabled: true,
+        OR: [
+          { autoIsolationEnabled: true },
+          { autoIsolationEnabled: null },
+        ],
         expiredAt: {
-          lt: startOfTodayWIB, // expired before start of today (WIB)
+          lte: new Date(), // expired
         },
       },
       include: {
@@ -1231,11 +1234,14 @@ export async function autoIsolateExpiredUsers(): Promise<{ success: boolean; iso
     // Isolate jika expired DAN ada invoice OVERDUE
     const expiredPostpaidUsers = await prisma.pppoeUser.findMany({
       where: {
-        status: 'active',
+        status: { notIn: ['isolated', 'suspended', 'blocked', 'stop'] },
         subscriptionType: 'POSTPAID',
-        autoIsolationEnabled: true,
+        OR: [
+          { autoIsolationEnabled: true },
+          { autoIsolationEnabled: null },
+        ],
         expiredAt: {
-          lt: startOfTodayWIB, // expired before start of today (WIB)
+          lte: new Date(), // expired
         },
       },
       include: {

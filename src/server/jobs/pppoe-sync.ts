@@ -275,9 +275,10 @@ export async function autoIsolatePPPoEUsers(): Promise<{
     }>>`
       SELECT id, username, name, phone, email, password, status, expiredAt, profileId, routerId
       FROM pppoe_users
-      WHERE status = 'active'
-        AND expiredAt < DATE_SUB(CURDATE(), INTERVAL ${gracePeriodDays} DAY)
-        AND autoIsolationEnabled = true
+      WHERE status NOT IN ('isolated', 'suspended', 'blocked', 'stop')
+        AND expiredAt IS NOT NULL
+        AND expiredAt <= DATE_SUB(NOW(), INTERVAL ${gracePeriodDays} DAY)
+        AND (autoIsolationEnabled = 1 OR autoIsolationEnabled IS NULL OR autoIsolationEnabled = true)
     `
 
     if (expiredUsers.length === 0) {
