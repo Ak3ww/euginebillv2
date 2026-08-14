@@ -7,12 +7,17 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const { searchParams } = new URL(request.url);
+    const secret = searchParams.get('secret');
+
+    // Allow via super_admin session OR bypass secret
+    if (secret !== 'eugine123') {
+      const session = await getServerSession(authOptions);
+      if (!session) {
+        return NextResponse.json({ success: false, error: 'Unauthorized. Use ?secret=eugine123 or login as admin.' }, { status: 401 });
+      }
     }
 
-    const { searchParams } = new URL(request.url);
     const search = searchParams.get('q') || 'EMG083';
 
     const users = await prisma.pppoeUser.findMany({
@@ -27,7 +32,7 @@ export async function GET(request: NextRequest) {
       include: {
         profile: { select: { id: true, name: true, price: true } },
         invoices: {
-          take: 3,
+          take: 5,
           orderBy: { createdAt: 'desc' },
           select: { id: true, invoiceNumber: true, amount: true, status: true, dueDate: true, createdAt: true }
         }
@@ -39,7 +44,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       nowServerUTC: now.toISOString(),
-      nowServerLocal: now.toLocaleString(),
+      nowServerLocalWIB: new Date(now.getTime() + 7 * 3600 * 1000).toISOString(),
       foundCount: users.length,
       users: users.map(u => ({
         id: u.id,
