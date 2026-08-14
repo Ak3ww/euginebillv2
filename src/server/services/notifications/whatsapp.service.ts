@@ -356,6 +356,98 @@ export class WhatsAppService {
   }
 
   /**
+   * Send an image/media message to a phone number or group JID.
+   * For Baileys: calls /send-image on the internal wa-service.js
+   * For Fonnte: uses url + caption fields
+   */
+  static async sendImageMessage({ to, imageUrl, caption }: { to: string; imageUrl: string; caption?: string }) {
+    const isPaused = process.env.STOP_WA === '1' || process.env.DISABLE_WA_SENDING === 'true';
+    if (isPaused) return { success: false, error: 'WA sending is paused' };
+
+    const providers = await this.getActiveProviders();
+    if (providers.length === 0) return { success: false, error: 'No active providers' };
+
+    const provider = providers[0];
+
+    try {
+      if (provider.type === 'baileys') {
+        const port = process.env.WA_SERVICE_PORT || 4000;
+        const response = await fetch(`http://127.0.0.1:${port}/send-image`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to, imageUrl, caption: caption || '' }),
+          signal: AbortSignal.timeout(30000),
+        });
+        const result = await response.json();
+        return result.status ? { success: true } : { success: false, error: result.message };
+      }
+
+      if (provider.type === 'fonnte') {
+        const cleanTo = to.includes('@') ? to : this.cleanPhone(to);
+        const response = await fetch(provider.apiUrl, {
+          method: 'POST',
+          headers: { 'Authorization': provider.apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target: cleanTo, url: imageUrl, message: caption || '', countryCode: '62' }),
+        });
+        const result = await response.json();
+        return result.status !== false ? { success: true } : { success: false, error: result.reason };
+      }
+
+      if (provider.type === 'waha') {
+        const response = await fetch(`${provider.apiUrl}/api/sendImage`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chatId: to, file: { url: imageUrl }, caption: caption || '', session: 'default' }),
+        });
+        const result = await response.json();
+        return result.id ? { success: true } : { success: false, error: 'WAHA sendImage failed' };
+      }
+
+      // Generic fallback for other providers: just send the URL as text with caption
+      await this.sendMessage({ phone: to, message: `${caption || ''}\n${imageUrl}` });
+      return { success: true };
+    } catch (error: any) {
+      console.error('[WhatsApp] sendImageMessage error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send text message to a WhatsApp Group ID
+   * For Baileys: calls /send-group on wa-service.js
+   * For others: sendMessage with groupId as phone target
+   */
+  static async sendGroupMessage({ groupId, message }: { groupId: string; message: string }) {
+    const isPaused = process.env.STOP_WA === '1' || process.env.DISABLE_WA_SENDING === 'true';
+    if (isPaused) return { success: false, error: 'WA sending is paused' };
+
+    const providers = await this.getActiveProviders();
+    if (providers.length === 0) return { success: false, error: 'No active providers' };
+
+    const provider = providers[0];
+
+    try {
+      if (provider.type === 'baileys') {
+        const port = process.env.WA_SERVICE_PORT || 4000;
+        const response = await fetch(`http://127.0.0.1:${port}/send-group`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupId, message }),
+          signal: AbortSignal.timeout(30000),
+        });
+        const result = await response.json();
+        return result.status ? { success: true } : { success: false, error: result.message };
+      }
+
+      // For Fonnte / Kirimi / others: use groupId directly as target
+      return await this.sendMessage({ phone: groupId, message });
+    } catch (error: any) {
+      console.error('[WhatsApp] sendGroupMessage error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Send via specific provider based on type
    */
   private static async sendViaProvider(

@@ -3,7 +3,7 @@ import { jwtVerify } from 'jose';
 import { nanoid } from 'nanoid';
 import { prisma } from '@/server/db/client';
 import { TECH_JWT_SECRET } from '@/server/auth/technician-secret';
-import { sendInvoiceReminder } from '@/server/services/notifications/whatsapp-templates.service';
+import { sendInvoiceReminder, sendPSBReportToGroup } from '@/server/services/notifications/whatsapp-templates.service';
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
@@ -174,6 +174,48 @@ export async function POST(
         } catch (notifErr) {
           console.error('Failed to send admin installation completed alert:', notifErr);
         }
+      }
+    }
+
+    // PSB WA Group Report — send after successful completion if issueType is INSTALLATION
+    if (wo.issueType?.toUpperCase().includes('INSTAL') || wo.issueType?.toUpperCase() === 'INSTALLATION') {
+      try {
+        const company = await prisma.company.findFirst({
+          select: { psbWaGroupId: true, baseUrl: true, name: true },
+        });
+
+        if (company?.psbWaGroupId) {
+          // Get technician name from token/session
+          let technicianName = 'Teknisi';
+          try {
+            const token = req.cookies.get('technician-token')?.value;
+            if (token) {
+              const { payload } = await jwtVerify(token, TECH_JWT_SECRET);
+              if (payload.name) technicianName = payload.name as string;
+              else if (payload.username) technicianName = payload.username as string;
+            }
+          } catch { }
+
+          const appBaseUrl = company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://euginemediagroup.com';
+
+          // Fire and forget — don't block the response
+          sendPSBReportToGroup({
+            groupId: company.psbWaGroupId,
+            reportData: {
+              ...((body.reportData as any) || {}),
+              customerLat: body.customerLat,
+              customerLng: body.customerLng,
+            },
+            reportPhotos: body.reportPhotos || {},
+            customerName: wo.customerName,
+            customerPhone: wo.customerPhone,
+            customerAddress: wo.customerAddress,
+            technicianName,
+            appBaseUrl,
+          }).catch(e => console.error('[PSB WA Report] Failed:', e));
+        }
+      } catch (reportErr) {
+        console.error('[PSB WA Report] Setup error:', reportErr);
       }
     }
 

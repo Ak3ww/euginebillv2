@@ -237,6 +237,96 @@ app.post('/restart', async (req, res) => {
   res.json({ success: true, message: 'Session restarted — scan new QR code' });
 });
 
+// Send image/media message (supports personal JID or group JID)
+app.post('/send-image', async (req, res) => {
+  const { to, imageUrl, caption } = req.body;
+
+  if (!to || !imageUrl) {
+    return res.status(400).json({ status: false, message: 'to and imageUrl are required' });
+  }
+
+  if (connectionStatus !== 'connected' || !sock) {
+    return res.status(503).json({
+      status: false,
+      message: `WhatsApp is not connected (status: ${connectionStatus})`,
+    });
+  }
+
+  try {
+    // Determine JID — if it contains '@g.us' or '@s.whatsapp.net', use as-is
+    let jid = to;
+    if (!jid.includes('@')) {
+      // Personal number normalisation
+      let rawDigits = to.replace(/[^0-9]/g, '');
+      if (rawDigits.startsWith('620')) rawDigits = '62' + rawDigits.substring(3);
+      else if (rawDigits.startsWith('0')) rawDigits = '62' + rawDigits.substring(1);
+      else if (rawDigits.startsWith('8')) rawDigits = '62' + rawDigits;
+      else if (!rawDigits.startsWith('62')) rawDigits = '62' + rawDigits;
+      jid = rawDigits + '@s.whatsapp.net';
+    }
+
+    await sock.sendMessage(jid, {
+      image: { url: imageUrl },
+      caption: caption || '',
+    });
+
+    res.json({ status: true, message: 'Image sent successfully' });
+  } catch (error) {
+    console.error('[WA Service] Send image error:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to send image: ' + (error.message || 'Unknown error'),
+    });
+  }
+});
+
+// Send text message to a group JID directly (no onWhatsApp check for groups)
+app.post('/send-group', async (req, res) => {
+  const { groupId, message } = req.body;
+
+  if (!groupId || !message) {
+    return res.status(400).json({ status: false, message: 'groupId and message are required' });
+  }
+
+  if (connectionStatus !== 'connected' || !sock) {
+    return res.status(503).json({
+      status: false,
+      message: `WhatsApp is not connected (status: ${connectionStatus})`,
+    });
+  }
+
+  try {
+    // Group JID must end with @g.us
+    const jid = groupId.includes('@') ? groupId : groupId + '@g.us';
+    await sock.sendMessage(jid, { text: message });
+    res.json({ status: true, message: 'Group message sent successfully' });
+  } catch (error) {
+    console.error('[WA Service] Send group error:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to send group message: ' + (error.message || 'Unknown error'),
+    });
+  }
+});
+
+// List joined WhatsApp groups (for admin to find group IDs)
+app.get('/groups', async (_req, res) => {
+  if (connectionStatus !== 'connected' || !sock) {
+    return res.status(503).json({ status: false, message: 'Not connected' });
+  }
+  try {
+    const allChats = await sock.groupFetchAllParticipating();
+    const groups = Object.entries(allChats).map(([id, g]) => ({
+      id,
+      name: g.subject || 'Unknown Group',
+      participants: g.participants?.length || 0,
+    }));
+    res.json({ status: true, groups });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+});
+
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`[WA Service] Listening on http://127.0.0.1:${PORT}`);
 });

@@ -91,6 +91,7 @@ export async function POST(request: Request) {
           fixedBillingDate: data.fixedBillingDate ? parseInt(data.fixedBillingDate) : 6,
           shiftBillingDateIfLate: data.shiftBillingDateIfLate ?? false,
           isolateProfileName: data.isolateProfileName ?? null,
+          psbWaGroupId: data.psbWaGroupId !== undefined ? (data.psbWaGroupId || null) : undefined,
         },
       });
     } else {
@@ -119,6 +120,7 @@ export async function POST(request: Request) {
           fixedBillingDate: data.fixedBillingDate ? parseInt(data.fixedBillingDate) : 6,
           shiftBillingDateIfLate: data.shiftBillingDateIfLate ?? false,
           isolateProfileName: data.isolateProfileName ?? null,
+          psbWaGroupId: data.psbWaGroupId || null,
         },
       });
     }

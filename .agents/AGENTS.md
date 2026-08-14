@@ -11,3 +11,19 @@ For ALL customer-facing UI development (customer portal, payment pages, public l
 1. **No Fake Jargon**: Never use fake terminal/hacker text. Use normal, professional Indonesian text.
 2. **Fresh Hallmark Colors (Oceanic Blue)**: `--color-primary: #002c60`, `--color-accent: #1b437c`.
 3. **Dark Mode Disabled**: Dark mode is disabled for the customer portal (light background).
+
+## VPS Deployment & PM2 Standard
+1. **VPS Project Directory**: `/var/www/EugineBill-radius`
+2. **PM2 Process Names**:
+   - `EugineBill-radius` (Next.js Web App)
+   - `EugineBill-wa` (WhatsApp Baileys Service)
+   - `EugineBill-cron` (Cron Jobs)
+3. **Full VPS Update Command**:
+   ```bash
+   cd /var/www/EugineBill-radius
+   git pull
+   npx prisma db push
+   npm run build
+   pm2 restart all
+   ```
+

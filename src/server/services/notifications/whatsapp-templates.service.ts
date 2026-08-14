@@ -803,6 +803,109 @@ export async function sendVoucherPurchaseSuccess(data: {
 }
 
 /**
+ * Send PSB (Pasang Baru) installation report to WhatsApp group
+ * Sends formatted text report + all 6 photos to the configured group
+ */
+export async function sendPSBReportToGroup({
+  groupId,
+  reportData,
+  reportPhotos,
+  customerName,
+  customerPhone,
+  customerAddress,
+  technicianName,
+  appBaseUrl,
+}: {
+  groupId: string;
+  reportData: any;
+  reportPhotos: any;
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  technicianName: string;
+  appBaseUrl: string;
+}) {
+  // Format Indonesian date
+  const now = new Date();
+  const HARI = ['MINGGU','SENIN','SELASA','RABU','KAMIS','JUMAT','SABTU'][now.getDay()];
+  const BULAN = ['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'][now.getMonth()];
+  const tanggal = `${HARI}, ${now.getDate()} ${BULAN} ${now.getFullYear()}`;
+
+  const portFormatted = reportData?.port
+    ? String(reportData.port).replace('Port ', '').padStart(2, '0') + '/' + String(reportData?.portCount || 16).padStart(2, '0')
+    : '-';
+
+  const ledStatus = (val: boolean | string | undefined) => (val === true || val === 'true' || val === 'ON') ? '✅ ON' : '❌ OFF';
+
+  const message = [
+    `📋 *Report Daily IB*`,
+    `📅 ${tanggal}`,
+    ``,
+    `*NAMA*    : ${customerName}`,
+    `*ALAMAT*  : ${customerAddress}`,
+    `*NO HP*   : ${customerPhone}`,
+    `*ODP*     : ${reportData?.odpName || '-'}`,
+    `*PORT*    : ${portFormatted}`,
+    `*TIKORTIS CST* : ${reportData?.customerLat || '-'}, ${reportData?.customerLng || '-'}`,
+    `*TIKORTIS ODP* : ${reportData?.odpLat || '-'}, ${reportData?.odpLng || '-'}`,
+    ``,
+    `*DW ROLL* : ${reportData?.dwRoll || '-'} M`,
+    `*PAKU KLEM* : ${reportData?.pakuKlem || 'Secukupnya'}`,
+    `*SOLASI*  : ${reportData?.solasi || 'Secukupnya'}`,
+    `*RX SIGNAL* : ${reportData?.rxSignal || '-'} dBm`,
+    `*TX SIGNAL* : ${reportData?.txSignal || '-'} dBm`,
+    ``,
+    `*TYPE*    : ${reportData?.modemType || '-'}`,
+    `*SN*      : ${reportData?.sn || '-'}`,
+    `*MAC*     : ${reportData?.mac || '-'}`,
+    ``,
+    `*Indikator Power* : ${ledStatus(reportData?.powerIndicator)}`,
+    `*Indikator Link*  : ${ledStatus(reportData?.linkIndicator)}`,
+    `*Indikator Auth*  : ${ledStatus(reportData?.authIndicator)}`,
+    `*Indikator Wifi 2.4* : ${ledStatus(reportData?.wifi24Indicator)}`,
+    `*Indikator Wifi 5*   : ${ledStatus(reportData?.wifi5Indicator)}`,
+    `*Indikator Internet* : ${ledStatus(reportData?.internetIndicator)}`,
+    ``,
+    `👷 *Teknisi* : ${technicianName}`,
+    `✅ *DONE*`,
+  ].join('\n');
+
+  // 1. Send text report
+  await WhatsAppService.sendGroupMessage({ groupId, message }).catch(e =>
+    console.error('[PSB Report] Failed to send text report:', e)
+  );
+
+  // 2. Send photos one by one with a small delay
+  const photoOrder = [
+    { key: 'Foto Box ODP', caption: '📦 Foto Box ODP' },
+    { key: 'Foto Port ODP', caption: '🔌 Foto Port ODP' },
+    { key: 'Foto Rumah', caption: '🏠 Foto Depan Rumah' },
+    { key: 'Foto ONT Depan', caption: '📱 Foto ONT/Modem Depan' },
+    { key: 'Foto ONT Belakang', caption: '📱 Foto ONT/Modem Belakang' },
+    { key: 'Foto Speedtest', caption: '📊 Foto Speedtest' },
+    // Legacy keys fallback
+    { key: 'Foto ONT Menyala', caption: '📱 Foto ONT Menyala' },
+    { key: 'Foto Bukti 1', caption: '📸 Foto Bukti 1' },
+    { key: 'Foto Bukti 2', caption: '📸 Foto Bukti 2' },
+  ];
+
+  const sentKeys = new Set<string>();
+  for (const { key, caption } of photoOrder) {
+    if (reportPhotos?.[key] && !sentKeys.has(key)) {
+      sentKeys.add(key);
+      const imageUrl = reportPhotos[key].startsWith('http')
+        ? reportPhotos[key]
+        : `${appBaseUrl}${reportPhotos[key]}`;
+      await WhatsAppService.sendImageMessage({ to: groupId, imageUrl, caption }).catch(e =>
+        console.error(`[PSB Report] Failed to send photo ${key}:`, e)
+      );
+      // Small delay between photos to avoid rate limiting
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+}
+
+/**
  * Send auto-renewal success notification
  * Sent when prepaid user is auto-renewed from balance
  */

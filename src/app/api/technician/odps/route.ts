@@ -4,6 +4,7 @@ import { prisma } from '@/server/db/client';
 export const dynamic = 'force-dynamic';
 
 // GET - Fetch ODPs for technician autocomplete and GPS matching
+// Includes usedPorts: array of port numbers currently occupied by active customers
 export async function GET() {
   try {
     const odps = await prisma.networkODP.findMany({
@@ -14,16 +15,41 @@ export async function GET() {
         longitude: true,
         portCount: true,
         status: true,
+        customers: {
+          where: {
+            customer: {
+              status: {
+                // Ports are FREE again for stopped/isolated/suspended customers
+                notIn: ['stop', 'isolated', 'suspended', 'blocked', 'cabut'],
+              },
+            },
+          },
+          select: {
+            portNumber: true,
+            customer: {
+              select: { name: true, customerId: true },
+            },
+          },
+        },
       },
-      orderBy: {
-        name: 'asc',
-      },
+      orderBy: { name: 'asc' },
     });
 
-    return NextResponse.json({
-      success: true,
-      odps,
-    });
+    const result = odps.map((odp) => ({
+      id: odp.id,
+      name: odp.name,
+      latitude: odp.latitude,
+      longitude: odp.longitude,
+      portCount: odp.portCount,
+      status: odp.status,
+      usedPorts: odp.customers.map((c) => ({
+        portNumber: c.portNumber,
+        customerName: c.customer?.name || 'Pelanggan',
+        customerId: c.customer?.customerId || '',
+      })),
+    }));
+
+    return NextResponse.json({ success: true, odps: result });
   } catch (error: any) {
     console.error('Fetch technician ODPs error:', error);
     return NextResponse.json(

@@ -138,6 +138,7 @@ model company {
   isolateProfileName           String?  // Nama profile MikroTik untuk isolasi jika radiusEnabled = false
   referralRewardBoth           Boolean? @default(false) // Also reward the referred customer
   referralReferredAmount       Int?     @default(0) // Reward amount for referred customer
+  psbWaGroupId                 String?  @db.VarChar(191) // WhatsApp Group ID for PSB daily reports
 
   @@map("companies")
 }
@@ -1994,6 +1995,8 @@ model workOrder {
   isPrepared         Boolean    @default(false)
   reportData         Json?
   reportPhotos       Json?
+  wizardStep        Int      @default(1)
+  wizardDraftData   Json?
 
   @@index([technicianId])
   @@index([status])
