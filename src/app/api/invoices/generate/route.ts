@@ -78,13 +78,16 @@ export async function POST(request: NextRequest) {
     const monthStart = new Date(year, month - 1, 1, 0, 0, 0, 0);
     const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
 
-    // Batch fetch existing invoices for this month (MONTHLY/RENEWAL type)
+    // Batch fetch existing invoices for this month (ANY active/paid invoice: MONTHLY, RENEWAL, INSTALLATION)
     const existingInvoices = await prisma.invoice.findMany({
       where: {
         userId: { in: users.map(u => u.id) },
-        invoiceType: { in: ['MONTHLY', 'RENEWAL'] },
-        dueDate: { gte: monthStart, lte: monthEnd },
         status: { not: 'CANCELLED' },
+        OR: [
+          { dueDate: { gte: monthStart, lte: monthEnd } },
+          { createdAt: { gte: monthStart, lte: monthEnd } },
+          { paidAt: { gte: monthStart, lte: monthEnd } },
+        ],
       },
       select: { userId: true },
     });
@@ -107,27 +110,45 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Determine due date based on subscription type
+        // Determine if user is a new PSB installation customer
+        const paidInvoiceCount = await prisma.invoice.count({
+          where: { userId: user.id, status: 'PAID' },
+        });
+        const isPsbUser = user.status === 'PENDING_INSTALLATION' || paidInvoiceCount === 0;
+
+        // Determine due date & invoice type
         const subscriptionType = (user as any).subscriptionType || 'POSTPAID';
         let dueDate: Date;
         let invoiceType: string;
 
-        if (subscriptionType === 'PREPAID') {
+        if (isPsbUser) {
+          dueDate = getDueDatePostpaid((user as any).billingDay ?? null);
+          invoiceType = 'INSTALLATION';
+        } else if (subscriptionType === 'PREPAID') {
           if (!user.expiredAt) {
-            // PREPAID without expiredAt — skip, cannot determine due date
             skipped++;
             continue;
           }
           dueDate = user.expiredAt;
           invoiceType = 'RENEWAL';
         } else {
-          // POSTPAID: due date = billingDay of targetMonth
           dueDate = getDueDatePostpaid((user as any).billingDay ?? null);
           invoiceType = 'MONTHLY';
         }
 
-        // Calculate amount (apply PPN if enabled)
-        const baseAmount = user.profile.price;
+        // Calculate amount (auto-prorate for PSB if registered mid-month)
+        let baseAmount = user.profile.price;
+        if (isPsbUser) {
+          const registeredDate = user.createdAt || new Date();
+          const regDay = registeredDate.getDate();
+          const targetBillingDay = (user as any).billingDay || 1;
+          const daysInMonth = new Date(year, month, 0).getDate();
+          const daysRemaining = daysInMonth - regDay + 1;
+
+          if (regDay !== targetBillingDay && daysRemaining > 0 && daysRemaining < 30) {
+            baseAmount = Math.round((user.profile.price / 30) * daysRemaining);
+          }
+        }
         let amount = baseAmount;
         let taxRate: number | null = null;
         if (user.profile.ppnActive && user.profile.ppnRate > 0) {
