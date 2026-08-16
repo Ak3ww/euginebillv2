@@ -425,7 +425,7 @@ export default function PaymentPage() {
         <div className="p-6 sm:p-8 space-y-6">
 
           {/* Official QRIS MP-EUGINE MEDIA Card (HIDDEN PER USER REQUEST) */}
-          {false && (invoice.invoiceType === 'INSTALLATION' || (invoice as any).type === 'INSTALLATION') && (
+          {false && (invoice?.invoiceType === 'INSTALLATION' || (invoice as any)?.type === 'INSTALLATION') && (
             <div className="border border-[var(--color-rule)] rounded-[var(--radius-lg)] overflow-hidden bg-[var(--color-paper-2)] shadow-sm p-6 space-y-5">
               {/* Hidden */}
             </div>
