@@ -1411,7 +1411,8 @@ export async function handleInvoicePayment(
           const companySettings = await prisma.company.findFirst();
           const shiftBillingDate = companySettings?.shiftBillingDateIfLate ?? false;
 
-          let baseDate = user.expiredAt ? new Date(user.expiredAt) : now;
+          const isInstallation = invoice.invoiceType === 'INSTALLATION' || (invoice as any).type === 'INSTALLATION' || user.status === 'PENDING_INSTALLATION';
+          let baseDate = (user.expiredAt && !isInstallation && user.status === 'active') ? new Date(user.expiredAt) : now;
           if (shiftBillingDate && baseDate < now) {
             baseDate = now; // Expired already → start fresh from payment date
           }

@@ -494,7 +494,8 @@ export async function PUT(request: NextRequest) {
         // Base: use current expiredAt if still in the future, otherwise use now (payment date)
         // IF shiftBillingDateIfLate is false, we always base it on expiredAt even if it's in the past (to keep fixed billing cycle).
         const now = new Date();
-        let baseDate = user.expiredAt ? new Date(user.expiredAt) : now;
+        const isInstallation = existingInvoice.invoiceType === 'INSTALLATION' || (existingInvoice as any).type === 'INSTALLATION' || user.status === 'PENDING_INSTALLATION';
+        let baseDate = (user.expiredAt && !isInstallation && user.status === 'active') ? new Date(user.expiredAt) : now;
         
         const shiftBillingDate = company?.shiftBillingDateIfLate ?? false;
         

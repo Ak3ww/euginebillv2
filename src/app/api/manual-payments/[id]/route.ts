@@ -144,7 +144,8 @@ export async function PATCH(
       const company = await prisma.company.findFirst();
 
       // Compute expiry before transaction (reads)
-      const currentExpiry = manualPayment.user.expiredAt || new Date();
+      const isInstallation = manualPayment.invoice?.invoiceType === 'INSTALLATION' || (manualPayment.invoice as any)?.type === 'INSTALLATION' || manualPayment.user.status === 'PENDING_INSTALLATION';
+      const currentExpiry = (manualPayment.user.expiredAt && !isInstallation && manualPayment.user.status === 'active') ? new Date(manualPayment.user.expiredAt) : new Date();
       const validityValue = manualPayment.user.profile.validityValue;
       const validityUnit = manualPayment.user.profile.validityUnit;
 
