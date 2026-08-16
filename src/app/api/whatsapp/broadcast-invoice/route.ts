@@ -16,7 +16,10 @@ interface BroadcastInvoiceRequest {
 function renderTemplate(template: string, variables: Record<string, string>): string {
   let rendered = template;
   for (const [key, value] of Object.entries(variables)) {
-    rendered = rendered.replace(new RegExp(`{{${key}}}`, 'g'), value ?? '');
+    if (!key) continue;
+    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    rendered = rendered.replace(new RegExp(`\\{\\{${escapedKey}\\}\\}`, 'gi'), value ?? '');
+    rendered = rendered.replace(new RegExp(`\\{${escapedKey}\\}`, 'gi'), value ?? '');
   }
   return rendered;
 }

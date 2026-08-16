@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
@@ -15,24 +15,54 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const status = searchParams.get('status') || 'all';
     const search = searchParams.get('search') || '';
+    const period = searchParams.get('period') || '24h'; // 24h, 7d, 30d, all, custom
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
     const skip = (page - 1) * limit;
 
-    // Build where clause
-    const where: any = {};
+    // Date range filter clause
+    let dateFilter: { gte?: Date; lte?: Date } | undefined = undefined;
+    const now = new Date();
 
+    if (period === '24h') {
+      const d = new Date(now);
+      d.setHours(d.getHours() - 24);
+      dateFilter = { gte: d };
+    } else if (period === '7d') {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 7);
+      dateFilter = { gte: d };
+    } else if (period === '30d') {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 30);
+      dateFilter = { gte: d };
+    } else if (period === 'custom' && (startDate || endDate)) {
+      dateFilter = {};
+      if (startDate) dateFilter.gte = new Date(startDate);
+      if (endDate) {
+        const endD = new Date(endDate);
+        endD.setHours(23, 59, 59, 999);
+        dateFilter.lte = endD;
+      }
+    }
+
+    // Build where clause for table listing
+    const where: any = {};
     if (status !== 'all') {
       where.status = status;
     }
-
     if (search) {
       where.OR = [
         { phone: { contains: search } },
         { message: { contains: search } },
       ];
     }
+    if (dateFilter) {
+      where.sentAt = dateFilter;
+    }
 
-    // Get total count
+    // Get total count for paginated list
     const total = await prisma.whatsapp_history.count({ where });
 
     // Get history records
@@ -43,31 +73,39 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    // Get provider stats (count per provider from last 24 hours)
-    const last24Hours = new Date();
-    last24Hours.setHours(last24Hours.getHours() - 24);
+    // Compute stats FOR THE SELECTED PERIOD (ignoring status filter so stats cards show breakdown for the whole period)
+    const statsWhere: any = {};
+    if (dateFilter) statsWhere.sentAt = dateFilter;
+    if (search) {
+      statsWhere.OR = [
+        { phone: { contains: search } },
+        { message: { contains: search } },
+      ];
+    }
 
-    const recentStats = await prisma.whatsapp_history.groupBy({
+    const periodStats = await prisma.whatsapp_history.groupBy({
       by: ['status'],
-      where: {
-        sentAt: { gte: last24Hours },
-      },
+      where: statsWhere,
       _count: true,
     });
 
-    // Get all-time stats for consistency
-    const allTimeStats = await prisma.whatsapp_history.groupBy({
-      by: ['status'],
-      _count: true,
+    const totalInPeriod = periodStats.reduce((sum, s) => sum + s._count, 0);
+    const sentInPeriod = periodStats.find(s => s.status === 'sent')?._count || 0;
+    const failedInPeriod = periodStats.find(s => s.status === 'failed')?._count || 0;
+
+    // Also get last 24h count for quick reference
+    const last24hDate = new Date();
+    last24hDate.setHours(last24hDate.getHours() - 24);
+    const last24hTotal = await prisma.whatsapp_history.count({
+      where: { sentAt: { gte: last24hDate } },
     });
-    
-    const totalAllTime = await prisma.whatsapp_history.count(); // Total keseluruhan tanpa filter
 
     const stats = {
-      total: totalAllTime,
-      sent: allTimeStats.find(s => s.status === 'sent')?._count || 0,
-      failed: allTimeStats.find(s => s.status === 'failed')?._count || 0,
-      last24Hours: recentStats.reduce((sum, s) => sum + s._count, 0),
+      total: totalInPeriod,
+      sent: sentInPeriod,
+      failed: failedInPeriod,
+      last24Hours: last24hTotal,
+      period,
     };
 
     return NextResponse.json({

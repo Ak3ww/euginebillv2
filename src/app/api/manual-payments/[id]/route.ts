@@ -400,7 +400,8 @@ export async function PATCH(
           try {
             let emailBody = emailTemplate.htmlBody;
             for (const [key, value] of Object.entries(variables)) {
-              emailBody = emailBody.replace(new RegExp(`{{${key}}}`, 'g'), String(value));
+              const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              emailBody = emailBody.replace(new RegExp(`\\{\\{${escapedKey}\\}\\}`, 'gi'), String(value));
             }
             
             await EmailService.send({
@@ -512,7 +513,8 @@ export async function PATCH(
           try {
             let emailBody = emailTemplate.htmlBody;
             for (const [key, value] of Object.entries(variables)) {
-              emailBody = emailBody.replace(new RegExp(`{{${key}}}`, 'g'), String(value));
+              const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              emailBody = emailBody.replace(new RegExp(`\\{\\{${escapedKey}\\}\\}`, 'gi'), String(value));
             }
             
             await EmailService.send({

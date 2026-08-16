@@ -49,7 +49,11 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
   const rawQrCode = variables.qrCode || variables.qrCodeImage || paymentLink;
   const qrCode = ensureHttpsUrl(rawQrCode);
 
-  const customerId = variables.customerId && variables.customerId !== '-' ? variables.customerId : (variables.customerUsername || variables.username || '-');
+  const customerIdRaw = variables.customerId;
+  const customerId = (customerIdRaw && customerIdRaw !== '-' && customerIdRaw !== 'undefined')
+    ? customerIdRaw
+    : (variables.customerUsername || variables.username || '-');
+
   const profileName = variables.profileName && variables.profileName !== '-' ? variables.profileName : (variables.packageName || '-');
   
   const rawDate = variables.dueDate || variables.expiredAt || variables.expiredDate || variables.expiredat || variables.tgl_expired || '-';
@@ -74,6 +78,7 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
     expiredAt: formattedDate,
     expiredat: formattedDate,
     expired_at: formattedDate,
+    expired_date: formattedDate,
     expiredDate: formattedDate,
     tgl_expired: formattedDate,
     tanggal_expired: formattedDate,
@@ -91,7 +96,10 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
     baseUrl,
     link_download_aplikasi: downloadAppUrl,
     link_download_apk: downloadAppUrl,
+    link_download_app: downloadAppUrl,
+    download_app_link: downloadAppUrl,
     appDownloadLink: downloadAppUrl,
+    appDownloadUrl: downloadAppUrl,
     paymentMethod: variables.paymentMethod || variables.metodePembayaran || '-',
     metodePembayaran: variables.metodePembayaran || variables.paymentMethod || '-',
     companyPhone: variables.companyPhone || '-',
@@ -103,11 +111,13 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
   const merged = { ...defaultVars, ...variables };
 
   for (const [key, value] of Object.entries(merged)) {
+    if (!key) continue;
     const valStr = String(value ?? '');
-    // Replace {{key}}
-    rendered = rendered.replace(new RegExp(`{{${key}}}`, 'gi'), valStr);
-    // Replace {key}
-    rendered = rendered.replace(new RegExp(`{${key}}`, 'gi'), valStr);
+    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Replace {{key}} case-insensitively with escaped curly braces
+    rendered = rendered.replace(new RegExp(`\\{\\{${escapedKey}\\}\\}`, 'gi'), valStr);
+    // Replace {key} case-insensitively with escaped curly braces
+    rendered = rendered.replace(new RegExp(`\\{${escapedKey}\\}`, 'gi'), valStr);
   }
 
   // Fallback: replace bare words like "expiredat" or "expired_at" if written without brackets in custom templates

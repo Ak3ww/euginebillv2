@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/components/cyberpunk/CyberToast';
-import { formatDistanceToNow } from 'date-fns';
-import { id as localeId } from 'date-fns/locale';
 import { formatWIB } from '@/lib/timezone';
+import { cn } from '@/lib/utils';
+import { Calendar, Filter, RefreshCcw, Search, CheckCircle2, XCircle, Activity, MessageSquare } from 'lucide-react';
 
 interface HistoryItem {
   id: string;
@@ -24,6 +24,7 @@ interface Stats {
   sent: number;
   failed: number;
   last24Hours: number;
+  period: string;
 }
 
 const getProviderColor = (type?: string) => {
@@ -32,7 +33,7 @@ const getProviderColor = (type?: string) => {
     case 'waha': return 'bg-success/20 text-success dark:bg-green-900/30 dark:text-success';
     case 'fonnte': return 'bg-accent/20 text-accent dark:bg-purple-900/30 dark:text-purple-400';
     case 'wablas': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
-    default: return 'bg-gray-100 text-foreground dark:bg-inputdark:text-muted-foreground';
+    default: return 'bg-gray-100 text-foreground dark:bg-input dark:text-muted-foreground';
   }
 };
 
@@ -40,18 +41,19 @@ export default function WhatsAppHistoryPage() {
   const { t } = useTranslation();
   const { addToast } = useToast();
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [stats, setStats] = useState<Stats>({ total: 0, sent: 0, failed: 0, last24Hours: 0 });
+  const [stats, setStats] = useState<Stats>({ total: 0, sent: 0, failed: 0, last24Hours: 0, period: '24h' });
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [periodFilter, setPeriodFilter] = useState<'24h' | '7d' | '30d' | 'all'>('24h');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingItem, setViewingItem] = useState<HistoryItem | null>(null);
 
   useEffect(() => {
     fetchHistory();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter]);
+  }, [page, statusFilter, periodFilter]);
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -60,6 +62,7 @@ export default function WhatsAppHistoryPage() {
         page: page.toString(),
         limit: '20',
         status: statusFilter,
+        period: periodFilter,
         search: searchQuery,
       });
 
@@ -86,42 +89,27 @@ export default function WhatsAppHistoryPage() {
     fetchHistory();
   };
 
-  const showDetail = (item: HistoryItem) => {
-    setViewingItem(item);
-  };
-
-  if (loading && history.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted dark:bg-gray-950">
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-muted-foreground dark:text-muted-foreground">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
   function WaDetailModal() {
     if (!viewingItem) return null;
     let responseData;
     try { responseData = JSON.parse(viewingItem.response); } catch { responseData = viewingItem.response; }
     return createPortal(
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setViewingItem(null)}>
-        <div className="bg-card dark:bg-[#1e1b2e] border border-border dark:border-[#bc13fe]/30 rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between p-5 border-b border-[#bc13fe]/20">
-            <h2 className="text-lg font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc]">{t('whatsapp.messageDetail')}</h2>
-            <button onClick={() => setViewingItem(null)} className="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none">&times;</button>
+        <div className="bg-card border border-border rounded-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between p-5 border-b border-border">
+            <h2 className="text-base font-bold text-foreground">{t('whatsapp.messageDetail')}</h2>
+            <button onClick={() => setViewingItem(null)} className="text-muted-foreground hover:text-foreground text-xl leading-none">&times;</button>
           </div>
-          <div className="p-5 overflow-y-auto flex-1 space-y-3 text-sm">
-            <div className="flex gap-2"><span className="font-semibold text-gray-400 min-w-[80px]">{t('whatsapp.numberLabel')}:</span><span className="text-gray-200">{viewingItem.phone}</span></div>
-            <div className="flex gap-2"><span className="font-semibold text-gray-400 min-w-[80px]">{t('whatsapp.statusLabel')}:</span><span className={viewingItem.status === 'sent' ? 'text-green-400' : 'text-red-400'}>{viewingItem.status === 'sent' ? `✅ ${t('whatsapp.sentStatus')}` : `❌ ${t('whatsapp.failedStatus')}`}</span></div>
-            {viewingItem.providerName && <div className="flex gap-2"><span className="font-semibold text-gray-400 min-w-[80px]">{t('whatsapp.providerLabel')}:</span><span className="text-gray-200">{viewingItem.providerName} <span className="text-purple-400">({viewingItem.providerType?.toUpperCase()})</span></span></div>}
-            <div className="flex gap-2"><span className="font-semibold text-gray-400 min-w-[80px]">{t('whatsapp.timeLabel')}:</span><span className="text-gray-200">{formatWIB(viewingItem.sentAt, 'dd/MM/yyyy HH:mm:ss')}</span></div>
-            <div className="mt-4"><div className="font-semibold text-gray-400 mb-2">{t('whatsapp.messageLabel')}:</div><div className="whitespace-pre-wrap bg-gray-800 border border-gray-700 p-3 rounded text-xs max-h-32 overflow-auto text-gray-200">{viewingItem.message}</div></div>
-            <div className="mt-4"><div className="font-semibold text-gray-400 mb-2">{t('whatsapp.responseLabel')}:</div><pre className="text-xs bg-gray-800 border border-gray-700 p-3 rounded max-h-40 overflow-auto text-gray-300 font-mono">{JSON.stringify(responseData, null, 2)}</pre></div>
+          <div className="p-5 overflow-y-auto flex-1 space-y-3 text-xs">
+            <div className="flex gap-2"><span className="font-semibold text-muted-foreground min-w-[90px]">{t('whatsapp.numberLabel')}:</span><span className="text-foreground font-mono font-bold">{viewingItem.phone}</span></div>
+            <div className="flex gap-2"><span className="font-semibold text-muted-foreground min-w-[90px]">{t('whatsapp.statusLabel')}:</span><span className={viewingItem.status === 'sent' ? 'text-emerald-500 font-bold' : 'text-rose-500 font-bold'}>{viewingItem.status === 'sent' ? `✅ ${t('whatsapp.sentStatus')}` : `❌ ${t('whatsapp.failedStatus')}`}</span></div>
+            {viewingItem.providerName && <div className="flex gap-2"><span className="font-semibold text-muted-foreground min-w-[90px]">{t('whatsapp.providerLabel')}:</span><span className="text-foreground">{viewingItem.providerName} <span className="text-primary font-mono">({viewingItem.providerType?.toUpperCase()})</span></span></div>}
+            <div className="flex gap-2"><span className="font-semibold text-muted-foreground min-w-[90px]">{t('whatsapp.timeLabel')}:</span><span className="text-foreground font-mono">{formatWIB(viewingItem.sentAt, 'dd/MM/yyyy HH:mm:ss')}</span></div>
+            <div className="mt-4"><div className="font-semibold text-muted-foreground mb-1">{t('whatsapp.messageLabel')}:</div><div className="whitespace-pre-wrap bg-muted/50 border border-border p-3 rounded-lg text-xs max-h-36 overflow-auto text-foreground font-mono">{viewingItem.message}</div></div>
+            <div className="mt-4"><div className="font-semibold text-muted-foreground mb-1">{t('whatsapp.responseLabel')}:</div><pre className="text-[11px] bg-muted/50 border border-border p-3 rounded-lg max-h-40 overflow-auto text-foreground font-mono">{JSON.stringify(responseData, null, 2)}</pre></div>
           </div>
-          <div className="p-4 border-t border-[#bc13fe]/20 flex justify-end">
-            <button onClick={() => setViewingItem(null)} className="px-6 py-2 text-sm font-bold text-white bg-brand-500 dark:text-[#1a0f35] dark:bg-[#00f7ff] rounded-lg dark:shadow-[0_0_20px_rgba(0,247,255,0.4)] hover:opacity-90 transition-all">{t('common.close')}</button>
+          <div className="p-4 border-t border-border flex justify-end">
+            <button onClick={() => setViewingItem(null)} className="px-5 py-2 text-xs font-bold text-primary-foreground bg-primary rounded-lg hover:opacity-90 transition-all">{t('common.close')}</button>
           </div>
         </div>
       </div>,
@@ -129,307 +117,200 @@ export default function WhatsAppHistoryPage() {
     );
   }
 
+  const periodLabel = periodFilter === '24h' ? '24 Jam' : periodFilter === '7d' ? '7 Hari' : periodFilter === '30d' ? '30 Hari' : 'Semua Waktu';
+
   return (
     <>
-    <WaDetailModal />
-    <div className="bg-background relative">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#bc13fe]/20 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#00f7ff]/20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-[#ff44cc]/20 rounded-full blur-3xl"></div>
-        <div className="hidden dark:block absolute inset-0 bg-[linear-gradient(rgba(188,19,254,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(188,19,254,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
-      </div>
-      <div className="relative z-10 space-y-6">
-        <div className="max-w-7xl mx-auto space-y-3">
+      <WaDetailModal />
+      <div className="bg-background min-h-screen p-4 md:p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc] dark:drop-shadow-[0_0_30px_rgba(0,247,255,0.5)] flex items-center gap-2">
-              <svg className="w-6 h-6 text-[#00f7ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+              <MessageSquare className="w-6 h-6 text-primary" />
               {t('whatsapp.historyTitle')}
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('whatsapp.historySubtitle')}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('whatsapp.historySubtitle')}</p>
           </div>
+          <button onClick={fetchHistory} disabled={loading} className="px-3 py-1.5 text-xs bg-card border border-border hover:bg-muted rounded-xl flex items-center gap-1.5 font-bold transition-all self-start sm:self-auto">
+            <RefreshCcw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+            {t('common.refresh')}
+          </button>
+        </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="bg-card rounded-lg border border-border p-2">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-primary/20 dark:bg-blue-900/30 rounded">
-                  <svg className="w-3.5 h-3.5 text-primary dark:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-foreground">{stats.total}</p>
-                  <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('whatsapp.totalMessages')}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-card rounded-lg border border-border p-2">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-success/20 dark:bg-green-900/30 rounded">
-                  <svg className="w-3.5 h-3.5 text-success dark:text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-success">{stats.sent}</p>
-                  <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('whatsapp.sentToday')}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-card rounded-lg border border-border p-2">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-destructive/20 dark:bg-red-900/30 rounded">
-                  <svg className="w-3.5 h-3.5 text-destructive dark:text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-destructive">{stats.failed}</p>
-                  <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('whatsapp.failedToday')}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-card rounded-lg border border-border p-2">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-accent/20 dark:bg-purple-900/30 rounded">
-                  <svg className="w-3.5 h-3.5 text-accent dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-accent">{stats.last24Hours}</p>
-                  <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('whatsapp.activityToday')}</p>
-                </div>
-              </div>
-            </div>
+        {/* Date Filter Pills */}
+        <div className="flex items-center gap-2 bg-card p-2 rounded-xl border border-border overflow-x-auto">
+          <span className="text-xs font-bold text-muted-foreground flex items-center gap-1 shrink-0 px-1">
+            <Calendar className="w-3.5 h-3.5 text-primary" /> Periode Log:
+          </span>
+          {[
+            { id: '24h', label: '24 Jam Terakhir' },
+            { id: '7d', label: '7 Hari Terakhir' },
+            { id: '30d', label: '30 Hari Terakhir' },
+            { id: 'all', label: 'Semua Waktu' },
+          ].map(p => (
+            <button
+              key={p.id}
+              onClick={() => { setPeriodFilter(p.id as any); setPage(1); }}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shrink-0',
+                periodFilter === p.id
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Dynamic Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-card rounded-xl border border-border p-3 space-y-1">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground">Total Pesan ({periodLabel})</span>
+            <div className="text-2xl font-bold text-foreground">{stats.total}</div>
           </div>
+          <div className="bg-card rounded-xl border border-border p-3 space-y-1">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Terkirim ({periodLabel})</span>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.sent}</div>
+          </div>
+          <div className="bg-card rounded-xl border border-border p-3 space-y-1">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-rose-500">Gagal ({periodLabel})</span>
+            <div className="text-2xl font-bold text-rose-500">{stats.failed}</div>
+          </div>
+          <div className="bg-card rounded-xl border border-border p-3 space-y-1">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-primary">Aktivitas (24j)</span>
+            <div className="text-2xl font-bold text-primary">{stats.last24Hours}</div>
+          </div>
+        </div>
 
-          {/* Filters */}
-          <div className="bg-card rounded-lg border border-border p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex gap-1">
-                {['all', 'sent', 'failed'].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => { setStatusFilter(status); setPage(1); }}
-                    className={`h-7 px-2.5 text-[10px] font-medium rounded transition-colors ${statusFilter === status
-                        ? status === 'sent' ? 'bg-success text-white' : status === 'failed' ? 'bg-destructive text-destructive-foreground' : 'bg-teal-600 text-white'
-                        : 'bg-muted text-foreground hover:bg-muted'
-                      }`}
-                  >
-                    {status === 'all' ? t('common.all') : status === 'sent' ? `✓ ${t('whatsapp.sent')}` : `✗ ${t('whatsapp.failed')}`}
-                  </button>
-                ))}
-              </div>
-              <div className="flex-1 flex gap-1.5 min-w-[200px]">
+        {/* Filters & Search */}
+        <div className="bg-card rounded-xl border border-border p-3 space-y-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex gap-1.5 w-full sm:w-auto">
+              {['all', 'sent', 'failed'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => { setStatusFilter(status); setPage(1); }}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-bold rounded-lg transition-all border',
+                    statusFilter === status
+                      ? status === 'sent' ? 'bg-emerald-600 text-white border-emerald-600' : status === 'failed' ? 'bg-rose-500 text-white border-rose-500' : 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                  )}
+                >
+                  {status === 'all' ? t('common.all') : status === 'sent' ? `✓ Terkirim` : `✗ Gagal`}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-2 w-full sm:w-72">
+              <div className="relative flex-1">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder={t('whatsapp.searchPhoneMessage')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="flex-1 h-7 px-2.5 text-xs bg-card border border-border rounded-md focus:ring-1 focus:ring-primary focus:border-teal-500 text-foreground"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono"
                 />
-                <button
-                  onClick={handleSearch}
-                  className="h-7 px-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-white text-xs rounded transition-colors"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
               </div>
+              <button
+                onClick={handleSearch}
+                className="px-3 py-1.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow hover:opacity-90 transition-opacity"
+              >
+                Cari
+              </button>
             </div>
           </div>
+        </div>
 
-          {/* History Table */}
-          <div className="bg-card rounded-lg border border-border overflow-hidden">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : history.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <svg className="w-10 h-10 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                <p className="text-xs">{t('whatsapp.noHistory')}</p>
-              </div>
-            ) : (
-              <>
-                {/* Mobile Card View */}
-                <div className="block md:hidden space-y-3 p-3">
-                  {history.map((item) => (
-                    <div key={item.id} className="bg-card/80 backdrop-blur-xl rounded-xl border border-[#bc13fe]/20 p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-mono text-foreground">{item.phone}</span>
-                        {item.status === 'sent' ? (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-success/20 text-success text-[10px] font-medium rounded">
-                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            {t('whatsapp.sent')}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-destructive/20 text-destructive text-[10px] font-medium rounded">
-                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            {t('whatsapp.failed')}
-                          </span>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-1.5 text-[11px] mb-2">
-                        <div>
-                          <span className="text-muted-foreground">{t('common.time')}</span>
-                          <p className="text-foreground text-xs">
-                            {formatDistanceToNow(new Date(item.sentAt), { addSuffix: true, locale: localeId })}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">{t('whatsapp.provider')}</span>
-                          <p>
-                            {item.providerName ? (
-                              <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium ${getProviderColor(item.providerType)}`}>
-                                {item.providerName}
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground">-</span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate mb-2">{item.message}</div>
-                      <button
-                        onClick={() => showDetail(item)}
-                        className="w-full p-2 text-xs text-primary hover:bg-primary/10 rounded-lg transition-colors flex items-center justify-center gap-1"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        Detail
-                      </button>
-                    </div>
-                  ))}
-                </div>
+        {/* Table Content */}
+        <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-mono text-[10px]">
+                <tr>
+                  <th className="p-3">Waktu</th>
+                  <th className="p-3">No. Tujuan</th>
+                  <th className="p-3">Pesan</th>
+                  <th className="p-3">Provider</th>
+                  <th className="p-3 text-center">Status</th>
+                  <th className="p-3 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-muted-foreground font-bold">
+                      <RefreshCcw className="w-5 h-5 animate-spin mx-auto mb-2 text-primary" />
+                      Memuat riwayat pengiriman...
+                    </td>
+                  </tr>
+                ) : history.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-muted-foreground font-bold">
+                      Tidak ada riwayat pengiriman WhatsApp pada periode ini
+                    </td>
+                  </tr>
+                ) : (
+                  history.map((item) => (
+                    <tr key={item.id} className="hover:bg-muted/40 transition-colors">
+                      <td className="p-3 font-mono text-[11px] text-muted-foreground shrink-0">
+                        {formatWIB(item.sentAt, 'dd/MM/yyyy HH:mm')}
+                      </td>
+                      <td className="p-3 font-mono font-bold text-primary">{item.phone}</td>
+                      <td className="p-3 max-w-xs font-mono text-[11px] truncate text-foreground">{item.message}</td>
+                      <td className="p-3">
+                        <span className={cn('px-2 py-0.5 rounded text-[10px] font-mono font-bold', getProviderColor(item.providerType))}>
+                          {item.providerName || item.providerType || 'Baileys'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className={cn('inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold border',
+                          item.status === 'sent' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' : 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+                        )}>
+                          {item.status === 'sent' ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          {item.status === 'sent' ? 'Terkirim' : 'Gagal'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <button
+                          onClick={() => setViewingItem(item)}
+                          className="px-2.5 py-1 bg-muted border border-border rounded-lg text-[10px] font-bold text-foreground hover:bg-muted/80 transition-colors"
+                        >
+                          Rincian
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-                {/* Desktop Table */}
-                <div className="overflow-x-auto hidden md:block">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border bg-background/50">
-                        <th className="px-3 py-2 text-left text-[10px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase tracking-wider">{t('common.time')}</th>
-                        <th className="px-3 py-2 text-left text-[10px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase tracking-wider">{t('whatsapp.number')}</th>
-                        <th className="px-3 py-2 text-left text-[10px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase tracking-wider hidden md:table-cell">{t('whatsapp.message')}</th>
-                        <th className="px-3 py-2 text-left text-[10px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase tracking-wider hidden sm:table-cell">{t('whatsapp.provider')}</th>
-                        <th className="px-3 py-2 text-left text-[10px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase tracking-wider">{t('common.status')}</th>
-                        <th className="px-3 py-2 text-center text-[10px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase tracking-wider">{t('common.action')}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {history.map((item) => (
-                        <tr key={item.id} className="hover:bg-muted/50/50 transition-colors">
-                          <td className="px-3 py-1.5">
-                            <div className="text-xs text-foreground">
-                              {formatDistanceToNow(new Date(item.sentAt), {
-                                addSuffix: true,
-                                locale: localeId,
-                              })}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground dark:text-muted-foreground">
-                              {formatWIB(item.sentAt, 'dd/MM/yy HH:mm')}
-                            </div>
-                          </td>
-                          <td className="px-3 py-1.5">
-                            <span className="text-xs font-mono text-foreground">{item.phone}</span>
-                          </td>
-                          <td className="px-3 py-1.5 hidden md:table-cell">
-                            <div className="max-w-xs truncate text-xs text-muted-foreground dark:text-muted-foreground">
-                              {item.message}
-                            </div>
-                          </td>
-                          <td className="px-3 py-1.5 hidden sm:table-cell">
-                            {item.providerName ? (
-                              <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium ${getProviderColor(item.providerType)}`}>
-                                {item.providerName}
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground">-</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-1.5">
-                            {item.status === 'sent' ? (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-success/20 dark:bg-green-900/30 text-success text-[10px] font-medium rounded">
-                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                                {t('whatsapp.sent')}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-destructive/20 dark:bg-red-900/30 text-destructive text-[10px] font-medium rounded">
-                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                                {t('whatsapp.failed')}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-3 py-1.5 text-center">
-                            <button
-                              onClick={() => showDetail(item)}
-                              className="p-1 text-primary hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded transition-colors"
-                              title="Detail"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                              </svg>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Pagination */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-3 py-2 border-t border-border">
-                  <span className="text-[10px] text-muted-foreground dark:text-muted-foreground">
-                    {t('whatsapp.page')} {page} {t('table.of')} {totalPages}
-                  </span>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setPage(page - 1)}
-                      disabled={page === 1 || loading}
-                      className="h-6 px-2 text-[10px] font-medium text-foreground bg-card border border-border rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-1"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                      {t('whatsapp.prev')}
-                    </button>
-                    <button
-                      onClick={() => setPage(page + 1)}
-                      disabled={page === totalPages || loading}
-                      className="h-6 px-2 text-[10px] font-medium text-foreground bg-card border border-border rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-1"
-                    >
-                      {t('whatsapp.next')}
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
+          {/* Pagination */}
+          <div className="p-3 border-t border-border flex items-center justify-between gap-2 text-xs">
+            <span className="text-muted-foreground">Halaman {page} dari {totalPages}</span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1 border border-border rounded-lg font-bold text-xs disabled:opacity-50"
+              >
+                Sebelumnya
+              </button>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages || totalPages === 0}
+                className="px-3 py-1 border border-border rounded-lg font-bold text-xs disabled:opacity-50"
+              >
+                Selanjutnya
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </>
   );
 }

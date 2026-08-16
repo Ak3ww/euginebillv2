@@ -235,10 +235,11 @@ export async function POST(request: NextRequest) {
           }
 
           if (message) {
-            // Replace all variables
+            // Replace all variables safely
             Object.keys(variables).forEach(key => {
-              const regex = new RegExp(`{{${key}}}`, 'g');
-              message = message.replace(regex, variables[key] || '');
+              const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              message = message.replace(new RegExp(`\\{\\{${escapedKey}\\}\\}`, 'gi'), variables[key] || '');
+              message = message.replace(new RegExp(`\\{${escapedKey}\\}`, 'gi'), variables[key] || '');
             });
             
             try {
@@ -255,7 +256,8 @@ export async function POST(request: NextRequest) {
           try {
             let emailBody = emailTemplate.htmlBody;
             for (const [key, value] of Object.entries(variables)) {
-              emailBody = emailBody.replace(new RegExp(`{{${key}}}`, 'g'), String(value));
+              const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              emailBody = emailBody.replace(new RegExp(`\\{\\{${escapedKey}\\}\\}`, 'gi'), String(value));
             }
             
             await EmailService.send({
