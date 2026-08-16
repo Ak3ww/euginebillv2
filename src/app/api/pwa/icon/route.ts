@@ -25,15 +25,18 @@ function fallbackIcon(size: number): Buffer {
 }
 
 async function resizeToSquare(inputBuffer: Buffer, size: number): Promise<Buffer> {
-  // dynamic import to avoid build-time errors on environments without sharp
-  const sharp = (await import('sharp')).default;
-  return sharp(inputBuffer)
-    .resize(size, size, {
-      fit: 'contain',
-      background: { r: 3, g: 19, b: 29, alpha: 1 }, // #03131d — matches app bg
-    })
-    .png()
-    .toBuffer();
+  try {
+    const sharp = (await import('sharp')).default;
+    return sharp(inputBuffer)
+      .resize(size, size, {
+        fit: 'contain',
+        background: { r: 3, g: 19, b: 29, alpha: 1 }, // #03131d — matches app bg
+      })
+      .png()
+      .toBuffer();
+  } catch {
+    return inputBuffer;
+  }
 }
 
 async function fetchExternalImage(url: string): Promise<Buffer | null> {
@@ -48,19 +51,31 @@ async function fetchExternalImage(url: string): Promise<Buffer | null> {
 }
 
 function getLogoPath(logoValue: string): string | null {
-  // Logo stored as relative path like /uploads/logos/xxx.png → resolve to disk
-  if (logoValue.startsWith('/uploads/') || logoValue.startsWith('uploads/')) {
-    const uploadDir = process.env.UPLOAD_DIR || '/var/data/EugineBill/uploads';
-    const rel = logoValue.replace(/^\/uploads\//, '');
-    const candidates = [
-      path.join(uploadDir, rel),
-      path.join(process.cwd(), 'public', logoValue),
-      path.join('/var/www/EugineBill-radius/public', logoValue),
-    ];
-    for (const p of candidates) {
-      if (existsSync(p)) return p;
+  if (!logoValue) return null;
+  const filename = logoValue.split('/').pop() || '';
+  const uploadDir = process.env.UPLOAD_DIR || '/var/data/EugineBill/uploads';
+  const cleanRel = logoValue.replace(/^\/api\//, '').replace(/^\//, '');
+
+  const candidates = [
+    path.join(uploadDir, 'logos', filename),
+    path.join(uploadDir, filename),
+    path.join(uploadDir, cleanRel.replace(/^uploads\//, '')),
+
+    path.join(process.cwd(), 'public', cleanRel),
+    path.join(process.cwd(), 'public/uploads/logos', filename),
+    path.join(process.cwd(), 'public/uploads', filename),
+
+    path.join('/var/www/EugineBill-radius/public', cleanRel),
+    path.join('/var/www/EugineBill-radius/public/uploads/logos', filename),
+    path.join('/var/www/EugineBill-radius/public/uploads', filename),
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate && existsSync(candidate)) {
+      return candidate;
     }
   }
+
   return null;
 }
 
@@ -103,6 +118,11 @@ export async function GET(req: NextRequest) {
       // Case 2: external URL (http/https)
       else if (logoValue.startsWith('http://') || logoValue.startsWith('https://')) {
         iconBuffer = await fetchExternalImage(logoValue);
+      }
+      // Case 3: relative web path (fetch locally)
+      else if (logoValue.startsWith('/')) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://127.0.0.1:3000';
+        iconBuffer = await fetchExternalImage(`${appUrl}${logoValue}`);
       }
     }
   } catch {
