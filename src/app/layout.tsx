@@ -1,47 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Outfit, Space_Grotesk, JetBrains_Mono, Inter, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from "@/components/client-providers";
 import { prisma } from "@/server/db/client";
 
 export const dynamic = 'force-dynamic';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  preload: false, // Less critical than sans-serif, don't block initial load
-});
-
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
-
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-display",
-  subsets: ["latin"],
-});
-
-const inter = Inter({
-  variable: "--font-body",
-  subsets: ["latin"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-});
-
-const hankenGrotesk = Hanken_Grotesk({
-  variable: "--font-hanken",
-  subsets: ["latin"],
-});
+const geistSans = { variable: "font-geist-sans" };
+const geistMono = { variable: "font-geist-mono" };
+const outfit = { variable: "font-outfit" };
+const spaceGrotesk = { variable: "font-display" };
+const inter = { variable: "font-body" };
+const jetbrainsMono = { variable: "font-mono" };
+const hankenGrotesk = { variable: "font-hanken" };
 
 export async function generateMetadata(): Promise<Metadata> {
   const company = await prisma.company.findFirst({ select: { name: true } });
