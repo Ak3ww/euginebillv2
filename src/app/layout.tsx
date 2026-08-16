@@ -58,6 +58,15 @@ export async function generateMetadata(): Promise<Metadata> {
       type: 'website',
     },
     manifest: "/manifest.json",
+    icons: {
+      icon: [
+        { url: "/api/pwa/icon?size=192", sizes: "192x192", type: "image/png" },
+        { url: "/api/pwa/icon?size=512", sizes: "512x512", type: "image/png" },
+      ],
+      apple: [
+        { url: "/api/pwa/icon?size=192", sizes: "192x192", type: "image/png" },
+      ],
+    },
     appleWebApp: {
       capable: true,
       statusBarStyle: "black-translucent",

@@ -10,10 +10,11 @@ const iconCache: Map<string, { buffer: Buffer; etag: string; ts: number }> = new
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 function fallbackIcon(size: number): Buffer {
-  // Return the static icon file from /public/pwa/
   const candidates = [
+    path.join(process.cwd(), 'public/landing/assets/logo.png'),
     path.join(process.cwd(), `public/pwa/icon-${size}.png`),
     path.join(process.cwd(), `../public/pwa/icon-${size}.png`),
+    path.join('/var/www/EugineBill-radius', 'public/landing/assets/logo.png'),
     path.join('/var/www/EugineBill-radius', `public/pwa/icon-${size}.png`),
   ];
   for (const p of candidates) {

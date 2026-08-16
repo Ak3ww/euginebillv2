@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Download, X, Smartphone, Zap, Bell, ShieldCheck, Share, PlusSquare, MoreVertical, ArrowDown } from 'lucide-react';
+import { Download, X, Zap, Bell, ShieldCheck, Share, PlusSquare, MoreVertical, ArrowDown } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -18,11 +18,14 @@ export function PwaInstallPrompt() {
   const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
-    // Check if running as installed PWA (standalone)
+    // Auto-detect if running as installed PWA or previously installed
     if (
       window.matchMedia('(display-mode: standalone)').matches ||
       window.matchMedia('(display-mode: fullscreen)').matches ||
-      (navigator as Navigator & { standalone?: boolean }).standalone === true
+      window.matchMedia('(display-mode: minimal-ui)').matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true ||
+      document.referrer.includes('android-app://') ||
+      localStorage.getItem('pwa-installed') === '1'
     ) {
       setInstalled(true);
       return;
@@ -47,6 +50,7 @@ export function PwaInstallPrompt() {
     window.addEventListener('beforeinstallprompt', handler);
     window.addEventListener('appinstalled', () => {
       setInstalled(true);
+      localStorage.setItem('pwa-installed', '1');
       setDeferredPrompt(null);
     });
 
@@ -62,6 +66,7 @@ export function PwaInstallPrompt() {
         const { outcome } = await deferredPrompt.userChoice;
         if (outcome === 'accepted') {
           setInstalled(true);
+          localStorage.setItem('pwa-installed', '1');
         }
         setDeferredPrompt(null);
         return;
@@ -89,6 +94,7 @@ export function PwaInstallPrompt() {
     return null;
   }
 
+  // Auto-hide if already installed or dismissed
   if (installed || dismissed) return null;
 
   return (
@@ -104,9 +110,10 @@ export function PwaInstallPrompt() {
           <X className="w-5 h-5" />
         </button>
 
-        {/* App Icon */}
-        <div className="mx-auto w-16 h-16 bg-gradient-to-tr from-primary to-accent rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 border-2 border-white/20">
-          <Smartphone className="w-8 h-8 text-white" />
+        {/* Official Company Logo Icon */}
+        <div className="mx-auto w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 border-2 border-white/20 p-2 overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/api/pwa/icon?size=192" alt="Eugine Media Logo" className="w-full h-full object-contain rounded-xl" />
         </div>
 
         {/* Header */}
