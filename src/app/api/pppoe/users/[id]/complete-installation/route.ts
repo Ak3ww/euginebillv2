@@ -31,6 +31,7 @@ export async function POST(
       include: {
         profile: true,
         router: true,
+        pppoeCustomer: true,
       },
     });
 
@@ -71,13 +72,16 @@ export async function POST(
       ? `${baseUrl}/pay/${latestInvoice.paymentToken}`
       : `${baseUrl}/invoice/${latestInvoice.invoiceNumber}`;
 
+    // Official 8-digit Customer ID or user.customerId (Never PPPoE username)
+    const officialCustomerId = user.customerId || (user as any).pppoeCustomer?.customerId || undefined;
+
     // Send WhatsApp Installation Invoice notification to customer
     let waSent = false;
     try {
       await sendInstallationInvoice({
         customerName: user.name,
         customerPhone: user.phone,
-        customerId: user.customerId || user.username,
+        customerId: officialCustomerId,
         username: user.username,
         invoiceNumber: latestInvoice.invoiceNumber,
         amount: latestInvoice.amount,

@@ -52,7 +52,7 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
   const customerIdRaw = variables.customerId;
   const customerId = (customerIdRaw && customerIdRaw !== '-' && customerIdRaw !== 'undefined')
     ? customerIdRaw
-    : (variables.customerUsername || variables.username || '-');
+    : '-';
 
   const profileName = variables.profileName && variables.profileName !== '-' ? variables.profileName : (variables.packageName || '-');
   
@@ -433,7 +433,7 @@ Terima kasih,
     // Prepare variables
     const variables = {
       customerName: data.customerName,
-      customerId: data.customerId || data.username || '-',
+      customerId: data.customerId || '-',
       username: data.username || '-',
       customerUsername: data.username || '-',
       invoiceNumber: data.invoiceNumber,
