@@ -424,57 +424,175 @@ export default function PaymentPage() {
         
         <div className="p-6 sm:p-8 space-y-6">
 
-          {/* Official QRIS MP-EUGINE MEDIA Card (HANYA UNTUK PASANG BARU / INSTALLATION) */}
-          {(invoice.invoiceType === 'INSTALLATION' || (invoice as any).type === 'INSTALLATION') && (
+          {/* Official QRIS MP-EUGINE MEDIA Card (HIDDEN PER USER REQUEST) */}
+          {false && (invoice.invoiceType === 'INSTALLATION' || (invoice as any).type === 'INSTALLATION') && (
             <div className="border border-[var(--color-rule)] rounded-[var(--radius-lg)] overflow-hidden bg-[var(--color-paper-2)] shadow-sm p-6 space-y-5">
+              {/* Hidden */}
+            </div>
+          )}
+
+          {/* INLINE ACTIVE PAYMENT BOX (QRIS) */}
+          {qrString && (
+            <div className="border-2 border-[var(--color-accent)] rounded-2xl p-6 bg-[var(--color-paper-2)] space-y-5 shadow-lg animate-in fade-in duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-rule)] pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center font-bold border border-red-500/20">
-                    <QrCode className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-[var(--color-accent)] flex items-center justify-center font-bold border border-primary/20">
+                    <QrCode className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-[var(--color-ink)]">QRIS Official MP-EUGINE MEDIA</h3>
-                    <p className="text-xs text-[var(--color-muted)] font-mono mt-0.5">NMID: ID1026483172874</p>
+                    <h3 className="text-base font-bold text-[var(--color-ink)]">Kode QRIS Pembayaran (Otomatis Lunas)</h3>
+                    <p className="text-xs text-[var(--color-muted)] font-mono">Scan QRIS menggunakan aplikasi M-Banking atau E-Wallet Anda</p>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 self-start sm:self-auto">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Pembayaran Instant Pasang Baru
-                </span>
+                <button
+                  onClick={() => setQrString(null)}
+                  className="px-3 py-1.5 text-xs font-mono font-bold bg-[var(--color-paper-3)] border border-[var(--color-rule)] rounded-lg hover:bg-[var(--color-paper)] text-[var(--color-ink)] self-start sm:self-auto"
+                >
+                  Pilih Metode Lain
+                </button>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center gap-6 bg-[var(--color-paper-3)] p-4 rounded-xl border border-[var(--color-rule)]">
-                <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-md flex-shrink-0 text-center">
-                  <img 
-                    src="/images/qris-official-eugine.png" 
-                    alt="QRIS Official MP-EUGINE MEDIA" 
-                    className="w-56 h-auto mx-auto rounded-lg object-contain" 
-                  />
-                  <p className="text-[10px] text-gray-500 font-mono mt-2">NMID: ID1026483172874</p>
-                  <a
-                    href="/images/qris-official-eugine.png"
-                    download="qris-official-eugine-media.png"
-                    className="inline-flex items-center justify-center gap-1.5 mt-2.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--color-paper-2)] border border-[var(--color-rule)] hover:bg-[var(--color-paper)] text-[var(--color-accent)] transition-colors w-full"
-                  >
-                    <Download className="w-3.5 h-3.5" /> Download Gambar QRIS
-                  </a>
+              <div className="flex flex-col sm:flex-row items-center gap-6 bg-[var(--color-paper-3)] p-5 rounded-xl border border-[var(--color-rule)]">
+                <div className="bg-white p-4 rounded-xl border-2 border-gray-200 shadow-md flex-shrink-0 text-center">
+                  <QRCodeSVG id="qris-svg-inline" value={qrString} size={200} level="H" includeMargin={false} />
+                  <p className="text-[10px] text-gray-500 font-mono mt-2">Scan &amp; Bayar Otomatis</p>
                 </div>
 
-                <div className="space-y-4 text-xs text-[var(--color-ink)] flex-1">
+                <div className="space-y-4 text-xs text-[var(--color-ink)] flex-1 w-full">
                   <div className="bg-[var(--color-paper)] p-3 rounded-lg border border-[var(--color-rule)]">
-                    <p className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-0.5">Total yang Harus Dibayar</p>
+                    <p className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-0.5">Total Tagihan</p>
                     <p className="text-2xl font-bold text-[var(--color-accent)]">{formatCurrency(invoice.amount)}</p>
                   </div>
 
-                  <div className="space-y-1.5 leading-relaxed text-[var(--color-muted)]">
+                  <div className="space-y-1 text-[var(--color-muted)]">
                     <p className="font-bold text-[var(--color-ink)] text-xs">Cara Bayar Pakai QRIS:</p>
-                    <ol className="list-decimal list-inside space-y-1 pl-1 text-[11px]">
-                      <li>Buka aplikasi Banking (BCA, Mandiri, BRI, BNI) atau E-Wallet (GoPay, OVO, Dana, ShopeePay, LinkAja).</li>
+                    <ol className="list-decimal list-inside space-y-1 text-[11px]">
+                      <li>Buka M-Banking (BCA, Mandiri, BRI, BNI) atau E-Wallet (GoPay, OVO, DANA, ShopeePay).</li>
                       <li>Pilih menu <strong>Scan QR / QRIS</strong>.</li>
-                      <li>Scan gambar QRIS <strong>MP-EUGINE MEDIA</strong> di atas.</li>
-                      <li>Pastikan nama merchant tertera: <strong>MP-EUGINE MEDIA</strong>.</li>
-                      <li>Masukkan nominal <strong>{formatCurrency(invoice.amount)}</strong> dan selesaikan pembayaran.</li>
+                      <li>Arahkan kamera ke kode QRIS di samping atau gunakan tombol simpan gambar.</li>
+                      <li>Selesaikan pembayaran, status tagihan akan <strong>Otomatis Lunas</strong>.</li>
                     </ol>
                   </div>
+
+                  <div className="flex flex-wrap sm:flex-nowrap gap-3 pt-2">
+                    <button
+                      onClick={() => {
+                        const svg = document.getElementById('qris-svg-inline');
+                        if (!svg) return;
+                        const svgData = new XMLSerializer().serializeToString(svg);
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const img = new Image();
+                        img.onload = () => {
+                          const width = 400;
+                          const height = 550;
+                          canvas.width = width;
+                          canvas.height = height;
+                          if (ctx) {
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(0, 0, width, height);
+
+                            ctx.fillStyle = '#002c60';
+                            ctx.fillRect(0, 0, width, 120);
+
+                            ctx.fillStyle = '#ffffff';
+                            ctx.font = 'bold 26px sans-serif';
+                            ctx.textAlign = 'center';
+                            ctx.fillText(company?.name || 'EugineMediaGroup', width / 2, 55);
+
+                            ctx.font = '15px sans-serif';
+                            ctx.fillStyle = '#93c5fd';
+                            ctx.fillText('Scan QRIS untuk Membayar', width / 2, 85);
+
+                            ctx.fillStyle = '#f1f5f9';
+                            ctx.fillRect(60, 150, 280, 280);
+
+                            ctx.drawImage(img, 75, 165, 250, 250);
+
+                            ctx.fillStyle = '#0f172a';
+                            ctx.font = 'bold 30px sans-serif';
+                            ctx.fillText(`Rp ${invoice.amount.toLocaleString('id-ID')}`, width / 2, 480);
+
+                            ctx.fillStyle = '#64748b';
+                            ctx.font = '13px sans-serif';
+                            ctx.fillText(`INV: ${invoice.invoiceNumber}`, width / 2, 510);
+                          }
+                          const a = document.createElement('a');
+                          a.download = `QRIS-${invoice.invoiceNumber}.png`;
+                          a.href = canvas.toDataURL('image/png');
+                          a.click();
+                        };
+                        img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+                      }}
+                      className="flex-1 px-4 py-3 bg-[var(--color-paper-3)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-2)] text-[var(--color-ink)] rounded-xl font-bold text-xs flex items-center justify-center gap-2"
+                    >
+                      <ImageIcon className="w-4 h-4 text-[var(--color-accent)]" /> Simpan Gambar QRIS
+                    </button>
+                    <button
+                      onClick={handleCheckPaymentStatus}
+                      disabled={checkingStatus}
+                      className="flex-[1.5] px-4 py-3 bg-primary text-primary-foreground hover:opacity-90 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+                    >
+                      {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                      Saya Sudah Bayar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* INLINE ACTIVE PAYMENT BOX (VIRTUAL ACCOUNT) */}
+          {vaNumber && (
+            <div className="border-2 border-[var(--color-accent)] rounded-2xl p-6 bg-[var(--color-paper-2)] space-y-5 shadow-lg animate-in fade-in duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-rule)] pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-[var(--color-accent)] flex items-center justify-center font-bold border border-primary/20">
+                    <CreditCard className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[var(--color-ink)]">Kode Pembayaran / Virtual Account ({vaBank})</h3>
+                    <p className="text-xs text-[var(--color-muted)] font-mono">Transfer ke nomor Virtual Account untuk otomatis lunas</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setVaNumber(null)}
+                  className="px-3 py-1.5 text-xs font-mono font-bold bg-[var(--color-paper-3)] border border-[var(--color-rule)] rounded-lg hover:bg-[var(--color-paper)] text-[var(--color-ink)] self-start sm:self-auto"
+                >
+                  Pilih Metode Lain
+                </button>
+              </div>
+
+              <div className="bg-[var(--color-paper-3)] p-5 rounded-xl border border-[var(--color-rule)] space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[var(--color-paper)] p-4 rounded-xl border border-[var(--color-rule)]">
+                  <div>
+                    <p className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-0.5">Nomor Virtual Account / Kode</p>
+                    <p className="text-2xl font-mono font-bold text-[var(--color-accent)]">{vaNumber}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(vaNumber);
+                      alert('Nomor Virtual Account berhasil disalin!');
+                    }}
+                    className="px-4 py-2 bg-[var(--color-paper-3)] border border-[var(--color-rule)] text-[var(--color-ink)] font-bold text-xs rounded-lg hover:bg-[var(--color-paper-2)] self-start sm:self-auto"
+                  >
+                    Salin Kode
+                  </button>
+                </div>
+
+                <div className="bg-[var(--color-paper)] p-4 rounded-xl border border-[var(--color-rule)]">
+                  <BankInstructions bankName={vaBank || ''} vaNumber={vaNumber} />
+                </div>
+
+                <div className="flex flex-wrap sm:flex-nowrap gap-3 pt-2">
+                  <button
+                    onClick={handleCheckPaymentStatus}
+                    disabled={checkingStatus}
+                    className="w-full px-4 py-3.5 bg-primary text-primary-foreground hover:opacity-90 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+                  >
+                    {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    Saya Sudah Bayar
+                  </button>
                 </div>
               </div>
             </div>
@@ -731,164 +849,6 @@ export default function PaymentPage() {
         </div>
       </div>
 
-      {/* QR Code Modal */}
-      {qrString && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <button 
-              onClick={() => setQrString(null)}
-              className="absolute top-4 right-4 text-[var(--color-muted)] hover:text-[var(--color-ink)] bg-[var(--color-paper-2)] hover:bg-[var(--color-paper-3)] rounded-full p-2 transition-colors border border-[var(--color-rule)]"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="w-16 h-16 bg-[var(--color-paper-3)] border border-[var(--color-rule)] text-[var(--color-accent)] rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
-              <QrCode className="w-8 h-8" />
-            </div>
-            <h3 className="text-xl font-bold text-[var(--color-ink)] mb-2">Scan QRIS</h3>
-            <p className="text-sm text-[var(--color-muted)] mb-6">Silakan gunakan aplikasi M-Banking atau E-Wallet Anda untuk memindai kode QRIS ini.</p>
-            <div className="bg-white p-4 rounded-xl inline-block border-2 border-[var(--color-rule)] shadow-sm mb-6 relative group">
-              <QRCodeSVG id="qris-svg" value={qrString} size={200} level="H" includeMargin={false} />
-            </div>
-            <div className="flex gap-3 mb-6">
-              <button 
-                onClick={() => {
-                  const svg = document.getElementById('qris-svg');
-                  if (!svg) return;
-                  const svgData = new XMLSerializer().serializeToString(svg);
-                  const canvas = document.createElement('canvas');
-                  const ctx = canvas.getContext('2d');
-                  const img = new Image();
-                  img.onload = () => {
-                    const width = 400;
-                    const height = 550;
-                    canvas.width = width;
-                    canvas.height = height;
-                    if (ctx) {
-                      // Background
-                      ctx.fillStyle = '#ffffff';
-                      ctx.fillRect(0, 0, width, height);
-
-                      // Header (Oceanic Blue)
-                      ctx.fillStyle = '#002c60';
-                      ctx.fillRect(0, 0, width, 120);
-
-                      // Header Text
-                      ctx.fillStyle = '#ffffff';
-                      ctx.font = 'bold 28px sans-serif';
-                      ctx.textAlign = 'center';
-                      ctx.fillText(company?.name || 'EugineMediaGroup', width / 2, 55);
-                      
-                      ctx.font = '16px sans-serif';
-                      ctx.fillStyle = '#93c5fd'; // light blue
-                      ctx.fillText('Scan QRIS untuk Membayar', width / 2, 85);
-
-                      // Draw QR Code Background (shadow effect)
-                      ctx.fillStyle = '#f1f5f9';
-                      ctx.beginPath();
-                      ctx.roundRect ? ctx.roundRect(60, 150, 280, 280, 16) : ctx.fillRect(60, 150, 280, 280);
-                      ctx.fill();
-
-                      // Draw QR Code
-                      ctx.drawImage(img, 75, 165, 250, 250);
-
-                      // Amount
-                      ctx.fillStyle = '#0f172a';
-                      ctx.font = 'bold 32px sans-serif';
-                      ctx.fillText(`Rp ${invoice.amount.toLocaleString('id-ID')}`, width / 2, 480);
-
-                      // Invoice details
-                      ctx.fillStyle = '#64748b';
-                      ctx.font = '14px sans-serif';
-                      ctx.fillText(`INV: ${invoice.invoiceNumber}`, width / 2, 510);
-                      ctx.fillText(`Pelanggan: ${invoice.user?.name || invoice.customerName}`, width / 2, 530);
-                    }
-                    const a = document.createElement('a');
-                    a.download = `QRIS-${invoice.invoiceNumber}.png`;
-                    a.href = canvas.toDataURL('image/png');
-                    a.click();
-                  };
-                  img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
-                }}
-                className="flex-1 bg-[var(--color-paper-3)] hover:bg-[var(--color-paper-2)]-higher text-[var(--color-ink)] font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2 border border-[var(--color-rule)]"
-              >
-                <ImageIcon className="w-4 h-4" /> Simpan
-              </button>
-              <button 
-                onClick={handleCheckPaymentStatus}
-                disabled={checkingStatus}
-                className="flex-[2] bg-primary hover:opacity-90 text-[var(--color-accent)]-content font-bold py-3 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin text-[var(--color-accent)]-content" /> : null}
-                <span>Saya Sudah Bayar</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
- 
-      {/* VA Modal */}
-      {vaNumber && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <button 
-              onClick={() => setVaNumber(null)}
-              className="absolute top-4 right-4 text-[var(--color-muted)] hover:text-[var(--color-ink)] bg-[var(--color-paper-2)] hover:bg-[var(--color-paper-3)] rounded-full p-2 transition-colors border border-[var(--color-rule)]"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="w-16 h-16 bg-[var(--color-paper-3)] border border-[var(--color-rule)] text-[var(--color-accent)] rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
-              <CreditCard className="w-8 h-8" />
-            </div>
-            <h3 className="text-xl font-bold text-[var(--color-ink)] mb-2">Instruksi Pembayaran</h3>
-            <p className="text-sm text-[var(--color-muted)] mb-6">Silakan lakukan transfer ke nomor Virtual Account atau tunjukkan kode pembayaran berikut.</p>
-            
-            <div className="bg-[var(--color-paper-2)] p-5 rounded-xl border border-[var(--color-rule)] text-left space-y-4 mb-6 shadow-sm">
-              <div>
-                <p className="text-xs text-[var(--color-muted)] font-medium uppercase tracking-wider mb-1">Metode</p>
-                <p className="text-sm font-bold text-[var(--color-ink)]">{vaBank}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--color-muted)] font-medium uppercase tracking-wider mb-1">Nomor / Kode</p>
-                <div className="flex items-center justify-between bg-[var(--color-paper-3)] px-3 py-2 border border-[var(--color-rule)] rounded-lg">
-                  <p className="font-mono text-lg font-bold text-[var(--color-accent)]">{vaNumber}</p>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(vaNumber);
-                      alert('Disalin!');
-                    }}
-                    className="text-xs bg-[var(--color-paper)] border border-[var(--color-rule)] px-2 py-1 rounded text-[var(--color-ink)] hover:bg-[var(--color-paper-3)] font-semibold shadow-sm transition-colors"
-                  >
-                    Salin
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-[var(--color-paper-2)] border border-[var(--color-rule)] p-4 rounded-xl mb-6 shadow-sm">
-              <BankInstructions bankName={vaBank || ''} vaNumber={vaNumber} />
-            </div>
- 
-            <div className="space-y-3">
-              <button 
-                onClick={handleCheckPaymentStatus}
-                disabled={checkingStatus}
-                className="w-full bg-primary hover:opacity-90 text-[var(--color-accent)]-content font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-md"
-              >
-                {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin text-[var(--color-accent)]-content" /> : null}
-                <span>Saya Sudah Bayar</span>
-              </button>
-              
-              <button 
-                onClick={() => setVaNumber(null)}
-                className="w-full bg-[var(--color-paper-3)] hover:bg-[var(--color-paper-2)]-higher text-[var(--color-ink)] font-bold py-3 px-4 rounded-xl transition-all text-sm border border-[var(--color-rule)]"
-              >
-                Tutup / Pilih Metode Lain
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
       {/* Loading Overlay */}
       {processing && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
