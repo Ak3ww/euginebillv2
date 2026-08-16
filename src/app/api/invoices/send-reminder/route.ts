@@ -142,10 +142,26 @@ export async function POST(request: NextRequest) {
             // sendInvoiceReminder handles DB updates internally:
             // - Success → sets waNotifiedAt + increments waRetryCount
             // - Failure → only increments waRetryCount (so UI shows "WA Gagal")
-            const waResult = await sendInvoiceReminder({
-              phone: invoice.customerPhone,
-              ...reminderData
-            })
+            const isInstallation = invoice.invoiceType === 'INSTALLATION' || (invoice as any).type === 'INSTALLATION';
+            const { sendInstallationInvoice } = await import('@/server/services/notifications/whatsapp-templates.service');
+            
+            const waResult = isInstallation
+              ? await sendInstallationInvoice({
+                  phone: invoice.customerPhone,
+                  customerPhone: invoice.customerPhone,
+                  customerName: reminderData.customerName,
+                  customerId: reminderData.customerId,
+                  username: reminderData.customerUsername,
+                  invoiceNumber: reminderData.invoiceNumber,
+                  amount: reminderData.amount,
+                  dueDate: reminderData.dueDate,
+                  paymentLink: reminderData.paymentLink,
+                  profileName: reminderData.profileName || '-',
+                })
+              : await sendInvoiceReminder({
+                  phone: invoice.customerPhone,
+                  ...reminderData
+                });
 
             if (waResult && waResult.success === false) {
               // sendInvoiceReminder already incremented waRetryCount on failure
