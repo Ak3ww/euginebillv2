@@ -77,6 +77,8 @@ export async function POST(
       await sendInstallationInvoice({
         customerName: user.name,
         customerPhone: user.phone,
+        customerId: user.customerId || user.username,
+        username: user.username,
         invoiceNumber: latestInvoice.invoiceNumber,
         amount: latestInvoice.amount,
         paymentLink,

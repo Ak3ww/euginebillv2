@@ -22,6 +22,8 @@ interface StoppedUser {
   note: string | null;
   isDismantled?: boolean;
   dismantledAt?: string | null;
+  baseUsername?: string;
+  isUsernameReused?: boolean;
   profile: { id: string; name: string; groupName: string };
   router?: { id: string; name: string; nasname: string; ipAddress: string } | null;
   area?: { id: string; name: string } | null;
@@ -395,6 +397,19 @@ export default function StoppedSubscriptionsPage() {
                       <td className="px-4 py-3">
                         <div className="font-medium text-foreground">{user.name}</div>
                         <div className="text-xs text-muted-foreground font-mono mt-0.5">{user.username}</div>
+                        {user.baseUsername && (
+                          <div className="mt-1">
+                            {user.isUsernameReused ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20" title={`Akun PPPoE ${user.baseUsername} sudah dipakai oleh pelanggan aktif lain`}>
+                                🔴 Username Terpakai ({user.baseUsername})
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" title={`Akun PPPoE ${user.baseUsername} belum terpakai / kosong, siap dipakai kembali`}>
+                                🟢 Username Kosong ({user.baseUsername})
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="font-medium">{user.profile.name}</div>

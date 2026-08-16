@@ -135,7 +135,29 @@ export async function listPppoeUsers(params: { status?: string | null }) {
   }
   const onlineSet = new Set(activeSessions.map(s => s.username));
 
-  return users.map(user => ({ ...user, isOnline: onlineSet.has(user.username) }));
+  // Batch fetch active users to check if baseUsername is re-used by another active customer
+  const activeUsers = await prisma.pppoeUser.findMany({
+    where: { status: { notIn: ['stop', 'stopped', 'suspended', 'blocked', 'cabut'] } },
+    select: { username: true },
+  });
+  const activeUsernamesSet = new Set(activeUsers.map(u => u.username.toLowerCase()));
+
+  return users.map(user => {
+    const baseUsername = user.username
+      .replace(/-OFF-.*$/i, '')
+      .replace(/-STOP-.*$/i, '')
+      .replace(/-CABUT-.*$/i, '')
+      .trim();
+
+    const isUsernameReused = activeUsernamesSet.has(baseUsername.toLowerCase());
+
+    return {
+      ...user,
+      isOnline: onlineSet.has(user.username),
+      baseUsername,
+      isUsernameReused,
+    };
+  });
 }
 
 // ─── Get one ──────────────────────────────────────────────────────────────────
