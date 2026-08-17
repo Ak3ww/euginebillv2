@@ -6,6 +6,14 @@
 3. **Interactive & Functional**: Every summary card or filter pill must be 100% interactive and directly update the table filter when clicked.
 4. **No Text Emoticons/Emojis**: NEVER use text emojis/emoticons in admin UI text (e.g. 📡, 📍, ⚡, 💰, 💳, 🏠, ⏰). ALWAYS use proper Lucide React icons (`<Wifi />`, `<MapPin />`, `<Zap />`, `<DollarSign />`, `<Calendar />`, `<Server />`, etc.).
 
+## Enterprise Export System Standard (PDF & Excel)
+1. **Server-Side Engine Only**: All PDF and Excel exports must be generated server-side in API routes using `src/lib/utils/export.ts`. Do NOT build separate client-side PDF/XLSX generators.
+2. **Preserve Export Utilities**: When updating `src/lib/utils/export.ts`, maintain backward compatibility and preserve helper export functions (e.g. `generateVoucherCardsPDF`, `generateInvoicePDF`, `formatDateExport`, `formatCurrencyExport`) so other routes do not fail during build.
+3. **Enterprise Layout & Branding**:
+   - **PDF**: Must include Company Logo (`getCompanyExportInfo`), Oceanic Blue (`#002C60`) header, Summary Metrics Card Box, Right-aligned currency columns, and Running Footer ("Halaman X dari Y").
+   - **Excel**: Use `ExcelJS` with Header Banner, Numeric Currency format (`numFmt: '"Rp "#,##0'`), Auto Column Widths, and Accounting-style Double Underline Total Row.
+4. **Strict Filter Respect**: All export endpoints must accept and apply ALL active UI filters (`status`, `dateRange`/`startDate`/`endDate`, `routerId`, `categoryId`, `search`).
+
 ## Hallmark Enterprise Standard (Customer Portal & Public Pages)
 For ALL customer-facing UI development (customer portal, payment pages, public landing pages), follow the local `hallmark` skill with the **Oceanic Blue** theme.
 1. **No Fake Jargon**: Never use fake terminal/hacker text. Use normal, professional Indonesian text.
@@ -26,4 +34,3 @@ For ALL customer-facing UI development (customer portal, payment pages, public l
    npm run build
    pm2 restart all
    ```
-
