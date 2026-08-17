@@ -738,3 +738,100 @@ export function generateInvoicePDF(invoiceData: {
   const output = doc.output('arraybuffer');
   return new Uint8Array(output);
 }
+
+// Generate voucher cards PDF for printing
+export function generateVoucherCardsPDF(vouchers: {
+  code: string;
+  password?: string;
+  profileName: string;
+  price: number;
+  validity: string;
+  batchCode?: string;
+}[], companyName: string = 'EugineBill RADIUS'): Uint8Array {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 10;
+
+  // Card dimensions (3 columns x 5 rows per page)
+  const cardWidth = (pageWidth - (margin * 2) - 10) / 3;
+  const cardHeight = (pageHeight - (margin * 2) - 20) / 5;
+  const cardsPerPage = 15;
+
+  vouchers.forEach((voucher, index) => {
+    if (index > 0 && index % cardsPerPage === 0) {
+      doc.addPage();
+    }
+
+    const pageIndex = index % cardsPerPage;
+    const col = pageIndex % 3;
+    const row = Math.floor(pageIndex / 3);
+
+    const x = margin + (col * (cardWidth + 5));
+    const y = margin + (row * (cardHeight + 4));
+
+    // Card background
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(200, 200, 200);
+    doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, 'FD');
+
+    // Header bar
+    doc.setFillColor(59, 130, 246);
+    doc.roundedRect(x, y, cardWidth, 8, 3, 3, 'F');
+    doc.rect(x, y + 5, cardWidth, 3, 'F');
+
+    // Company name
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text(companyName, x + 3, y + 5);
+
+    // Profile name
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(voucher.profileName, x + 3, y + 14);
+
+    // Price
+    doc.setFontSize(10);
+    doc.setTextColor(59, 130, 246);
+    doc.text(formatCurrencyExport(voucher.price), x + 3, y + 21);
+
+    // Validity
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Masa Aktif: ${voucher.validity}`, x + 3, y + 26);
+
+    // Code label
+    doc.setFontSize(6);
+    doc.setTextColor(120, 120, 120);
+    doc.text('Username:', x + 3, y + 32);
+
+    // Code
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(voucher.code, x + 3, y + 37);
+
+    // Password label
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 120, 120);
+    doc.text('Password:', x + 3, y + 42);
+
+    // Password
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(voucher.password || voucher.code, x + 3, y + 47);
+  });
+
+  const output = doc.output('arraybuffer');
+  return new Uint8Array(output);
+}
