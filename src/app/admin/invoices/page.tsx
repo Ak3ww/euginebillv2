@@ -527,42 +527,49 @@ export default function InvoicesPage() {
   // Export functions
   const handleExportExcel = async () => {
     try {
-      const status = activeTab === 'unpaid' ? 'PENDING' : activeTab === 'paid' ? 'PAID' : 'all';
+      const status = activeTab === 'unpaid' ? 'PENDING' : activeTab === 'paid' ? 'PAID' : activeTab === 'overdue' ? 'OVERDUE' : 'all';
       let url = `/api/invoices/export?format=excel&status=${status}`;
       if (exportDateFrom) url += `&startDate=${exportDateFrom}`;
       if (exportDateTo) url += `&endDate=${exportDateTo}`;
+      if (filterRouterId && filterRouterId !== 'all') url += `&routerId=${filterRouterId}`;
+      if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+
       const res = await fetch(url);
+      if (!res.ok) { await showError(t('invoices.exportFailed')); return; }
+
       const blob = await res.blob();
-      const a = document.createElement('a'); a.href = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = window.URL.createObjectURL(blob);
       const dateSuffix = exportDateFrom && exportDateTo ? `${exportDateFrom}_to_${exportDateTo}` : new Date().toISOString().split('T')[0];
       a.download = `Invoices-${dateSuffix}.xlsx`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(a.href);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(a.href);
     } catch (error) { console.error('Export error:', error); await showError(t('invoices.exportFailed')); }
   };
 
   const handleExportPDF = async () => {
     try {
-      const status = activeTab === 'unpaid' ? 'PENDING' : activeTab === 'paid' ? 'PAID' : 'all';
+      const status = activeTab === 'unpaid' ? 'PENDING' : activeTab === 'paid' ? 'PAID' : activeTab === 'overdue' ? 'OVERDUE' : 'all';
       let url = `/api/invoices/export?format=pdf&status=${status}`;
       if (exportDateFrom) url += `&startDate=${exportDateFrom}`;
       if (exportDateTo) url += `&endDate=${exportDateTo}`;
+      if (filterRouterId && filterRouterId !== 'all') url += `&routerId=${filterRouterId}`;
+      if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+
       const res = await fetch(url);
-      const data = await res.json();
-      if (data.pdfData) {
-        const jsPDF = (await import('jspdf')).default;
-        const autoTable = (await import('jspdf-autotable')).default;
-        const doc = new jsPDF({ orientation: 'landscape' });
-        doc.setFontSize(14); doc.text(data.pdfData.title, 14, 15);
-        doc.setFontSize(8); doc.text(`Generated: ${data.pdfData.generatedAt}`, 14, 21);
-        autoTable(doc, { head: [data.pdfData.headers], body: data.pdfData.rows, startY: 26, styles: { fontSize: 7 }, headStyles: { fillColor: [13, 148, 136] } });
-        if (data.pdfData.summary) {
-          const finalY = (doc as any).lastAutoTable.finalY + 8;
-          doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-          data.pdfData.summary.forEach((s: any, i: number) => { doc.text(`${s.label}: ${s.value}`, 14, finalY + (i * 5)); });
-        }
-        const dateSuffix = exportDateFrom && exportDateTo ? `${exportDateFrom}_to_${exportDateTo}` : new Date().toISOString().split('T')[0];
-        doc.save(`Invoices-${dateSuffix}.pdf`);
-      }
+      if (!res.ok) { await showError(t('invoices.pdfExportFailed')); return; }
+
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = window.URL.createObjectURL(blob);
+      const dateSuffix = exportDateFrom && exportDateTo ? `${exportDateFrom}_to_${exportDateTo}` : new Date().toISOString().split('T')[0];
+      a.download = `Invoices-${dateSuffix}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(a.href);
     } catch (error) { console.error('PDF error:', error); await showError(t('invoices.pdfExportFailed')); }
   };
 

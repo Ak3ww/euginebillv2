@@ -435,47 +435,22 @@ export default function KeuanganPage() {
       if (filterRouterId !== "all") url += `&routerId=${filterRouterId}`;
       if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
 
-      if (format === "excel") {
-        const res = await fetch(url);
-        if (!res.ok) { await showError(t('keuangan.exportFailed')); return; }
-        const blob = await res.blob();
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        const suffix = startDate && endDate ? `${startDate}-${endDate}` : "semua";
-        a.download = `Laporan-Keuangan-${suffix}.xlsx`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-      } else {
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.transactions) generatePDF(data.transactions, data.stats);
-        else await showError(t('keuangan.exportFailed'));
-      }
+      const res = await fetch(url);
+      if (!res.ok) { await showError(t('keuangan.exportFailed')); return; }
+
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      const suffix = startDate && endDate ? `${startDate}-${endDate}` : "semua";
+      const ext = format === "excel" ? "xlsx" : "pdf";
+      a.download = `Laporan-Keuangan-${suffix}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
     } catch (error) {
       await showError(t('keuangan.exportFailed'));
     }
-  };
-
-  const generatePDF = async (transactions: any[], stats: any) => {
-    const jsPDF = (await import("jspdf")).default;
-    const autoTable = (await import("jspdf-autotable")).default;
-    const doc = new jsPDF();
-
-    doc.setFontSize(14);
-    doc.text(t('keuangan.pdfTitle'), 14, 15);
-    doc.setFontSize(9);
-    doc.text(`Periode: ${formatDate(startDate)} - ${formatDate(endDate)}`, 14, 21);
-
-    const tableData = transactions.map((tx: any) => [formatDate(tx.date), tx.description, tx.category.name, tx.type, formatCurrency(tx.amount)]);
-    autoTable(doc, { head: [[t('keuangan.pdfDate'), t('keuangan.pdfDescription'), t('keuangan.pdfCategory'), t('keuangan.pdfType'), t('keuangan.pdfAmount')]], body: tableData, startY: 26, styles: { fontSize: 8 } });
-
-    const finalY = (doc as any).lastAutoTable.finalY + 8;
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text(`${t('keuangan.pdfIncome')} ${formatCurrency(stats.totalIncome)}`, 14, finalY);
-    doc.text(`${t('keuangan.pdfExpense')} ${formatCurrency(stats.totalExpense)}`, 14, finalY + 5);
-    doc.text(`${t('keuangan.pdfBalance')} ${formatCurrency(stats.balance)}`, 14, finalY + 10);
-    doc.save(`${t('keuangan.pdfFilenamePrefix')}${startDate}-${endDate}.pdf`);
   };
 
   if (loading) {
@@ -661,18 +636,16 @@ export default function KeuanganPage() {
           <div className="flex gap-1">
             <button
               onClick={() => handleExport("excel")}
-              disabled={!startDate || !endDate}
-              className="px-2 py-1 text-[10px] bg-muted hover:bg-muted/80 rounded disabled:opacity-50 flex items-center gap-1"
+              className="px-2.5 py-1 text-xs bg-muted hover:bg-muted/80 text-foreground font-medium rounded flex items-center gap-1 cursor-pointer transition-colors"
             >
-              <Download className="w-3 h-3" />
+              <Download className="w-3.5 h-3.5" />
               Excel
             </button>
             <button
               onClick={() => handleExport("pdf")}
-              disabled={!startDate || !endDate}
-              className="px-2 py-1 text-[10px] bg-muted hover:bg-muted/80 rounded disabled:opacity-50 flex items-center gap-1"
+              className="px-2.5 py-1 text-xs bg-muted hover:bg-muted/80 text-foreground font-medium rounded flex items-center gap-1 cursor-pointer transition-colors"
             >
-              <Download className="w-3 h-3" />
+              <Download className="w-3.5 h-3.5" />
               PDF
             </button>
           </div>

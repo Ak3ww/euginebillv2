@@ -119,22 +119,30 @@ export default function LaporanPage() {
 
   // ── Export Excel ─────────────────────────────────────────────────────────
   const exportExcel = async () => {
-    if (!rows.length) return;
     setExporting('excel');
     try {
-      const XLSX = (await import('xlsx')).default;
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, TYPE_LABELS[reportType]);
+      const params = new URLSearchParams({
+        type: reportType,
+        format: 'excel',
+        dateFrom,
+        dateTo,
+        status,
+      });
+      if (filterRouterId && filterRouterId !== 'all') {
+        params.set('routerId', filterRouterId);
+      }
 
-      // Auto column width
-      const colWidths = Object.keys(rows[0]).map(k => ({
-        wch: Math.max(k.length, ...rows.map(r => String(r[k] || '').length)) + 2,
-      }));
-      ws['!cols'] = colWidths;
+      const res = await fetch(`/api/admin/laporan?${params}`);
+      if (!res.ok) throw new Error('Gagal mengunduh file Excel');
 
-      const filename = `Laporan_${TYPE_LABELS[reportType]}_${dateFrom}_${dateTo}.xlsx`;
-      XLSX.writeFile(wb, filename);
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Laporan_${TYPE_LABELS[reportType]}_${dateFrom}_${dateTo}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
     } catch (err: any) {
       alert('Gagal export Excel: ' + err.message);
     } finally {
@@ -144,49 +152,30 @@ export default function LaporanPage() {
 
   // ── Export PDF ───────────────────────────────────────────────────────────
   const exportPdf = async () => {
-    if (!rows.length) return;
     setExporting('pdf');
     try {
-      const { default: jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-      // Header
-      doc.setFontSize(16);
-      doc.setTextColor(30, 30, 30);
-      doc.text(`Laporan ${TYPE_LABELS[reportType]}`, 15, 18);
-
-      doc.setFontSize(10);
-      doc.setTextColor(80, 80, 80);
-      doc.text(`Periode: ${dateFrom} s/d ${dateTo}`, 15, 26);
-      doc.text(`Dicetak: ${formatWIB(new Date())}`, 15, 32);
-      doc.text(`Total data: ${rows.length} baris`, 15, 38);
-
-      // Summary
-      if (summary) {
-        const summaryText = Object.entries(summary)
-          .map(([k, v]) => `${k}: ${typeof v === 'number' && k.toLowerCase().includes('amount') ? formatRupiah(v) : v}`)
-          .join('   |   ');
-        doc.text(summaryText, 15, 44, { maxWidth: 250 });
+      const params = new URLSearchParams({
+        type: reportType,
+        format: 'pdf',
+        dateFrom,
+        dateTo,
+        status,
+      });
+      if (filterRouterId && filterRouterId !== 'all') {
+        params.set('routerId', filterRouterId);
       }
 
-      // Exclude raw amount column (keep formatted version)
-      const headers = Object.keys(rows[0]).filter(k => k !== 'Jumlah' && k !== 'Harga');
-      const tableData = rows.map(row => headers.map(h => String(row[h] ?? '-')));
+      const res = await fetch(`/api/admin/laporan?${params}`);
+      if (!res.ok) throw new Error('Gagal mengunduh file PDF');
 
-      autoTable(doc, {
-        head: [headers],
-        body: tableData,
-        startY: 52,
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [30, 30, 50], textColor: [200, 200, 255] },
-        alternateRowStyles: { fillColor: [245, 245, 255] },
-        margin: { left: 15, right: 15 },
-      });
-
-      const filename = `Laporan_${TYPE_LABELS[reportType]}_${dateFrom}_${dateTo}.pdf`;
-      doc.save(filename);
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Laporan_${TYPE_LABELS[reportType]}_${dateFrom}_${dateTo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
     } catch (err: any) {
       alert('Gagal export PDF: ' + err.message);
     } finally {

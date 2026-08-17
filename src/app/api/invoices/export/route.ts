@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
-import { generateExcelBuffer, formatCurrencyExport, formatDateExport, generatePDFBuffer, generateInvoicePDF } from '@/lib/utils/export';
+import {
+  generateExcelBuffer,
+  generatePDFBuffer,
+  generateInvoicePDF,
+  getCompanyExportInfo,
+  formatCurrencyExport,
+  formatDateExport,
+  ExcelColumnDef,
+} from '@/lib/utils/export';
 import { checkAuth } from '@/server/middleware/api-auth';
-import { startOfDayWIBtoUTC, endOfDayWIBtoUTC, formatWIB } from '@/lib/timezone';
-import { formatInTimeZone } from 'date-fns-tz';
+import { startOfDayWIBtoUTC, endOfDayWIBtoUTC } from '@/lib/timezone';
 
 export async function GET(req: NextRequest) {
   const auth = await checkAuth();
@@ -16,28 +23,46 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status');
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
-  const invoiceIds = searchParams.get('ids'); // comma-separated IDs for batch export
+  const routerId = searchParams.get('routerId');
+  const search = searchParams.get('search');
+  const invoiceType = searchParams.get('invoiceType');
+  const invoiceIds = searchParams.get('ids');
 
   try {
-    // Build query filters
     const where: any = {};
-    
+
     if (invoiceIds) {
       where.id = { in: invoiceIds.split(',') };
     } else {
       if (status && status !== 'all') {
-        where.status = status;
+        where.status = status.toUpperCase();
       }
-      
+
+      if (invoiceType && invoiceType !== 'all') {
+        where.invoiceType = invoiceType;
+      }
+
+      if (routerId && routerId !== 'all') {
+        where.user = { routerId };
+      }
+
       if (startDate && endDate) {
         where.createdAt = {
           gte: startOfDayWIBtoUTC(startDate),
           lte: endOfDayWIBtoUTC(endDate),
         };
       }
+
+      if (search) {
+        where.OR = [
+          { invoiceNumber: { contains: search } },
+          { customerName: { contains: search } },
+          { customerUsername: { contains: search } },
+          { customerPhone: { contains: search } },
+        ];
+      }
     }
 
-    // Fetch invoices with relations
     const invoices = await prisma.invoice.findMany({
       where,
       include: {
@@ -52,10 +77,12 @@ export async function GET(req: NextRequest) {
           }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
     });
 
-    // Calculate stats
+    const companyInfo = await getCompanyExportInfo();
+
     const stats = {
       total: invoices.length,
       pending: invoices.filter(i => i.status === 'PENDING').length,
@@ -66,57 +93,26 @@ export async function GET(req: NextRequest) {
       totalUnpaid: invoices.filter(i => i.status !== 'PAID').reduce((sum, i) => sum + i.amount, 0)
     };
 
-    if (format === 'pdf') {
-      // Generate PDF data for client-side rendering
-      const headers = ['No', 'Invoice #', 'Customer', 'Package', 'Amount', 'Status', 'Due Date', 'Paid At'];
-      const rows = invoices.map((inv, idx) => [
-        idx + 1,
-        inv.invoiceNumber,
-        inv.user?.name || inv.customerName || 'Deleted',
-        inv.user?.profile?.name || '-',
-        formatCurrencyExport(inv.amount),
-        inv.status === 'PAID' ? 'Lunas' : inv.status === 'PENDING' ? 'Pending' : inv.status === 'OVERDUE' ? 'Jatuh Tempo' : 'Dibatalkan',
-        formatDateExport(inv.dueDate),
-        inv.paidAt ? formatDateExport(inv.paidAt) : '-'
-      ]);
+    const dateSuffix = startDate && endDate ? `${startDate}_to_${endDate}` : new Date().toISOString().split('T')[0];
+    const dateRangeStr = startDate && endDate ? `${startDate} s/d ${endDate}` : 'Semua Periode';
 
-      const summary = [
-        { label: 'Total Invoice', value: stats.total.toString() },
-        { label: 'Lunas', value: `${stats.paid} (${formatCurrencyExport(stats.totalPaid)})` },
-        { label: 'Belum Bayar', value: `${stats.pending + stats.overdue} (${formatCurrencyExport(stats.totalUnpaid)})` }
-      ];
-
-      return NextResponse.json({
-        pdfData: {
-          title: 'Daftar Invoice - EugineBill RADIUS',
-          headers,
-          rows,
-          summary,
-          generatedAt: formatInTimeZone(new Date(), 'Asia/Jakarta', 'dd MMM yyyy HH:mm')
-        }
-      });
-    }
-
-    // Single invoice PDF export
+    // Single Invoice PDF Export
     if (format === 'invoice-pdf' && invoiceIds) {
       const invoiceId = invoiceIds.split(',')[0];
       const invoice = invoices.find(i => i.id === invoiceId);
-      
+
       if (!invoice) {
         return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
       }
 
-      // Get company info
-      const company = await prisma.company.findFirst();
-
       const pdfBuffer = generateInvoicePDF({
         invoiceNumber: invoice.invoiceNumber,
-        customerName: invoice.user?.name || invoice.customerName || 'Unknown',
+        customerName: invoice.user?.name || invoice.customerName || 'Pelanggan',
         customerAddress: invoice.user?.email || '',
         customerPhone: invoice.user?.phone || invoice.customerPhone || '',
         items: [
-          { 
-            description: `Layanan Internet - ${invoice.user?.profile?.name || 'Paket Internet'}`,
+          {
+            description: `Layanan Internet - ${invoice.user?.profile?.name || invoice.invoiceType || 'Paket Internet'}`,
             amount: invoice.amount
           }
         ],
@@ -124,12 +120,7 @@ export async function GET(req: NextRequest) {
         total: invoice.amount,
         dueDate: invoice.dueDate,
         status: invoice.status,
-        companyInfo: {
-          name: company?.name || 'EugineBill RADIUS',
-          address: company?.address || undefined,
-          phone: company?.phone || undefined,
-          email: company?.email || undefined
-        }
+        companyInfo
       });
 
       return new NextResponse(Buffer.from(pdfBuffer), {
@@ -140,39 +131,130 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Excel export
-    const columns = [
-      { key: 'no', header: 'No', width: 6 },
-      { key: 'invoiceNumber', header: 'Invoice #', width: 20 },
-      { key: 'customerName', header: 'Customer', width: 25 },
-      { key: 'customerPhone', header: 'Telepon', width: 15 },
-      { key: 'username', header: 'Username', width: 18 },
-      { key: 'package', header: 'Package', width: 15 },
-      { key: 'amount', header: 'Jumlah', width: 15 },
-      { key: 'status', header: 'Status', width: 12 },
-      { key: 'dueDate', header: 'Due Date', width: 15 },
-      { key: 'paidAt', header: 'Paid At', width: 15 },
-      { key: 'createdAt', header: 'Created', width: 15 }
+    // Binary PDF Export (Client or direct download)
+    if (format === 'pdf') {
+      const headers = ['No.', 'No. Invoice', 'Nama Pelanggan', 'No. Telepon', 'Username', 'Paket Internet', 'Jumlah (Rp)', 'Status', 'Jatuh Tempo', 'Paid At'];
+      const pdfRows = invoices.map((inv, idx) => [
+        idx + 1,
+        inv.invoiceNumber,
+        inv.user?.name || inv.customerName || '-',
+        inv.user?.phone || inv.customerPhone || '-',
+        inv.user?.username || inv.customerUsername || '-',
+        inv.user?.profile?.name || inv.invoiceType || '-',
+        formatCurrencyExport(inv.amount),
+        inv.status === 'PAID' ? 'LUNAS' : inv.status === 'PENDING' ? 'PENDING' : inv.status === 'OVERDUE' ? 'JATUH TEMPO' : 'BATAL',
+        formatDateExport(inv.dueDate),
+        inv.paidAt ? formatDateExport(inv.paidAt) : '-'
+      ]);
+
+      const summary = [
+        { label: 'Total Invoice', value: `${stats.total} Item` },
+        { label: 'Lunas', value: `${stats.paid} (${formatCurrencyExport(stats.totalPaid)})` },
+        { label: 'Belum Bayar', value: `${stats.pending + stats.overdue} (${formatCurrencyExport(stats.totalUnpaid)})` },
+        { label: 'Total Tagihan', value: formatCurrencyExport(stats.totalAmount) }
+      ];
+
+      const totalRow = ['', '', 'TOTAL TAGIHAN KESELURUHAN', '', '', '', formatCurrencyExport(stats.totalAmount), '', '', ''];
+
+      const pdfBuffer = generatePDFBuffer(
+        {
+          title: 'Daftar Invoice & Tagihan',
+          subtitle: dateRangeStr,
+          filename: `Invoices-${dateSuffix}.pdf`,
+          orientation: 'landscape',
+          companyInfo,
+        },
+        headers,
+        pdfRows,
+        summary,
+        totalRow
+      );
+
+      // Check if caller requests JSON metadata (backward compatibility) or binary file
+      const acceptHeader = req.headers.get('accept') || '';
+      if (acceptHeader.includes('application/json') && searchParams.get('mode') === 'json') {
+        return NextResponse.json({
+          pdfData: {
+            title: 'Daftar Invoice - ' + companyInfo.name,
+            headers,
+            rows: pdfRows,
+            summary,
+            generatedAt: formatDateExport(new Date(), 'long')
+          }
+        });
+      }
+
+      return new NextResponse(Buffer.from(pdfBuffer), {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="Invoices-${dateSuffix}.pdf"`
+        }
+      });
+    }
+
+    // Excel Export (ExcelJS)
+    const columns: ExcelColumnDef[] = [
+      { key: 'no', header: 'No.', width: 6, isNumber: true },
+      { key: 'invoiceNumber', header: 'No. Invoice', width: 22 },
+      { key: 'customerName', header: 'Nama Pelanggan', width: 26 },
+      { key: 'customerPhone', header: 'No. Telepon', width: 16 },
+      { key: 'username', header: 'Username PPPoE', width: 18 },
+      { key: 'package', header: 'Paket Internet', width: 18 },
+      { key: 'jenis', header: 'Jenis Tagihan', width: 15 },
+      { key: 'amount', header: 'Jumlah Tagihan (Rp)', width: 20, isCurrency: true },
+      { key: 'status', header: 'Status', width: 14 },
+      { key: 'dueDate', header: 'Jatuh Tempo', width: 14, isDate: true },
+      { key: 'paidAt', header: 'Tanggal Dibayar', width: 14, isDate: true },
+      { key: 'createdAt', header: 'Tanggal Dibuat', width: 14, isDate: true }
     ];
 
-    const data = invoices.map((inv, idx) => ({
+    const excelData = invoices.map((inv, idx) => ({
       no: idx + 1,
       invoiceNumber: inv.invoiceNumber,
       customerName: inv.user?.name || inv.customerName || 'Deleted',
       customerPhone: inv.user?.phone || inv.customerPhone || '',
       username: inv.user?.username || inv.customerUsername || '',
-      package: inv.user?.profile?.name || '',
+      package: inv.user?.profile?.name || '-',
+      jenis: inv.invoiceType || 'PPPoE',
       amount: inv.amount,
-      status: inv.status === 'PAID' ? 'Lunas' : inv.status === 'PENDING' ? 'Pending' : inv.status === 'OVERDUE' ? 'Jatuh Tempo' : 'Dibatalkan',
+      status: inv.status === 'PAID' ? 'LUNAS' : inv.status === 'PENDING' ? 'PENDING' : inv.status === 'OVERDUE' ? 'JATUH TEMPO' : 'BATAL',
       dueDate: formatDateExport(inv.dueDate),
-      paidAt: inv.paidAt ? formatDateExport(inv.paidAt) : '',
+      paidAt: inv.paidAt ? formatDateExport(inv.paidAt) : '-',
       createdAt: formatDateExport(inv.createdAt)
     }));
 
-    const excelBuffer = await generateExcelBuffer(data, columns, 'Invoices');
+    const summaryMetrics = [
+      { label: 'Total Invoice', value: `${stats.total} Item` },
+      { label: 'Total Lunas', value: stats.totalPaid },
+      { label: 'Total Belum Bayar', value: stats.totalUnpaid },
+      { label: 'Grand Total', value: stats.totalAmount }
+    ];
 
-    const filename = `Invoices-${new Date().toISOString().split('T')[0]}.xlsx`;
-    
+    const totalRow = {
+      no: '',
+      invoiceNumber: '',
+      customerName: 'TOTAL KESELURUHAN',
+      customerPhone: '',
+      username: '',
+      package: '',
+      jenis: '',
+      amount: stats.totalAmount,
+      status: '',
+      dueDate: '',
+      paidAt: '',
+      createdAt: ''
+    };
+
+    const excelBuffer = await generateExcelBuffer(excelData, columns, 'Daftar Invoice', {
+      title: 'DAFTAR INVOICE & TAGIHAN',
+      dateRange: dateRangeStr,
+      summary: summaryMetrics,
+      totalRow,
+      companyInfo
+    });
+
+    const filename = `Invoices-${dateSuffix}.xlsx`;
+
     return new NextResponse(Buffer.from(excelBuffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -181,7 +263,7 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Export error:', error);
+    console.error('[Invoice Export] Error:', error);
     return NextResponse.json({ error: 'Export failed' }, { status: 500 });
   }
 }

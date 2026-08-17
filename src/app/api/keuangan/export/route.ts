@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import ExcelJS from "exceljs";
-import { formatCurrencyExport, formatDateExport } from "@/lib/utils/export";
+import {
+  generateExcelBuffer,
+  generatePDFBuffer,
+  getCompanyExportInfo,
+  formatCurrencyExport,
+  formatDateExport,
+  ExcelColumnDef,
+} from "@/lib/utils/export";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/config";
-import { formatWIB } from '@/lib/timezone';
-import { formatInTimeZone } from 'date-fns-tz';
 import { startOfDayWIBtoUTC, endOfDayWIBtoUTC } from "@/lib/timezone";
-import { prisma } from '@/server/db/client';
+import { prisma } from "@/server/db/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,9 +25,9 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get("endDate");
     const type = searchParams.get("type"); // INCOME, EXPENSE, or all
     const categoryId = searchParams.get("categoryId");
+    const routerId = searchParams.get("routerId");
     const search = searchParams.get("search");
 
-    // Prepare date filters (optional)
     const where: any = {};
 
     if (startDate && endDate) {
@@ -40,25 +44,30 @@ export async function GET(request: NextRequest) {
       where.categoryId = categoryId;
     }
 
+    if (routerId && routerId !== "all") {
+      where.routerId = routerId;
+    }
+
     if (search) {
       where.OR = [
         { description: { contains: search } },
         { notes: { contains: search } },
+        { reference: { contains: search } },
       ];
     }
 
-    // Get transactions
+    // Get transactions with category info
     const transactions = await prisma.transaction.findMany({
       where,
       include: {
         category: true,
       },
       orderBy: {
-        date: "asc",
+        date: "desc",
       },
     });
 
-    // Calculate stats
+    // Calculate totals
     const totalIncome = transactions
       .filter((t) => t.type === "INCOME")
       .reduce((sum, t) => sum + Number(t.amount), 0);
@@ -69,217 +78,148 @@ export async function GET(request: NextRequest) {
 
     const balance = totalIncome - totalExpense;
 
-    // Income breakdown by category
-    const pppoeIncome = transactions
-      .filter(
-        (t) => t.type === "INCOME" && t.category.name === "Pembayaran PPPoE",
-      )
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-    const pppoeCount = transactions.filter(
-      (t) => t.type === "INCOME" && t.category.name === "Pembayaran PPPoE",
-    ).length;
+    // Fetch company info for branding & logo
+    const companyInfo = await getCompanyExportInfo();
 
-    const hotspotIncome = transactions
-      .filter(
-        (t) => t.type === "INCOME" && t.category.name === "Pembayaran Hotspot",
-      )
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-    const hotspotCount = transactions.filter(
-      (t) => t.type === "INCOME" && t.category.name === "Pembayaran Hotspot",
-    ).length;
+    const dateRangeStr =
+      startDate && endDate ? `${startDate} s/d ${endDate}` : "Semua Periode";
 
-    const installIncome = transactions
-      .filter(
-        (t) => t.type === "INCOME" && t.category.name === "Biaya Instalasi",
-      )
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-    const installCount = transactions.filter(
-      (t) => t.type === "INCOME" && t.category.name === "Biaya Instalasi",
-    ).length;
+    const filenameDate =
+      startDate && endDate
+        ? `${startDate}_to_${endDate}`
+        : new Date().toISOString().split("T")[0];
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // EXCEL EXPORT
+    // ─────────────────────────────────────────────────────────────────────────
     if (format === "excel") {
-      return await exportToExcel(transactions, {
-        startDate,
-        endDate,
-        totalIncome,
-        totalExpense,
-        balance,
-        pppoeIncome,
-        pppoeCount,
-        hotspotIncome,
-        hotspotCount,
-        installIncome,
-        installCount,
-      });
-    } else {
-      return exportToPDF(transactions, {
-        startDate,
-        endDate,
-        totalIncome,
-        totalExpense,
-        balance,
-        pppoeIncome,
-        pppoeCount,
-        hotspotIncome,
-        hotspotCount,
-        installIncome,
-        installCount,
+      const columns: ExcelColumnDef[] = [
+        { key: "no", header: "No.", width: 6, isNumber: true },
+        { key: "tanggal", header: "Tanggal", width: 14, isDate: true },
+        { key: "deskripsi", header: "Deskripsi Transaksi", width: 35 },
+        { key: "kategori", header: "Kategori", width: 22 },
+        { key: "tipe", header: "Jenis", width: 14 },
+        { key: "jumlah", header: "Jumlah (Rp)", width: 20, isCurrency: true },
+        { key: "referensi", header: "No. Referensi", width: 18 },
+        { key: "catatan", header: "Catatan", width: 25 },
+      ];
+
+      const excelData = transactions.map((t, idx) => ({
+        no: idx + 1,
+        tanggal: formatDateExport(t.date),
+        deskripsi: t.description || "-",
+        kategori: t.category?.name || "Umum",
+        tipe: t.type === "INCOME" ? "Pemasukan" : "Pengeluaran",
+        jumlah: Number(t.amount),
+        referensi: t.reference || "-",
+        catatan: t.notes || "-",
+      }));
+
+      const summaryMetrics = [
+        { label: "Total Pemasukan", value: totalIncome },
+        { label: "Total Pengeluaran", value: totalExpense },
+        { label: "Saldo Bersih", value: balance },
+        { label: "Total Transaksi", value: `${transactions.length} Transaksi` },
+      ];
+
+      const totalRow = {
+        no: "",
+        tanggal: "",
+        deskripsi: "TOTAL KESELURUHAN",
+        kategori: "",
+        tipe: "",
+        jumlah: balance,
+        referensi: "",
+        catatan: "",
+      };
+
+      const buffer = await generateExcelBuffer(
+        excelData,
+        columns,
+        "Laporan Keuangan",
+        {
+          title: "LAPORAN KEUANGAN & TRANSAKSI",
+          dateRange: dateRangeStr,
+          summary: summaryMetrics,
+          totalRow,
+          companyInfo,
+        }
+      );
+
+      return new NextResponse(Buffer.from(buffer), {
+        headers: {
+          "Content-Type":
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition": `attachment; filename="Laporan-Keuangan-${filenameDate}.xlsx"`,
+        },
       });
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PDF EXPORT
+    // ─────────────────────────────────────────────────────────────────────────
+    const pdfHeaders = [
+      "No.",
+      "Tanggal",
+      "Deskripsi",
+      "Kategori",
+      "Jenis",
+      "Jumlah (Rp)",
+      "Referensi",
+    ];
+
+    const pdfRows = transactions.map((t, idx) => [
+      idx + 1,
+      formatDateExport(t.date),
+      t.description || "-",
+      t.category?.name || "Umum",
+      t.type === "INCOME" ? "Pemasukan" : "Pengeluaran",
+      formatCurrencyExport(Number(t.amount)),
+      t.reference || "-",
+    ]);
+
+    const pdfSummary = [
+      { label: "Pemasukan", value: formatCurrencyExport(totalIncome) },
+      { label: "Pengeluaran", value: formatCurrencyExport(totalExpense) },
+      { label: "Saldo Bersih", value: formatCurrencyExport(balance) },
+      { label: "Total Data", value: `${transactions.length} Item` },
+    ];
+
+    const pdfTotalRow = [
+      "",
+      "",
+      "TOTAL SALDO BERSIH",
+      "",
+      "",
+      formatCurrencyExport(balance),
+      "",
+    ];
+
+    const pdfBuffer = generatePDFBuffer(
+      {
+        title: "Laporan Keuangan & Transaksi",
+        subtitle: dateRangeStr,
+        filename: `Laporan-Keuangan-${filenameDate}.pdf`,
+        orientation: "landscape",
+        companyInfo,
+      },
+      pdfHeaders,
+      pdfRows,
+      pdfSummary,
+      pdfTotalRow
+    );
+
+    return new NextResponse(Buffer.from(pdfBuffer), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="Laporan-Keuangan-${filenameDate}.pdf"`,
+      },
+    });
   } catch (error) {
-    console.error("Export error:", error);
+    console.error("[Keuangan Export] Error:", error);
     return NextResponse.json(
-      { error: "Failed to export data" },
-      { status: 500 },
+      { error: "Failed to export financial data" },
+      { status: 500 }
     );
   }
-}
-
-async function exportToExcel(transactions: any[], stats: any) {
-  // Prepare data for Excel
-  const data: Array<{
-    Tanggal: string;
-    Deskripsi: string;
-    Kategori: string;
-    Tipe: string;
-    Jumlah: number | string;
-    Referensi: string;
-    Catatan: string;
-  }> = transactions.map((t) => ({
-    Tanggal: formatWIB(t.date, 'dd/MM/yyyy'),
-    Deskripsi: t.description,
-    Kategori: t.category.name,
-    Tipe: t.type,
-    Jumlah: Number(t.amount),
-    Referensi: t.reference || "-",
-    Catatan: t.notes || "-",
-  }));
-
-  // Add summary rows
-  data.push({ Tanggal: "", Deskripsi: "", Kategori: "", Tipe: "", Jumlah: "", Referensi: "", Catatan: "" });
-  data.push({
-    Tanggal: "RINGKASAN",
-    Deskripsi: "",
-    Kategori: "",
-    Tipe: "",
-    Jumlah: "",
-    Referensi: "",
-    Catatan: "",
-  });
-  data.push({
-    Tanggal: "Total Income",
-    Deskripsi: "",
-    Kategori: "",
-    Tipe: "",
-    Jumlah: stats.totalIncome,
-    Referensi: "",
-    Catatan: "",
-  });
-  data.push({
-    Tanggal: "  - PPPoE",
-    Deskripsi: "",
-    Kategori: "",
-    Tipe: "",
-    Jumlah: stats.pppoeIncome || 0,
-    Referensi: `${stats.pppoeCount || 0} transaksi`,
-    Catatan: "",
-  });
-  data.push({
-    Tanggal: "  - Hotspot",
-    Deskripsi: "",
-    Kategori: "",
-    Tipe: "",
-    Jumlah: stats.hotspotIncome || 0,
-    Referensi: `${stats.hotspotCount || 0} transaksi`,
-    Catatan: "",
-  });
-  data.push({
-    Tanggal: "  - Instalasi",
-    Deskripsi: "",
-    Kategori: "",
-    Tipe: "",
-    Jumlah: stats.installIncome || 0,
-    Referensi: `${stats.installCount || 0} transaksi`,
-    Catatan: "",
-  });
-  data.push({
-    Tanggal: "Total Expense",
-    Deskripsi: "",
-    Kategori: "",
-    Tipe: "",
-    Jumlah: stats.totalExpense,
-    Referensi: "",
-    Catatan: "",
-  });
-  data.push({
-    Tanggal: "Net Balance",
-    Deskripsi: "",
-    Kategori: "",
-    Tipe: "",
-    Jumlah: stats.balance,
-    Referensi: "",
-    Catatan: "",
-  });
-
-  // Create workbook
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet("Transaksi Keuangan");
-
-  // Add headers
-  const headers = Object.keys(data[0] || {});
-  worksheet.columns = headers.map(header => ({
-    header: header,
-    key: header,
-    width: 15
-  }));
-
-  // Add data
-  data.forEach(row => {
-    worksheet.addRow(row);
-  });
-
-  // Generate buffer
-  const buffer = await workbook.xlsx.writeBuffer();
-
-  // Return as downloadable file
-  return new NextResponse(buffer, {
-    headers: {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="Laporan-Keuangan-${stats.startDate || 'semua'}-${stats.endDate || 'semua'}.xlsx"`,
-    },
-  });
-}
-
-function exportToPDF(transactions: any[], stats: any) {
-  // Generate PDF data for client-side rendering
-  const headers = ['No', 'Tanggal', 'Deskripsi', 'Kategori', 'Tipe', 'Jumlah'];
-  
-  const rows = transactions.map((t, idx) => [
-    idx + 1,
-    formatDateExport(t.date),
-    t.description,
-    t.category.name,
-    t.type === 'INCOME' ? 'Pemasukan' : 'Pengeluaran',
-    formatCurrencyExport(Number(t.amount))
-  ]);
-
-  const summary = [
-    { label: 'Total Pemasukan', value: formatCurrencyExport(stats.totalIncome) },
-    { label: 'Total Pengeluaran', value: formatCurrencyExport(stats.totalExpense) },
-    { label: 'Saldo', value: formatCurrencyExport(stats.balance) },
-    { label: 'Transaksi', value: `${transactions.length}` }
-  ];
-
-  return NextResponse.json({
-    transactions,
-    stats,
-    pdfData: {
-      title: 'Laporan Keuangan - EugineBill RADIUS',
-      headers,
-      rows,
-      summary,
-      generatedAt: formatInTimeZone(new Date(), 'Asia/Jakarta', 'dd MMM yyyy HH:mm')
-    }
-  });
 }
