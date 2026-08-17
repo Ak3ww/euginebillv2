@@ -58,12 +58,18 @@ export const BASIC_PARAM_SET = [
   ZteParamMap.hostCount,
 ];
 
-// Parameter set tambahan (5GHz, Redaman GPON) yang mungkin gagal di ONT tertentu
+// Parameter set tambahan (5GHz, Redaman GPON multi-vendor ZTE/Huawei/Fiberhome)
 export const ADVANCED_PARAM_SET = [
   ZteParamMap.ssid5g,
   ZteParamMap.wifiPassword5g,
+  ZteParamMap.wifiEnable5g,
+  'InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.SSID',
+  'InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.PreSharedKey.1.PreSharedKey',
+  'InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.Enable',
   ZteParamMap.rxPower,
   ZteParamMap.txPower,
+  'InternetGatewayDevice.WANDevice.1.X_HW_PONInterfaceConfig.RxPower',
+  'InternetGatewayDevice.WANDevice.1.X_FH_PONInterfaceConfig.RxPower',
 ];
 
 // Parameter untuk ambil daftar connected devices (Hosts)
@@ -406,10 +412,10 @@ ${names}
       const newParams: Record<string, string> = { ...existingParams, ...result };
 
       // ─── Extract dedicated fields ───────────────────────────────────
-      const ssid         = newParams[ZteParamMap.ssid] || task.device.ssid || null;
-      const ssid5g       = newParams[ZteParamMap.ssid5g] || task.device.ssid5g || null;
-      const wifiPassword = newParams[ZteParamMap.wifiPassword] || task.device.wifiPassword || null;
-      const wifiPass5g   = newParams[ZteParamMap.wifiPassword5g] || task.device.wifiPassword5g || null;
+      const ssid         = newParams[ZteParamMap.ssid] || newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID'] || task.device.ssid || null;
+      const ssid5g       = newParams[ZteParamMap.ssid5g] || newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.SSID'] || newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.SSID'] || task.device.ssid5g || null;
+      const wifiPassword = newParams[ZteParamMap.wifiPassword] || newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey'] || task.device.wifiPassword || null;
+      const wifiPass5g   = newParams[ZteParamMap.wifiPassword5g] || newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.PreSharedKey.1.PreSharedKey'] || newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.PreSharedKey.1.PreSharedKey'] || task.device.wifiPassword5g || null;
       const hwVersion    = newParams[ZteParamMap.hardwareVersion] || task.device.hardwareVersion || null;
       const swVersion    = newParams[ZteParamMap.softwareVersion] || task.device.softwareVersion || null;
       const wanIp        = newParams[ZteParamMap.wanExternalIp] || task.device.wanIpAddress || null;
@@ -418,8 +424,12 @@ ${names}
       const uptimeRaw = newParams[ZteParamMap.uptime];
       const deviceUptime = uptimeRaw ? parseInt(uptimeRaw, 10) || null : task.device.deviceUptime;
 
-      // RxPower / TxPower
-      const rxPowerRaw = newParams[ZteParamMap.rxPower] || newParams[ZteParamMap.rxPowerAlt] || newParams[ZteParamMap.rxPowerAlt2];
+      // RxPower / TxPower (ZTE / Huawei / FiberHome / Alt)
+      const rxPowerRaw = newParams[ZteParamMap.rxPower] ||
+        newParams['InternetGatewayDevice.WANDevice.1.X_HW_PONInterfaceConfig.RxPower'] ||
+        newParams['InternetGatewayDevice.WANDevice.1.X_FH_PONInterfaceConfig.RxPower'] ||
+        newParams[ZteParamMap.rxPowerAlt] ||
+        newParams[ZteParamMap.rxPowerAlt2];
       const rxPower = parseRxPower(rxPowerRaw);
       const txPowerRaw = newParams[ZteParamMap.txPower];
       const txPower = txPowerRaw ? parseFloat(txPowerRaw) || null : task.device.txPower;
