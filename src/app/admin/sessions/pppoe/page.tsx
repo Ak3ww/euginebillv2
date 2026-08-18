@@ -823,9 +823,10 @@ export default function PPPoESessionsPage() {
                             })
                           }
                           title="Remote Web ONT (Mode Nottik 10-Min Proxy)"
-                          className="p-1.5 text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors border border-cyan-500/20"
+                          className="px-2.5 py-1 text-[11px] font-bold text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-lg transition-colors inline-flex items-center gap-1 shrink-0 shadow-sm"
                         >
-                          <Globe className="w-3.5 h-3.5" />
+                          <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Remote ONT</span>
                         </button>
 
                         {/* Kick PPPoE Session */}

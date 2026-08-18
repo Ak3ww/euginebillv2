@@ -327,32 +327,33 @@ export default function OntRemotePage() {
         </div>
 
         <form onSubmit={handleLaunchQuickRemote} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <div className="lg:col-span-2">
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
-              Pilih Pelanggan / Masukkan Username &amp; IP
+          <div className="lg:col-span-2 space-y-2">
+            <label className="block text-xs font-medium text-muted-foreground">
+              Pilih Pelanggan / Masukkan Username PPPoE &amp; IP ONT
             </label>
-            {customerOptions.length > 0 ? (
-              <select
-                value={quickForm.selectedCustomerId}
-                onChange={(e) => handleSelectCustomer(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium"
-              >
-                <option value="">-- Pilih dari Daftar Pelanggan Aktif --</option>
-                {customerOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} (@{c.username}) {c.ipAddress ? `• ${c.ipAddress}` : ''}
-                  </option>
-                ))}
-              </select>
-            ) : (
+            <div className="space-y-2">
+              {customerOptions.length > 0 && (
+                <select
+                  value={quickForm.selectedCustomerId}
+                  onChange={(e) => handleSelectCustomer(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-background border border-input rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium"
+                >
+                  <option value="">-- Pilih dari Daftar Pelanggan (A-Z) --</option>
+                  {customerOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} (@{c.username}) {c.ipAddress ? `• ${c.ipAddress}` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
               <input
                 type="text"
-                placeholder="cth: EMG258 atau 172.16.10.45"
+                placeholder="Username PPPoE atau IP ONT (cth: EMG258 atau 172.16.10.45)"
                 value={quickForm.usernameOrIp}
                 onChange={(e) => setQuickForm({ ...quickForm, usernameOrIp: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-background border border-input rounded-xl text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3.5 py-2 bg-background border border-input rounded-xl text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
-            )}
+            </div>
           </div>
 
           <div>
