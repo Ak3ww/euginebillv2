@@ -495,7 +495,8 @@ export default function OntRemotePage() {
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-semibold rounded-lg transition-all"
                             >
-                              Buka ↗
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              Buka
                             </a>
                             <button
                               onClick={() => handleCloseSession(session.id, session.customerName || session.username || 'Sesi')}

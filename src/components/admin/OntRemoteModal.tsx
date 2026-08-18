@@ -189,7 +189,7 @@ export default function OntRemoteModal({
                   className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-black text-xs font-bold rounded-xl shadow-md transition-all"
                 >
                   <ExternalLink className="w-4 h-4" />
-                  Buka di Tab Baru ↗
+                  Buka di Tab Baru
                 </a>
 
                 <button
