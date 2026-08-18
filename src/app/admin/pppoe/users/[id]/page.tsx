@@ -823,6 +823,8 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
             </form>
           </div>
         </div>
+      )}
+
       {/* 1-Click ONT Remote Proxy Modal */}
       <OntRemoteModal
         isOpen={remoteModalTarget.isOpen}

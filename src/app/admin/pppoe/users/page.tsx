@@ -2238,6 +2238,8 @@ export default function PppoeUsersPage() {
           <ModalFooter>
             <ModalButton variant="secondary" onClick={() => setPrintDialogUser(null)}>{t('common.cancel')}</ModalButton>
           </ModalFooter>
+        </SimpleModal>
+
         {/* 1-Click ONT Remote Proxy Modal */}
         <OntRemoteModal
           isOpen={remoteModalTarget.isOpen}
