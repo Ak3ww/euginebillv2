@@ -1,6 +1,6 @@
 'use client'
 
-import { Star, Quote, MapPin, CheckCircle, User, Sparkles } from 'lucide-react'
+import { Star, Quote, MapPin, Sparkles } from 'lucide-react'
 
 interface Testimonial {
   id: string
@@ -128,7 +128,7 @@ export default function TestimonialsSection() {
                 key={item.id}
                 className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between space-y-4 group hover:-translate-y-0.5"
               >
-                {/* Rating & Quote Icon */}
+                {/* Rating Stars & Quote Icon */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
                     {Array.from({ length: item.rating }).map((_, i) => (
@@ -146,26 +146,15 @@ export default function TestimonialsSection() {
                 {/* User Info & Plan Badge */}
                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    {/* Notion-Style Avatar Initials with Gender-Appropriate Palette */}
-                    <div className="relative">
-                      <div
-                        className={`w-10 h-10 rounded-full ${item.avatarBg} font-bold text-xs tracking-wider flex items-center justify-center shadow-sm flex-shrink-0`}
-                      >
-                        {initials}
-                      </div>
-                      {/* Gender-Indicator Dot */}
-                      <span
-                        className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white ${
-                          item.gender === 'female' ? 'bg-pink-500' : 'bg-blue-600'
-                        }`}
-                        title={item.gender === 'female' ? 'Pelanggan Wanita' : 'Pelanggan Pria'}
-                      >
-                        ✓
-                      </span>
+                    {/* Clean Pure Notion-Style Avatar Initials without any icon overlays */}
+                    <div
+                      className={`w-10 h-10 rounded-full ${item.avatarBg} font-bold text-xs tracking-wider flex items-center justify-center shadow-sm flex-shrink-0`}
+                    >
+                      {initials}
                     </div>
 
                     <div>
-                      <h3 className="text-sm font-bold text-[#002c60] flex items-center gap-1">
+                      <h3 className="text-sm font-bold text-[#002c60]">
                         {item.name}
                       </h3>
                       <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
