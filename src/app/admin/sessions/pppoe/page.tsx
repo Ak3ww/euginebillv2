@@ -125,6 +125,9 @@ export default function PPPoESessionsPage() {
     routerName?: string
   }>({ isOpen: false })
 
+  const [routerStatuses, setRouterStatuses] = useState<any[]>([])
+  const [sourceUsed, setSourceUsed] = useState<string>('database')
+
   // Sorting state
   const [sortField, setSortField] = useState<string>('startTime')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
@@ -167,13 +170,14 @@ export default function PPPoESessionsPage() {
   }
 
   const fetchSessions = useCallback(
-    async (page: number = 1) => {
+    async (page: number = 1, isForceApi: boolean = false) => {
       try {
         setLoading(true)
         const params = new URLSearchParams()
         params.set('type', 'pppoe')
         params.set('page', page.toString())
         params.set('limit', pageSize.toString())
+        if (isForceApi) params.set('forceApi', 'true')
         if (routerFilter) params.set('routerId', routerFilter)
         if (searchFilter) params.set('search', searchFilter)
 
@@ -183,13 +187,15 @@ export default function PPPoESessionsPage() {
         if (data.success) {
           setSessions(data.sessions || [])
           setStats(data.stats || null)
-          setRouters(data.routers || [])
+          if (data.routers) setRouters(data.routers)
+          if (data.routerStatuses) setRouterStatuses(data.routerStatuses)
+          if (data.source) setSourceUsed(data.source)
           setPagination(
             data.pagination || {
               total: data.sessions?.length || 0,
               page,
               limit: pageSize,
-              totalPages: 1,
+              totalPages: Math.ceil((data.sessions?.length || 0) / pageSize) || 1,
             }
           )
           setFetchedAt(Date.now())
@@ -472,6 +478,16 @@ export default function PPPoESessionsPage() {
           </button>
 
           <button
+            onClick={() => fetchSessions(1, true)}
+            disabled={loading}
+            className="px-3.5 py-2 text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-xl flex items-center gap-1.5 border border-emerald-500/30 disabled:opacity-50 transition-colors shadow-sm"
+            title="Tarik Data Sesi Langsung Dari RouterOS API MikroTik (Live On-Demand)"
+          >
+            <Zap className={`w-4 h-4 text-emerald-400 ${loading ? 'animate-spin' : ''}`} />
+            Pull RouterOS API Live
+          </button>
+
+          <button
             onClick={handleSync}
             disabled={syncing}
             className="px-3.5 py-2 text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 rounded-xl flex items-center gap-1.5 border border-primary/20 disabled:opacity-50 transition-colors shadow-sm"
@@ -481,6 +497,32 @@ export default function PPPoESessionsPage() {
           </button>
         </div>
       </div>
+
+      {/* Router API Login Health Bar */}
+      {routerStatuses.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 p-3 bg-card border border-border rounded-xl text-xs">
+          <span className="font-semibold text-muted-foreground flex items-center gap-1">
+            <Server className="w-3.5 h-3.5 text-primary" /> Status Login RouterOS API:
+          </span>
+          {routerStatuses.map((r: any) => (
+            <span
+              key={r.id}
+              className={cn(
+                'px-2.5 py-1 rounded-lg border text-[11px] font-mono font-medium flex items-center gap-1.5',
+                r.status === 'ONLINE'
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+              )}
+              title={r.error || `Connected to ${r.ip}:${r.port}`}
+            >
+              <span
+                className={cn('w-2 h-2 rounded-full', r.status === 'ONLINE' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500')}
+              />
+              {r.name} ({r.ip}:{r.port}) — {r.status === 'ONLINE' ? `${r.count} Sesi` : `Offline (${r.error || 'Err'})`}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Summary Metrics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
