@@ -2633,3 +2633,25 @@ model customerNotification {
   @@index([createdAt])
   @@map("customer_notifications")
 }
+
+model ontRemoteSession {
+  id           String   @id @default(uuid())
+  customerId   String?
+  customerName String?
+  username     String?
+  routerName   String?
+  targetIp     String
+  targetPort   Int      @default(80)
+  proxyPort    Int      @unique
+  proxyUrl     String
+  status       String   @default("ACTIVE") // ACTIVE, EXPIRED, CLOSED
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([status])
+  @@index([username])
+  @@index([customerId])
+  @@index([expiresAt])
+  @@map("ont_remote_sessions")
+}
+
