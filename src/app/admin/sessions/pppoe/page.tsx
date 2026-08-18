@@ -21,8 +21,9 @@ import {
   Server,
   XCircle,
   MessageSquare,
-  Shield,
   Zap,
+  Filter,
+  Layers,
 } from 'lucide-react'
 import { useToast } from '@/components/cyberpunk/CyberToast'
 import { useTranslation } from '@/hooks/useTranslation'
@@ -75,23 +76,7 @@ interface OntSession {
   isExpired: boolean
 }
 
-interface Pagination {
-  total: number
-  page: number
-  limit: number
-  totalPages: number
-}
-
-interface Stats {
-  total: number
-  pppoe: number
-  hotspot: number
-  totalBandwidthFormatted: string
-  totalUploadFormatted: string
-  totalDownloadFormatted: string
-}
-
-interface Router {
+interface RouterOption {
   id: string
   name: string
 }
@@ -101,18 +86,15 @@ export default function PPPoESessionsPage() {
   const { addToast, confirm } = useToast()
 
   const [sessions, setSessions] = useState<Session[]>([])
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [routers, setRouters] = useState<Router[]>([])
+  const [stats, setStats] = useState<any>(null)
+  const [routers, setRouters] = useState<RouterOption[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set())
-  const [disconnecting, setDisconnecting] = useState(false)
+  const [disconnecting, setDisconnecting] = useState<string | null>(null)
   const [routerFilter, setRouterFilter] = useState<string>('')
   const [searchFilter, setSearchFilter] = useState<string>('')
-  const [pagination, setPagination] = useState<Pagination>({ total: 0, page: 1, limit: 25, totalPages: 1 })
-  const [pageSize, setPageSize] = useState<number>(25)
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [now, setNow] = useState(() => Date.now())
   const [fetchedAt, setFetchedAt] = useState(() => Date.now())
-  const [syncing, setSyncing] = useState(false)
 
   // ONT Remote Sessions state
   const [ontSessions, setOntSessions] = useState<OntSession[]>([])
@@ -125,14 +107,7 @@ export default function PPPoESessionsPage() {
     routerName?: string
   }>({ isOpen: false })
 
-  const [routerStatuses, setRouterStatuses] = useState<any[]>([])
-  const [sourceUsed, setSourceUsed] = useState<string>('database')
-
-  // Sorting state
-  const [sortField, setSortField] = useState<string>('startTime')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
-
-  // 1-second ticker for live uptime counter & ONT countdowns
+  // 1-second ticker for live uptime & ONT countdowns
   useEffect(() => {
     const ticker = setInterval(() => {
       setNow(Date.now())
@@ -183,13 +158,12 @@ export default function PPPoESessionsPage() {
   }
 
   const fetchSessions = useCallback(
-    async (page: number = 1, isForceApi: boolean = false) => {
+    async (isForceApi: boolean = false) => {
       try {
         setLoading(true)
         const params = new URLSearchParams()
         params.set('type', 'pppoe')
-        params.set('page', page.toString())
-        params.set('limit', pageSize.toString())
+        params.set('limit', '500')
         if (isForceApi) params.set('forceApi', 'true')
         if (routerFilter) params.set('routerId', routerFilter)
         if (searchFilter) params.set('search', searchFilter)
@@ -200,17 +174,7 @@ export default function PPPoESessionsPage() {
         if (data.success) {
           setSessions(data.sessions || [])
           setStats(data.stats || null)
-          if (data.routers) setRouters(data.routers)
-          if (data.routerStatuses) setRouterStatuses(data.routerStatuses)
-          if (data.source) setSourceUsed(data.source)
-          setPagination(
-            data.pagination || {
-              total: data.sessions?.length || 0,
-              page,
-              limit: pageSize,
-              totalPages: Math.ceil((data.sessions?.length || 0) / pageSize) || 1,
-            }
-          )
+          if (data.routers && data.routers.length > 0) setRouters(data.routers)
           setFetchedAt(Date.now())
         }
       } catch (err) {
@@ -220,19 +184,19 @@ export default function PPPoESessionsPage() {
         setLoading(false)
       }
     },
-    [routerFilter, searchFilter, pageSize, addToast, t]
+    [routerFilter, searchFilter, addToast, t]
   )
 
   useEffect(() => {
-    fetchSessions(1)
+    fetchSessions(false)
     fetchOntSessions()
     fetchRouters()
 
+    // Auto-open modal if URL query params present (e.g. from ACS redirect)
     if (typeof window !== 'undefined') {
       const sp = new URLSearchParams(window.location.search)
-      const openOnt = sp.get('openOnt') === 'true' || sp.has('username')
       const username = sp.get('username')
-      if (openOnt && username) {
+      if (username) {
         setRemoteModalTarget({
           isOpen: true,
           username,
@@ -242,142 +206,48 @@ export default function PPPoESessionsPage() {
     }
   }, [fetchSessions])
 
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortField(field)
-      setSortDirection('desc')
-    }
-  }
-
-  const sortedSessions = useMemo(() => {
-    return [...sessions].sort((a, b) => {
-      let aVal: any = a[sortField as keyof Session]
-      let bVal: any = b[sortField as keyof Session]
-
-      if (sortField === 'name') {
-        aVal = a.user?.name || a.username
-        bVal = b.user?.name || b.username
-      } else if (sortField === 'customerId') {
-        aVal = a.user?.customerId || ''
-        bVal = b.user?.customerId || ''
-      } else if (sortField === 'ip') {
-        aVal = a.framedIpAddress || ''
-        bVal = b.framedIpAddress || ''
-      } else if (sortField === 'mac') {
-        aVal = a.macAddress || ''
-        bVal = b.macAddress || ''
-      } else if (sortField === 'router') {
-        aVal = a.router?.name || ''
-        bVal = b.router?.name || ''
-      }
-
-      if (aVal === bVal) return 0
-      if (aVal === null || aVal === undefined) return 1
-      if (bVal === null || bVal === undefined) return -1
-
-      const cmp = aVal < bVal ? -1 : 1
-      return sortDirection === 'asc' ? cmp : -cmp
-    })
-  }, [sessions, sortField, sortDirection])
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedSessions(new Set(sortedSessions.map((s) => s.sessionId)))
-    } else {
-      setSelectedSessions(new Set())
-    }
-  }
-
-  const handleSelectSession = (sessionId: string, checked: boolean) => {
-    setSelectedSessions((prev) => {
-      const next = new Set(prev)
-      if (checked) next.add(sessionId)
-      else next.delete(sessionId)
-      return next
-    })
-  }
-
-  const handleDisconnect = async (sessionIds: string[]) => {
-    if (sessionIds.length === 0) return
-
+  const handleDisconnect = async (sessionId: string, username: string) => {
     if (
       !(await confirm({
-        title: t('sessions.kickUser'),
-        message: t('sessions.disconnectPppoeConfirm').replace('{count}', String(sessionIds.length)),
-        confirmText: t('sessions.yesKick'),
-        cancelText: t('common.cancel'),
+        title: 'Putuskan Sesi PPPoE',
+        message: `Apakah Anda yakin ingin memutuskan dan menendang sesi PPPoE untuk user "${username}"?`,
+        confirmText: 'Ya, Tendang Sesi',
+        cancelText: 'Batal',
         variant: 'danger',
       }))
     )
       return
 
-    setDisconnecting(true)
+    setDisconnecting(sessionId)
     try {
       const res = await fetch('/api/sessions/disconnect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionIds }),
+        body: JSON.stringify({ sessionIds: [sessionId] }),
       })
       const data = await res.json()
       if (data.success) {
-        const count =
-          data.summary?.successful ??
-          data.disconnected ??
-          data.results?.filter((r: any) => r.success).length ??
-          sessionIds.length
         addToast({
           type: 'success',
           title: t('common.success'),
-          description: t('sessions.sessionsDisconnected').replace('{count}', String(count)),
+          description: `Sesi PPPoE ${username} berhasil diputuskan`,
         })
-        setSelectedSessions(new Set())
-        fetchSessions(pagination.page)
+        fetchSessions(false)
       } else {
         addToast({
           type: 'error',
           title: t('common.error'),
-          description: data.error || t('sessions.failedDisconnect'),
+          description: data.error || 'Gagal memutuskan sesi',
         })
       }
     } catch {
       addToast({
         type: 'error',
         title: t('common.error'),
-        description: t('sessions.failedDisconnectSession'),
+        description: 'Gagal menghubungi server',
       })
     } finally {
-      setDisconnecting(false)
-    }
-  }
-
-  const handleSync = async () => {
-    setSyncing(true)
-    try {
-      const res = await fetch('/api/sessions/sync?type=pppoe', { method: 'POST' })
-      const data = await res.json()
-      await fetchSessions(1)
-
-      if (data.results?.pppoe?.success === false) {
-        const errorResult = data.results.pppoe.results?.find((r: any) => !r.success)
-        const errMsg = errorResult ? errorResult.error : 'Connection failed'
-        addToast({
-          type: 'error',
-          title: t('common.error'),
-          description: `Gagal terhubung ke MikroTik: ${errMsg}`,
-        })
-      } else {
-        addToast({
-          type: 'success',
-          title: t('common.success'),
-          description: t('sessions.syncComplete'),
-        })
-      }
-    } catch {
-      addToast({ type: 'error', title: t('common.error'), description: t('sessions.syncFailed') })
-    } finally {
-      setSyncing(false)
+      setDisconnecting(null)
     }
   }
 
@@ -414,17 +284,8 @@ export default function PPPoESessionsPage() {
     }
   }
 
-  const formatDateTime = (dtStr: string) => {
-    if (!dtStr) return '-'
-    try {
-      return formatWIB(new Date(dtStr), 'dd/MM/yyyy HH:mm:ss')
-    } catch {
-      return dtStr
-    }
-  }
-
   const formatUptime = (seconds: number) => {
-    if (seconds <= 0) return '0d 00:00:00'
+    if (seconds <= 0) return '00:00:00'
     const days = Math.floor(seconds / 86400)
     const hours = Math.floor((seconds % 86400) / 3600)
     const mins = Math.floor((seconds % 3600) / 60)
@@ -443,37 +304,35 @@ export default function PPPoESessionsPage() {
 
   const activeOntCount = ontSessions.filter((s) => s.status === 'ACTIVE' && s.remainingSeconds > 0).length
 
-  const SortHeader = ({ label, field }: { label: string; field: string }) => (
-    <th
-      onClick={() => handleSort(field)}
-      className="px-3.5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground select-none group"
-    >
-      <div className="flex items-center gap-1.5">
-        <span>{label}</span>
-        <ArrowUpDown
-          className={cn(
-            'w-3.5 h-3.5 transition-colors',
-            sortField === field ? 'text-primary opacity-100 font-bold' : 'opacity-40 group-hover:opacity-100'
-          )}
-        />
-      </div>
-    </th>
-  )
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((s) => {
+      if (routerFilter && s.router?.id !== routerFilter) return false
+      if (searchFilter) {
+        const q = searchFilter.toLowerCase()
+        const matchName = s.user?.name?.toLowerCase().includes(q)
+        const matchUser = s.username.toLowerCase().includes(q)
+        const matchIp = s.framedIpAddress?.toLowerCase().includes(q)
+        const matchCustId = s.user?.customerId?.toLowerCase().includes(q)
+        if (!matchName && !matchUser && !matchIp && !matchCustId) return false
+      }
+      return true
+    })
+  }, [sessions, routerFilter, searchFilter])
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* SaaS Standard Header */}
+      {/* SaaS Standard Top Banner Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border rounded-2xl p-6 shadow-sm">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded-full uppercase tracking-wider">
             <Wifi className="w-3.5 h-3.5" />
-            Monitoring Sesi PPPoE
+            Pusat Sesi PPPoE &amp; Remote Web ONT
           </div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">
-            Sesi PPPoE Online &amp; Remote Web ONT
+            Sesi PPPoE Online &amp; Remote ONT 1-Klik
           </h1>
           <p className="text-xs text-muted-foreground">
-            Pantau sesi aktif realtime, remote Web ONT 1-klik tanpa VPN, dan kelola koneksi pelanggan.
+            Kelola sesi aktif pelanggan, pantau uptime live, dan buka Web Interface ONT modem 1-klik tanpa alur berbelit.
           </p>
         </div>
 
@@ -487,13 +346,23 @@ export default function PPPoESessionsPage() {
                 : 'bg-background hover:bg-muted text-muted-foreground border-border'
             )}
           >
-            <Globe className="w-4 h-4" />
-            <span>Sesi Remote ONT</span>
+            <Globe className="w-4 h-4 text-cyan-400" />
+            <span>Sesi Remote Active</span>
             {activeOntCount > 0 && (
-              <span className="px-1.5 py-0.5 bg-cyan-500 text-black text-[10px] font-bold rounded-full">
+              <span className="px-2 py-0.5 bg-cyan-500 text-black text-[10px] font-bold rounded-full">
                 {activeOntCount}
               </span>
             )}
+          </button>
+
+          <button
+            onClick={() => fetchSessions(true)}
+            disabled={loading}
+            className="px-3.5 py-2 text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
+            title="Tarik Data Sesi Langsung Dari RouterOS API MikroTik"
+          >
+            <Zap className={`w-4 h-4 text-emerald-400 ${loading ? 'animate-spin' : ''}`} />
+            Pull Live API
           </button>
 
           <button
@@ -503,53 +372,8 @@ export default function PPPoESessionsPage() {
             <Download className="w-4 h-4 text-primary" />
             Export Excel
           </button>
-
-          <button
-            onClick={() => fetchSessions(1, true)}
-            disabled={loading}
-            className="px-3.5 py-2 text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-xl flex items-center gap-1.5 border border-emerald-500/30 disabled:opacity-50 transition-colors shadow-sm"
-            title="Tarik Data Sesi Langsung Dari RouterOS API MikroTik (Live On-Demand)"
-          >
-            <Zap className={`w-4 h-4 text-emerald-400 ${loading ? 'animate-spin' : ''}`} />
-            Pull RouterOS API Live
-          </button>
-
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="px-3.5 py-2 text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 rounded-xl flex items-center gap-1.5 border border-primary/20 disabled:opacity-50 transition-colors shadow-sm"
-          >
-            <RotateCcw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing...' : 'Sync Sesi Real-Time'}
-          </button>
         </div>
       </div>
-
-      {/* Router API Login Health Bar */}
-      {routerStatuses.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 p-3 bg-card border border-border rounded-xl text-xs">
-          <span className="font-semibold text-muted-foreground flex items-center gap-1">
-            <Server className="w-3.5 h-3.5 text-primary" /> Status Login RouterOS API:
-          </span>
-          {routerStatuses.map((r: any) => (
-            <span
-              key={r.id}
-              className={cn(
-                'px-2.5 py-1 rounded-lg border text-[11px] font-mono font-medium flex items-center gap-1.5',
-                r.status === 'ONLINE'
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                  : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-              )}
-              title={r.error || `Connected to ${r.ip}:${r.port}`}
-            >
-              <span
-                className={cn('w-2 h-2 rounded-full', r.status === 'ONLINE' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500')}
-              />
-              {r.name} ({r.ip}:{r.port}) — {r.status === 'ONLINE' ? `${r.count} Sesi` : `Offline (${r.error || 'Err'})`}
-            </span>
-          ))}
-        </div>
-      )}
 
       {/* Summary Metrics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -560,7 +384,7 @@ export default function PPPoESessionsPage() {
             </span>
             <CheckCircle2 className="w-5 h-5 text-emerald-500" />
           </div>
-          <p className="text-2xl font-bold text-emerald-500 mt-2">{stats?.pppoe || 0} Koneksi</p>
+          <p className="text-2xl font-bold text-emerald-500 mt-2">{stats?.pppoe || filteredSessions.length} Koneksi</p>
         </div>
 
         <div
@@ -569,11 +393,11 @@ export default function PPPoESessionsPage() {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-cyan-500">
-              Sesi Remote ONT (10m)
+              Sesi Remote ONT Aktif
             </span>
             <Globe className="w-5 h-5 text-cyan-500" />
           </div>
-          <p className="text-2xl font-bold text-cyan-500 mt-2">{activeOntCount} Aktif</p>
+          <p className="text-2xl font-bold text-cyan-500 mt-2">{activeOntCount} Sesi Terbuka</p>
         </div>
 
         <div className="p-4 bg-card border border-border rounded-2xl shadow-sm">
@@ -599,19 +423,19 @@ export default function PPPoESessionsPage() {
         </div>
       </div>
 
-      {/* Active ONT Remote Sessions Panel (Collapsible / Dynamic) */}
+      {/* Active Remote ONT Proxies Panel */}
       {(showOntRemotePanel || activeOntCount > 0) && (
         <div className="bg-card border border-cyan-500/30 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Globe className="w-5 h-5 text-cyan-400" />
               <h2 className="text-base font-semibold text-foreground">
-                Sesi Remote Web ONT Aktif (Gaya Nottik Temporary Reverse Proxy)
+                Sesi Remote Web ONT Aktif (10-Menit Reverse Proxy)
               </h2>
             </div>
             <button
               onClick={() => setShowOntRemotePanel(false)}
-              className="text-xs text-muted-foreground hover:text-foreground"
+              className="text-xs text-muted-foreground hover:text-foreground font-semibold"
             >
               Tutup Panel
             </button>
@@ -619,69 +443,49 @@ export default function PPPoESessionsPage() {
 
           {ontSessions.filter((s) => s.status === 'ACTIVE' && s.remainingSeconds > 0).length === 0 ? (
             <p className="text-xs text-muted-foreground italic py-2">
-              Belum ada sesi remote ONT yang aktif saat ini. Klik tombol Remote ONT pada baris pelanggan di bawah untuk membuka sesi baru!
+              Belum ada sesi remote ONT yang aktif saat ini. Klik tombol Remote Web ONT pada card pelanggan di bawah untuk membuka sesi baru!
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40 font-semibold uppercase text-muted-foreground">
-                    <th className="py-2.5 px-3">Pelanggan</th>
-                    <th className="py-2.5 px-3">Site</th>
-                    <th className="py-2.5 px-3">IP ONT</th>
-                    <th className="py-2.5 px-3">Port</th>
-                    <th className="py-2.5 px-3">URL Akses Temporary</th>
-                    <th className="py-2.5 px-3">Sisa Waktu</th>
-                    <th className="py-2.5 px-3 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {ontSessions
-                    .filter((s) => s.status === 'ACTIVE' && s.remainingSeconds > 0)
-                    .map((s) => (
-                      <tr key={s.id} className="hover:bg-muted/30">
-                        <td className="py-2.5 px-3 font-semibold text-foreground">
-                          {s.customerName || s.username}
-                        </td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{s.routerName || 'Router'}</td>
-                        <td className="py-2.5 px-3 font-mono">{s.targetIp}</td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-cyan-400">{s.targetPort}</td>
-                        <td className="py-2.5 px-3 font-mono">
-                          <a
-                            href={s.proxyUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-cyan-400 hover:underline font-semibold"
-                          >
-                            {s.proxyUrl}
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-emerald-400 font-bold">
-                          {formatOntTime(s.remainingSeconds)}
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <a
-                              href={s.proxyUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded text-[11px] font-semibold inline-flex items-center gap-1"
-                            >
-                              <ExternalLink className="w-3 h-3" /> Buka
-                            </a>
-                            <button
-                              onClick={() => handleCloseOntSession(s.id)}
-                              className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-[11px] font-semibold"
-                            >
-                              Tutup
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {ontSessions
+                .filter((s) => s.status === 'ACTIVE' && s.remainingSeconds > 0)
+                .map((s) => (
+                  <div key={s.id} className="p-3.5 bg-background border border-cyan-500/30 rounded-xl space-y-2.5">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-bold text-sm text-foreground">{s.customerName || s.username}</div>
+                        <div className="text-[11px] text-muted-foreground font-mono">Site: {s.routerName || 'Router'}</div>
+                      </div>
+                      <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[11px] font-mono font-bold">
+                        {formatOntTime(s.remainingSeconds)}
+                      </span>
+                    </div>
+
+                    <div className="text-xs font-mono text-cyan-400 break-all bg-muted/40 p-2 rounded-lg border border-border">
+                      <a href={s.proxyUrl} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center justify-between">
+                        <span>{s.proxyUrl}</span>
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0 ml-1" />
+                      </a>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <a
+                        href={s.proxyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" /> Buka Web ONT
+                      </a>
+                      <button
+                        onClick={() => handleCloseOntSession(s.id)}
+                        className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-lg text-xs font-bold transition-colors"
+                      >
+                        Tutup
+                      </button>
+                    </div>
+                  </div>
+                ))}
             </div>
           )}
         </div>
@@ -690,16 +494,13 @@ export default function PPPoESessionsPage() {
       {/* Control Bar: Filters & Search */}
       <div className="bg-card border border-border rounded-2xl p-4 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          {/* Router Site Filter */}
+          {/* Router Filter */}
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <RouterIcon className="w-4 h-4 text-primary shrink-0" />
             <select
               value={routerFilter}
-              onChange={(e) => {
-                setRouterFilter(e.target.value)
-                fetchSessions(1)
-              }}
-              className="w-full sm:w-60 p-2.5 bg-background border border-input rounded-xl text-xs font-semibold text-foreground focus:ring-2 focus:ring-primary outline-none"
+              onChange={(e) => setRouterFilter(e.target.value)}
+              className="w-full sm:w-56 p-2.5 bg-background border border-input rounded-xl text-xs font-semibold text-foreground focus:ring-2 focus:ring-primary outline-none"
             >
               <option value="">-- Semua Router Site --</option>
               {routers.map((r) => (
@@ -715,7 +516,7 @@ export default function PPPoESessionsPage() {
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Cari nama, user, IP, MAC..."
+              placeholder="Cari nama, username, IP..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-background border border-input rounded-xl text-xs font-mono focus:ring-2 focus:ring-primary outline-none"
@@ -723,209 +524,132 @@ export default function PPPoESessionsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground self-end md:self-center">
-          <span>Tampilkan</span>
-          <select
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-            className="px-2.5 py-1 bg-background border border-input rounded-lg text-xs font-bold text-foreground focus:ring-2 focus:ring-primary outline-none"
-          >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-          <span>data per halaman</span>
+        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+          <span>Menampilkan <strong className="text-foreground">{filteredSessions.length}</strong> pelanggan online</span>
         </div>
       </div>
 
-      {/* Main PPPoE Active Sessions Data Table */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left border-collapse">
-            <thead className="bg-muted/60 border-b border-border">
-              <tr>
-                <th className="px-3.5 py-3 text-left w-10">
-                  <input
-                    type="checkbox"
-                    checked={selectedSessions.size === sortedSessions.length && sortedSessions.length > 0}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="rounded border-border w-3.5 h-3.5"
-                  />
-                </th>
-                <SortHeader label="ID Pelanggan" field="customerId" />
-                <SortHeader label="Nama Pelanggan" field="name" />
-                <SortHeader label="Waktu Terhubung" field="startTime" />
-                <SortHeader label="Uptime Live" field="duration" />
-                <SortHeader label="Upload (TX)" field="upload" />
-                <SortHeader label="Download (RX)" field="download" />
-                <SortHeader label="Router Site" field="router" />
-                <SortHeader label="IP Address" field="ip" />
-                <SortHeader label="MAC Address" field="mac" />
-                <th className="px-3.5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky right-0 bg-card z-10 border-l border-border shadow-sm">
-                  Aksi Cepat
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-border">
-              {loading && sortedSessions.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="px-3 py-12 text-center text-muted-foreground">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-primary mb-2" />
-                    Memuat data sesi PPPoE real-time...
-                  </td>
-                </tr>
-              ) : sortedSessions.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="px-3 py-12 text-center text-muted-foreground">
-                    <Wifi className="w-8 h-8 mx-auto opacity-40 mb-2" />
-                    Tidak ada sesi PPPoE online yang sesuai filter.
-                  </td>
-                </tr>
-              ) : (
-                sortedSessions.map((session) => (
-                  <tr key={session.id} className="hover:bg-muted/40 transition-colors">
-                    <td className="px-3.5 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedSessions.has(session.sessionId)}
-                        onChange={(e) => handleSelectSession(session.sessionId, e.target.checked)}
-                        className="rounded border-border w-3.5 h-3.5"
-                      />
-                    </td>
-
-                    <td className="px-3.5 py-3 font-mono font-bold text-primary">
-                      {session.user?.customerId || '-'}
-                    </td>
-
-                    <td className="px-3.5 py-3 font-bold text-foreground">
-                      <div>{session.user?.name || session.username}</div>
-                      <div className="text-[10px] text-muted-foreground font-mono font-normal">
-                        @{session.username}
-                      </div>
-                    </td>
-
-                    <td className="px-3.5 py-3 text-muted-foreground whitespace-nowrap">
-                      {formatDateTime(session.startTime)}
-                    </td>
-
-                    <td className="px-3.5 py-3 font-mono font-bold text-emerald-500 whitespace-nowrap">
-                      {formatUptime(liveDuration(session.duration))}
-                    </td>
-
-                    <td className="px-3.5 py-3 font-mono text-blue-500 whitespace-nowrap">
-                      &uarr; {session.uploadFormatted}
-                    </td>
-
-                    <td className="px-3.5 py-3 font-mono text-purple-500 whitespace-nowrap">
-                      &darr; {session.downloadFormatted}
-                    </td>
-
-                    <td className="px-3.5 py-3 whitespace-nowrap">
-                      <span className="px-2.5 py-0.5 bg-muted text-foreground border border-border rounded-md text-[10px] font-mono font-medium uppercase">
-                        {session.router?.name || 'Router'}
-                      </span>
-                    </td>
-
-                    <td className="px-3.5 py-3 font-mono text-foreground whitespace-nowrap">
-                      {session.framedIpAddress || '-'}
-                    </td>
-
-                    <td className="px-3.5 py-3 font-mono text-[10px] text-muted-foreground whitespace-nowrap">
-                      {session.macAddress || '-'}
-                    </td>
-
-                    <td className="px-3.5 py-3 text-center sticky right-0 bg-card z-10 border-l border-border shadow-sm">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {/* 1-Click Remote Web ONT (Nottik Mode) */}
-                        <button
-                          onClick={() =>
-                            setRemoteModalTarget({
-                              isOpen: true,
-                              customerName: session.user?.name || session.username,
-                              username: session.username,
-                              targetIp: session.framedIpAddress,
-                              routerName: session.router?.name || 'Router',
-                            })
-                          }
-                          title="Remote Web ONT (Mode Nottik 10-Min Proxy)"
-                          className="px-2.5 py-1 text-[11px] font-bold text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-lg transition-colors inline-flex items-center gap-1 shrink-0 shadow-sm"
-                        >
-                          <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>Remote ONT</span>
-                        </button>
-
-                        {/* Kick PPPoE Session */}
-                        <button
-                          onClick={() => handleDisconnect([session.sessionId])}
-                          disabled={disconnecting}
-                          title="Putuskan &amp; Tendang Sesi PPPoE"
-                          className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-50"
-                        >
-                          <Power className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* WhatsApp Direct Link */}
-                        {session.user?.phone && (
-                          <a
-                            href={`https://wa.me/${session.user.phone.replace(/[^0-9]/g, '').replace(/^0/, '62')}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Chat WhatsApp Pelanggan"
-                            className="p-1.5 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5" />
-                          </a>
-                        )}
-
-                        {/* User Profile Link */}
-                        {session.user?.id && (
-                          <a
-                            href={`/admin/pppoe/users/${session.user.customerId || session.user.id}`}
-                            title="Buka Profil Pelanggan"
-                            className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                          >
-                            <User className="w-3.5 h-3.5" />
-                          </a>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {/* Grid of Clean SaaS Session Cards */}
+      {loading && filteredSessions.length === 0 ? (
+        <div className="bg-card border border-border rounded-2xl p-12 text-center text-muted-foreground">
+          <RefreshCw className="w-8 h-8 animate-spin mx-auto text-primary mb-3" />
+          <p className="text-sm font-semibold">Memuat sesi PPPoE aktif...</p>
         </div>
-
-        {/* Pagination Footer */}
-        <div className="p-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 bg-muted/20 text-xs">
-          <div className="text-muted-foreground font-mono">
-            Menampilkan <span className="font-bold text-foreground">{sortedSessions.length}</span> dari{' '}
-            <span className="font-bold text-foreground">{pagination.total}</span> sesi PPPoE online
-          </div>
-
-          <div className="flex items-center gap-2 font-mono">
-            <button
-              onClick={() => fetchSessions(pagination.page - 1)}
-              disabled={pagination.page === 1}
-              className="px-3 py-1.5 border border-border rounded-xl disabled:opacity-50 hover:bg-muted font-bold text-foreground transition-colors"
-            >
-              Sebelumnya
-            </button>
-            <span className="px-3 py-1.5 bg-primary text-primary-foreground font-bold rounded-xl">
-              {pagination.page} / {pagination.totalPages || 1}
-            </span>
-            <button
-              onClick={() => fetchSessions(pagination.page + 1)}
-              disabled={pagination.page >= pagination.totalPages}
-              className="px-3 py-1.5 border border-border rounded-xl disabled:opacity-50 hover:bg-muted font-bold text-foreground transition-colors"
-            >
-              Selanjutnya
-            </button>
-          </div>
+      ) : filteredSessions.length === 0 ? (
+        <div className="bg-card border border-border rounded-2xl p-12 text-center text-muted-foreground space-y-2">
+          <Wifi className="w-10 h-10 mx-auto opacity-40 mb-2" />
+          <p className="text-sm font-semibold">Tidak ada sesi PPPoE yang sesuai pencarian atau filter.</p>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredSessions.map((session) => (
+            <div
+              key={session.id}
+              className="bg-card border border-border hover:border-primary/40 rounded-2xl p-5 shadow-sm space-y-4 transition-all flex flex-col justify-between"
+            >
+              {/* Card Header: Customer Name & ID */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-mono font-bold text-primary">
+                    {session.user?.customerId || session.id.slice(0, 8)}
+                  </span>
+                  <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-mono font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    ONLINE
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-foreground tracking-tight">
+                  {session.user?.name || session.username}
+                </h3>
+                <div className="text-xs text-muted-foreground font-mono flex items-center gap-2">
+                  <span>{session.username}</span>
+                  {session.user?.profile && <span>• Paket: {session.user.profile}</span>}
+                </div>
+              </div>
+
+              {/* Session Network Metrics Box */}
+              <div className="p-3 bg-muted/40 border border-border rounded-xl space-y-2 text-xs font-mono">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">IP Address:</span>
+                  <span className="font-bold text-foreground">{session.framedIpAddress || '-'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Router Site:</span>
+                  <span className="font-bold text-foreground">{session.router?.name || 'Router'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Live Uptime:</span>
+                  <span className="font-bold text-emerald-400">{formatUptime(liveDuration(session.duration))}</span>
+                </div>
+                <div className="flex justify-between items-center pt-1 border-t border-border/60 text-[11px]">
+                  <span className="text-blue-400">&uarr; {session.uploadFormatted}</span>
+                  <span className="text-purple-400">&darr; {session.downloadFormatted}</span>
+                </div>
+              </div>
+
+              {/* Action Buttons Row */}
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+                {/* 1-Click Remote Web ONT Button */}
+                <button
+                  onClick={() =>
+                    setRemoteModalTarget({
+                      isOpen: true,
+                      customerName: session.user?.name || session.username,
+                      username: session.username,
+                      targetIp: session.framedIpAddress,
+                      routerName: session.router?.name || 'Router',
+                    })
+                  }
+                  className="px-3 py-2 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                  title="Buka Remote Web ONT Proxy (Mode Nottik 10-Min)"
+                >
+                  <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                  Remote Web ONT
+                </button>
+
+                {/* Tendang Sesi Button */}
+                <button
+                  onClick={() => handleDisconnect(session.sessionId, session.username)}
+                  disabled={disconnecting === session.sessionId}
+                  className="px-3 py-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
+                  title="Putuskan dan tendang sesi PPPoE pelanggan"
+                >
+                  <Power className="w-3.5 h-3.5 text-rose-500" />
+                  {disconnecting === session.sessionId ? 'Tendang...' : 'Tendang Sesi'}
+                </button>
+
+                {/* WhatsApp Chat Button */}
+                {session.user?.phone ? (
+                  <a
+                    href={`https://wa.me/${session.user.phone.replace(/[^0-9]/g, '').replace(/^0/, '62')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                    WA Pelanggan
+                  </a>
+                ) : (
+                  <div />
+                )}
+
+                {/* View Profile Link */}
+                {session.user?.id ? (
+                  <a
+                    href={`/admin/pppoe/users/${session.user.customerId || session.user.id}`}
+                    className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                  >
+                    <User className="w-3.5 h-3.5 text-primary" />
+                    Profil
+                  </a>
+                ) : (
+                  <div />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 1-Click ONT Remote Proxy Modal */}
       <OntRemoteModal
