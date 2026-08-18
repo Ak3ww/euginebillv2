@@ -5,6 +5,7 @@ import { useToast, CyberToastProvider } from '@/components/cyberpunk/CyberToast'
 import { UserPlus, Loader2, Wifi, CheckCircle, MapPin, Phone, Mail, Home, Package, FileText, Gift, CreditCard, Camera, X, Map } from 'lucide-react';
 import MapPicker from '@/components/MapPicker';
 import { CameraPhotoInput } from '@/components/CameraPhotoInput';
+import TestimonialsSection from '@/components/TestimonialsSection';
 
 export const dynamic = 'force-dynamic';
 
@@ -528,6 +529,9 @@ function DaftarPageInner() {
             </p>
           </form>
         </div>
+
+        {/* Testimonials Section */}
+        <TestimonialsSection />
 
         {/* Footer */}
         <p className="text-center text-xs text-slate-400">
