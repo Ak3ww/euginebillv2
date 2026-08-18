@@ -16,6 +16,7 @@ import {
   Shield,
   SquareCode,
   Zap,
+  Users,
 } from 'lucide-react'
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert'
 
@@ -36,14 +37,24 @@ interface OntSession {
   isExpired: boolean
 }
 
+interface CustomerOption {
+  id: string
+  name: string
+  username: string
+  ipAddress: string | null
+  routerName?: string
+}
+
 export default function OntRemotePage() {
   const [sessions, setSessions] = useState<OntSession[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
+  const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>([])
 
   // Quick remote form state
   const [quickForm, setQuickForm] = useState({
+    selectedCustomerId: '',
     usernameOrIp: '',
     targetPort: '80',
     routerName: 'Cibinong',
@@ -64,8 +75,29 @@ export default function OntRemotePage() {
     }
   }
 
+  const fetchCustomers = async () => {
+    try {
+      const res = await fetch('/api/pppoe/users?limit=100')
+      const data = await res.json()
+      if (data.users) {
+        setCustomerOptions(
+          data.users.map((u: any) => ({
+            id: u.id,
+            name: u.name || u.username,
+            username: u.username,
+            ipAddress: u.ipAddress || null,
+            routerName: u.router?.name || 'Router',
+          }))
+        )
+      }
+    } catch (err) {
+      console.error('Failed to load customer list:', err)
+    }
+  }
+
   useEffect(() => {
     fetchSessions()
+    fetchCustomers()
 
     // Interval to refresh sessions & countdown
     const interval = setInterval(() => {
@@ -86,10 +118,22 @@ export default function OntRemotePage() {
     return () => clearInterval(interval)
   }, [])
 
+  const handleSelectCustomer = (customerId: string) => {
+    const cust = customerOptions.find((c) => c.id === customerId)
+    if (cust) {
+      setQuickForm((prev) => ({
+        ...prev,
+        selectedCustomerId: cust.id,
+        usernameOrIp: cust.username,
+        routerName: cust.routerName || prev.routerName,
+      }))
+    }
+  }
+
   const handleLaunchQuickRemote = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!quickForm.usernameOrIp.trim()) {
-      showError('Masukkan Username PPPoE atau IP ONT target')
+      showError('Pilih Pelanggan atau masukkan Username PPPoE / IP ONT target')
       return
     }
 
@@ -97,6 +141,7 @@ export default function OntRemotePage() {
     try {
       const isIp = quickForm.usernameOrIp.match(/^\d+\.\d+\.\d+\.\d+$/)
       const payload = {
+        ...(quickForm.selectedCustomerId ? { customerId: quickForm.selectedCustomerId } : {}),
         ...(isIp ? { targetIp: quickForm.usernameOrIp.trim() } : { username: quickForm.usernameOrIp.trim() }),
         targetPort: parseInt(quickForm.targetPort) || 80,
         routerName: quickForm.routerName,
@@ -111,7 +156,7 @@ export default function OntRemotePage() {
       const data = await res.json()
       if (res.ok && data.success) {
         showSuccess('Sesi Remote Web ONT Berhasil Dibuat!')
-        setQuickForm((prev) => ({ ...prev, usernameOrIp: '' }))
+        setQuickForm((prev) => ({ ...prev, usernameOrIp: '', selectedCustomerId: '' }))
         fetchSessions()
         // Automatically open new tab
         if (data.session?.proxyUrl) {
@@ -182,7 +227,7 @@ export default function OntRemotePage() {
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <div className="p-2.5 bg-cyan-500/10 rounded-xl border border-cyan-500/20 text-cyan-400">
               <Globe className="w-6 h-6" />
             </div>
@@ -274,22 +319,37 @@ export default function OntRemotePage() {
         <div className="flex items-center gap-2">
           <Zap className="w-5 h-5 text-amber-500" />
           <h2 className="text-base font-semibold text-foreground">
-            Quick Remote Web ONT (Mode Nottik Style)
+            Quick Remote Web ONT (Nottik Reverse Proxy Mode)
           </h2>
         </div>
 
-        <form onSubmit={handleLaunchQuickRemote} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div>
+        <form onSubmit={handleLaunchQuickRemote} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="lg:col-span-2">
             <label className="block text-xs font-medium text-muted-foreground mb-1">
-              Username PPPoE atau IP ONT
+              Pilih Pelanggan / Masukkan Username &amp; IP
             </label>
-            <input
-              type="text"
-              placeholder="cth: EMG258 atau 172.16.10.45"
-              value={quickForm.usernameOrIp}
-              onChange={(e) => setQuickForm({ ...quickForm, usernameOrIp: e.target.value })}
-              className="w-full px-3.5 py-2.5 bg-background border border-input rounded-xl text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+            {customerOptions.length > 0 ? (
+              <select
+                value={quickForm.selectedCustomerId}
+                onChange={(e) => handleSelectCustomer(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium"
+              >
+                <option value="">-- Pilih dari Daftar Pelanggan Aktif --</option>
+                {customerOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} (@{c.username}) {c.ipAddress ? `• ${c.ipAddress}` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                placeholder="cth: EMG258 atau 172.16.10.45"
+                value={quickForm.usernameOrIp}
+                onChange={(e) => setQuickForm({ ...quickForm, usernameOrIp: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-background border border-input rounded-xl text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            )}
           </div>
 
           <div>
@@ -397,8 +457,8 @@ export default function OntRemotePage() {
               {filteredSessions.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-muted-foreground">
-                    <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                    Belum ada sesi remote Web ONT yang aktif.
+                    <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-40 text-primary" />
+                    Belum ada sesi remote Web ONT yang aktif saat ini.
                   </td>
                 </tr>
               ) : (

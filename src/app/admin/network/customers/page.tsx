@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
@@ -522,6 +522,13 @@ export default function CustomerAssignmentPage() {
                       </td>
                       <td className="px-3 py-2 text-right">
                         <div className="flex justify-end gap-1">
+                          <a
+                            href={`/admin/monitoring/ont-remote?username=${encodeURIComponent(assignment.customer?.username || '')}`}
+                            className="p-1 text-cyan-400 hover:bg-cyan-500/10 rounded"
+                            title="Remote Web ONT (Nottik Mode)"
+                          >
+                            <Globe className="h-3 w-3" />
+                          </a>
                           <button
                             onClick={() => handleEdit(assignment)}
                             className="p-1 text-muted-foreground hover:bg-muted rounded"

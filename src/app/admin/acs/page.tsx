@@ -1,5 +1,5 @@
 import { prisma } from '@/server/db/client';
-import { Router as RouterIcon, Wifi, Search, ExternalLink, Activity, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Router as RouterIcon, Wifi, Search, ExternalLink, Activity, AlertCircle, CheckCircle, XCircle, Globe } from 'lucide-react';
 import Link from 'next/link';
 
 function formatRelativeTime(date: Date | null): string {
@@ -247,13 +247,23 @@ export default async function AcsDashboardPage({ searchParams }: { searchParams:
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Link
-                          href={`/admin/acs/${device.id}`}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors text-xs font-medium"
-                        >
-                          <RouterIcon className="w-3.5 h-3.5" />
-                          Kelola
-                        </Link>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/admin/monitoring/ont-remote?username=${encodeURIComponent(device.pppoeUser?.username || device.serialNumber)}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 rounded-md transition-colors text-xs font-medium"
+                            title="Remote Web ONT (Mode Temporary)"
+                          >
+                            <Globe className="w-3.5 h-3.5" />
+                            Remote ONT
+                          </Link>
+                          <Link
+                            href={`/admin/acs/${device.id}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors text-xs font-medium"
+                          >
+                            <RouterIcon className="w-3.5 h-3.5" />
+                            Kelola
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );

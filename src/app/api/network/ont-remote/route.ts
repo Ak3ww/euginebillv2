@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/auth/config'
 import { prisma } from '@/server/db/client'
-import { exec as execCb } from 'child_process'
-import { promisify } from 'util'
-
-const exec = promisify(execCb)
+import { OntRemoteService } from '@/server/services/mikrotik/ont-remote.service'
 
 export const dynamic = 'force-dynamic'
 
@@ -228,19 +225,7 @@ export async function POST(request: NextRequest) {
 
     const expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_MINUTES * 60 * 1000)
 
-    // 4. Setup Linux iptables / socat port forwarding on VPS if running on Linux
-    if (process.platform === 'linux') {
-      try {
-        // Forward port on VPS: proxyPort -> targetIp:parsedTargetPort
-        await exec(`iptables -t nat -I PREROUTING -p tcp --dport ${proxyPort} -j DNAT --to-destination ${targetIp}:${parsedTargetPort}`)
-        await exec(`iptables -I FORWARD -p tcp -d ${targetIp} --dport ${parsedTargetPort} -j ACCEPT`)
-        await exec(`iptables -t nat -I POSTROUTING -p tcp -d ${targetIp} --dport ${parsedTargetPort} -j MASQUERADE`)
-      } catch (err) {
-        console.warn('[ont-remote] Firewall forwarder warning:', err)
-      }
-    }
-
-    // 5. Save session record to DB
+    // 4. Save session record to DB
     const ontSession = await prisma.ontRemoteSession.create({
       data: {
         customerId: customerId || null,
@@ -254,6 +239,16 @@ export async function POST(request: NextRequest) {
         status: 'ACTIVE',
         expiresAt,
       },
+    })
+
+    // 5. Setup VPS Reverse Proxy Forwarder + MikroTik NAT & Filter Rules via API
+    await OntRemoteService.setupOntRemoteRules({
+      sessionId: ontSession.id,
+      routerId: customerId ? (await prisma.pppoeUser.findUnique({ where: { id: customerId }, select: { routerId: true } }))?.routerId : null,
+      routerName,
+      targetIp,
+      targetPort: parsedTargetPort,
+      proxyPort,
     })
 
     return NextResponse.json({
@@ -292,15 +287,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     }
 
-    // Clean up iptables forwarder on VPS if running on Linux
-    if (process.platform === 'linux' && ontSession.proxyPort) {
-      try {
-        await exec(`iptables -t nat -D PREROUTING -p tcp --dport ${ontSession.proxyPort} -j DNAT --to-destination ${ontSession.targetIp}:${ontSession.targetPort}`)
-        await exec(`iptables -D FORWARD -p tcp -d ${ontSession.targetIp} --dport ${ontSession.targetPort} -j ACCEPT`)
-      } catch {
-        /* ignore cleanup errors */
-      }
-    }
+    // Clean up VPS forwarder + MikroTik Firewall rules via API
+    await OntRemoteService.removeOntRemoteRules({
+      sessionId: ontSession.id,
+      routerName: ontSession.routerName,
+      proxyPort: ontSession.proxyPort,
+      targetIp: ontSession.targetIp,
+      targetPort: ontSession.targetPort,
+    })
 
     // Update status to CLOSED
     const updated = await prisma.ontRemoteSession.update({

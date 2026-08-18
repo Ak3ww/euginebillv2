@@ -14,9 +14,11 @@ const jetbrainsMono = { variable: "font-mono" };
 const hankenGrotesk = { variable: "font-hanken" };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const company = await prisma.company.findFirst({ select: { name: true } });
-  const name = company?.name || 'Eugine Media Group';
-  const description = "Eugine Media Group | Integrated IT, Network, and Hardware Solutions for ISP/RTRW.NET and Enterprise.";
+  const company = await prisma.company.findFirst({ select: { name: true, logo: true } });
+  let rawName = company?.name || 'Eugine Media Group';
+  const name = rawName.replace(/^PT\.?\s*/i, '').trim();
+  const logoUrl = company?.logo ? company.logo : '/api/pwa/icon?size=192';
+  const description = `${name} | Integrated IT, Network, and Hardware Solutions for ISP/RTRW.NET and Enterprise.`;
   return {
     title: name,
     description: description,
@@ -30,11 +32,12 @@ export async function generateMetadata(): Promise<Metadata> {
     manifest: "/manifest.json",
     icons: {
       icon: [
-        { url: "/api/pwa/icon?size=192", sizes: "192x192", type: "image/png" },
+        { url: logoUrl, sizes: "192x192" },
         { url: "/api/pwa/icon?size=512", sizes: "512x512", type: "image/png" },
       ],
+      shortcut: logoUrl,
       apple: [
-        { url: "/api/pwa/icon?size=192", sizes: "192x192", type: "image/png" },
+        { url: logoUrl, sizes: "192x192" },
       ],
     },
     appleWebApp: {
