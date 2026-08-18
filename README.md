@@ -16,22 +16,27 @@ Modern, full-stack billing & RADIUS management system for ISP/RTRW.NET with Free
 
 | Category | Key Capabilities |
 |----------|-----------------|
-| **RADIUS / Auth** | FreeRADIUS 3.0.26, PAP/CHAP/MS-CHAP, VPN L2TP/IPSec, PPPoE & Hotspot, CoA real-time speed/disconnect |
+| **RADIUS / Auth** | FreeRADIUS 3.0.26, PAP/CHAP/MS-CHAP, VPN L2TP/IPSec, PPPoE & Hotspot, CoA real-time speed/disconnect, IP Pool management, Multi-NAS isolation |
 | **VPN Management** | MikroTik CHR via API, VPS built-in WireGuard & L2TP/IPsec peer management, configurable IP pool & gateway per protocol, auto-generated RouterOS scripts |
-| **PPPoE Management** | Customer accounts, profile-based bandwidth, isolation, IP assignment, MikroTik auto-sync, foto KTP+instalasi via kamera HP, GPS otomatis |
-| **Hotspot Voucher** | 8 code types, batch up to 25,000, agent distribution, auto-sync with RADIUS, print templates |
+| **PPPoE Management** | Customer accounts, profile-based bandwidth, isolation, IP assignment, MikroTik auto-sync, foto KTP+instalasi via kamera HP, GPS otomatis, realtime online/offline status (polling 10s), realtime status isolir/aktif (polling 10s), PSB wizard 3-step (adopt dari home.pmynet.id), true optimistic update (reactivate/delete instant), placeholder MAC rejection |
+| **IP Pool** | RADIUS ippool module — dynamic IP allocation per speed tier, pool create/expand/delete, Pool-Name → group mapping, utilization stats |
+| **Data Usage Reporting** | Per-user bandwidth tracking (daily aggregation via cron), monthly summary, top consumers, GB upload/download per period |
+| **Hotspot Voucher** | 8 code types, batch up to 25,000, agent distribution, auto-sync with RADIUS, print templates, MikroTik local-only mode (voucher sync via RouterOS API, salfanet: comment marker, batch cleanup, cron status sync) |
 | **Billing** | Postpaid/prepaid invoices, auto-generation, payment reminders, balance/deposit, auto-renewal |
 | **Payment** | Manual upload (bukti transfer), Midtrans/Xendit/Duitku gateway, approval workflow, 0–5 bank accounts |
 | **Notifications** | WhatsApp (Fonnte/WAHA/GOWA/MPWA/Wablas/WABlast/**Kirimi.id**/**Baileys native**), Email SMTP, broadcast (outage/invoice/payment), webhook pesan masuk |
 | **Agent/Reseller** | Balance-based voucher generation, commission tracking, sales stats |
 | **Financial** | Income/expense tracking with categories, keuangan reconciliation |
 | **Network (FTTH)** | OLT/ODC/ODP management, customer port assignment, network map, distance calculation |
-| **GenieACS TR-069** | CPE/ONT management, WiFi config (SSID/password), device status & uptime |
-| **Isolation** | Auto-isolate expired customers, customizable WhatsApp/Email/HTML landing page templates |
-| **Cron Jobs** | 16 automated background jobs (tsx runner via PM2 fork), history, distributed locking, manual trigger |
+| **Built-in ACS / TR-069** | Native CWMP TR-069 Server (zero external dependency) & GenieACS support, Multi-Vendor WiFi Config (2.4G & 5G for ZTE, Huawei, RTE, SK, GGCLink, China Mobile, FiberHome), Eye toggle UI, Hostname sanitization, Connected Devices (Hosts), RxPower, Reboot, Auto-Inform & Connection Request |
+| **Isolation** | Auto-isolate expired customers, customizable WhatsApp/Email/HTML landing page templates, fallback MikroTik API kick saat radacct kosong |
+| **Cron Jobs** | 17 automated background jobs (tsx runner via PM2 fork), history, distributed locking, manual trigger, auto-close orphaned/stale sessions |
 | **Roles & Permissions** | 53 permissions, 5 portals (Admin/Customer/Agent/Technician + SuperAdmin) |
 | **Activity Log** | Audit trail with auto-cleanup (30 days) |
 | **Security** | Session timeout 30 min, idle warning, RBAC, HTTPS/SSL |
+| **Performance** | Redis cache untuk data non-realtime (profiles, areas, routers), graceful degradation jika Redis unavailable |
+| **Auth Modes** | local (MikroTik primary) dan radius (FreeRADIUS primary, PPP secret backup disabled). Auto-migrate radius → local: create PPP secrets from existing customer data + disconnect RADIUS sessions. hybrid mode obsolete |
+| **RADIUS Setup** | Auto-generated RouterOS script pakai IP asli VPS (bukan domain/Cloudflare proxy), VPN-specific address selection |
 | **Bahasa** | Bahasa Indonesia (full) |
 | **PWA** | Installable di semua portal (admin, customer, agent, technician), offline fallback, service worker cache |
 | **Web Push** | VAPID-based browser push notifications, subscribe/unsubscribe toggle, admin broadcast |
