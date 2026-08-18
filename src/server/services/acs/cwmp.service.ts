@@ -49,6 +49,10 @@ export const ZteParamMap = {
 export const BASIC_PARAM_SET = [
   ZteParamMap.ssid,
   ZteParamMap.wifiPassword,
+  'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase',
+  'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey',
+  'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.X_HW_PreSharedKey',
+  'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.X_ZTE-COM_PreSharedKey',
   ZteParamMap.pppoeUsername,
   ZteParamMap.wanExternalIp,
   ZteParamMap.hardwareVersion,
@@ -65,7 +69,11 @@ export const ADVANCED_PARAM_SET = [
   ZteParamMap.wifiEnable5g,
   'InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.SSID',
   'InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.PreSharedKey.1.PreSharedKey',
+  'InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.KeyPassphrase',
+  'InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.PreSharedKey',
   'InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.Enable',
+  'InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.KeyPassphrase',
+  'InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.PreSharedKey',
   ZteParamMap.rxPower,
   ZteParamMap.txPower,
   'InternetGatewayDevice.WANDevice.1.X_HW_PONInterfaceConfig.RxPower',
@@ -80,6 +88,10 @@ export const HOST_BASE_PARAMS = (n: number): string[] => {
     base + 'MACAddress',
     base + 'IPAddress',
     base + 'HostName',
+    base + 'UserHostName',
+    base + 'X_ZTE-COM_HostName',
+    base + 'X_HW_HostName',
+    base + 'DeviceName',
     base + 'InterfaceType',
     base + 'Active',
     base + 'AddressSource',
@@ -123,10 +135,25 @@ function extractConnectedDevices(params: Record<string, string>): { mac: string;
     const mac = params[base + 'MACAddress'] || '';
     const ip = params[base + 'IPAddress'] || '';
     if (!mac && !ip) continue;
+
+    let rawHostname =
+      params[base + 'HostName'] ||
+      params[base + 'UserHostName'] ||
+      params[base + 'X_ZTE-COM_HostName'] ||
+      params[base + 'X_HW_HostName'] ||
+      params[base + 'DeviceName'] ||
+      '';
+
+    let cleanedHostname = rawHostname.trim();
+    // Jika hostname cuma berupa angka murni (seperti "1", "2", "3") atau "Host1", bersihkan agar tidak aneh di UI
+    if (cleanedHostname && (!isNaN(Number(cleanedHostname)) || /^Host\s*\d+$/i.test(cleanedHostname))) {
+      cleanedHostname = '';
+    }
+
     hosts.push({
       mac,
       ip,
-      hostname: params[base + 'HostName'] || '',
+      hostname: cleanedHostname,
       interface: params[base + 'InterfaceType'] || '',
       active: (params[base + 'Active'] || '').toLowerCase() === 'true' || (params[base + 'Active'] || '') === '1',
     });
@@ -414,8 +441,26 @@ ${names}
       // ─── Extract dedicated fields ───────────────────────────────────
       const ssid         = newParams[ZteParamMap.ssid] || newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID'] || task.device.ssid || null;
       const ssid5g       = newParams[ZteParamMap.ssid5g] || newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.SSID'] || newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.SSID'] || task.device.ssid5g || null;
-      const wifiPassword = newParams[ZteParamMap.wifiPassword] || newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey'] || task.device.wifiPassword || null;
-      const wifiPass5g   = newParams[ZteParamMap.wifiPassword5g] || newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.PreSharedKey.1.PreSharedKey'] || newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.PreSharedKey.1.PreSharedKey'] || task.device.wifiPassword5g || null;
+      const wifiPassword =
+        newParams[ZteParamMap.wifiPassword] ||
+        newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase'] ||
+        newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey'] ||
+        newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.X_HW_PreSharedKey'] ||
+        newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.X_ZTE-COM_PreSharedKey'] ||
+        newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey'] ||
+        task.device.wifiPassword ||
+        null;
+
+      const wifiPass5g   =
+        newParams[ZteParamMap.wifiPassword5g] ||
+        newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.KeyPassphrase'] ||
+        newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.PreSharedKey'] ||
+        newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.KeyPassphrase'] ||
+        newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.PreSharedKey'] ||
+        newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.PreSharedKey.1.PreSharedKey'] ||
+        newParams['InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.PreSharedKey.1.PreSharedKey'] ||
+        task.device.wifiPassword5g ||
+        null;
       const hwVersion    = newParams[ZteParamMap.hardwareVersion] || task.device.hardwareVersion || null;
       const swVersion    = newParams[ZteParamMap.softwareVersion] || task.device.softwareVersion || null;
       const wanIp        = newParams[ZteParamMap.wanExternalIp] || task.device.wanIpAddress || null;

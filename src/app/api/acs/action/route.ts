@@ -60,10 +60,26 @@ export async function POST(request: Request) {
 
         // Map ke kolom dedicated
         const { ZteParamMap } = await import('@/server/services/acs/cwmp.service');
-        if (pv.name === ZteParamMap.ssid)         updateData.ssid = pv.value;
-        if (pv.name === ZteParamMap.ssid5g)        updateData.ssid5g = pv.value;
-        if (pv.name === ZteParamMap.wifiPassword)  updateData.wifiPassword = pv.value;
-        if (pv.name === ZteParamMap.wifiPassword5g) updateData.wifiPassword5g = pv.value;
+        if (pv.name === ZteParamMap.ssid || pv.name.endsWith('WLANConfiguration.1.SSID')) updateData.ssid = pv.value;
+        if (pv.name === ZteParamMap.ssid5g || pv.name.endsWith('WLANConfiguration.2.SSID') || pv.name.endsWith('WLANConfiguration.5.SSID')) updateData.ssid5g = pv.value;
+        if (
+          pv.name === ZteParamMap.wifiPassword ||
+          pv.name.includes('WLANConfiguration.1.KeyPassphrase') ||
+          pv.name.includes('WLANConfiguration.1.PreSharedKey') ||
+          pv.name.includes('WLANConfiguration.1.X_HW_PreSharedKey') ||
+          pv.name.includes('WLANConfiguration.1.X_ZTE-COM_PreSharedKey')
+        ) {
+          updateData.wifiPassword = pv.value;
+        }
+        if (
+          pv.name === ZteParamMap.wifiPassword5g ||
+          pv.name.includes('WLANConfiguration.5.KeyPassphrase') ||
+          pv.name.includes('WLANConfiguration.5.PreSharedKey') ||
+          pv.name.includes('WLANConfiguration.2.KeyPassphrase') ||
+          pv.name.includes('WLANConfiguration.2.PreSharedKey')
+        ) {
+          updateData.wifiPassword5g = pv.value;
+        }
         if (pv.name === ZteParamMap.pppoeUsername) {
           // Juga coba re-link PPPoE user
           const clean = pv.value.split('@')[0].trim();
