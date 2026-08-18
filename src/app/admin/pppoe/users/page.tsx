@@ -7,7 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Plus, Pencil, Trash2, Users, CheckCircle2, MapPin, Map, MoreVertical, Server,
-  Shield, ShieldOff, Ban, Download, Upload, Search, Filter, X, Eye, EyeOff, RefreshCcw, DollarSign, Loader2, Zap,
+  Shield, ShieldOff, Ban, Download, Upload, Search, Filter, X, Eye, EyeOff, RefreshCcw, DollarSign, Loader2, Zap, Globe,
   UserPlus, RefreshCw, Clock, Bell, Send, Mail, ArrowUpDown, Printer, FileText,
   Calendar, CreditCard, Camera, ImageIcon, Info, AlertTriangle, Wrench, CheckCircle, XCircle, ClipboardCheck,
 } from 'lucide-react';
@@ -379,7 +379,13 @@ export default function PppoeUsersPage() {
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('');
   const [sortBy, setSortBy] = useState<string>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [remoteModalTarget, setRemoteModalTarget] = useState<{
+    isOpen: boolean;
+    customerName?: string;
+    username?: string;
+    targetIp?: string;
+    routerName?: string;
+  }>({ isOpen: false });
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
@@ -1614,6 +1620,22 @@ export default function PppoeUsersPage() {
                     )}
 
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      {/* 1-Click Remote ONT */}
+                      <button
+                        onClick={() =>
+                          setRemoteModalTarget({
+                            isOpen: true,
+                            customerName: user.name,
+                            username: user.username,
+                            targetIp: user.ipAddress || undefined,
+                            routerName: user.router?.name || 'Router',
+                          })
+                        }
+                        className="flex-1 min-w-[100px] flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 rounded-lg transition-colors"
+                        title="Remote Web ONT (Mode Temporary 10-Min Proxy)"
+                      >
+                        <Globe className="h-3.5 w-3.5 text-cyan-400" /> Remote ONT
+                      </button>
                       {/* Buat SPK */}
                       <a
                         href={`/admin/work-orders?new=true&userId=${user.id}&name=${encodeURIComponent(user.name)}&phone=${encodeURIComponent(user.phone || '')}&address=${encodeURIComponent(user.address || '')}`}
@@ -2216,7 +2238,15 @@ export default function PppoeUsersPage() {
           <ModalFooter>
             <ModalButton variant="secondary" onClick={() => setPrintDialogUser(null)}>{t('common.cancel')}</ModalButton>
           </ModalFooter>
-        </SimpleModal>
+        {/* 1-Click ONT Remote Proxy Modal */}
+        <OntRemoteModal
+          isOpen={remoteModalTarget.isOpen}
+          onClose={() => setRemoteModalTarget({ isOpen: false })}
+          customerName={remoteModalTarget.customerName}
+          username={remoteModalTarget.username}
+          targetIp={remoteModalTarget.targetIp}
+          routerName={remoteModalTarget.routerName}
+        />
       </div>
   );
 }

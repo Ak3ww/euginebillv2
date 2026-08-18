@@ -107,7 +107,21 @@ export async function GET(request: NextRequest) {
     }
 
     if (userId) {
-      where.userId = userId;
+      const pppUser = await prisma.pppoeUser.findUnique({
+        where: { id: userId },
+        select: { id: true, username: true, customerId: true, phone: true },
+      }).catch(() => null);
+
+      if (pppUser) {
+        where.OR = [
+          { userId: pppUser.id },
+          { customerUsername: pppUser.username },
+          ...(pppUser.customerId ? [{ user: { customerId: pppUser.customerId } }] : []),
+          ...(pppUser.phone ? [{ customerPhone: pppUser.phone }] : []),
+        ];
+      } else {
+        where.userId = userId;
+      }
     }
 
     // Filter by Mikrotik/Router — via user.routerId

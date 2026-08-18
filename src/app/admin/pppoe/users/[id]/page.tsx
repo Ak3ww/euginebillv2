@@ -8,11 +8,12 @@ import { formatWIB } from '@/lib/timezone';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import UserDetailModal from '@/components/UserDetailModal';
 import MapPicker from '@/components/MapPicker';
+import OntRemoteModal from '@/components/admin/OntRemoteModal';
 import {
   ArrowLeft, User, Wifi, WifiOff, Shield, ShieldOff, Ban, CheckCircle2,
   Phone, Mail, MapPin, Calendar, CreditCard, Copy, ExternalLink, RefreshCw,
   AlertTriangle, FileText, Clock, Zap, Check, Activity, Eye, EyeOff,
-  Hash, MessageCircle, Download, Upload, Timer, Server,
+  Hash, MessageCircle, Download, Upload, Timer, Server, Globe,
   ChevronDown, ChevronUp, Plus, SendHorizonal, Laptop, X, Edit3, Settings, Wrench, Camera
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -123,7 +124,13 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
   const [routers, setRouters] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
 
-  // UserDetailModal & MapPicker States
+  const [remoteModalTarget, setRemoteModalTarget] = useState<{
+    isOpen: boolean;
+    customerName?: string;
+    username?: string;
+    targetIp?: string;
+    routerName?: string;
+  }>({ isOpen: false });
   const [isUserDetailModalOpen, setIsUserDetailModalOpen] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [mapPickerLat, setMapPickerLat] = useState<string | undefined>(undefined);
@@ -421,6 +428,23 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
 
           {/* Action Buttons Header */}
           <div className="flex items-center gap-2 flex-wrap w-full md:w-auto border-t md:border-t-0 border-border pt-4 md:pt-0">
+            {/* 1-Click Remote Web ONT */}
+            <button
+              onClick={() =>
+                setRemoteModalTarget({
+                  isOpen: true,
+                  customerName: user.name,
+                  username: user.username,
+                  targetIp: activeSession?.framedipaddress || user.ipAddress || undefined,
+                  routerName: user.router?.name || 'Router',
+                })
+              }
+              className="px-3.5 py-2.5 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+              title="Remote Web ONT (Mode Temporary 10-Min Proxy)"
+            >
+              <Globe className="w-4 h-4 text-cyan-400" /> Remote Web ONT
+            </button>
+
             {/* Direct Edit Button opening full UserDetailModal */}
             <button
               onClick={() => setIsUserDetailModalOpen(true)}
@@ -544,83 +568,7 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
         )}
       </div>
 
-      {/* SECTION 2: Data MikroTik & RADIUS Live Session (Collapsible) */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-        <button
-          onClick={() => setExpandMikrotik(!expandMikrotik)}
-          className="w-full px-6 py-4 bg-muted/30 hover:bg-muted/60 flex justify-between items-center transition-colors border-b border-border"
-        >
-          <div className="flex items-center gap-2.5">
-            <Wifi className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-bold text-foreground">Data Sesi MikroTik &amp; RADIUS Real-Time</h2>
-          </div>
-          {expandMikrotik ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
-        </button>
 
-        {expandMikrotik && (
-          <div className="p-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-              <div className="p-3 bg-background border border-border rounded-xl">
-                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Router Site</span>
-                <span className="font-bold text-foreground mt-1 block">{user.router?.name || 'Default Router'}</span>
-              </div>
-              <div className="p-3 bg-background border border-border rounded-xl">
-                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Username PPPoE</span>
-                <span className="font-mono font-bold text-primary mt-1 block">{user.username}</span>
-              </div>
-              <div className="p-3 bg-background border border-border rounded-xl">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground">Password PPPoE</span>
-                  <button onClick={() => setShowPassword(!showPassword)} className="text-muted-foreground hover:text-foreground">
-                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-                <span className="font-mono font-bold text-foreground mt-1 block">
-                  {showPassword ? user.password : '••••••••'}
-                </span>
-              </div>
-              <div className="p-3 bg-background border border-border rounded-xl">
-                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">IP Address PPPoE</span>
-                <span className="font-mono font-bold text-foreground mt-1 block">{activeSession?.framedipaddress || user.ipAddress || '-'}</span>
-              </div>
-            </div>
-
-            {/* Sesi Live Active Detail */}
-            {activeSession ? (
-              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-3 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Sesi Terhubung (Live Active)
-                  </span>
-                  <span className="text-[10px] font-mono text-muted-foreground">NAS IP: {activeSession.nasipaddress}</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  <div>
-                    <span className="text-[10px] text-muted-foreground font-bold uppercase block">Uptime Sesi</span>
-                    <span className="font-mono font-bold text-foreground mt-0.5 block">{formatDuration(activeSession.acctsessiontime)}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-muted-foreground font-bold uppercase block">Live Upload (TX)</span>
-                    <span className="font-mono font-bold text-blue-600 dark:text-blue-400 mt-0.5 block">↑ {formatBytes(activeSession.acctinputoctets)}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-muted-foreground font-bold uppercase block">Live Download (RX)</span>
-                    <span className="font-mono font-bold text-purple-600 dark:text-purple-400 mt-0.5 block">↓ {formatBytes(activeSession.acctoutputoctets)}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-muted-foreground font-bold uppercase block">MAC Address Sesi</span>
-                    <span className="font-mono font-bold text-foreground mt-0.5 block">{activeSession.callingstationid || '-'}</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 bg-muted/40 border border-border rounded-xl text-center text-xs text-muted-foreground">
-                Pelanggan saat ini tidak memiliki sesi aktif di Router MikroTik (Offline).
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
       {/* SECTION 3: Data Perangkat & Infrastruktur Lapangan (ONT, ODP, ODC, Port) (Collapsible) */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
@@ -875,8 +823,15 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
             </form>
           </div>
         </div>
-      )}
-
+      {/* 1-Click ONT Remote Proxy Modal */}
+      <OntRemoteModal
+        isOpen={remoteModalTarget.isOpen}
+        onClose={() => setRemoteModalTarget({ isOpen: false })}
+        customerName={remoteModalTarget.customerName}
+        username={remoteModalTarget.username}
+        targetIp={remoteModalTarget.targetIp}
+        routerName={remoteModalTarget.routerName}
+      />
     </div>
   );
 }

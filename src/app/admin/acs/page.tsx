@@ -249,9 +249,9 @@ export default async function AcsDashboardPage({ searchParams }: { searchParams:
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <Link
-                            href={`/admin/monitoring/ont-remote?username=${encodeURIComponent(device.pppoeUser?.username || device.serialNumber)}`}
+                            href={`/admin/sessions/pppoe?openOnt=true&username=${encodeURIComponent(device.pppoeUser?.username || device.serialNumber)}`}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 rounded-md transition-colors text-xs font-medium"
-                            title="Remote Web ONT (Mode Temporary)"
+                            title="Remote Web ONT (Mode Temporary 10-Min Proxy)"
                           >
                             <Globe className="w-3.5 h-3.5" />
                             Remote ONT

@@ -227,6 +227,19 @@ export default function PPPoESessionsPage() {
     fetchSessions(1)
     fetchOntSessions()
     fetchRouters()
+
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search)
+      const openOnt = sp.get('openOnt') === 'true' || sp.has('username')
+      const username = sp.get('username')
+      if (openOnt && username) {
+        setRemoteModalTarget({
+          isOpen: true,
+          username,
+          customerName: username,
+        })
+      }
+    }
   }, [fetchSessions])
 
   const handleSort = (field: string) => {
