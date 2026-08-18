@@ -48,7 +48,7 @@ function makeApi(router: { ipAddress?: string | null; nasname: string; port?: nu
     port: router.port || 8728,
     user: router.username,
     password: router.password,
-    timeout: 5,
+    timeout: 4,
   })
 }
 
@@ -75,7 +75,6 @@ async function getHotspotSessionsFromMikrotik(router: any): Promise<{ sessions: 
     }))
     return { sessions }
   } catch (error: any) {
-    console.error(`[realtime] Hotspot fetch failed for ${router.name}:`, error?.message || error)
     return { sessions: [], error: error?.message || 'Connection failed' }
   }
 }
@@ -103,7 +102,6 @@ async function getPPPoESessionsFromMikrotik(router: any): Promise<{ sessions: an
     }))
     return { sessions }
   } catch (error: any) {
-    console.error(`[realtime] PPPoE fetch failed for ${router.name}:`, error?.message || error)
     return { sessions: [], error: error?.message || 'Connection failed' }
   }
 }
@@ -141,6 +139,7 @@ export async function GET(request: NextRequest) {
 
     if (routers.length === 0) {
       return NextResponse.json({
+        success: true,
         sessions: [],
         stats: { total: 0, hotspot: 0, pppoe: 0, totalBandwidth: 0, totalBandwidthFormatted: '0 B' },
         source: 'database',
@@ -152,7 +151,7 @@ export async function GET(request: NextRequest) {
     let formattedSessions: any[] = []
     let sourceUsed = 'database'
 
-    // ── 1. Fast Local DB Read (if not forceApi) ──────────────────────────────
+    // ── 1. Fast Local DB Read (Default: Instant <2ms, Zero Socket Connections) ──
     if (!forceApi) {
       const nasIpList = routers.map((r) => r.ipAddress || r.nasname).filter(Boolean)
 
@@ -195,94 +194,92 @@ export async function GET(request: NextRequest) {
           .catch(() => []),
       ])
 
-      if (dbRadacct.length > 0 || dbMikrotikSessions.length > 0) {
-        const routerMapByIp = new Map<string, { id: string; name: string }>()
-        for (const r of routers) {
-          if (r.ipAddress) routerMapByIp.set(r.ipAddress, { id: r.id, name: r.name })
-          if (r.nasname) routerMapByIp.set(r.nasname, { id: r.id, name: r.name })
-        }
+      const routerMapByIp = new Map<string, { id: string; name: string }>()
+      for (const r of routers) {
+        if (r.ipAddress) routerMapByIp.set(r.ipAddress, { id: r.id, name: r.name })
+        if (r.nasname) routerMapByIp.set(r.nasname, { id: r.id, name: r.name })
+      }
 
-        const seenUsernames = new Set<string>()
+      const seenUsernames = new Set<string>()
 
-        // Process radacct active sessions
-        for (const ra of dbRadacct) {
-          if (seenUsernames.has(ra.username)) continue
-          seenUsernames.add(ra.username)
+      // Process radacct active sessions
+      for (const ra of dbRadacct) {
+        if (seenUsernames.has(ra.username)) continue
+        seenUsernames.add(ra.username)
 
-          const type = (ra.framedprotocol || '').toLowerCase().includes('ppp') ? 'pppoe' : 'hotspot'
-          if (typeFilter && typeFilter !== type) continue
+        const type = (ra.framedprotocol || '').toLowerCase().includes('ppp') ? 'pppoe' : 'hotspot'
+        if (typeFilter && typeFilter !== type) continue
 
-          const uploadBytes = Number(ra.acctinputoctets || 0)
-          const downloadBytes = Number(ra.acctoutputoctets || 0)
-          const totalBytes = uploadBytes + downloadBytes
-          const uptimeSec =
-            ra.acctsessiontime ||
-            (ra.acctstarttime ? Math.floor((Date.now() - new Date(ra.acctstarttime).getTime()) / 1000) : 0)
+        const uploadBytes = Number(ra.acctinputoctets || 0)
+        const downloadBytes = Number(ra.acctoutputoctets || 0)
+        const totalBytes = uploadBytes + downloadBytes
+        const uptimeSec =
+          ra.acctsessiontime ||
+          (ra.acctstarttime ? Math.floor((Date.now() - new Date(ra.acctstarttime).getTime()) / 1000) : 0)
 
-          const rInfo = routerMapByIp.get(ra.nasipaddress) || { id: routerId || 'unknown', name: ra.nasipaddress }
+        const rInfo = routerMapByIp.get(ra.nasipaddress) || { id: routerId || 'unknown', name: ra.nasipaddress }
 
-          formattedSessions.push({
-            id: `rad-${ra.radacctid}`,
-            username: ra.username,
-            sessionId: ra.acctsessionid,
-            type,
-            nasIpAddress: ra.nasipaddress,
-            framedIpAddress: ra.framedipaddress,
-            macAddress: ra.callingstationid,
-            startTime: ra.acctstarttime ? new Date(ra.acctstarttime).toISOString() : new Date().toISOString(),
-            duration: uptimeSec,
-            durationFormatted: formatDuration(uptimeSec),
-            uploadBytes,
-            downloadBytes,
-            totalBytes,
-            uploadFormatted: formatBytes(uploadBytes),
-            downloadFormatted: formatBytes(downloadBytes),
-            totalFormatted: formatBytes(totalBytes),
-            router: rInfo,
-            source: 'radius-accounting',
-          })
-        }
+        formattedSessions.push({
+          id: `rad-${ra.radacctid}`,
+          username: ra.username,
+          sessionId: ra.acctsessionid,
+          type,
+          nasIpAddress: ra.nasipaddress,
+          framedIpAddress: ra.framedipaddress,
+          macAddress: ra.callingstationid,
+          startTime: ra.acctstarttime ? new Date(ra.acctstarttime).toISOString() : new Date().toISOString(),
+          duration: uptimeSec,
+          durationFormatted: formatDuration(uptimeSec),
+          uploadBytes,
+          downloadBytes,
+          totalBytes,
+          uploadFormatted: formatBytes(uploadBytes),
+          downloadFormatted: formatBytes(downloadBytes),
+          totalFormatted: formatBytes(totalBytes),
+          router: rInfo,
+          source: 'radius-accounting',
+        })
+      }
 
-        // Process mikrotikSession active sessions
-        for (const ms of dbMikrotikSessions) {
-          if (seenUsernames.has(ms.username)) continue
-          seenUsernames.add(ms.username)
+      // Process mikrotikSession active sessions
+      for (const ms of dbMikrotikSessions) {
+        if (seenUsernames.has(ms.username)) continue
+        seenUsernames.add(ms.username)
 
-          const uploadBytes = Number(ms.txBytes || 0)
-          const downloadBytes = Number(ms.rxBytes || 0)
-          const totalBytes = uploadBytes + downloadBytes
-          const uptimeSec = ms.uptime
-            ? parseUptime(ms.uptime)
-            : Math.floor((Date.now() - new Date(ms.startTime).getTime()) / 1000)
+        const uploadBytes = Number(ms.txBytes || 0)
+        const downloadBytes = Number(ms.rxBytes || 0)
+        const totalBytes = uploadBytes + downloadBytes
+        const uptimeSec = ms.uptime
+          ? parseUptime(ms.uptime)
+          : Math.floor((Date.now() - new Date(ms.startTime).getTime()) / 1000)
 
-          formattedSessions.push({
-            id: `ms-${ms.id}`,
-            username: ms.username,
-            sessionId: ms.id,
-            type: 'pppoe',
-            nasIpAddress: ms.router?.ipAddress || ms.router?.nasname || '-',
-            framedIpAddress: ms.ipAddress || '-',
-            macAddress: ms.macAddress || '-',
-            startTime: new Date(ms.startTime).toISOString(),
-            duration: uptimeSec,
-            durationFormatted: formatDuration(uptimeSec),
-            uploadBytes,
-            downloadBytes,
-            totalBytes,
-            uploadFormatted: formatBytes(uploadBytes),
-            downloadFormatted: formatBytes(downloadBytes),
-            totalFormatted: formatBytes(totalBytes),
-            router: { id: ms.routerId, name: ms.router?.name || 'MikroTik' },
-            source: 'db-session',
-          })
-        }
+        formattedSessions.push({
+          id: `ms-${ms.id}`,
+          username: ms.username,
+          sessionId: ms.id,
+          type: 'pppoe',
+          nasIpAddress: ms.router?.ipAddress || ms.router?.nasname || '-',
+          framedIpAddress: ms.ipAddress || '-',
+          macAddress: ms.macAddress || '-',
+          startTime: new Date(ms.startTime).toISOString(),
+          duration: uptimeSec,
+          durationFormatted: formatDuration(uptimeSec),
+          uploadBytes,
+          downloadBytes,
+          totalBytes,
+          uploadFormatted: formatBytes(uploadBytes),
+          downloadFormatted: formatBytes(downloadBytes),
+          totalFormatted: formatBytes(totalBytes),
+          router: { id: ms.routerId, name: ms.router?.name || 'MikroTik' },
+          source: 'db-session',
+        })
       }
     }
 
-    // ── 2. Fallback to MikroTik RouterOS API if local DB returned 0 sessions ──
+    // ── 2. Query MikroTik RouterOS API ONLY when forceApi === true ─────────────
     const routerStatuses: any[] = []
 
-    if (formattedSessions.length === 0 || forceApi) {
+    if (forceApi) {
       sourceUsed = 'mikrotik-api'
       formattedSessions = []
 
@@ -338,7 +335,7 @@ export async function GET(request: NextRequest) {
               downloadBytes: session.downloadBytes,
               totalBytes,
               uploadFormatted: formatBytes(session.uploadBytes),
-              downloadFormatted: formatBytes(session.downloadBytes),
+              downloadFormatted: formatBytes(downloadBytes),
               totalFormatted: formatBytes(totalBytes),
               router: { id: router.id, name: router.name },
               source: 'mikrotik-api',
@@ -395,13 +392,13 @@ export async function GET(request: NextRequest) {
       success: true,
       sessions: formattedSessions,
       stats,
+      routers: routers.map((r) => ({ id: r.id, name: r.name })),
       source: sourceUsed,
       note: sourceUsed === 'mikrotik-api' ? 'Real-time direct from RouterOS API' : 'Real-time cached DB',
       routersQueried: routers.length,
       routerStatuses,
     })
   } catch (error) {
-    console.error('[realtime] Error:', error)
     return NextResponse.json(
       {
         error: 'Internal server error',

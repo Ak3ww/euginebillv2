@@ -157,6 +157,19 @@ export default function PPPoESessionsPage() {
     return serverDuration + elapsed
   }
 
+  const fetchRouters = async () => {
+    try {
+      const res = await fetch('/api/network/routers')
+      const data = await res.json()
+      const list = data.routers || data.data || []
+      if (Array.isArray(list) && list.length > 0) {
+        setRouters(list.map((r: any) => ({ id: r.id, name: r.name })))
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   const fetchOntSessions = async () => {
     try {
       const res = await fetch('/api/network/ont-remote')
@@ -213,6 +226,7 @@ export default function PPPoESessionsPage() {
   useEffect(() => {
     fetchSessions(1)
     fetchOntSessions()
+    fetchRouters()
   }, [fetchSessions])
 
   const handleSort = (field: string) => {
