@@ -4,7 +4,7 @@
 1. **Shadcn UI & Lucide Icons**: All `/admin/*` pages, components, modals, and summary cards must strictly follow standard Shadcn UI design patterns (`@/components/ui/card`, `@/components/ui/badge`, `@/components/ui/button`, etc.) and Lucide React icons.
 2. **Clean SaaS Aesthetic**: Use clean hairline borders (`border-border`), subtle muted backgrounds (`bg-muted/30`, `bg-card`), crisp typography, and standard data tables. Do NOT use cyberpunk gradients, neon glow shadows, or non-standard dark/alien elements in the admin portal.
 3. **Interactive & Functional**: Every summary card or filter pill must be 100% interactive and directly update the table filter when clicked.
-4. **No Text Emoticons/Emojis**: NEVER use text emojis/emoticons in admin UI text (e.g. 📡, 📍, ⚡, 💰, 💳, 🏠, ⏰). ALWAYS use proper Lucide React icons (`<Wifi />`, `<MapPin />`, `<Zap />`, `<DollarSign />`, `<Calendar />`, `<Server />`, etc.).
+4. **Strictly No Text Emojis Across ALL Portals**: NEVER use text emojis/emoticons in any UI text or labels across ALL portals (Admin, Customer, Technician, Public Landing Page, e.g. 🌐, 🚀, 🟢, 🔴, ⚪, ↗, ⚡, 📍, 📡). ALWAYS use dedicated React Icon components (`Lucide React` icons like `<Wifi />`, `<Globe />`, `<MapPin />`, `<Zap />`, `<Server />`, `<CheckCircle2 />`, `<XCircle />`, `<Activity />`, etc.) adhering to the design system of each portal.
 
 ## Enterprise Export System Standard (PDF & Excel)
 1. **Server-Side Engine Only**: All PDF and Excel exports must be generated server-side in API routes using `src/lib/utils/export.ts`. Do NOT build separate client-side PDF/XLSX generators.
