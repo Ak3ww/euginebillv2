@@ -749,7 +749,7 @@ export default function PPPoESessionsPage() {
                 <SortHeader label="Router Site" field="router" />
                 <SortHeader label="IP Address" field="ip" />
                 <SortHeader label="MAC Address" field="mac" />
-                <th className="px-3.5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <th className="px-3.5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky right-0 bg-card z-10 border-l border-border shadow-sm">
                   Aksi Cepat
                 </th>
               </tr>
@@ -823,7 +823,7 @@ export default function PPPoESessionsPage() {
                       {session.macAddress || '-'}
                     </td>
 
-                    <td className="px-3.5 py-3 text-center">
+                    <td className="px-3.5 py-3 text-center sticky right-0 bg-card z-10 border-l border-border shadow-sm">
                       <div className="flex items-center justify-center gap-1.5">
                         {/* 1-Click Remote Web ONT (Nottik Mode) */}
                         <button
