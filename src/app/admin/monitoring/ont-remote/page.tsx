@@ -80,8 +80,11 @@ export default function OntRemotePage() {
       const res = await fetch('/api/pppoe/users?limit=100')
       const data = await res.json()
       if (data.users) {
+        const sorted = [...data.users].sort((a: any, b: any) =>
+          (a.name || a.username || '').localeCompare(b.name || b.username || '', 'id', { sensitivity: 'base' })
+        )
         setCustomerOptions(
-          data.users.map((u: any) => ({
+          sorted.map((u: any) => ({
             id: u.id,
             name: u.name || u.username,
             username: u.username,

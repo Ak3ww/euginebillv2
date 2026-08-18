@@ -2642,13 +2642,14 @@ model ontRemoteSession {
   routerName   String?
   targetIp     String
   targetPort   Int      @default(80)
-  proxyPort    Int      @unique
+  proxyPort    Int
   proxyUrl     String
   status       String   @default("ACTIVE") // ACTIVE, EXPIRED, CLOSED
   expiresAt    DateTime
   createdAt    DateTime @default(now())
 
   @@index([status])
+  @@index([proxyPort])
   @@index([username])
   @@index([customerId])
   @@index([expiresAt])

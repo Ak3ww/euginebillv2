@@ -11,6 +11,7 @@ import { useToast } from '@/components/cyberpunk/CyberToast';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatWIB } from '@/lib/timezone';
 import { cn } from '@/lib/utils';
+import OntRemoteModal from '@/components/admin/OntRemoteModal';
 
 interface Session {
   id: string;
@@ -78,6 +79,13 @@ export default function PPPoESessionsPage() {
   const [now, setNow] = useState(() => Date.now());
   const [fetchedAt, setFetchedAt] = useState(() => Date.now());
   const [syncing, setSyncing] = useState(false);
+  const [remoteModalTarget, setRemoteModalTarget] = useState<{
+    isOpen: boolean;
+    customerName?: string;
+    username?: string;
+    targetIp?: string;
+    routerName?: string;
+  }>({ isOpen: false });
 
   // Sorting state
   const [sortField, setSortField] = useState<string>('startTime');
@@ -353,6 +361,14 @@ export default function PPPoESessionsPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <a
+              href="/admin/monitoring/ont-remote"
+              className="px-3.5 py-2 text-xs font-bold bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-xl flex items-center gap-1.5 transition-colors"
+              title="Kelola Sesi Temporary Remote Web ONT (Auto-Clean Manager)"
+            >
+              <Globe className="w-4 h-4 text-cyan-400" /> Remote ONT (Active Manager)
+            </a>
+
             <button
               onClick={handleExportExcel}
               className="px-3.5 py-2 text-xs font-bold bg-muted hover:bg-muted/80 text-foreground rounded-xl flex items-center gap-2 border border-border transition-colors"
@@ -536,6 +552,21 @@ export default function PPPoESessionsPage() {
                       </td>
                       <td className="px-3 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
+                          {/* 1-Click Remote Web ONT (Nottik Style Proxy) */}
+                          <button
+                            onClick={() => setRemoteModalTarget({
+                              isOpen: true,
+                              customerName: session.user?.name || session.username,
+                              username: session.username,
+                              targetIp: session.framedIpAddress,
+                              routerName: session.router?.name || 'Router',
+                            })}
+                            title="Remote Web ONT (Mode Nottik 10-Min Proxy)"
+                            className="p-1.5 text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors border border-cyan-500/20"
+                          >
+                            <Globe className="w-3.5 h-3.5" />
+                          </button>
+
                           {/* Remove from Active Connection */}
                           <button
                             onClick={() => handleDisconnect([session.sessionId])}
@@ -607,6 +638,16 @@ export default function PPPoESessionsPage() {
         </div>
 
       </div>
+
+      {/* 1-Click ONT Remote Proxy Modal */}
+      <OntRemoteModal
+        isOpen={remoteModalTarget.isOpen}
+        onClose={() => setRemoteModalTarget({ isOpen: false })}
+        customerName={remoteModalTarget.customerName}
+        username={remoteModalTarget.username}
+        targetIp={remoteModalTarget.targetIp}
+        routerName={remoteModalTarget.routerName}
+      />
     </div>
   );
 }
