@@ -266,7 +266,8 @@ export default function PPPoESessionsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        addToast({ type: 'success', title: t('common.success'), description: t('sessions.sessionsDisconnected').replace('{count}', data.disconnected) });
+        const count = data.summary?.successful ?? data.disconnected ?? data.results?.filter((r: any) => r.success).length ?? sessionIds.length;
+        addToast({ type: 'success', title: t('common.success'), description: t('sessions.sessionsDisconnected').replace('{count}', String(count)) });
         setSelectedSessions(new Set());
         fetchSessions(pagination.page);
       } else {

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { RouterOSAPI } from 'node-routeros';
 import { sendDisconnectRequest, isRadclientAvailable } from '@/server/services/radius/coa.service';
@@ -150,13 +150,13 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
-// Disconnect PPPoE user via MikroTik API
+// Disconnect PPPoE user via MikroTik API with fallback to CoA
 async function disconnectPPPoEUser(router: any, username: string): Promise<{ success: boolean; error?: string }> {
   const host = router.ipAddress || router.nasname;
-  // Try API-SSL port first (apiPort/8729), then plaintext (port/8728)
-  const primaryPort = router.apiPort || 8729;
-  const fallbackPort = router.port || 8728;
-  const portsToTry = [primaryPort, ...(fallbackPort !== primaryPort ? [fallbackPort] : [])];
+  // Prioritize router.port (user configured API port e.g. 8728/10772) first, then apiPort/8729
+  const primaryPort = router.port || 8728;
+  const secondaryPort = router.apiPort || (primaryPort === 8729 ? 8728 : 8729);
+  const portsToTry = [primaryPort, ...(secondaryPort !== primaryPort ? [secondaryPort] : [])];
 
   for (const tryPort of portsToTry) {
     try {
@@ -169,8 +169,8 @@ async function disconnectPPPoEUser(router: any, username: string): Promise<{ suc
             password: router.password,
             timeout: 5,
           };
-          // Enable TLS for API-SSL port (8729)
-          if (tryPort === 8729 || tryPort === router.apiPort) {
+          // Enable TLS only if port is explicitly 8729 or router.apiPort
+          if (tryPort === 8729 || (router.apiPort && tryPort === router.apiPort)) {
             apiOpts.tls = { rejectUnauthorized: false };
           }
           const api = new RouterOSAPI(apiOpts);
@@ -178,17 +178,27 @@ async function disconnectPPPoEUser(router: any, username: string): Promise<{ suc
           try {
             await api.connect();
             
-            // Find active PPPoE session
-            const activeSessions = await api.write('/ppp/active/print', [
+            // 1. Try finding active PPPoE session by ?name filter
+            let activeSessions = await api.write('/ppp/active/print', [
               `?name=${username}`,
             ]);
             
+            // 2. If not found by ?name filter, fetch all active PPPoE sessions and filter manually
             if (activeSessions.length === 0) {
-              await api.close();
-              return { success: false, error: 'User not found in PPPoE active list' };
+              const allActive = await api.write('/ppp/active/print');
+              activeSessions = allActive.filter((s: any) => 
+                s.name === username || 
+                s.user === username ||
+                s['service-name'] === username
+              );
             }
             
-            // Remove the session (disconnect)
+            if (activeSessions.length === 0) {
+              await api.close();
+              return { success: false, error: `User ${username} not found in MikroTik PPPoE active list` };
+            }
+            
+            // 3. Remove the session from MikroTik /ppp active
             for (const session of activeSessions) {
               await api.write('/ppp/active/remove', [
                 `=.id=${session['.id']}`,
@@ -196,6 +206,7 @@ async function disconnectPPPoEUser(router: any, username: string): Promise<{ suc
             }
             
             await api.close();
+            console.log(`[Disconnect] Successfully removed PPPoE session ${username} from ${host}:${tryPort}`);
             return { success: true };
           } catch (error: any) {
             try { await api.close(); } catch {}
