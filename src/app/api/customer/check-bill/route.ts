@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     const invoices = await prisma.invoice.findMany({
       where: {
         userId: user.id,
-        status: { in: ['UNPAID', 'OVERDUE'] }
+        status: { in: ['PENDING', 'OVERDUE'] }
       },
       orderBy: { dueDate: 'asc' }
     });

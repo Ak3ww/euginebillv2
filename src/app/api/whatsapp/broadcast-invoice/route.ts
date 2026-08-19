@@ -18,7 +18,7 @@ interface MessageToSend {
   message: string;
   invoiceId: string;
   invoiceNumber: string;
-  customerName: string;
+  customerName: string | null;
 }
 
 function renderTemplate(template: string, variables: Record<string, string>): string {

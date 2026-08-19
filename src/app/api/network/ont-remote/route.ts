@@ -110,12 +110,12 @@ async function resolveRealtimeIp(params: {
     // 4. Check ACS Device IP
     try {
       const acsDev = await prisma.acsDevice.findFirst({
-        where: { pppoeUsername: targetUsername },
-        select: { wanIp: true, ipAddress: true },
+        where: { pppoeUser: { username: targetUsername } },
+        select: { ipAddress: true },
       })
-      if (acsDev?.wanIp || acsDev?.ipAddress) {
+      if (acsDev?.ipAddress) {
         return {
-          ip: (acsDev.wanIp || acsDev.ipAddress)!,
+          ip: acsDev.ipAddress,
           username: targetUsername,
           customerName: targetCustomerName,
           routerName,

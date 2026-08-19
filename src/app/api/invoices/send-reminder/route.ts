@@ -147,7 +147,6 @@ export async function POST(request: NextRequest) {
             
             const waResult = isInstallation
               ? await sendInstallationInvoice({
-                  phone: invoice.customerPhone,
                   customerPhone: invoice.customerPhone,
                   customerName: reminderData.customerName,
                   customerId: reminderData.customerId,

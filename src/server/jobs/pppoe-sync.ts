@@ -327,7 +327,7 @@ export async function autoIsolatePPPoEUsers(): Promise<{
         },
       })
       
-      return { success: true, isolated: 0, message: diagMsg }
+      return { success: true, isolated: 0 }
     }
 
     console.log(`[PPPoE Auto-Isolir] Found ${expiredUsers.length} expired user(s) to isolate`)

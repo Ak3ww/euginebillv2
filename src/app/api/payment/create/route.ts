@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { createMidtransPayment } from '@/server/services/payment/midtrans.service';
 import { createXenditInvoice } from '@/server/services/payment/xendit.service';
-import { createXenditClient } from '@/server/services/payment/xendit.service';
 import { createDuitkuClient } from '@/server/services/payment/duitku.service';
 import { createTripayClient } from '@/server/services/payment/tripay.service';
 import { createQrinClient } from '@/server/services/payment/qrin.service';
@@ -597,6 +596,9 @@ async function createVoucherPayment(order: any, gateway: string) {
     }
   } else if (gateway === 'qrin') {
     try {
+      let transactionId = orderId;
+      let qrString = '';
+      let paymentUrl = '';
       const qrinClient = createQrinClient(gatewayConfig.qrinToken || '');
       const qrinMethod = paymentMethod || 'qris';
       

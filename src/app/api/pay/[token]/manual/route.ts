@@ -79,7 +79,7 @@ export async function POST(
       data: {
         type: 'payment_received',
         title: 'Konfirmasi Pembayaran Manual',
-        message: `Pelanggan ${invoice.user.name} mengunggah bukti pembayaran manual untuk tagihan ${invoice.invoiceNumber} sebesar Rp ${invoice.amount.toLocaleString('id-ID')}.`,
+        message: `Pelanggan ${invoice.customerName || invoice.user?.name || 'Pelanggan'} mengunggah bukti pembayaran manual untuk tagihan ${invoice.invoiceNumber} sebesar Rp ${invoice.amount.toLocaleString('id-ID')}.`,
         link: '/admin/invoices'
       }
     });

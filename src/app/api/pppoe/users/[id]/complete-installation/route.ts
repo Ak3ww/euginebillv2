@@ -106,6 +106,7 @@ export async function POST(
     await logActivity({
       username: (session.user as any).username || (session.user as any).name || 'admin',
       userRole: (session.user as any).role || 'ADMIN',
+      module: 'pppoe',
       action: 'COMPLETE_INSTALLATION',
       description: `Diselesaikan oleh Admin: Status ${user.name} diubah ke ACTIVE. Invoice #${latestInvoice.invoiceNumber} (Rp ${latestInvoice.amount.toLocaleString('id-ID')}). WA Status: ${waSent ? 'Terkirim' : 'Gagal'}.`,
     }).catch(() => {});

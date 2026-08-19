@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
       hpp,
       ppnActive,
       ppnRate,
+      proratePricePerDay,
     } = body;
 
     // Parse rateLimit if provided (format: "10M/5M" or full MikroTik format)
