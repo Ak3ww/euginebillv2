@@ -777,6 +777,9 @@ export async function updatePppoeUser(
              await PPPSecretService.setProfileAndDisconnect(finalRouterId, newUsername, newProfile.name);
           }
         }
+      }
+    }
+
   // Sync name/phone changes to unpaid invoices and active work orders so WA notifications always use current phone/name
   if (data.phone || data.name) {
     const updatedPhone = data.phone || user.phone;

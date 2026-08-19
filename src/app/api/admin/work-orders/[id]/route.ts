@@ -81,6 +81,7 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
       if (status === 'COMPLETED' && !existing.completedAt) {
         updateData.completedAt = new Date();
       }
+    }
     // Auto-sync updated customerPhone or customerName to linked pppoeUser and unpaid invoices
     if (existing.linkedUserId && (customerPhone !== undefined || customerName !== undefined)) {
       await prisma.pppoeUser.update({
