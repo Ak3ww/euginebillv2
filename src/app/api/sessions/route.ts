@@ -5,6 +5,9 @@ import { authOptions } from '@/server/auth/config';
 import { getTimezoneOffsetMs } from '@/lib/timezone';
 import { fetchLiveHotspotTrafficMap } from '@/server/services/radius/live-hotspot-traffic';
 
+let cachedAllTimeStats: any = null;
+let cachedAllTimeStatsTime = 0;
+
 // ─── Formatting helpers ─────────────────────────────────────────────────────
 
 function formatBytes(bytes: number): string {
@@ -79,11 +82,18 @@ async function getLatestMacByUsernames(usernames: string[]): Promise<Map<string,
  * Since both acctstarttime AND acctupdatetime come from FreeRADIUS (written via
  * FROM_UNIXTIME from the NAS clock), their difference is always clock-skew-safe.
  */
+let lastStaleCleanupTime = 0;
+const CLEANUP_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+
 async function cleanupStaleSessions(): Promise<number> {
+  const now = Date.now();
+  if (now - lastStaleCleanupTime < CLEANUP_INTERVAL_MS) {
+    return 0;
+  }
+  lastStaleCleanupTime = now;
+
   const STALE_HOURS = 8;
   try {
-    // Only close sessions where no interim-update has arrived for 8+ hours
-    // (measured purely in DB timestamps — clock-skew-safe).
     const result = await prisma.$executeRawUnsafe(`
       UPDATE radacct
       SET acctstoptime = acctupdatetime,
@@ -122,8 +132,8 @@ export async function GET(request: NextRequest) {
     const page = Number.parseInt(searchParams.get('page') || '1', 10);
     const limit = Number.parseInt(searchParams.get('limit') || '0', 10);
 
-    // ── 0. Cleanup stale sessions (lightweight, runs inline) ────────────────
-    await cleanupStaleSessions();
+    // ── 0. Cleanup stale sessions (throttled to every 15 min) ────────────────
+    cleanupStaleSessions().catch(() => {});
 
     // ── 1. Get active routers (for NAS IP → router mapping) ─────────────────
     const routerWhere: any = { isActive: true };
@@ -579,19 +589,43 @@ export async function GET(request: NextRequest) {
         ? allSessions.slice((page - 1) * limit, (page - 1) * limit + limit)
         : allSessions;
 
-    // ── 8. Historical all-time stats from radacct ───────────────────────────
-    const allTimeStats = await prisma.radacct.aggregate({
-      _sum: {
-        acctinputoctets: true,
-        acctoutputoctets: true,
-        acctsessiontime: true,
-      },
-      _count: { radacctid: true },
-    });
+    // ── 8. Historical all-time stats from radacct (Cached 5 min) ──────────
+    const now = Date.now();
+    if (!cachedAllTimeStats || now - cachedAllTimeStatsTime > 5 * 60 * 1000) {
+      try {
+        const agg = await prisma.radacct.aggregate({
+          _sum: {
+            acctinputoctets: true,
+            acctoutputoctets: true,
+            acctsessiontime: true,
+          },
+          _count: { radacctid: true },
+        });
 
-    const totalAllTimeBytes =
-      Number(allTimeStats._sum.acctinputoctets ?? 0) +
-      Number(allTimeStats._sum.acctoutputoctets ?? 0);
+        const totalAllTimeBytes =
+          Number(agg._sum.acctinputoctets ?? 0) +
+          Number(agg._sum.acctoutputoctets ?? 0);
+
+        cachedAllTimeStats = {
+          totalSessions: agg._count.radacctid ?? 0,
+          totalBandwidth: totalAllTimeBytes,
+          totalBandwidthFormatted: formatBytes(totalAllTimeBytes),
+          totalDuration: agg._sum.acctsessiontime ?? 0,
+          totalDurationFormatted: formatDuration(agg._sum.acctsessiontime ?? 0),
+        };
+        cachedAllTimeStatsTime = now;
+      } catch (err) {
+        if (!cachedAllTimeStats) {
+          cachedAllTimeStats = {
+            totalSessions: 0,
+            totalBandwidth: 0,
+            totalBandwidthFormatted: '0 B',
+            totalDuration: 0,
+            totalDurationFormatted: '0s',
+          };
+        }
+      }
+    }
 
     return NextResponse.json({
       sessions: paginatedSessions,
@@ -602,15 +636,7 @@ export async function GET(request: NextRequest) {
         totalDownloadFormatted: formatBytes(stats.totalDownload),
         totalBandwidthFormatted: formatBytes(totalBandwidth),
       },
-      allTimeStats: {
-        totalSessions: allTimeStats._count.radacctid ?? 0,
-        totalBandwidth: totalAllTimeBytes,
-        totalBandwidthFormatted: formatBytes(totalAllTimeBytes),
-        totalDuration: allTimeStats._sum.acctsessiontime ?? 0,
-        totalDurationFormatted: formatDuration(
-          allTimeStats._sum.acctsessiontime ?? 0,
-        ),
-      },
+      allTimeStats: cachedAllTimeStats,
       pagination: {
         page,
         limit: limit > 0 ? limit : allSessions.length,

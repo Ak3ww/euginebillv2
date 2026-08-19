@@ -40,3 +40,20 @@ For ALL customer-facing UI development (customer portal, payment pages, public l
 2. **Never Save inside `public/uploads/` or `process.cwd()`**: NEVER write runtime uploaded files into `process.cwd()/public/uploads/` or any directory inside the Next.js project folder, as `npm run build` will wipe runtime files stored inside the build tree.
 3. **Always Prepend Leading Slash on Image URLs**: All image URLs saved in the database or rendered in UI components MUST start with a leading slash `/` (e.g., `/uploads/receipts/filename.jpg`), never relative `uploads/receipts/...`.
 4. **Universal Serve Route Handler**: All upload URLs must be served dynamically by `/uploads/[...filepath]` to guarantee multi-folder fallback resolution and instant access on VPS.
+
+## EugineBill Network Architecture (VPN, PPPoE, ONT Remote)
+1. **RADIUS Disabled by Default**: Most deployments have `company.radiusEnabled = false`. Always check `company.radiusEnabled` before querying `radacct`. For active sessions in non-RADIUS mode, query `mikrotikSession` table or `/ppp/active/print` directly.
+2. **VPS = VPN Server, MikroTik = VPN Client**: EugineBill VPS acts as the central VPN Server. MikroTik connects as a VPN Client. VPS can reach MikroTik's VPN IP (`router.ipAddress`). However, VPS cannot directly reach customer PPPoE pool subnets (ONT local IPs) without routing/NAT on MikroTik.
+3. **ONT Remote Proxy Architecture**:
+   - Web admin access: `Admin Browser -> http://VPS_PUBLIC_IP:proxyPort (24000-24999)`
+   - VPS proxy: `socat` forwards `VPS:proxyPort -> MikroTik_VPN_IP:proxyPort`
+   - MikroTik NAT: MikroTik adds dynamic DST-NAT rule (`dst-port=proxyPort -> to-addresses=ONT_IP, to-ports=targetPort`), SRCNAT masquerade, and filter forward accept rule.
+   - MikroTik NAT rules ARE MANDATORY because VPS cannot reach ONT IP directly without MikroTik's internal translation.
+4. **ONT IP Resolution**:
+   - Non-RADIUS mode: Query MikroTik API `/ppp/active/print`, read the `address` field (which contains the customer's remote-address / ONT IP).
+   - RADIUS mode: Read `radacct.framedipaddress` where `acctstoptime IS NULL`.
+   - Never confuse `nasipaddress` (the MikroTik gateway IP) with `framedipaddress` or `address` (the ONT/customer IP).
+5. **VPS Socat & Port Firewall**:
+   - Socat must be running on Linux VPS for port forwarding.
+   - Port range `24000:24999` must be open on VPS firewall / cloud security group.
+

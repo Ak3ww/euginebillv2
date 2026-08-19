@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -101,7 +101,7 @@ export default function SessionsPage() {
     return Math.max(0, Math.floor((now - startMs) / 1000));
   };
 
-  const fetchSessions = async (page: number = 1, silent = false) => {
+  const fetchSessions = async (page: number = 1, silent = false, isLive = false) => {
     try {
       // Pastikan page adalah number
       const pageNum = typeof page === 'number' ? page : 1;
@@ -110,7 +110,7 @@ export default function SessionsPage() {
       // Full RADIUS mode dengan pagination
       params.set('page', pageNum.toString());
       params.set('limit', pageSize.toString());
-      params.set('live', 'true'); // Live bytes dari MikroTik API
+      if (isLive) params.set('live', 'true');
       if (typeFilter) params.set('type', typeFilter);
       if (routerFilter) params.set('routerId', routerFilter);
       if (searchFilter) params.set('search', searchFilter);
@@ -371,7 +371,7 @@ export default function SessionsPage() {
             {t('sessions.history')}
           </button>
           <button
-            onClick={() => fetchSessions(currentPage)}
+            onClick={() => fetchSessions(currentPage, false, true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-card border border-border rounded-md hover:bg-muted/50"
           >
             <RefreshCw className="w-3.5 h-3.5" />

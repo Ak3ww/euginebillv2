@@ -1,140 +1,194 @@
 import { prisma } from '../db/client'
 import { MikroTikConnection } from '../services/mikrotik/client'
 
-export async function pollMikrotikSessions() {
-  console.log('[Mikrotik Poller] Starting active session polling...')
-  
-  const routers = await prisma.router.findMany({
-    where: { isActive: true },
-    select: { id: true, ipAddress: true, username: true, password: true, port: true, name: true, apiPort: true }
+interface SyncRouterResult {
+  router: string
+  success: boolean
+  inserted?: number
+  updated?: number
+  stopped?: number
+  error?: string
+}
+
+async function syncSingleRouter(router: {
+  id: string
+  ipAddress: string
+  username: string
+  password: string
+  port?: number | null
+  name: string
+}): Promise<SyncRouterResult> {
+  const apiPort = router.port || 8728
+  const useTls = false
+
+  const conn = new MikroTikConnection({
+    host: router.ipAddress,
+    username: router.username,
+    password: router.password,
+    port: apiPort,
+    tls: useTls,
+    timeout: 5000,
   })
 
-  let totalSynced = 0;
-  let totalErrors = 0;
-  const results: any[] = [];
+  try {
+    await conn.connect()
 
-  for (const router of routers) {
-    console.log(`[Mikrotik Poller] Syncing router: ${router.name} (${router.ipAddress}:${router.port || 8728})`)
-    
-    const apiPort = router.port || 8728
-    const useTls = false // Forced non-SSL per user request
+    const [activePPP, interfaces] = await Promise.all([
+      conn.execute('/ppp/active/print').catch(() => [] as any[]),
+      conn.execute('/interface/print', ['?type=pppoe-in']).catch(() => [] as any[]),
+    ])
 
-    const conn = new MikroTikConnection({
-      host: router.ipAddress,
-      username: router.username,
-      password: router.password,
-      port: apiPort,
-      tls: useTls,
-    })
-
-    try {
-      console.log(`[Mikrotik Poller] Connecting to ${router.name} (tls=${useTls})...`);
-      await conn.connect()
-      console.log(`[Mikrotik Poller] Connected to ${router.name} successfully.`);
-      
-      const activePPP = await conn.execute('/ppp/active/print')
-      const interfaces = await conn.execute('/interface/print', ['?type=pppoe-in'])
-      
-      const interfaceMap = new Map<string, { rx: bigint, tx: bigint, mac: string }>()
-      for (const iface of interfaces) {
-        const name = iface.name?.replace('<pppoe-', '')?.replace('>', '')
-        if (name) {
-          interfaceMap.set(name, {
-            rx: BigInt(iface['rx-byte'] || '0'),
-            tx: BigInt(iface['tx-byte'] || '0'),
-            mac: iface['mac-address'] || ''
-          })
-        }
-      }
-
-      const currentRouterSessions = new Map<string, any>()
-      for (const session of activePPP) {
-        const username = session.name
-        if (!username) continue
-        
-        currentRouterSessions.set(username, {
-          username,
-          ipAddress: session.address || null,
-          uptime: session.uptime || null,
-          callerId: session['caller-id'] || null
+    const interfaceMap = new Map<string, { rx: bigint; tx: bigint; mac: string }>()
+    for (const iface of interfaces) {
+      const name = iface.name?.replace('<pppoe-', '')?.replace('>', '')
+      if (name) {
+        interfaceMap.set(name, {
+          rx: BigInt(iface['rx-byte'] || '0'),
+          tx: BigInt(iface['tx-byte'] || '0'),
+          mac: iface['mac-address'] || '',
         })
       }
+    }
 
-      const dbActiveSessions = await prisma.mikrotikSession.findMany({
-        where: { routerId: router.id, stopTime: null }
+    const currentRouterSessions = new Map<string, any>()
+    for (const session of activePPP) {
+      const username = session.name
+      if (!username) continue
+
+      currentRouterSessions.set(username, {
+        username,
+        ipAddress: session.address || null,
+        uptime: session.uptime || null,
+        callerId: session['caller-id'] || null,
       })
-      
-      const dbSessionMap = new Map<string, any>()
-      for (const ds of dbActiveSessions) {
-        dbSessionMap.set(ds.username, ds)
-      }
+    }
 
-      // Process active sessions
-      let inserted = 0;
-      let updated = 0;
-      for (const [username, routerSession] of currentRouterSessions.entries()) {
-        const ifaceData = interfaceMap.get(username)
-        const macAddress = routerSession.callerId || ifaceData?.mac || null
-        const rxBytes = ifaceData?.rx || BigInt(0)
-        const txBytes = ifaceData?.tx || BigInt(0)
+    const dbActiveSessions = await prisma.mikrotikSession.findMany({
+      where: { routerId: router.id, stopTime: null },
+    })
 
-        if (dbSessionMap.has(username)) {
-          const dbSession = dbSessionMap.get(username)
-          await prisma.mikrotikSession.update({
+    const dbSessionMap = new Map<string, any>()
+    for (const ds of dbActiveSessions) {
+      dbSessionMap.set(ds.username, ds)
+    }
+
+    // Prepare batch operations
+    const updateOps: Promise<any>[] = []
+    const createData: any[] = []
+
+    let inserted = 0
+    let updated = 0
+
+    for (const [username, routerSession] of currentRouterSessions.entries()) {
+      const ifaceData = interfaceMap.get(username)
+      const macAddress = routerSession.callerId || ifaceData?.mac || null
+      const rxBytes = ifaceData?.rx || BigInt(0)
+      const txBytes = ifaceData?.tx || BigInt(0)
+
+      if (dbSessionMap.has(username)) {
+        const dbSession = dbSessionMap.get(username)
+        updateOps.push(
+          prisma.mikrotikSession.update({
             where: { id: dbSession.id },
             data: {
               uptime: routerSession.uptime,
               ipAddress: routerSession.ipAddress,
-              macAddress: macAddress,
+              macAddress,
               rxBytes,
               txBytes,
-            }
+            },
           })
-          updated++;
-        } else {
-          await prisma.mikrotikSession.create({
-            data: {
-              routerId: router.id,
-              username,
-              ipAddress: routerSession.ipAddress,
-              macAddress: macAddress,
-              uptime: routerSession.uptime,
-              rxBytes,
-              txBytes,
-            }
-          })
-          inserted++;
-        }
+        )
+        updated++
+      } else {
+        createData.push({
+          routerId: router.id,
+          username,
+          ipAddress: routerSession.ipAddress,
+          macAddress,
+          uptime: routerSession.uptime,
+          rxBytes,
+          txBytes,
+        })
+        inserted++
       }
+    }
 
-      // Process stopped sessions
-      let stopped = 0;
-      for (const [username, dbSession] of dbSessionMap.entries()) {
-        if (!currentRouterSessions.has(username)) {
-          await prisma.mikrotikSession.update({
-            where: { id: dbSession.id },
-            data: {
-              stopTime: new Date(),
-              terminateCause: 'Poller-Disconnect'
-            }
-          })
-          stopped++;
-        }
+    // Stopped sessions
+    const stoppedIds: string[] = []
+    let stopped = 0
+    for (const [username, dbSession] of dbSessionMap.entries()) {
+      if (!currentRouterSessions.has(username)) {
+        stoppedIds.push(dbSession.id)
+        stopped++
       }
+    }
 
-      console.log(`[Mikrotik Poller] Router ${router.name}: inserted ${inserted}, updated ${updated}, stopped ${stopped}.`);
-      results.push({ router: router.name, success: true, inserted, updated, stopped });
-      totalSynced++;
+    if (stoppedIds.length > 0) {
+      updateOps.push(
+        prisma.mikrotikSession.updateMany({
+          where: { id: { in: stoppedIds } },
+          data: {
+            stopTime: new Date(),
+            terminateCause: 'Poller-Disconnect',
+          },
+        })
+      )
+    }
+
+    if (createData.length > 0) {
+      updateOps.push(prisma.mikrotikSession.createMany({ data: createData }))
+    }
+
+    // Execute all DB mutations in parallel
+    await Promise.all(updateOps)
+
+    await conn.disconnect()
+    return { router: router.name, success: true, inserted, updated, stopped }
+  } catch (error: any) {
+    try {
       await conn.disconnect()
-    } catch (error: any) {
-      console.error(`[Mikrotik Poller] Failed to sync router ${router.name}:`, error.message)
-      results.push({ router: router.name, success: false, error: error.message });
-      totalErrors++;
-      try { await conn.disconnect() } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
+    return { router: router.name, success: false, error: error?.message || 'Sync error' }
+  }
+}
+
+export async function pollMikrotikSessions() {
+  console.log('[Mikrotik Poller] Starting parallel active session polling...')
+
+  const routers = await prisma.router.findMany({
+    where: { isActive: true },
+    select: { id: true, ipAddress: true, username: true, password: true, port: true, name: true, apiPort: true },
+  })
+
+  if (routers.length === 0) {
+    return { success: true, totalSynced: 0, totalErrors: 0, results: [] }
+  }
+
+  // Poll all routers concurrently in parallel
+  const settled = await Promise.allSettled(
+    routers.map((router) => syncSingleRouter(router))
+  )
+
+  const results: SyncRouterResult[] = []
+  let totalSynced = 0
+  let totalErrors = 0
+
+  for (const item of settled) {
+    if (item.status === 'fulfilled') {
+      results.push(item.value)
+      if (item.value.success) totalSynced++
+      else totalErrors++
+    } else {
+      results.push({ router: 'Unknown', success: false, error: item.reason?.message })
+      totalErrors++
     }
   }
 
-  return { success: totalErrors === 0, totalSynced, totalErrors, results };
+  console.log(`[Mikrotik Poller] Completed: ${totalSynced} synced, ${totalErrors} errors.`)
+  return { success: totalErrors === 0, totalSynced, totalErrors, results }
 }
 
 export async function cleanupOldMikrotikSessions() {
@@ -145,8 +199,8 @@ export async function cleanupOldMikrotikSessions() {
   try {
     const res = await prisma.mikrotikSession.deleteMany({
       where: {
-        stopTime: { not: null, lt: sevenDaysAgo }
-      }
+        stopTime: { not: null, lt: sevenDaysAgo },
+      },
     })
     if (res.count > 0) console.log(`[Mikrotik Poller] Deleted ${res.count} old sessions.`)
   } catch (error) {
