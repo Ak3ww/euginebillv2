@@ -36,14 +36,20 @@ export default function AdminWorkOrderDetailPage() {
     notes: '',
   });
 
+  const rawId = (params as any)?.id;
+  const woId = Array.isArray(rawId) ? rawId[0] : rawId;
+
   useEffect(() => {
-    fetchWo();
-    fetchTechnicians();
-  }, [params.id]);
+    if (woId) {
+      fetchWo();
+      fetchTechnicians();
+    }
+  }, [woId]);
 
   const fetchWo = async () => {
+    if (!woId) return;
     try {
-      const res = await fetch(`/api/admin/work-orders/${params.id}`);
+      const res = await fetch(`/api/admin/work-orders/${woId}`);
       if (res.ok) {
         const data = await res.json();
         setWo(data.workOrder);
@@ -82,7 +88,7 @@ export default function AdminWorkOrderDetailPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/admin/work-orders/${params.id}`, {
+      const res = await fetch(`/api/admin/work-orders/${woId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editFormData),
@@ -108,7 +114,7 @@ export default function AdminWorkOrderDetailPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/admin/work-orders/${params.id}`, {
+      const res = await fetch(`/api/admin/work-orders/${woId}`, {
         method: 'DELETE',
       });
       const data = await res.json();
@@ -210,7 +216,7 @@ export default function AdminWorkOrderDetailPage() {
   const handleResendWaReport = async () => {
     setResendingWa(true);
     try {
-      const res = await fetch(`/api/admin/work-orders/${params.id}/resend-wa`, {
+      const res = await fetch(`/api/admin/work-orders/${woId}/resend-wa`, {
         method: 'POST',
       });
       const data = await res.json();
@@ -245,7 +251,7 @@ export default function AdminWorkOrderDetailPage() {
 
       const updatedPhotos = { ...reportPhotos, [label]: data.url };
 
-      const updateRes = await fetch(`/api/admin/work-orders/${params.id}`, {
+      const updateRes = await fetch(`/api/admin/work-orders/${woId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reportPhotos: updatedPhotos }),

@@ -9,7 +9,7 @@ import { sendAdminCreateUser } from '@/server/services/notifications/whatsapp-te
 import { changePPPoERateLimit } from '@/server/services/mikrotik/rate-limit';
 import { generateUniqueReferralCode } from '@/server/services/referral.service';
 import { generateInvoiceNumber } from '@/server/services/billing/invoice.service';
-import { randomBytes } from 'crypto';
+import crypto, { randomBytes, randomUUID } from 'crypto';
 import { PPPSecretService } from '@/server/services/mikrotik/ppp-secret.service';
 import type { NextRequest } from 'next/server';
 import type { Session } from 'next-auth';
