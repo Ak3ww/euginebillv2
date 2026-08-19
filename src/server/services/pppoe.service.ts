@@ -785,7 +785,7 @@ export async function updatePppoeUser(
     const updatedPhone = data.phone || user.phone;
     const updatedName = data.name || user.name;
     await prisma.invoice.updateMany({
-      where: { userId: id, status: { in: ['PENDING', 'OVERDUE', 'UNPAID'] } },
+      where: { userId: id, status: { in: ['PENDING', 'OVERDUE'] } },
       data: {
         ...(data.phone && { customerPhone: updatedPhone }),
         ...(data.name && { customerName: updatedName }),

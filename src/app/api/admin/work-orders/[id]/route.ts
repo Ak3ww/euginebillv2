@@ -93,7 +93,7 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
       }).catch(() => {});
 
       await prisma.invoice.updateMany({
-        where: { userId: existing.linkedUserId, status: { in: ['PENDING', 'OVERDUE', 'UNPAID'] } },
+        where: { userId: existing.linkedUserId, status: { in: ['PENDING', 'OVERDUE'] } },
         data: {
           ...(customerPhone !== undefined && { customerPhone }),
           ...(customerName !== undefined && { customerName }),
@@ -123,8 +123,8 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
         await sendInvoiceReminder({
           phone: updated.customer.phone,
           customerName: updated.customer.name,
-          customerId: updated.customer.customerId,
-          customerUsername: updated.customer.username,
+          customerId: updated.customer.customerId || undefined,
+          customerUsername: updated.customer.username || undefined,
           invoiceNumber: invoice.invoiceNumber,
           amount: invoice.amount,
           dueDate: invoice.dueDate,

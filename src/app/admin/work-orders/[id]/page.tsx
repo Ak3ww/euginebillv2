@@ -28,6 +28,9 @@ export default function AdminWorkOrderDetailPage() {
   const [uploadingLabel, setUploadingLabel] = useState<string | null>(null);
 
   const [editFormData, setEditFormData] = useState({
+    customerName: '',
+    customerPhone: '',
+    customerAddress: '',
     technicianId: '',
     status: '',
     priority: '',

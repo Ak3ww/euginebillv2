@@ -12,10 +12,11 @@ interface RateLimitConfig {
   delayBetweenMessages: number;  // Delay in ms between individual messages in a batch
 }
 
-interface MessageToSend {
+export interface MessageToSend {
   phone: string;
   message: string;
   data?: any; // Additional data to pass through
+  [key: string]: any;
 }
 
 interface RateLimitResult {
