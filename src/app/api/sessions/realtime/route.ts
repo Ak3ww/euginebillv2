@@ -335,7 +335,7 @@ export async function GET(request: NextRequest) {
               downloadBytes: session.downloadBytes,
               totalBytes,
               uploadFormatted: formatBytes(session.uploadBytes),
-              downloadFormatted: formatBytes(downloadBytes),
+              downloadFormatted: formatBytes(session.downloadBytes),
               totalFormatted: formatBytes(totalBytes),
               router: { id: router.id, name: router.name },
               source: 'mikrotik-api',

@@ -114,9 +114,10 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
   })();
 
   let items = [];
-  if (rawInvoice.type === 'INSTALLATION') {
+  const invType = rawInvoice.invoiceType || (rawInvoice as any).type;
+  if (invType === 'INSTALLATION') {
     items.push({ description: 'Biaya Pemasangan', quantity: 1, price: rawInvoice.amount, total: rawInvoice.amount });
-  } else if (rawInvoice.type === 'TOPUP') {
+  } else if (invType === 'TOPUP') {
     items.push({ description: 'Top Up Saldo', quantity: 1, price: rawInvoice.amount, total: rawInvoice.amount });
   } else if (rawInvoice.invoiceType === 'ADDON' && parsedFees.length > 0) {
     // If it's an ADDON invoice with parsedFees, we don't push anything to items

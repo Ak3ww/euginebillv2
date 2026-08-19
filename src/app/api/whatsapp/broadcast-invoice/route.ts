@@ -13,6 +13,14 @@ interface BroadcastInvoiceRequest {
   channel?: 'whatsapp' | 'email' | 'both'; // Optional, defaults to 'both'
 }
 
+interface MessageToSend {
+  phone: string;
+  message: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  customerName: string;
+}
+
 function renderTemplate(template: string, variables: Record<string, string>): string {
   let rendered = template;
   for (const [key, value] of Object.entries(variables)) {
@@ -129,7 +137,7 @@ export async function POST(request: NextRequest) {
     // WHATSAPP BROADCAST
     // ========================
     if (channel === 'whatsapp' || channel === 'both') {
-      const messagesToSend = invoiceDataList
+      const messagesToSend: MessageToSend[] = invoiceDataList
         .filter(({ invoice }) => {
           if (!invoice.customerPhone) return false;
           if (invoice.user && invoice.user.waNotificationEnabled === false) {

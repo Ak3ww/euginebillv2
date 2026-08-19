@@ -251,8 +251,6 @@ export async function POST(request: NextRequest) {
       'nik': 'idcardnumber',
       'idcardnumber': 'idcardnumber',
       // Indonesian labels (from template)
-      'username *': 'username',
-      'password *': 'password',
       'nama lengkap *': 'name',
       'nama lengkap': 'name',
       'nama': 'name',
@@ -279,8 +277,6 @@ export async function POST(request: NextRequest) {
       // Export columns: profile and router used for auto-resolution
       'no': '_no',
       'customerid': 'customerid',
-      'id pelanggan': 'customerid',
-      'id pelanggan (kosongkan = auto)': 'customerid',
       'customer id': 'customerid',
       'profile (opsional)': 'profilename',
       'profile': 'profilename',

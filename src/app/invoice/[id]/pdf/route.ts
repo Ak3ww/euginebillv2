@@ -236,9 +236,10 @@ export async function GET(
     const taxAmt = hasTax ? invoice.amount - baseAmt : 0;
 
     let items: any[] = [];
-    if (invoice.type === 'INSTALLATION') {
+    const invType = invoice.invoiceType || (invoice as any).type;
+    if (invType === 'INSTALLATION') {
       items.push({ description: 'Biaya Pemasangan', quantity: 1, price: invoice.amount, total: invoice.amount });
-    } else if (invoice.type === 'TOPUP') {
+    } else if (invType === 'TOPUP') {
       items.push({ description: 'Top Up Saldo', quantity: 1, price: invoice.amount, total: invoice.amount });
     } else if (invoice.invoiceType === 'ADDON' && parsedFees.length > 0) {
       // Addon fees only
@@ -248,9 +249,19 @@ export async function GET(
         description: `Langganan Internet (${new Date(invoice.dueDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}) - ${profileName}`,
         quantity: 1,
         price: baseAmt,
-        total: baseAmt
+        total: baseAmt,
       });
     }
+
+    // Append parsed additional fees (addon items)
+    parsedFees.forEach((fee: any) => {
+      items.push({
+        description: fee.name || fee.description || 'Biaya Tambahan',
+        quantity: fee.quantity || 1,
+        price: Number(fee.amount || fee.price || 0),
+        total: Number(fee.total || fee.amount || fee.price || 0),
+      });
+    });
 
     // QR Code generation
     const paymentLink = invoice.paymentLink || (invoice.paymentToken ? `/pay/${invoice.paymentToken}` : null);
@@ -438,7 +449,7 @@ export async function GET(
     // 1. Try Puppeteer Chromium HTML-to-PDF rendering first (100% htmldocs pixel-perfect standard)
     const puppeteerPdfBuffer = await renderPuppeteerPdf(htmlDocument);
     if (puppeteerPdfBuffer) {
-      return new NextResponse(puppeteerPdfBuffer, {
+      return new NextResponse(puppeteerPdfBuffer as any, {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`,

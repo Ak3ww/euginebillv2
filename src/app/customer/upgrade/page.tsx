@@ -20,6 +20,7 @@ interface PPPoEProfile {
 interface CustomerInfo {
   id: string;
   name: string;
+  customerId?: string | null;
   expiredAt: string | null;
   profileName: string;
   profileId: string;

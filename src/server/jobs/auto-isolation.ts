@@ -41,7 +41,7 @@ export async function autoIsolateExpiredUsers() {
         },
         OR: [
           { autoIsolationEnabled: true },
-          { autoIsolationEnabled: null },
+          { autoIsolationEnabled: { not: false } },
         ],
       },
       select: {

@@ -1199,7 +1199,7 @@ export async function autoIsolateExpiredUsers(): Promise<{ success: boolean; iso
         subscriptionType: 'PREPAID',
         OR: [
           { autoIsolationEnabled: true },
-          { autoIsolationEnabled: null },
+          { autoIsolationEnabled: { not: false } },
         ],
         expiredAt: {
           lte: new Date(), // expired
@@ -1238,7 +1238,7 @@ export async function autoIsolateExpiredUsers(): Promise<{ success: boolean; iso
         subscriptionType: 'POSTPAID',
         OR: [
           { autoIsolationEnabled: true },
-          { autoIsolationEnabled: null },
+          { autoIsolationEnabled: { not: false } },
         ],
         expiredAt: {
           lte: new Date(), // expired

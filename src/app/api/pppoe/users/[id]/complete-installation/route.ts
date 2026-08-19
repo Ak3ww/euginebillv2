@@ -103,13 +103,11 @@ export async function POST(
       console.error('[CompleteInstallation] Failed to send WA notification:', waError);
     }
 
-    // Log Activity
     await logActivity({
-      adminId: (session.user as any).id,
+      username: (session.user as any).username || (session.user as any).name || 'admin',
+      userRole: (session.user as any).role || 'ADMIN',
       action: 'COMPLETE_INSTALLATION',
-      entity: 'pppoe_user',
-      entityId: user.id,
-      details: `Diselesaikan oleh Admin: Status ${user.name} diubah ke ACTIVE. Invoice #${latestInvoice.invoiceNumber} (Rp ${latestInvoice.amount.toLocaleString('id-ID')}). WA Status: ${waSent ? 'Terkirim' : 'Gagal'}.`,
+      description: `Diselesaikan oleh Admin: Status ${user.name} diubah ke ACTIVE. Invoice #${latestInvoice.invoiceNumber} (Rp ${latestInvoice.amount.toLocaleString('id-ID')}). WA Status: ${waSent ? 'Terkirim' : 'Gagal'}.`,
     }).catch(() => {});
 
     return NextResponse.json({

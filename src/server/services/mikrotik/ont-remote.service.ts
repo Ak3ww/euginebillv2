@@ -52,8 +52,8 @@ export class OntRemoteService {
     const router = routerId
       ? await prisma.router.findUnique({ where: { id: routerId } })
       : routerName
-      ? await prisma.router.findFirst({ where: { name: { contains: routerName, mode: 'insensitive' } } })
-      : (await prisma.router.findFirst({ where: { isDefault: true } })) || (await prisma.router.findFirst())
+      ? await prisma.router.findFirst({ where: { name: { contains: routerName } } })
+      : await prisma.router.findFirst()
 
     if (!router) {
       console.warn('[ont-remote-service] No matching router found in DB for ONT Remote setup')
@@ -194,8 +194,8 @@ export class OntRemoteService {
       const router = routerId
         ? await prisma.router.findUnique({ where: { id: routerId } })
         : routerName
-        ? await prisma.router.findFirst({ where: { name: { contains: routerName, mode: 'insensitive' } } })
-        : (await prisma.router.findFirst({ where: { isDefault: true } })) || (await prisma.router.findFirst())
+        ? await prisma.router.findFirst({ where: { name: { contains: routerName } } })
+        : await prisma.router.findFirst()
 
       if (router) {
         const hostsToTry = [router.ipAddress, router.nasname].filter(Boolean) as string[]
