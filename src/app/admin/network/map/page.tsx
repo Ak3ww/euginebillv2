@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
@@ -949,10 +949,10 @@ export default function NetworkMapPage() {
             className="text-sm border rounded-lg px-3 py-1.5 bg-card border-border"
           >
             <option value="">{t('common.allStatus')}</option>
-            <option value="online">🟢 Online</option>
-            <option value="offline">🔵 Offline</option>
-            <option value="isolir">🟠 Isolir</option>
-            <option value="expired">🔴 Nunggak</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+            <option value="isolir">Isolir</option>
+            <option value="expired">Nunggak</option>
           </select>
 
           <div className="h-6 border-l border-border" />

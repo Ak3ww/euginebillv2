@@ -306,9 +306,9 @@ export default function CronSettingsPage() {
   const getHealthBadge = (health: string, enabled: boolean) => {
     if (!enabled) return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground rounded">{t('settings.disabled')}</span>;
     switch (health) {
-      case 'healthy': return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-success/10 text-success rounded">🟢 Active</span>;
-      case 'degraded': return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-warning/20 text-warning rounded">🟡 Degraded</span>;
-      case 'error': return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-destructive/10 text-destructive rounded">🔴 Error</span>;
+      case 'healthy': return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-success/10 text-success rounded"><CheckCircle className="w-3 h-3 text-emerald-500" /> Active</span>;
+      case 'degraded': return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-warning/20 text-warning rounded"><Clock className="w-3 h-3 text-amber-500" /> Degraded</span>;
+      case 'error': return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-destructive/10 text-destructive rounded"><XCircle className="w-3 h-3 text-rose-500" /> Error</span>;
       default: return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground rounded">-</span>;
     }
   };
@@ -509,8 +509,8 @@ export default function CronSettingsPage() {
                       </td>
                       <td className="px-6 py-3">
                         {s.enabled
-                          ? <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-success/10 text-success rounded">🟢 Enabled</span>
-                          : <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded">⏸ Disabled</span>
+                          ? <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-success/10 text-success rounded"><CheckCircle className="w-3 h-3 text-emerald-500" /> Enabled</span>
+                          : <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded"><Clock className="w-3 h-3 text-muted-foreground" /> Disabled</span>
                         }
                       </td>
                       <td className="px-6 py-3">
@@ -549,8 +549,8 @@ export default function CronSettingsPage() {
                       <div className="text-xs text-muted-foreground">{s.jobType}</div>
                     </div>
                     {s.enabled
-                      ? <span className="text-xs bg-success/10 text-success px-2 py-0.5 rounded">🟢 On</span>
-                      : <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">⏸ Off</span>
+                      ? <span className="text-xs bg-success/10 text-success px-2 py-0.5 rounded inline-flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" /> On</span>
+                      : <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded inline-flex items-center gap-1"><Clock className="w-3 h-3 text-muted-foreground" /> Off</span>
                     }
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">

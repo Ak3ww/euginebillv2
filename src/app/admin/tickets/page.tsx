@@ -707,10 +707,10 @@ export default function AdminTicketsPage() {
                       <label className="text-xs text-muted-foreground mb-1 block">Prioritas</label>
                       <div className="relative">
                         <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} className="w-full appearance-none px-3 py-2 text-xs bg-background border border-border rounded-lg text-foreground focus:ring-1 focus:ring-[#bc13fe]/40 outline-none pr-8">
-                          <option value="LOW">🟢 Rendah</option>
-                          <option value="MEDIUM">🟡 Sedang</option>
-                          <option value="HIGH">🟠 Tinggi</option>
-                          <option value="URGENT">🔴 Urgent</option>
+                          <option value="LOW">Rendah</option>
+                          <option value="MEDIUM">Sedang</option>
+                          <option value="HIGH">Tinggi</option>
+                          <option value="URGENT">Urgent</option>
                         </select>
                         <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
                       </div>

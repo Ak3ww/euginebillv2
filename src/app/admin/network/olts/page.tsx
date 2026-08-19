@@ -5,7 +5,7 @@ import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   Plus, Pencil, Trash2, Server, MapPin, Map, X, RefreshCcw, Router as RouterIcon,
-  Activity, Box, Network, Upload, Download, Eye,
+  Activity, Box, Network, Upload, Download, Eye, CheckCircle2, XCircle, AlertTriangle, Radio, Wrench
 } from 'lucide-react';
 import MapPicker from '@/components/MapPicker';
 import Link from 'next/link';
@@ -612,11 +612,11 @@ export default function OLTsPage() {
                         <div className="flex flex-col gap-1">
                           {status.online ? (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 inline-flex items-center gap-1">
-                              🟢 Online
+                              <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Online
                             </span>
                           ) : (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 inline-flex items-center gap-1">
-                              🔴 Offline
+                              <XCircle className="w-3 h-3 text-rose-500" /> Offline
                             </span>
                           )}
                           {status.details && (
@@ -714,7 +714,7 @@ export default function OLTsPage() {
                                 className="text-[9px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded font-medium hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors cursor-pointer inline-flex items-center gap-0.5"
                                 title="View online ONUs"
                               >
-                                🟢 {olt.onu_stats.online} Online
+                                <CheckCircle2 className="w-3 h-3 text-emerald-500" /> {olt.onu_stats.online} Online
                               </Link>
                             )}
                             {olt.onu_stats.dying_gasp > 0 && (
@@ -723,7 +723,7 @@ export default function OLTsPage() {
                                 className="text-[9px] px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded font-medium hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors cursor-pointer inline-flex items-center gap-0.5"
                                 title="View dying gasp ONUs"
                               >
-                                ⚠️ {olt.onu_stats.dying_gasp} Dying Gasp
+                                <AlertTriangle className="w-3 h-3 text-amber-500" /> {olt.onu_stats.dying_gasp} Dying Gasp
                               </Link>
                             )}
                             {olt.onu_stats.los > 0 && (
@@ -732,7 +732,7 @@ export default function OLTsPage() {
                                 className="text-[9px] px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded font-medium hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors cursor-pointer inline-flex items-center gap-0.5"
                                 title="View LOS ONUs"
                               >
-                                📡 {olt.onu_stats.los} LOS
+                                <Radio className="w-3 h-3 text-orange-500" /> {olt.onu_stats.los} LOS
                               </Link>
                             )}
                             {olt.onu_stats.unconfig > 0 && (
@@ -741,7 +741,7 @@ export default function OLTsPage() {
                                 className="text-[9px] px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors cursor-pointer inline-flex items-center gap-0.5"
                                 title="View unconfigured ONUs"
                               >
-                                🔧 {olt.onu_stats.unconfig} Unconfig
+                                <Wrench className="w-3 h-3 text-purple-500" /> {olt.onu_stats.unconfig} Unconfig
                               </Link>
                             )}
                             {olt.onu_stats.offline > 0 && (
@@ -750,7 +750,7 @@ export default function OLTsPage() {
                                 className="text-[9px] px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer inline-flex items-center gap-0.5"
                                 title="View offline ONUs"
                               >
-                                🔴 {olt.onu_stats.offline} Offline
+                                <XCircle className="w-3 h-3 text-rose-500" /> {olt.onu_stats.offline} Offline
                               </Link>
                             )}
                           </div>

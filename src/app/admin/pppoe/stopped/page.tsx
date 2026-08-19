@@ -4,7 +4,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useState, useEffect } from 'react';
 import {
-  Users, Trash2, Download, Search, RefreshCcw, Plus, Shield, FileText, CheckCircle, Wrench
+  Users, Trash2, Download, Search, RefreshCcw, Plus, Shield, FileText, CheckCircle, Wrench, CheckCircle2, XCircle
 } from 'lucide-react';
 import { formatWIB } from '@/lib/timezone';
 
@@ -401,11 +401,11 @@ export default function StoppedSubscriptionsPage() {
                           <div className="mt-1">
                             {user.isUsernameReused ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20" title={`Akun PPPoE ${user.baseUsername} sudah dipakai oleh pelanggan aktif lain`}>
-                                🔴 Username Terpakai ({user.baseUsername})
+                                <XCircle className="w-3 h-3 text-rose-500" /> Username Terpakai ({user.baseUsername})
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" title={`Akun PPPoE ${user.baseUsername} belum terpakai / kosong, siap dipakai kembali`}>
-                                🟢 Username Kosong ({user.baseUsername})
+                                <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Username Kosong ({user.baseUsername})
                               </span>
                             )}
                           </div>
