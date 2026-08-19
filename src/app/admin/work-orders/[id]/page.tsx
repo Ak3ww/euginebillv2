@@ -25,6 +25,7 @@ export default function AdminWorkOrderDetailPage() {
 
   const [resendingWa, setResendingWa] = useState(false);
   const [copiedWa, setCopiedWa] = useState(false);
+  const [uploadingLabel, setUploadingLabel] = useState<string | null>(null);
 
   const [editFormData, setEditFormData] = useState({
     technicianId: '',
@@ -224,8 +225,6 @@ export default function AdminWorkOrderDetailPage() {
       setResendingWa(false);
     }
   };
-
-  const [uploadingLabel, setUploadingLabel] = useState<string | null>(null);
 
   const handleAdminUploadPhoto = async (label: string, file: File) => {
     setUploadingLabel(label);
