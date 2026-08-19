@@ -56,12 +56,18 @@ export async function POST(req: NextRequest) {
 
     const ext = extname(file.name) || '.jpg';
     const filename = `${randomUUID()}${ext}`;
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'tickets');
-
-    await mkdir(uploadDir, { recursive: true });
+    const { getUploadDir } = await import('@/lib/upload-dir');
+    const uploadDir = getUploadDir('tickets');
 
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(join(uploadDir, filename), buffer);
+
+    // Also write to legacy public/uploads/tickets for backward compatibility if needed
+    try {
+      const legacyDir = join(process.cwd(), 'public', 'uploads', 'tickets');
+      await mkdir(legacyDir, { recursive: true });
+      await writeFile(join(legacyDir, filename), buffer);
+    } catch {}
 
     return NextResponse.json({ url: `/uploads/tickets/${filename}` });
   } catch (err) {

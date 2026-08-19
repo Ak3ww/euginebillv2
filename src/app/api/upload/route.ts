@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const filepath = join(uploadDir, filename);
     await writeFile(filepath, buffer);
 
-    const url = `/api/uploads/pppoe-customers/${subfolder}/${filename}`;
+    const url = `/uploads/pppoe-customers/${subfolder}/${filename}`;
 
     return NextResponse.json({
       success: true,

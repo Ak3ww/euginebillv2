@@ -9,21 +9,13 @@ const CONTENT_TYPES: Record<string, string> = {
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
   '.webp': 'image/webp',
+  '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
+  '.pdf': 'application/pdf',
 };
 
 /**
- * Catch-all route: serves any uploaded file from the persistent UPLOAD_DIR.
- *
- * Matches URLs like:
- *   /uploads/payment-proofs/proof-123.jpg
- *   /uploads/logos/logo-abc.png
- *   /uploads/pppoe-customers/id-cards/ktp-xxx.jpg
- *   /uploads/registrations/reg-ktp-xxx.jpg
- *   /uploads/topup-proofs/topup-xxx.jpg
- *   /uploads/payments/payment-proof-xxx.jpg
- *
- * Falls back to legacy public/uploads/ for files uploaded before migration.
+ * Catch-all route: serves any uploaded file from persistent UPLOAD_DIR or fallbacks.
  */
 export async function GET(
   _request: NextRequest,
@@ -39,32 +31,36 @@ export async function GET(
       }
     }
 
-    // Only allow known image extensions
     const filename = segments[segments.length - 1];
     const ext = extname(filename).toLowerCase();
-    const contentType = CONTENT_TYPES[ext];
-    if (!contentType) {
-      return new NextResponse('Unsupported file type', { status: 400 });
-    }
+    const contentType = CONTENT_TYPES[ext] || 'application/octet-stream';
 
     // Restrict filename characters
     if (!/^[a-zA-Z0-9._-]+$/.test(filename)) {
       return new NextResponse('Invalid filename', { status: 400 });
     }
 
-    // Try persistent upload dir first, then legacy public/uploads/
     const relativePath = join(...segments);
-    let filepath = join(UPLOAD_DIR, relativePath);
+    const candidatePaths = [
+      join(UPLOAD_DIR, relativePath),
+      join(process.cwd(), 'public', 'uploads', relativePath),
+      join(process.cwd(), 'public', relativePath),
+      join(process.cwd(), 'data', 'uploads', relativePath),
+    ];
 
-    if (!existsSync(filepath)) {
-      // Fallback: legacy location (public/uploads/)
-      filepath = join(process.cwd(), 'public', 'uploads', relativePath);
-      if (!existsSync(filepath)) {
-        return new NextResponse('File not found', { status: 404 });
+    let targetFile = '';
+    for (const candidate of candidatePaths) {
+      if (existsSync(candidate)) {
+        targetFile = candidate;
+        break;
       }
     }
 
-    const file = await readFile(filepath);
+    if (!targetFile) {
+      return new NextResponse('File not found', { status: 404 });
+    }
+
+    const file = await readFile(targetFile);
 
     return new NextResponse(file, {
       headers: {
