@@ -2,155 +2,44 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/auth/config'
 import { prisma } from '@/server/db/client'
-import { OntRemoteService } from '@/server/services/mikrotik/ont-remote.service'
+import { OntRemoteService, resolveOntIpFromMikrotik } from '@/server/services/mikrotik/ont-remote.service'
 
 export const dynamic = 'force-dynamic'
 
-const VPS_HOST = process.env.VPS_HOST || '43.173.14.236'
+// VPS public IP for building proxy URL
+const VPS_HOST =
+  process.env.VPS_HOST ||
+  (process.env.NEXTAUTH_URL || '').replace(/^https?:\/\//, '').split(':')[0].split('/')[0] ||
+  '127.0.0.1'
+
 const MIN_PROXY_PORT = 24000
 const MAX_PROXY_PORT = 24999
-const DEFAULT_EXPIRY_MINUTES = 10
+const DEFAULT_EXPIRY_MINUTES = 15
 
-// Helper: Get next available proxy port
+// Get next free port
 async function getNextAvailableProxyPort(): Promise<number> {
   const activeSessions = await prisma.ontRemoteSession.findMany({
-    where: {
-      status: 'ACTIVE',
-      expiresAt: { gt: new Date() },
-    },
+    where: { status: 'ACTIVE', expiresAt: { gt: new Date() } },
     select: { proxyPort: true },
   })
-
   const usedPorts = new Set(activeSessions.map((s: { proxyPort: number }) => s.proxyPort))
-
   for (let port = MIN_PROXY_PORT; port <= MAX_PROXY_PORT; port++) {
-    if (!usedPorts.has(port)) {
-      return port
-    }
+    if (!usedPorts.has(port)) return port
   }
-
-  // Fallback if all 1000 ports used
-  return MIN_PROXY_PORT + Math.floor(Math.random() * 1000)
+  throw new Error('Tidak ada port proxy yang tersedia')
 }
 
-// Helper: Real-time Dynamic IP Resolver
-async function resolveRealtimeIp(params: {
-  customerId?: string
-  username?: string
-  providedIp?: string
-}): Promise<{ ip: string; username?: string; customerName?: string; routerName?: string }> {
-  let targetUsername = params.username?.trim()
-  let targetCustomerName = ''
-  let routerName = ''
-
-  // 1. Fetch Customer info if customerId is provided
-  if (params.customerId) {
-    const user = await prisma.pppoeUser.findUnique({
-      where: { id: params.customerId },
-      select: {
-        id: true,
-        name: true,
-        username: true,
-        ipAddress: true,
-        router: { select: { name: true } },
-      },
-    })
-    if (user) {
-      targetCustomerName = user.name || ''
-      if (!targetUsername) targetUsername = user.username
-      if (user.router?.name) routerName = user.router.name
-    }
-  }
-
-  // 2. Check active FreeRADIUS session (radacct) for current framedipaddress
-  if (targetUsername) {
-    try {
-      const activeAcct = await prisma.radacct.findFirst({
-        where: {
-          username: targetUsername,
-          acctstoptime: null,
-        },
-        orderBy: { acctstarttime: 'desc' },
-        select: { framedipaddress: true },
-      })
-      if (activeAcct?.framedipaddress) {
-        return {
-          ip: activeAcct.framedipaddress,
-          username: targetUsername,
-          customerName: targetCustomerName,
-          routerName,
-        }
-      }
-    } catch {
-      /* ignore if radacct unvailable */
-    }
-
-    // 3. Check active MikroTik session (mikrotikSession)
-    try {
-      const activeMk = await prisma.mikrotikSession.findFirst({
-        where: {
-          username: targetUsername,
-          stopTime: null,
-        },
-        orderBy: { startTime: 'desc' },
-        select: { ipAddress: true },
-      })
-      if (activeMk?.ipAddress) {
-        return {
-          ip: activeMk.ipAddress,
-          username: targetUsername,
-          customerName: targetCustomerName,
-          routerName,
-        }
-      }
-    } catch {
-      /* ignore */
-    }
-
-    // 4. Check ACS Device IP
-    try {
-      const acsDev = await prisma.acsDevice.findFirst({
-        where: { pppoeUser: { username: targetUsername } },
-        select: { ipAddress: true },
-      })
-      if (acsDev?.ipAddress) {
-        return {
-          ip: acsDev.ipAddress,
-          username: targetUsername,
-          customerName: targetCustomerName,
-          routerName,
-        }
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  // Fallback to providedIp or default
-  return {
-    ip: params.providedIp?.trim() || '127.0.0.1',
-    username: targetUsername,
-    customerName: targetCustomerName,
-    routerName,
-  }
-}
-
-// ── GET: Fetch all active & recent ONT remote sessions ────────────────────────
+// ── GET: List sessions ─────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
     const now = new Date()
 
-    // Auto-update expired sessions in database
+    // Auto-expire stale sessions
     await prisma.ontRemoteSession.updateMany({
-      where: {
-        status: 'ACTIVE',
-        expiresAt: { lte: now },
-      },
+      where: { status: 'ACTIVE', expiresAt: { lte: now } },
       data: { status: 'EXPIRED' },
     })
 
@@ -159,144 +48,170 @@ export async function GET(request: NextRequest) {
       take: 50,
     })
 
-    const formattedSessions = sessions.map((s: {
-      id: string
-      customerId: string | null
-      customerName: string | null
-      username: string | null
-      routerName: string | null
-      targetIp: string
-      targetPort: number
-      proxyPort: number
-      proxyUrl: string
-      status: string
-      expiresAt: Date
-      createdAt: Date
-    }) => {
-      const remainingSeconds = s.status === 'ACTIVE'
-        ? Math.max(0, Math.floor((s.expiresAt.getTime() - now.getTime()) / 1000))
-        : 0
-
-      return {
-        ...s,
-        remainingSeconds,
-        isExpired: s.status === 'EXPIRED' || remainingSeconds <= 0,
-      }
+    return NextResponse.json({
+      sessions: sessions.map((s: any) => {
+        const remainingSeconds =
+          s.status === 'ACTIVE'
+            ? Math.max(0, Math.floor((new Date(s.expiresAt).getTime() - now.getTime()) / 1000))
+            : 0
+        return { ...s, remainingSeconds, isExpired: s.status !== 'ACTIVE' || remainingSeconds <= 0 }
+      }),
     })
-
-    return NextResponse.json({ sessions: formattedSessions })
   } catch (error: any) {
-    console.error('Error fetching ONT remote sessions:', error)
     return NextResponse.json({ error: error.message || 'Failed to fetch sessions' }, { status: 500 })
   }
 }
 
-// ── POST: Create a new temporary ONT remote proxy session ──────────────────────
+// ── POST: Create ONT remote session ───────────────────────────────────────────
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  let ontSessionId: string | null = null
 
   try {
     const body = await request.json()
-    const { customerId, username, targetIp: providedIp, targetPort = 80, routerName: inputRouterName } = body
+    const {
+      customerId,
+      username,
+      targetIp: providedIp,
+      targetPort = 80,
+      customerName: inputCustomerName,
+    } = body
 
-    // 1. Resolve real-time dynamic IP
-    const resolved = await resolveRealtimeIp({ customerId, username, providedIp })
-    const targetIp = resolved.ip
-    const customerName = resolved.customerName || body.customerName || 'Pelanggan'
-    const finalUsername = resolved.username || username || 'N/A'
-    const routerName = resolved.routerName || inputRouterName || 'Router'
-    const parsedTargetPort = parseInt(String(targetPort)) === 443 ? 443 : 80
+    // 1. Resolve ONT IP from MikroTik /ppp/active/print
+    const resolved = await resolveOntIpFromMikrotik({ customerId, username, providedIp })
 
-    if (!targetIp || targetIp === '127.0.0.1') {
-      return NextResponse.json({ error: 'IP target ONT tidak ditemukan / pelanggan sedang offline' }, { status: 400 })
+    if (!resolved.ip) {
+      const msg =
+        resolved.source === 'offline'
+          ? `Pelanggan ${resolved.username} sedang offline (tidak ada sesi PPPoE aktif)`
+          : resolved.source === 'mikrotik-error'
+          ? 'Gagal terhubung ke MikroTik untuk mengecek sesi aktif'
+          : 'IP address ONT tidak ditemukan'
+      return NextResponse.json({ error: msg, source: resolved.source }, { status: 400 })
     }
 
-    // 2. Allocate free proxy port
+    if (!resolved.routerVpnIp) {
+      return NextResponse.json(
+        { error: 'IP VPN MikroTik tidak ditemukan. Pastikan router memiliki IP address di database.' },
+        { status: 400 }
+      )
+    }
+
+    const ontIp = resolved.ip
+    const mikrotikVpnIp = resolved.routerVpnIp
+    const customerName = resolved.customerName || inputCustomerName || 'Pelanggan'
+    const finalUsername = resolved.username || username || 'N/A'
+    const routerName = resolved.routerName || 'Router'
+    const parsedTargetPort = parseInt(String(targetPort)) || 80
+
+    // 2. Allocate free port
     const proxyPort = await getNextAvailableProxyPort()
 
-    // 3. Build proxy URL (using host header or env VPS_HOST)
+    // 3. Build proxy URL (VPS public IP + proxyPort)
     const hostHeader = request.headers.get('host') || ''
     const currentDomain = hostHeader.split(':')[0]
-    const vpsPublicIp = currentDomain.match(/^\d+\.\d+\.\d+\.\d+$/) ? currentDomain : VPS_HOST
-    const proxyUrl = `http://${vpsPublicIp}:${proxyPort}`
+    const isPublicIp = /^\d+\.\d+\.\d+\.\d+$/.test(currentDomain)
+    const vpsHost = isPublicIp ? currentDomain : VPS_HOST
+    const proxyUrl = `http://${vpsHost}:${proxyPort}`
 
     const expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_MINUTES * 60 * 1000)
 
-    // 4. Save session record to DB
+    // 4. Save session as PENDING
     const ontSession = await prisma.ontRemoteSession.create({
       data: {
         customerId: customerId || null,
         customerName,
         username: finalUsername,
         routerName,
-        targetIp,
+        targetIp: ontIp,         // ONT's actual PPPoE IP
         targetPort: parsedTargetPort,
         proxyPort,
         proxyUrl,
-        status: 'ACTIVE',
+        status: 'PENDING',
         expiresAt,
       },
     })
+    ontSessionId = ontSession.id
 
-    // 5. Setup VPS Reverse Proxy Forwarder + MikroTik NAT & Filter Rules via API
-    await OntRemoteService.setupOntRemoteRules({
+    // 5. Setup socat on VPS + MikroTik NAT rules
+    const setupResult = await OntRemoteService.setupOntRemoteRules({
       sessionId: ontSession.id,
-      routerId: customerId ? (await prisma.pppoeUser.findUnique({ where: { id: customerId }, select: { routerId: true } }))?.routerId : null,
-      routerName,
-      targetIp,
+      routerId: resolved.routerId,
+      ontIp,
+      mikrotikVpnIp,
       targetPort: parsedTargetPort,
       proxyPort,
     })
 
+    if (!setupResult.success) {
+      await prisma.ontRemoteSession.update({
+        where: { id: ontSession.id },
+        data: { status: 'FAILED' },
+      })
+      return NextResponse.json(
+        { error: setupResult.error || 'Gagal setup proxy ONT' },
+        { status: 500 }
+      )
+    }
+
+    // 6. Mark ACTIVE
+    const activeSession = await prisma.ontRemoteSession.update({
+      where: { id: ontSession.id },
+      data: { status: 'ACTIVE' },
+    })
+
     return NextResponse.json({
       success: true,
-      session: {
-        ...ontSession,
-        remainingSeconds: DEFAULT_EXPIRY_MINUTES * 60,
-      },
+      session: { ...activeSession, remainingSeconds: DEFAULT_EXPIRY_MINUTES * 60 },
+      resolvedFrom: resolved.source,
+      ontIp,
+      mikrotikVpnIp,
     })
   } catch (error: any) {
-    console.error('Error creating ONT remote session:', error)
+    console.error('[ont-remote] POST error:', error)
+    if (ontSessionId) {
+      await prisma.ontRemoteSession.update({
+        where: { id: ontSessionId },
+        data: { status: 'FAILED' },
+      }).catch(() => {})
+    }
     return NextResponse.json({ error: error.message || 'Gagal membuat sesi remote ONT' }, { status: 500 })
   }
 }
 
-// ── DELETE: Close an active ONT remote session ─────────────────────────────────
+// ── DELETE: Close session ──────────────────────────────────────────────────────
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions)
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
     const { searchParams } = new URL(request.url)
     const sessionId = searchParams.get('id')
+    if (!sessionId) return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
 
-    if (!sessionId) {
-      return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
+    const ontSession = await prisma.ontRemoteSession.findUnique({ where: { id: sessionId } })
+    if (!ontSession) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+
+    // Resolve routerId for MikroTik rule removal
+    let routerId: string | null = null
+    if (ontSession.customerId) {
+      const u = await prisma.pppoeUser.findUnique({
+        where: { id: ontSession.customerId },
+        select: { routerId: true },
+      }).catch(() => null)
+      routerId = u?.routerId || null
     }
 
-    const ontSession = await prisma.ontRemoteSession.findUnique({
-      where: { id: sessionId },
-    })
-
-    if (!ontSession) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-    }
-
-    // Clean up VPS forwarder + MikroTik Firewall rules via API
     await OntRemoteService.removeOntRemoteRules({
       sessionId: ontSession.id,
-      routerName: ontSession.routerName,
+      routerId,
       proxyPort: ontSession.proxyPort,
-      targetIp: ontSession.targetIp,
+      ontIp: ontSession.targetIp,
       targetPort: ontSession.targetPort,
     })
 
-    // Update status to CLOSED
     const updated = await prisma.ontRemoteSession.update({
       where: { id: sessionId },
       data: { status: 'CLOSED' },
@@ -304,7 +219,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true, session: updated })
   } catch (error: any) {
-    console.error('Error closing ONT remote session:', error)
     return NextResponse.json({ error: error.message || 'Gagal menutup sesi' }, { status: 500 })
   }
 }
