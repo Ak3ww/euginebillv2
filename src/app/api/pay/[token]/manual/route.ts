@@ -44,17 +44,21 @@ export async function POST(
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Save to public/uploads/receipts
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'receipts');
-    try {
-      await mkdir(uploadDir, { recursive: true });
-    } catch (e) {
-      // ignore
-    }
+    // Save to persistent UPLOAD_DIR/receipts
+    const { getUploadDir } = await import('@/lib/upload-dir');
+    const uploadDir = getUploadDir('receipts');
 
     const filename = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
     const filepath = join(uploadDir, filename);
     await writeFile(filepath, buffer);
+
+    // Also write to legacy public/uploads/receipts for backward compatibility
+    try {
+      const legacyDir = join(process.cwd(), 'public', 'uploads', 'receipts');
+      await mkdir(legacyDir, { recursive: true });
+      await writeFile(join(legacyDir, filename), buffer);
+    } catch (e) {}
+
     const receiptUrl = `/uploads/receipts/${filename}`;
 
     // Create manual payment
