@@ -135,8 +135,104 @@ export default function AdminWorkOrderDetailPage() {
     );
   }
 
-  const reportData = wo.reportData || {};
-  const reportPhotos = wo.reportPhotos || {};
+  const parseJsonObject = (data: any) => {
+    if (!data) return {};
+    if (typeof data === 'object') return data;
+    try {
+      return typeof data === 'string' ? JSON.parse(data) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const reportData = parseJsonObject(wo.reportData);
+  const reportPhotos = parseJsonObject(wo.reportPhotos);
+
+  const [resendingWa, setResendingWa] = useState(false);
+  const [copiedWa, setCopiedWa] = useState(false);
+
+  const handleCopyWaReport = async () => {
+    const now = new Date();
+    const HARI = ['MINGGU','SENIN','SELASA','RABU','KAMIS','JUMAT','SABTU'][now.getDay()];
+    const BULAN = ['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'][now.getMonth()];
+    const tanggal = `${HARI}, ${now.getDate()} ${BULAN} ${now.getFullYear()}`;
+
+    const portFormatted = reportData?.port
+      ? String(reportData.port).replace('Port ', '').padStart(2, '0') + '/' + String(reportData?.portCount || 16).padStart(2, '0')
+      : '-';
+
+    const ledStatus = (val: any) => (val === true || val === 'true' || val === 'ON') ? '✅ ON' : '❌ OFF';
+
+    const text = [
+      `📋 *Report Daily IB*`,
+      `📅 ${tanggal}`,
+      ``,
+      `*NAMA*    : ${wo.customerName || '-'}`,
+      `*ALAMAT*  : ${wo.customerAddress || '-'}`,
+      `*NO HP*   : ${wo.customerPhone || '-'}`,
+      `*ODP*     : ${reportData?.odpName || '-'}`,
+      `*PORT*    : ${portFormatted}`,
+      `*TIKORTIS CST* : ${reportData?.customerLat || '-'}, ${reportData?.customerLng || '-'}`,
+      `*TIKORTIS ODP* : ${reportData?.odpLat || '-'}, ${reportData?.odpLng || '-'}`,
+      ``,
+      `*DW ROLL* : ${reportData?.dwRoll || '-'} M`,
+      `*PAKU KLEM* : ${reportData?.pakuKlem || 'Secukupnya'}`,
+      `*SOLASI*  : ${reportData?.solasi || 'Secukupnya'}`,
+      `*RX SIGNAL* : ${reportData?.rxSignal || '-'} dBm`,
+      `*TX SIGNAL* : ${reportData?.txSignal || '-'} dBm`,
+      ``,
+      `*TYPE*    : ${reportData?.modemType || '-'}`,
+      `*SN*      : ${reportData?.sn || '-'}`,
+      `*MAC*     : ${reportData?.mac || '-'}`,
+      ``,
+      `*Indikator Power* : ${ledStatus(reportData?.powerIndicator)}`,
+      `*Indikator Link*  : ${ledStatus(reportData?.linkIndicator)}`,
+      `*Indikator Auth*  : ${ledStatus(reportData?.authIndicator)}`,
+      `*Indikator Wifi 2.4* : ${ledStatus(reportData?.wifi24Indicator)}`,
+      `*Indikator Wifi 5*   : ${ledStatus(reportData?.wifi5Indicator)}`,
+      `*Indikator Internet* : ${ledStatus(reportData?.internetIndicator)}`,
+      ``,
+      `👷 *Teknisi* : ${wo.technician?.name || 'Teknisi'}`,
+      `✅ *DONE*`,
+    ].join('\n');
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedWa(true);
+      addToast({ type: 'success', title: 'Berhasil', description: 'Teks Laporan PSB disalin ke clipboard!' });
+      setTimeout(() => setCopiedWa(false), 2500);
+    } catch {
+      addToast({ type: 'error', title: 'Gagal', description: 'Gagal menyalin ke clipboard' });
+    }
+  };
+
+  const handleResendWaReport = async () => {
+    setResendingWa(true);
+    try {
+      const res = await fetch(`/api/admin/work-orders/${params.id}/resend-wa`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addToast({ type: 'success', title: 'Berhasil', description: data.message || 'Laporan dikirim ke Grup WA!' });
+      } else {
+        addToast({ type: 'error', title: 'Gagal', description: data.error || 'Gagal mengirim laporan ke WA' });
+      }
+    } catch {
+      addToast({ type: 'error', title: 'Gagal', description: 'Terjadi kesalahan koneksi server' });
+    } finally {
+      setResendingWa(false);
+    }
+  };
+
+  const getPhotoUrl = (raw: any): string => {
+    if (!raw) return '';
+    if (typeof raw === 'string') return raw;
+    if (typeof raw === 'object') {
+      return raw.url || raw.src || raw.path || '';
+    }
+    return '';
+  };
 
   return (
     <div className="p-4 md:p-8 w-full max-w-5xl mx-auto space-y-6">
@@ -201,10 +297,35 @@ export default function AdminWorkOrderDetailPage() {
       {/* Laporan Teknis Hasil Pengerjaan (Jika Completed / Ada Report Data) */}
       {wo.reportData && (
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
-          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-            <Wrench className="w-5 h-5 text-primary" />
-            Rincian Laporan Teknis Lapangan
-          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-primary" />
+              Rincian Laporan Teknis Lapangan
+            </h2>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCopyWaReport}
+                className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
+                title="Salin teks format laporan PSB ke clipboard"
+              >
+                <Send className="w-3.5 h-3.5 text-emerald-500" />
+                {copiedWa ? 'Teks Tersalin!' : 'Salin Laporan WA'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResendWaReport}
+                disabled={resendingWa}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                title="Kirim ulang laporan + foto ke Grup WA"
+              >
+                {resendingWa ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                Kirim Ke Grup WA
+              </button>
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs">
             <div className="p-3 bg-background border border-border rounded-xl">
@@ -229,14 +350,14 @@ export default function AdminWorkOrderDetailPage() {
             </div>
             <div className="p-3 bg-background border border-border rounded-xl">
               <span className="text-[10px] text-muted-foreground font-bold uppercase block">Panjang Kabel DW</span>
-              <span className="font-mono font-bold text-foreground mt-0.5 block">{reportData.dwRoll || '-'}</span>
+              <span className="font-mono font-bold text-foreground mt-0.5 block">{reportData.dwRoll ? `${reportData.dwRoll} M` : '-'}</span>
             </div>
           </div>
         </div>
       )}
 
       {/* Galeri Foto Dokumentasi Lapangan */}
-      {wo.reportPhotos && Object.keys(reportPhotos).length > 0 && (
+      {Object.keys(reportPhotos).length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
           <h2 className="text-base font-bold text-foreground flex items-center gap-2">
             <Camera className="w-5 h-5 text-primary" />
@@ -244,17 +365,21 @@ export default function AdminWorkOrderDetailPage() {
           </h2>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {Object.entries(reportPhotos).map(([label, photoUrl]) => (
-              <div key={label} className="bg-background border border-border rounded-xl overflow-hidden shadow-sm flex flex-col">
-                <div className="relative aspect-[3/4] bg-muted">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photoUrl as string} alt={label} className="w-full h-full object-cover" />
+            {Object.entries(reportPhotos).map(([label, rawPhoto]) => {
+              const src = getPhotoUrl(rawPhoto);
+              if (!src) return null;
+              return (
+                <div key={label} className="bg-background border border-border rounded-xl overflow-hidden shadow-sm flex flex-col">
+                  <div className="relative aspect-[3/4] bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt={label} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="p-2.5 text-center bg-card">
+                    <span className="text-[11px] font-bold text-foreground">{label}</span>
+                  </div>
                 </div>
-                <div className="p-2.5 text-center bg-card">
-                  <span className="text-[11px] font-bold text-foreground">{label}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
