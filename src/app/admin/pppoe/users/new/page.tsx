@@ -168,6 +168,7 @@ export default function NewPppoeUserPage() {
 
     const targetDay = parseInt(formData.billingDay) || 5;
     const nextBilling = new Date(year, month + (currentDay < targetDay ? 0 : 1), targetDay);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
     let daysActive: number;
     let prorateAmount: number;
@@ -175,21 +176,19 @@ export default function NewPppoeUserPage() {
 
     if (currentDay >= 1 && currentDay <= 5) {
       isNoProratePeriod = true;
-      daysActive = 30;
+      daysActive = daysInMonth;
       prorateAmount = profile.price;
     } else {
       const daysMissed = currentDay - 5;
       const rawProrate = profile.proratePricePerDay;
-      const proratePrice = rawProrate ? Number(rawProrate) : Math.ceil(profile.price / 30);
-      const pricePerDay = proratePrice > 0 ? proratePrice : Math.ceil(profile.price / 30);
+      const proratePrice = rawProrate ? Number(rawProrate) : Math.ceil(profile.price / daysInMonth);
+      const pricePerDay = proratePrice > 0 ? proratePrice : Math.ceil(profile.price / daysInMonth);
       const totalDiscount = daysMissed * pricePerDay;
       prorateAmount = Math.max(pricePerDay, profile.price - totalDiscount);
       const nextMonthFirst = new Date(year, month + 1, 1);
       const msPerDay = 1000 * 60 * 60 * 24;
       daysActive = Math.max(1, Math.ceil((nextMonthFirst.getTime() - today.getTime()) / msPerDay));
     }
-
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
     return {
       daysActive,

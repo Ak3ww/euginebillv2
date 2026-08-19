@@ -458,14 +458,15 @@ export async function createPppoeUser(
         } else {
           // Dari tanggal 6 ke atas: Potong diskon per hari terlewat dari tanggal 5
           const daysMissed = currentDay - 5;
+          const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
           const rawProrate = profile.proratePricePerDay;
           const proratePrice = rawProrate
             ? (typeof rawProrate === 'object' && 'toNumber' in rawProrate
                 ? (rawProrate as any).toNumber()
                 : Number(rawProrate))
-            : Math.ceil(Number(profile.price) / 30);
+            : Math.ceil(Number(profile.price) / daysInCurrentMonth);
 
-          const pricePerDay = proratePrice > 0 ? proratePrice : Math.ceil(Number(profile.price) / 30);
+          const pricePerDay = proratePrice > 0 ? proratePrice : Math.ceil(Number(profile.price) / daysInCurrentMonth);
           const totalDiscount = daysMissed * pricePerDay;
           invoiceAmount = Math.max(pricePerDay, Number(profile.price) - totalDiscount);
         }

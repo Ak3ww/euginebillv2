@@ -94,8 +94,9 @@ export async function GET(request: NextRequest) {
         isProrated = true;
         daysActive = remainingDays;
 
-        const oldDailyRate = pppoeUser.profile.proratePricePerDay || (pppoeUser.profile.price / 30);
-        const newDailyRate = newProfile.proratePricePerDay || (newProfile.price / 30);
+        const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+        const oldDailyRate = pppoeUser.profile.proratePricePerDay || (pppoeUser.profile.price / daysInMonth);
+        const newDailyRate = newProfile.proratePricePerDay || (newProfile.price / daysInMonth);
 
         oldUnusedValue = Math.round(remainingDays * oldDailyRate);
         newProratedCost = Math.round(remainingDays * newDailyRate);

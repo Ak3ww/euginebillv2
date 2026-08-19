@@ -103,7 +103,8 @@ export async function POST(
     if (companyInfo?.enableProrate) {
       // Discount-based Prorate Logic starting after Day 5
       const currentDay = now.getDate();
-      const pricePerDay = registration.profile.proratePricePerDay || Math.ceil(registration.profile.price / 30);
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const pricePerDay = registration.profile.proratePricePerDay || Math.ceil(registration.profile.price / daysInMonth);
       if (currentDay > 5) {
         const daysMissed = currentDay - 5;
         const totalDiscount = daysMissed * pricePerDay;

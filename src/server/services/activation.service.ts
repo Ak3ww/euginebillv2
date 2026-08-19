@@ -60,7 +60,8 @@ export async function activateAndBillUser(userId: string) {
     const currentDay = now.getDate();
     if (currentDay > 5) {
       const daysMissed = currentDay - 5;
-      const pricePerDay = user.profile.proratePricePerDay || Math.ceil(user.profile.price / 30);
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const pricePerDay = user.profile.proratePricePerDay || Math.ceil(user.profile.price / daysInMonth);
       const totalDiscount = daysMissed * pricePerDay;
       prorateSubscriptionFee = Math.max(pricePerDay, user.profile.price - totalDiscount);
     }

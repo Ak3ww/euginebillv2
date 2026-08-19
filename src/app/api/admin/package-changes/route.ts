@@ -95,8 +95,10 @@ export async function POST(request: NextRequest) {
 
       if (remainingDays > 0 && remainingDays < 32) {
         isProrated = true;
-        const oldDailyRate = oldProfile.proratePricePerDay || (oldProfile.price / 30);
-        const newDailyRate = newProfile.proratePricePerDay || (newProfile.price / 30);
+        const now = new Date();
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const oldDailyRate = oldProfile.proratePricePerDay || (oldProfile.price / daysInMonth);
+        const newDailyRate = newProfile.proratePricePerDay || (newProfile.price / daysInMonth);
 
         oldUnusedValue = Math.round(remainingDays * oldDailyRate);
         newProratedCost = Math.round(remainingDays * newDailyRate);
