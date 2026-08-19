@@ -590,8 +590,8 @@ export async function GET(request: NextRequest) {
         : allSessions;
 
     // ── 8. Historical all-time stats from radacct (Cached 5 min) ──────────
-    const now = Date.now();
-    if (!cachedAllTimeStats || now - cachedAllTimeStatsTime > 5 * 60 * 1000) {
+    const statsNow = Date.now();
+    if (!cachedAllTimeStats || statsNow - cachedAllTimeStatsTime > 5 * 60 * 1000) {
       try {
         const agg = await prisma.radacct.aggregate({
           _sum: {
@@ -613,7 +613,7 @@ export async function GET(request: NextRequest) {
           totalDuration: agg._sum.acctsessiontime ?? 0,
           totalDurationFormatted: formatDuration(agg._sum.acctsessiontime ?? 0),
         };
-        cachedAllTimeStatsTime = now;
+        cachedAllTimeStatsTime = statsNow;
       } catch (err) {
         if (!cachedAllTimeStats) {
           cachedAllTimeStats = {
