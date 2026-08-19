@@ -512,7 +512,7 @@ export default function CompanySettingsPage() {
                 {!settings.radiusEnabled && (
                   <div className="mt-3 ml-6">
                     <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
-                      🛑 Profile Isolir (MikroTik)
+                      Profile Isolir (MikroTik)
                     </label>
                     <input
                       type="text"
@@ -529,7 +529,7 @@ export default function CompanySettingsPage() {
               {/* Prefix ID Pelanggan */}
               <div>
                 <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
-                  🏷️ Prefix ID Pelanggan
+                  Prefix ID Pelanggan
                 </label>
                 <input
                   type="text"
@@ -545,7 +545,7 @@ export default function CompanySettingsPage() {
               {/* Powered By / Support by Invoice */}
               <div>
                 <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
-                  ⚡ Powered By (Footer Invoice)
+                  Powered By (Footer Invoice)
                 </label>
                 <input
                   type="text"
@@ -556,10 +556,12 @@ export default function CompanySettingsPage() {
                   maxLength={100}
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">Teks ini akan ditampilkan di footer invoice sebagai "Support by ..." . Kosongkan jika tidak ingin ditampilkan.</p>
+              </div>
+
               {/* ID Grup WA Laporan / PSB Teknisi */}
               <div>
                 <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
-                  💬 ID Grup WA Laporan / PSB Teknisi
+                  <MessageSquare className="w-3 h-3 text-emerald-500" /> ID Grup WA Laporan / PSB Teknisi
                 </label>
                 <input
                   type="text"
@@ -573,11 +575,10 @@ export default function CompanySettingsPage() {
                 </p>
               </div>
 
-
               {/* Timezone */}
               <div>
                 <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
-                  🌍 Timezone
+                  <Globe className="w-3 h-3 text-primary" /> Timezone
                 </label>
                 <select
                   value={settings.timezone}
