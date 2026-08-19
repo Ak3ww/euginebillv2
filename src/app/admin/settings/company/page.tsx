@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useTranslation } from '@/hooks/useTranslation';
-import { Building2, Mail, Phone, MapPin, Globe, Save, Loader2, RotateCcw, Upload, ImageIcon, X as XIcon } from 'lucide-react';
+import { Building2, Mail, Phone, MapPin, Globe, Save, Loader2, RotateCcw, Upload, ImageIcon, X as XIcon, MessageSquare } from 'lucide-react';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { useAppStore } from '@/lib/store';
 import { setCurrentTimezone } from '@/lib/timezone';
