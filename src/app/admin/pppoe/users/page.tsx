@@ -15,6 +15,7 @@ import MapPicker from '@/components/MapPicker';
 import { CameraPhotoInput } from '@/components/CameraPhotoInput';
 import { CameraViewfinder } from '@/components/CameraViewfinder';
 import UserDetailModal from '@/components/UserDetailModal';
+import OntRemoteModal from '@/components/admin/OntRemoteModal';
 import { getFastLocation } from '@/lib/geo-utils';
 import { formatWIB, isExpiredWIB as isExpired, endOfDayWIBtoUTC } from '@/lib/timezone';
 import {
