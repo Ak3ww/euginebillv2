@@ -65,6 +65,8 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     if (description !== undefined) updateData.description = description;
     if (notes !== undefined) updateData.notes = notes;
     if (scheduledDate !== undefined) updateData.scheduledDate = scheduledDate ? new Date(scheduledDate) : null;
+    if (body.reportPhotos !== undefined) updateData.reportPhotos = body.reportPhotos;
+    if (body.reportData !== undefined) updateData.reportData = body.reportData;
 
     if (technicianId !== undefined) {
       updateData.technicianId = technicianId || null;

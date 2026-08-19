@@ -225,6 +225,46 @@ export default function AdminWorkOrderDetailPage() {
     }
   };
 
+  const [uploadingLabel, setUploadingLabel] = useState<string | null>(null);
+
+  const handleAdminUploadPhoto = async (label: string, file: File) => {
+    setUploadingLabel(label);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'ticket');
+
+      const res = await fetch('/api/technician/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || 'Gagal mengunggah foto');
+      }
+
+      const updatedPhotos = { ...reportPhotos, [label]: data.url };
+
+      const updateRes = await fetch(`/api/admin/work-orders/${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportPhotos: updatedPhotos }),
+      });
+
+      if (updateRes.ok) {
+        addToast({ type: 'success', title: 'Berhasil', description: `Foto "${label}" berhasil diunggah & disimpan!` });
+        fetchWo();
+      } else {
+        addToast({ type: 'error', title: 'Gagal', description: 'Gagal memperbarui data foto SPK' });
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Error Upload', description: err?.message || 'Gagal mengunggah foto' });
+    } finally {
+      setUploadingLabel(null);
+    }
+  };
+
   const getPhotoUrl = (raw: any): string => {
     if (!raw) return '';
     let url = typeof raw === 'string' ? raw : (raw.url || raw.src || raw.path || '');
@@ -234,6 +274,20 @@ export default function AdminWorkOrderDetailPage() {
     }
     return url;
   };
+
+  const defaultPhotoSlots = [
+    'Foto Rumah',
+    'Foto Box ODP',
+    'Foto Port ODP',
+    'Foto ONT Depan',
+    'Foto ONT Belakang',
+    'Foto Speedtest',
+  ];
+
+  const photoLabels = Array.from(new Set([
+    ...defaultPhotoSlots,
+    ...Object.keys(reportPhotos),
+  ]));
 
   return (
     <div className="p-4 md:p-8 w-full max-w-5xl mx-auto space-y-6">
@@ -358,32 +412,74 @@ export default function AdminWorkOrderDetailPage() {
       )}
 
       {/* Galeri Foto Dokumentasi Lapangan */}
-      {Object.keys(reportPhotos).length > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
+      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-border pb-3">
           <h2 className="text-base font-bold text-foreground flex items-center gap-2">
             <Camera className="w-5 h-5 text-primary" />
             Galeri Foto Dokumentasi Lapangan
           </h2>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {Object.entries(reportPhotos).map(([label, rawPhoto]) => {
-              const src = getPhotoUrl(rawPhoto);
-              if (!src) return null;
-              return (
-                <div key={label} className="bg-background border border-border rounded-xl overflow-hidden shadow-sm flex flex-col">
-                  <div className="relative aspect-[3/4] bg-muted">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt={label} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="p-2.5 text-center bg-card">
-                    <span className="text-[11px] font-bold text-foreground">{label}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <span className="text-[11px] text-muted-foreground font-mono">
+            Klik tombol Upload jika ingin mengganti foto dokumentasi
+          </span>
         </div>
-      )}
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {photoLabels.map((label) => {
+            const rawPhoto = reportPhotos[label];
+            const src = getPhotoUrl(rawPhoto);
+            const isUploading = uploadingLabel === label;
+
+            return (
+              <div key={label} className="bg-background border border-border rounded-xl overflow-hidden shadow-sm flex flex-col justify-between">
+                <div className="relative aspect-[3/4] bg-muted/60 flex items-center justify-center">
+                  {src ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={src}
+                      alt={label}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // If image fails to load, hide broken img element
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="p-4 text-center space-y-1">
+                      <Camera className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+                      <p className="text-[10px] text-muted-foreground font-semibold">Belum Ada Foto</p>
+                    </div>
+                  )}
+
+                  {isUploading && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center space-y-1 text-white">
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                      <span className="text-[10px] font-bold">Mengunggah...</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-2.5 bg-card border-t border-border flex flex-col gap-1.5">
+                  <span className="text-[11px] font-bold text-foreground truncate text-center block">{label}</span>
+
+                  <label className="w-full py-1.5 px-2 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-lg text-[10px] font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                    <Camera className="w-3 h-3 text-primary" />
+                    {src ? 'Ganti Foto' : 'Upload Foto'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleAdminUploadPhoto(label, file);
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Modal Edit Detail SPK */}
       {isEditModalOpen && (
