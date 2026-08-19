@@ -379,6 +379,7 @@ export default function PppoeUsersPage() {
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('');
   const [sortBy, setSortBy] = useState<string>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [remoteModalTarget, setRemoteModalTarget] = useState<{
     isOpen: boolean;
     customerName?: string;
