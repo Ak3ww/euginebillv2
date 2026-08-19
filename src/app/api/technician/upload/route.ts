@@ -57,19 +57,19 @@ export async function POST(req: NextRequest) {
     const ext = extname(file.name) || '.jpg';
     const filename = `${randomUUID()}${ext}`;
     const { getUploadDir } = await import('@/lib/upload-dir');
-    const uploadDir = getUploadDir('tickets');
+    const uploadDir = getUploadDir('installations');
 
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(join(uploadDir, filename), buffer);
 
-    // Also write to legacy public/uploads/tickets for backward compatibility if needed
+    // Also write to legacy public/uploads/installations for backward compatibility
     try {
-      const legacyDir = join(process.cwd(), 'public', 'uploads', 'tickets');
+      const legacyDir = join(process.cwd(), 'public', 'uploads', 'installations');
       await mkdir(legacyDir, { recursive: true });
       await writeFile(join(legacyDir, filename), buffer);
     } catch {}
 
-    return NextResponse.json({ url: `/uploads/tickets/${filename}` });
+    return NextResponse.json({ url: `/uploads/installations/${filename}` });
   } catch (err) {
     console.error('Upload error:', err);
     return NextResponse.json({ error: 'Gagal mengupload file' }, { status: 500 });
