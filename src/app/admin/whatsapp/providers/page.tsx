@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
@@ -53,6 +53,56 @@ export default function WhatsAppProvidersPage() {
   const [providerStatuses, setProviderStatuses] = useState<Record<string, ProviderStatus>>({});
   const [restartingProvider, setRestartingProvider] = useState<string | null>(null);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
+
+  const [showGroupsModal, setShowGroupsModal] = useState(false);
+  const [waGroups, setWaGroups] = useState<any[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [currentPsbGroup, setCurrentPsbGroup] = useState<string | null>(null);
+  const [copiedGroupId, setCopiedGroupId] = useState<string | null>(null);
+
+  const fetchWaGroups = async () => {
+    setLoadingGroups(true);
+    setShowGroupsModal(true);
+    try {
+      const res = await fetch('/api/whatsapp/groups');
+      const data = await res.json();
+      if (data.success) {
+        setWaGroups(data.groups || []);
+        setCurrentPsbGroup(data.currentPsbWaGroupId || null);
+      }
+    } catch {
+      addToast({ type: 'error', title: 'Error', description: 'Gagal mengambil daftar grup WhatsApp' });
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  const handleSetPsbGroup = async (groupId: string) => {
+    try {
+      const res = await fetch('/api/whatsapp/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCurrentPsbGroup(groupId);
+        addToast({ type: 'success', title: 'Berhasil!', description: 'Group ID disimpan sebagai Grup Laporan PSB & Teknisi.' });
+      }
+    } catch {
+      addToast({ type: 'error', title: 'Error', description: 'Gagal menyimpan ID Grup' });
+    }
+  };
+
+  const copyGroupId = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopiedGroupId(id);
+      setTimeout(() => setCopiedGroupId(null), 2000);
+    } catch {
+      addToast({ type: 'error', title: 'Error', description: 'Gagal menyalin ID Grup' });
+    }
+  };
 
   const copyWebhookUrl = async () => {
     const webhookUrl = `${window.location.origin}/api/whatsapp/webhook`;
@@ -452,15 +502,28 @@ export default function WhatsAppProvidersPage() {
               <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc] dark:drop-shadow-[0_0_30px_rgba(0,247,255,0.5)]">{t('whatsapp.providersTitle')}</h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('whatsapp.providersSubtitle')}</p>
             </div>
-            <button
-              onClick={() => setShowForm(true)}
-              className="h-7 px-3 bg-primary hover:bg-primary/90 text-primary-foreground text-white text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 self-start sm:self-auto"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              {t('whatsapp.addProvider')}
-            </button>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                onClick={fetchWaGroups}
+                className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-md transition-colors flex items-center gap-1.5"
+                title="Lihat daftar grup WhatsApp terhubung dan dapatkan Group ID"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Daftar Grup WA
+              </button>
+
+              <button
+                onClick={() => setShowForm(true)}
+                className="h-7 px-3 bg-primary hover:bg-primary/90 text-primary-foreground text-white text-xs font-medium rounded-md transition-colors flex items-center gap-1.5"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                {t('whatsapp.addProvider')}
+              </button>
+            </div>
           </div>
 
           {/* Webhook URL Info */}
@@ -801,6 +864,84 @@ export default function WhatsAppProvidersPage() {
           </ModalBody>
           <ModalFooter className="justify-center">
             <ModalButton variant="secondary" onClick={closeQrModal}>{t('common.close')}</ModalButton>
+          </ModalFooter>
+        </SimpleModal>
+
+        {/* WhatsApp Groups List Modal */}
+        <SimpleModal isOpen={showGroupsModal} onClose={() => setShowGroupsModal(false)} size="lg">
+          <ModalHeader>
+            <ModalTitle>Daftar Grup WhatsApp Terhubung</ModalTitle>
+          </ModalHeader>
+          <ModalBody className="space-y-4">
+            {loadingGroups ? (
+              <div className="flex flex-col items-center justify-center py-8 space-y-2">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-muted-foreground">Memuat daftar grup WhatsApp...</p>
+              </div>
+            ) : waGroups.length === 0 ? (
+              <div className="text-center py-8 space-y-2">
+                <p className="text-sm font-semibold text-foreground">Tidak Ada Grup WhatsApp Ditemukan</p>
+                <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                  Pastikan perangkat WhatsApp Baileys / Provider Anda sudah terhubung (Connected) dan akun WA Anda sudah bergabung ke dalam minimal 1 grup.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                <p className="text-xs text-muted-foreground mb-3">
+                  Pilih salah satu grup WhatsApp di bawah untuk digunakan sebagai target pengiriman laporan Pasang Baru (PSB) &amp; foto teknisi secara otomatis.
+                </p>
+                {waGroups.map((group) => {
+                  const isCurrent = currentPsbGroup === group.id;
+                  return (
+                    <div
+                      key={group.id}
+                      className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        isCurrent ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-card border-border hover:border-primary/40'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-foreground">{group.name}</span>
+                          {isCurrent && (
+                            <span className="px-2 py-0.5 bg-emerald-500 text-black text-[10px] font-bold rounded-full">
+                              Grup PSB Aktif
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground font-mono break-all">
+                          ID: <strong className="text-foreground">{group.id}</strong> ({group.participants || 0} anggota)
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => copyGroupId(group.id)}
+                          className="px-2.5 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
+                        >
+                          {copiedGroupId === group.id ? 'Copied!' : 'Copy ID'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetPsbGroup(group.id)}
+                          disabled={isCurrent}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                            isCurrent
+                              ? 'bg-emerald-600/20 text-emerald-400 cursor-default'
+                              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                          }`}
+                        >
+                          {isCurrent ? 'Grup Aktif' : 'Gunakan Untuk PSB'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <ModalButton variant="secondary" onClick={() => setShowGroupsModal(false)}>Tutup</ModalButton>
           </ModalFooter>
         </SimpleModal>
       </div>

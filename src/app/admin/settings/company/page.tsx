@@ -35,6 +35,7 @@ interface CompanySettings {
   fixedBillingDate: number;
   shiftBillingDateIfLate: boolean;
   isolateProfileName: string;
+  psbWaGroupId: string;
   logo?: string;
 }
 
@@ -62,6 +63,7 @@ export default function CompanySettingsPage() {
     fixedBillingDate: 6,
     shiftBillingDateIfLate: false,
     isolateProfileName: '',
+    psbWaGroupId: '',
     logo: '',
   });
   const [initialTimezone, setInitialTimezone] = useState('Asia/Jakarta');
@@ -101,6 +103,7 @@ export default function CompanySettingsPage() {
             fixedBillingDate: data.fixedBillingDate || 6,
             shiftBillingDateIfLate: data.shiftBillingDateIfLate ?? false,
             isolateProfileName: data.isolateProfileName || '',
+            psbWaGroupId: data.psbWaGroupId || '',
             logo: data.logo || '',
           });
           setInitialTimezone(data.timezone || 'Asia/Jakarta');
@@ -553,6 +556,21 @@ export default function CompanySettingsPage() {
                   maxLength={100}
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">Teks ini akan ditampilkan di footer invoice sebagai "Support by ..." . Kosongkan jika tidak ingin ditampilkan.</p>
+              {/* ID Grup WA Laporan / PSB Teknisi */}
+              <div>
+                <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
+                  💬 ID Grup WA Laporan / PSB Teknisi
+                </label>
+                <input
+                  type="text"
+                  value={settings.psbWaGroupId}
+                  onChange={(e) => setSettings({ ...settings, psbWaGroupId: e.target.value })}
+                  className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-card focus:ring-1 focus:ring-ring focus:border-primary font-mono"
+                  placeholder="Contoh: 1203630xxxxxxxx@g.us"
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  ID Grup WhatsApp untuk mengirimkan notifikasi laporan Pasang Baru (PSB) &amp; foto teknisi secara otomatis. Kosongkan jika tidak dikirim ke grup.
+                </p>
               </div>
 
 
