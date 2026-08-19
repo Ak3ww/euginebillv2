@@ -458,7 +458,7 @@ export async function createPppoeUser(
         } else {
           // Dari tanggal 6 ke atas: Potong diskon per hari terlewat dari tanggal 5
           const daysMissed = currentDay - 5;
-          const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+          const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
           const rawProrate = profile.proratePricePerDay;
           const proratePrice = rawProrate
             ? (typeof rawProrate === 'object' && 'toNumber' in rawProrate
