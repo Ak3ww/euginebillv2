@@ -900,12 +900,21 @@ export async function sendPSBReportToGroup({
   ];
 
   const sentKeys = new Set<string>();
+  const cleanBaseUrl = appBaseUrl.endsWith('/') ? appBaseUrl.slice(0, -1) : appBaseUrl;
+
   for (const { key, caption } of photoOrder) {
-    if (reportPhotos?.[key] && !sentKeys.has(key)) {
+    const rawVal = reportPhotos?.[key];
+    if (rawVal && !sentKeys.has(key)) {
       sentKeys.add(key);
-      const imageUrl = reportPhotos[key].startsWith('http')
-        ? reportPhotos[key]
-        : `${appBaseUrl}${reportPhotos[key]}`;
+      let rawUrl = typeof rawVal === 'string' ? rawVal : (rawVal.url || rawVal.src || rawVal.path || '');
+      if (!rawUrl) continue;
+      if (!rawUrl.startsWith('/') && !rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
+        rawUrl = '/' + rawUrl;
+      }
+      const imageUrl = rawUrl.startsWith('http')
+        ? rawUrl
+        : `${cleanBaseUrl}${rawUrl}`;
+
       await WhatsAppService.sendImageMessage({ to: groupId, imageUrl, caption }).catch(e =>
         console.error(`[PSB Report] Failed to send photo ${key}:`, e)
       );

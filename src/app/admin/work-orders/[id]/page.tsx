@@ -227,11 +227,12 @@ export default function AdminWorkOrderDetailPage() {
 
   const getPhotoUrl = (raw: any): string => {
     if (!raw) return '';
-    if (typeof raw === 'string') return raw;
-    if (typeof raw === 'object') {
-      return raw.url || raw.src || raw.path || '';
+    let url = typeof raw === 'string' ? raw : (raw.url || raw.src || raw.path || '');
+    if (!url) return '';
+    if (!url.startsWith('/') && !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:')) {
+      url = '/' + url;
     }
-    return '';
+    return url;
   };
 
   return (
