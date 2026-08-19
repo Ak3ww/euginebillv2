@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { Check, X, Eye, Download, Loader2, AlertCircle, Clock, CheckCircle2, XCircle } from 'lucide-react';
@@ -304,7 +304,7 @@ export default function TopUpRequestsPage() {
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={selectedImage}
+              src={selectedImage ? (selectedImage.startsWith('/') || selectedImage.startsWith('http') ? selectedImage : '/' + selectedImage) : ''}
               alt={t('topup.paymentProof')}
               className="max-w-full max-h-[90vh] object-contain"
             />

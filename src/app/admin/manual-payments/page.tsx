@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
@@ -686,12 +686,18 @@ export default function ManualPaymentsPage() {
                 <div className="border-t-2 border-primary/20 pt-4">
                   <Label className="text-xs text-accent font-bold uppercase tracking-wide">{t('manualPayment.transferReceipt')}</Label>
                   <div className="mt-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={selectedPayment.receiptImage}
-                      alt={t('manualPayment.transferReceipt')}
-                      className="max-w-full h-auto rounded-lg border-2 border-accent/30 shadow-[0_0_20px_rgba(0,247,255,0.2)]"
-                    />
+                    <a
+                      href={selectedPayment.receiptImage.startsWith('/') || selectedPayment.receiptImage.startsWith('http') ? selectedPayment.receiptImage : '/' + selectedPayment.receiptImage}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selectedPayment.receiptImage.startsWith('/') || selectedPayment.receiptImage.startsWith('http') ? selectedPayment.receiptImage : '/' + selectedPayment.receiptImage}
+                        alt={t('manualPayment.transferReceipt')}
+                        className="max-w-full h-auto rounded-lg border-2 border-accent/30 shadow-[0_0_20px_rgba(0,247,255,0.2)] hover:opacity-90 transition-opacity cursor-pointer"
+                      />
+                    </a>
                   </div>
                 </div>
               )}
