@@ -40,13 +40,26 @@ export async function GET(
       return new NextResponse('Invalid filename', { status: 400 });
     }
 
-    const relativePath = join(...segments);
-    const candidatePaths = [
+    // Strip any leading/duplicate "uploads" from segments
+    const cleanSegments = segments.filter(s => s && s !== 'uploads');
+    const relativePath = join(...cleanSegments);
+    const filenameOnly = segments[segments.length - 1];
+
+    const candidatePaths = Array.from(new Set([
       join(UPLOAD_DIR, relativePath),
+      join(UPLOAD_DIR, 'tickets', filenameOnly),
+      join(UPLOAD_DIR, 'installations', filenameOnly),
+      join(UPLOAD_DIR, 'pppoe-customers', 'installations', filenameOnly),
       join(process.cwd(), 'public', 'uploads', relativePath),
+      join(process.cwd(), 'public', 'uploads', 'tickets', filenameOnly),
       join(process.cwd(), 'public', relativePath),
       join(process.cwd(), 'data', 'uploads', relativePath),
-    ];
+      join(process.cwd(), 'data', 'uploads', 'tickets', filenameOnly),
+      join('/var/data/EugineBill/uploads', relativePath),
+      join('/var/data/EugineBill/uploads', 'tickets', filenameOnly),
+      join('/var/www/EugineBill-radius/public/uploads', relativePath),
+      join('/var/www/EugineBill-radius/public/uploads/tickets', filenameOnly),
+    ]));
 
     let targetFile = '';
     for (const candidate of candidatePaths) {
@@ -56,7 +69,28 @@ export async function GET(
       }
     }
 
+    // Fallback: search by filename in UPLOAD_DIR or public/uploads
     if (!targetFile) {
+      const searchDirs = [
+        join(UPLOAD_DIR, 'tickets'),
+        join(UPLOAD_DIR, 'installations'),
+        UPLOAD_DIR,
+        join(process.cwd(), 'public', 'uploads', 'tickets'),
+        join(process.cwd(), 'public', 'uploads'),
+      ];
+      for (const dir of searchDirs) {
+        if (existsSync(dir)) {
+          const testPath = join(dir, filenameOnly);
+          if (existsSync(testPath)) {
+            targetFile = testPath;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!targetFile) {
+      console.warn(`[Upload Serve 404] File not found: ${filenameOnly}. Tested paths:`, candidatePaths);
       return new NextResponse('File not found', { status: 404 });
     }
 
