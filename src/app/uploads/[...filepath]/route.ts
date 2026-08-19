@@ -47,17 +47,28 @@ export async function GET(
 
     const candidatePaths = Array.from(new Set([
       join(UPLOAD_DIR, relativePath),
+      join(UPLOAD_DIR, 'receipts', filenameOnly),
+      join(UPLOAD_DIR, 'payment-proofs', filenameOnly),
+      join(UPLOAD_DIR, 'topup-proofs', filenameOnly),
       join(UPLOAD_DIR, 'tickets', filenameOnly),
       join(UPLOAD_DIR, 'installations', filenameOnly),
       join(UPLOAD_DIR, 'pppoe-customers', 'installations', filenameOnly),
       join(process.cwd(), 'public', 'uploads', relativePath),
+      join(process.cwd(), 'public', 'uploads', 'receipts', filenameOnly),
+      join(process.cwd(), 'public', 'uploads', 'payment-proofs', filenameOnly),
       join(process.cwd(), 'public', 'uploads', 'tickets', filenameOnly),
       join(process.cwd(), 'public', relativePath),
       join(process.cwd(), 'data', 'uploads', relativePath),
-      join(process.cwd(), 'data', 'uploads', 'tickets', filenameOnly),
+      join(process.cwd(), 'data', 'uploads', 'receipts', filenameOnly),
+      join(process.cwd(), 'data', 'uploads', 'payment-proofs', filenameOnly),
       join('/var/data/EugineBill/uploads', relativePath),
+      join('/var/data/EugineBill/uploads', 'receipts', filenameOnly),
+      join('/var/data/EugineBill/uploads', 'payment-proofs', filenameOnly),
+      join('/var/data/EugineBill/uploads', 'topup-proofs', filenameOnly),
       join('/var/data/EugineBill/uploads', 'tickets', filenameOnly),
       join('/var/www/EugineBill-radius/public/uploads', relativePath),
+      join('/var/www/EugineBill-radius/public/uploads/receipts', filenameOnly),
+      join('/var/www/EugineBill-radius/public/uploads/payment-proofs', filenameOnly),
       join('/var/www/EugineBill-radius/public/uploads/tickets', filenameOnly),
     ]));
 
@@ -69,14 +80,26 @@ export async function GET(
       }
     }
 
-    // Fallback: search by filename in UPLOAD_DIR or public/uploads
+    // Fallback: search by filename in UPLOAD_DIR or public/uploads across all subfolders
     if (!targetFile) {
       const searchDirs = [
+        join(UPLOAD_DIR, 'receipts'),
+        join(UPLOAD_DIR, 'payment-proofs'),
+        join(UPLOAD_DIR, 'topup-proofs'),
         join(UPLOAD_DIR, 'tickets'),
         join(UPLOAD_DIR, 'installations'),
+        join(UPLOAD_DIR, 'logos'),
         UPLOAD_DIR,
+        join(process.cwd(), 'public', 'uploads', 'receipts'),
+        join(process.cwd(), 'public', 'uploads', 'payment-proofs'),
+        join(process.cwd(), 'public', 'uploads', 'topup-proofs'),
         join(process.cwd(), 'public', 'uploads', 'tickets'),
         join(process.cwd(), 'public', 'uploads'),
+        join('/var/data/EugineBill/uploads', 'receipts'),
+        join('/var/data/EugineBill/uploads', 'payment-proofs'),
+        join('/var/data/EugineBill/uploads', 'topup-proofs'),
+        join('/var/www/EugineBill-radius/public/uploads', 'receipts'),
+        join('/var/www/EugineBill-radius/public/uploads', 'payment-proofs'),
       ];
       for (const dir of searchDirs) {
         if (existsSync(dir)) {
