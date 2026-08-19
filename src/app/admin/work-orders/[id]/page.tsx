@@ -23,6 +23,9 @@ export default function AdminWorkOrderDetailPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const [resendingWa, setResendingWa] = useState(false);
+  const [copiedWa, setCopiedWa] = useState(false);
+
   const [editFormData, setEditFormData] = useState({
     technicianId: '',
     status: '',
@@ -147,9 +150,6 @@ export default function AdminWorkOrderDetailPage() {
 
   const reportData = parseJsonObject(wo.reportData);
   const reportPhotos = parseJsonObject(wo.reportPhotos);
-
-  const [resendingWa, setResendingWa] = useState(false);
-  const [copiedWa, setCopiedWa] = useState(false);
 
   const handleCopyWaReport = async () => {
     const now = new Date();
