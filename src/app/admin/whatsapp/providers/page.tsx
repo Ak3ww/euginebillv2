@@ -58,6 +58,7 @@ export default function WhatsAppProvidersPage() {
   const [waGroups, setWaGroups] = useState<any[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [currentPsbGroup, setCurrentPsbGroup] = useState<string | null>(null);
+  const [manualGroupId, setManualGroupId] = useState('');
   const [copiedGroupId, setCopiedGroupId] = useState<string | null>(null);
 
   const fetchWaGroups = async () => {
@@ -69,6 +70,7 @@ export default function WhatsAppProvidersPage() {
       if (data.success) {
         setWaGroups(data.groups || []);
         setCurrentPsbGroup(data.currentPsbWaGroupId || null);
+        setManualGroupId(data.currentPsbWaGroupId || '');
       }
     } catch {
       addToast({ type: 'error', title: 'Error', description: 'Gagal mengambil daftar grup WhatsApp' });
@@ -873,16 +875,43 @@ export default function WhatsAppProvidersPage() {
             <ModalTitle>Daftar Grup WhatsApp Terhubung</ModalTitle>
           </ModalHeader>
           <ModalBody className="space-y-4">
+            {/* Manual Group ID Input Section */}
+            <div className="p-3.5 bg-muted/40 border border-border rounded-xl space-y-2">
+              <label className="text-xs font-bold text-foreground block">
+                Atau Masukkan / Paste ID Grup WhatsApp Secara Manual:
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={manualGroupId}
+                  onChange={(e) => setManualGroupId(e.target.value)}
+                  placeholder="Contoh: 1203630xxxxxxxx@g.us"
+                  className="flex-1 px-3 py-1.5 text-xs border border-border rounded-lg bg-card focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSetPsbGroup(manualGroupId.trim())}
+                  disabled={!manualGroupId.trim()}
+                  className="px-3 py-1.5 bg-primary hover:bg-primary/90 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50 shrink-0"
+                >
+                  Simpan ID Grup
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Jika Anda menggunakan provider WA pihak ketiga (Fonnte, Wablas, Kirimi) atau grup tidak muncul otomatis, tempel ID Grup dari provider Anda di sini.
+              </p>
+            </div>
+
             {loadingGroups ? (
               <div className="flex flex-col items-center justify-center py-8 space-y-2">
                 <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="text-xs text-muted-foreground">Memuat daftar grup WhatsApp...</p>
+                <p className="text-xs text-muted-foreground">Memuat daftar grup WhatsApp terhubung...</p>
               </div>
             ) : waGroups.length === 0 ? (
-              <div className="text-center py-8 space-y-2">
-                <p className="text-sm font-semibold text-foreground">Tidak Ada Grup WhatsApp Ditemukan</p>
-                <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                  Pastikan perangkat WhatsApp Baileys / Provider Anda sudah terhubung (Connected) dan akun WA Anda sudah bergabung ke dalam minimal 1 grup.
+              <div className="text-center py-6 space-y-2 border border-dashed border-border rounded-xl p-4">
+                <p className="text-xs font-semibold text-foreground">Tidak Ada Otomatisasi Grup Terdeteksi di Port WA</p>
+                <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
+                  Gunakan kolom input manual di atas untuk menempelkan ID Grup WhatsApp Anda.
                 </p>
               </div>
             ) : (

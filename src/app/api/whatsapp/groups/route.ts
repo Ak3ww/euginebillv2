@@ -11,23 +11,32 @@ export async function GET(request: NextRequest) {
   try {
     const company = await prisma.company.findFirst({ select: { psbWaGroupId: true } });
 
-    // Try Baileys WA service port 3001
-    try {
-      const response = await fetch('http://127.0.0.1:3001/groups', {
-        headers: { 'Cache-Control': 'no-cache' },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.status && Array.isArray(data.groups)) {
-          return ok({
-            success: true,
-            groups: data.groups,
-            currentPsbWaGroupId: company?.psbWaGroupId || null,
-          });
+    // Try Baileys WA ports (4000, 3001, WA_SERVICE_PORT)
+    const ports = Array.from(new Set([
+      process.env.WA_SERVICE_PORT || 4000,
+      4000,
+      3001
+    ]));
+
+    for (const port of ports) {
+      try {
+        const response = await fetch(`http://127.0.0.1:${port}/groups`, {
+          headers: { 'Cache-Control': 'no-cache' },
+          signal: AbortSignal.timeout(4000),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status && Array.isArray(data.groups) && data.groups.length > 0) {
+            return ok({
+              success: true,
+              groups: data.groups,
+              currentPsbWaGroupId: company?.psbWaGroupId || null,
+            });
+          }
         }
+      } catch {
+        /* try next port */
       }
-    } catch {
-      /* Baileys service not running or offline */
     }
 
     return ok({
