@@ -435,11 +435,23 @@ export async function PUT(request: NextRequest) {
 
     if (status) updateData.status = status;
 
-    // If marking as paid, set paidAt timestamp
     if (status === 'PAID' && !paidAt) {
       updateData.paidAt = new Date();
     } else if (paidAt) {
       updateData.paidAt = new Date(paidAt);
+    }
+
+    if (body.customerPhone !== undefined) updateData.customerPhone = body.customerPhone;
+    if (body.customerName !== undefined) updateData.customerName = body.customerName;
+
+    if (existingInvoice.userId && (body.customerPhone !== undefined || body.customerName !== undefined)) {
+      await prisma.pppoeUser.update({
+        where: { id: existingInvoice.userId },
+        data: {
+          ...(body.customerPhone !== undefined && { phone: body.customerPhone }),
+          ...(body.customerName !== undefined && { name: body.customerName }),
+        },
+      }).catch(() => {});
     }
 
     // Update invoice — for PAID use atomic updateMany so only ONE concurrent request

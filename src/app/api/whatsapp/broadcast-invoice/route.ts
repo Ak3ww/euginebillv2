@@ -139,7 +139,8 @@ export async function POST(request: NextRequest) {
     if (channel === 'whatsapp' || channel === 'both') {
       const messagesToSend: MessageToSend[] = invoiceDataList
         .filter(({ invoice }) => {
-          if (!invoice.customerPhone) return false;
+          const targetPhone = (invoice.user?.phone || invoice.customerPhone || '').trim();
+          if (!targetPhone) return false;
           if (invoice.user && invoice.user.waNotificationEnabled === false) {
             console.log(`[Invoice Broadcast] Skipping ${invoice.invoiceNumber}: WA notification is OFF for user (${invoice.user.username})`);
             results.whatsapp.skipped++;
@@ -163,6 +164,9 @@ export async function POST(request: NextRequest) {
           return true;
         })
         .map(({ invoice, daysRemaining, dueDateStr, isOverdue, daysOverdue }) => {
+          const targetPhone = (invoice.user?.phone || invoice.customerPhone || '').trim();
+          const targetName = invoice.user?.name || invoice.customerName || invoice.customerUsername || 'Pelanggan';
+
           // Pick DB template (overdue vs reminder), fallback to the other one
           const templateContent = isOverdue
             ? (waOverdueTemplate?.message || waReminderTemplate?.message)
@@ -171,10 +175,10 @@ export async function POST(request: NextRequest) {
           let message: string;
           if (templateContent) {
             const variables: Record<string, string> = {
-              customerName: invoice.customerName || invoice.user?.name || invoice.customerUsername || 'Pelanggan',
+              customerName: targetName,
               customerId: invoice.user?.customerId || '-',
               username: invoice.customerUsername || invoice.user?.username || '-',
-              profileName: invoice.user?.profile?.name || invoice.user?.profile?.name || '-', // Profile name is the package name
+              profileName: invoice.user?.profile?.name || '-', // Profile name is the package name
               area: invoice.user?.area?.name || '-',
               invoiceNumber: invoice.invoiceNumber,
               amount: `Rp ${invoice.amount.toLocaleString('id-ID')}`,
@@ -192,15 +196,15 @@ export async function POST(request: NextRequest) {
             message = renderTemplate(templateContent, variables);
           } else {
             // Ultimate fallback - no template in DB
-            message = `📄 *Tagihan Internet*\n\nHalo *${invoice.customerName || 'Pelanggan'}*,\n\nNo. Invoice: *${invoice.invoiceNumber}*\nJumlah: *Rp ${invoice.amount.toLocaleString('id-ID')}*\nJatuh Tempo: *${dueDateStr}*\n${invoice.paymentLink ? `\nBayar: ${invoice.paymentLink}` : ''}\n\n${company.name}`;
+            message = `📄 *Tagihan Internet*\n\nHalo *${targetName}*,\n\nNo. Invoice: *${invoice.invoiceNumber}*\nJumlah: *Rp ${invoice.amount.toLocaleString('id-ID')}*\nJatuh Tempo: *${dueDateStr}*\n${invoice.paymentLink ? `\nBayar: ${invoice.paymentLink}` : ''}\n\n${company.name}`;
           }
 
           return {
-            phone: invoice.customerPhone!,
+            phone: targetPhone,
             message,
             invoiceId: invoice.id,
             invoiceNumber: invoice.invoiceNumber,
-            customerName: invoice.customerName,
+            customerName: targetName,
           };
         });
 

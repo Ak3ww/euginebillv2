@@ -81,6 +81,23 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
       if (status === 'COMPLETED' && !existing.completedAt) {
         updateData.completedAt = new Date();
       }
+    // Auto-sync updated customerPhone or customerName to linked pppoeUser and unpaid invoices
+    if (existing.linkedUserId && (customerPhone !== undefined || customerName !== undefined)) {
+      await prisma.pppoeUser.update({
+        where: { id: existing.linkedUserId },
+        data: {
+          ...(customerPhone !== undefined && { phone: customerPhone }),
+          ...(customerName !== undefined && { name: customerName }),
+        },
+      }).catch(() => {});
+
+      await prisma.invoice.updateMany({
+        where: { userId: existing.linkedUserId, status: { in: ['PENDING', 'OVERDUE', 'UNPAID'] } },
+        data: {
+          ...(customerPhone !== undefined && { customerPhone }),
+          ...(customerName !== undefined && { customerName }),
+        },
+      }).catch(() => {});
     }
 
     const updated = await prisma.workOrder.update({

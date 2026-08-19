@@ -777,8 +777,26 @@ export async function updatePppoeUser(
              await PPPSecretService.setProfileAndDisconnect(finalRouterId, newUsername, newProfile.name);
           }
         }
-      }
-    }
+  // Sync name/phone changes to unpaid invoices and active work orders so WA notifications always use current phone/name
+  if (data.phone || data.name) {
+    const updatedPhone = data.phone || user.phone;
+    const updatedName = data.name || user.name;
+    await prisma.invoice.updateMany({
+      where: { userId: id, status: { in: ['PENDING', 'OVERDUE', 'UNPAID'] } },
+      data: {
+        ...(data.phone && { customerPhone: updatedPhone }),
+        ...(data.name && { customerName: updatedName }),
+      },
+    }).catch(() => {});
+
+    await prisma.workOrder.updateMany({
+      where: { linkedUserId: id, status: { not: 'COMPLETED' } },
+      data: {
+        ...(data.phone && { customerPhone: updatedPhone }),
+        ...(data.name && { customerName: updatedName }),
+      },
+    }).catch(() => {});
+  }
 
   // Status change: CoA disconnect
   if (data.status && data.status !== currentUser.status) {

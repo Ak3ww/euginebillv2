@@ -124,6 +124,10 @@ export async function POST(request: NextRequest) {
     let hasSuccess = false
     const errors: string[] = []
 
+    // Resolve phone & name prioritizing updated user model
+    const targetPhone = (invoice.user?.phone || invoice.customerPhone || '').trim();
+    const targetName = invoice.user?.name || invoice.customerName || invoice.customerUsername || 'Customer';
+
     // Send WhatsApp reminder
     if (channel === 'whatsapp' || channel === 'both') {
       if (invoice.user && invoice.user.waNotificationEnabled === false) {
@@ -132,7 +136,7 @@ export async function POST(request: NextRequest) {
         if (channel === 'whatsapp') {
           errors.push('Notifikasi WA dinonaktifkan untuk pelanggan ini (Toggle WA OFF)');
         }
-      } else if (invoice.customerPhone) {
+      } else if (targetPhone) {
         try {
           const activeProviders = await prisma.whatsapp_providers.findMany({
             where: { isActive: true },
@@ -147,8 +151,8 @@ export async function POST(request: NextRequest) {
             
             const waResult = isInstallation
               ? await sendInstallationInvoice({
-                  customerPhone: invoice.customerPhone,
-                  customerName: reminderData.customerName,
+                  customerPhone: targetPhone,
+                  customerName: targetName,
                   customerId: reminderData.customerId,
                   username: reminderData.customerUsername,
                   invoiceNumber: reminderData.invoiceNumber,
@@ -158,8 +162,9 @@ export async function POST(request: NextRequest) {
                   profileName: reminderData.profileName || '-',
                 })
               : await sendInvoiceReminder({
-                  phone: invoice.customerPhone,
-                  ...reminderData
+                  phone: targetPhone,
+                  ...reminderData,
+                  customerName: targetName,
                 });
 
             if (waResult && waResult.success === false) {
