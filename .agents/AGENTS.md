@@ -34,3 +34,9 @@ For ALL customer-facing UI development (customer portal, payment pages, public l
    npm run build
    pm2 restart all
    ```
+
+## Persistent Upload & Zero-Data-Loss Standard
+1. **Mandatory Persistent Storage**: ALL file uploads across ALL modules (manual payment proofs, receipts, topup proofs, PSB/SPK photos, customer KTPs, logos) MUST strictly write to persistent storage using `getUploadDir(...)` from `@/lib/upload-dir` (`/var/data/EugineBill/uploads/`).
+2. **Never Save inside `public/uploads/` or `process.cwd()`**: NEVER write runtime uploaded files into `process.cwd()/public/uploads/` or any directory inside the Next.js project folder, as `npm run build` will wipe runtime files stored inside the build tree.
+3. **Always Prepend Leading Slash on Image URLs**: All image URLs saved in the database or rendered in UI components MUST start with a leading slash `/` (e.g., `/uploads/receipts/filename.jpg`), never relative `uploads/receipts/...`.
+4. **Universal Serve Route Handler**: All upload URLs must be served dynamically by `/uploads/[...filepath]` to guarantee multi-folder fallback resolution and instant access on VPS.
