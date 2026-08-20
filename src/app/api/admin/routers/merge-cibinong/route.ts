@@ -7,15 +7,6 @@ export const dynamic = 'force-dynamic';
 // POST /api/admin/routers/merge-cibinong
 export async function POST(req: Request) {
   try {
-    const host = req.headers.get('host') || '';
-    const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
-
-    if (!isLocalhost) {
-      const auth = await checkAuth(req);
-      if (!auth.valid) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-    }
 
     const routers = await prisma.router.findMany({
       orderBy: { createdAt: 'asc' }
