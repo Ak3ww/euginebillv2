@@ -646,7 +646,7 @@ export default function VpnClientPage() {
         setSelectedVpnType(createdType === 'pptp' || createdType === 'sstp' ? createdType : 'l2tp');
         setShowCredentials(true);
         setShowModal(false);
-        setFormData({ name: '', description: '', vpnServerId: '', vpnType: 'l2tp', customVpnIp: '', localNetworks: '' });
+        setFormData({ name: '', description: '', vpnServerId: '', vpnType: 'l2tp', customVpnIp: '', localNetworks: '', targetWinboxPort: '8291', targetApiPort: '8728', targetWwwPort: '80' });
         loadClients();
         showSuccess(t('network.clientCredentialsDisplayed'), t('network.vpnClientCreated'));
       } else {
@@ -941,7 +941,7 @@ ${vpnCmd}
               </div>
               <button
                 onClick={() => {
-                  setFormData({ name: '', description: '', vpnServerId: '', vpnType: 'l2tp', customVpnIp: '', localNetworks: '' })
+                  setFormData({ name: '', description: '', vpnServerId: '', vpnType: 'l2tp', customVpnIp: '', localNetworks: '', targetWinboxPort: '8291', targetApiPort: '8728', targetWwwPort: '80' })
                   setShowModal(true)
                 }}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00f7ff] to-[#00d4e6] text-black font-bold rounded-xl hover:shadow-[0_0_30px_rgba(0,247,255,0.5)] transition-all duration-300 transform hover:scale-105"
@@ -1248,7 +1248,7 @@ ${vpnCmd}
               </p>
               <button
                 onClick={() => {
-                  setFormData({ name: '', description: '', vpnServerId: '', vpnType: 'l2tp', customVpnIp: '', localNetworks: '' })
+                  setFormData({ name: '', description: '', vpnServerId: '', vpnType: 'l2tp', customVpnIp: '', localNetworks: '', targetWinboxPort: '8291', targetApiPort: '8728', targetWwwPort: '80' })
                   setShowModal(true)
                 }}
                 className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#00f7ff] to-[#00d4e6] text-black font-bold rounded-xl hover:shadow-[0_0_30px_rgba(0,247,255,0.5)] transition-all duration-300 transform hover:scale-105"
