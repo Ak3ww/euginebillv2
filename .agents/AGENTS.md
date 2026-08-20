@@ -26,14 +26,8 @@ For ALL customer-facing UI development (customer portal, payment pages, public l
    - `EugineBill-radius` (Next.js Web App)
    - `EugineBill-wa` (WhatsApp Baileys Service)
    - `EugineBill-cron` (Cron Jobs)
-3. **Full VPS Update Command**:
-   ```bash
-   cd /var/www/EugineBill-radius
-   git pull
-   npx prisma db push
-   npm run build
-   pm2 restart all
-   ```
+4. **VPS Build Optimization**: VPS hardware resources are limited and `npm run build` takes noticeable CPU/RAM. ALWAYS batch multiple updates, test thoroughly, and verify code syntax locally BEFORE asking the user to build on the VPS. Never ask the user to run `npm run build` repeatedly for small incremental changes.
+```
 
 ## Persistent Upload & Zero-Data-Loss Standard
 1. **Mandatory Persistent Storage**: ALL file uploads across ALL modules (manual payment proofs, receipts, topup proofs, PSB/SPK photos, customer KTPs, logos) MUST strictly write to persistent storage using `getUploadDir(...)` from `@/lib/upload-dir` (`/var/data/EugineBill/uploads/`).
