@@ -28,6 +28,10 @@ interface Router {
     id: string
     name: string
     vpnIp: string
+    publicPorts?: {
+      blockStart: number
+      services: Record<string, { public: number; target: number }>
+    }
   }
   isActive: boolean
   createdAt: string
@@ -86,6 +90,7 @@ export default function RouterPage() {
   const [testing, setTesting] = useState(false)
   const [creating, setCreating] = useState(false)
   const [settingUpRadius, setSettingUpRadius] = useState<string | null>(null)
+  const [syncingPorts, setSyncingPorts] = useState<string | null>(null)
   const [showScriptModal, setShowScriptModal] = useState(false)
   const [showTutorial, setShowTutorial] = useState(true)
   const [scriptModalData, setScriptModalData] = useState<{ script: string; scriptRos6?: string; scriptRos7?: string; config: any } | null>(null)
@@ -370,6 +375,39 @@ export default function RouterPage() {
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
     showSuccess(t('network.copiedToClipboard').replace('{label}', label))
+  }
+
+  /**
+   * Sync port aktual MikroTik ke sistem port forwarding VPS.
+   * Konek ke MikroTik via API, baca /ip/service/print, update iptables jika ada perbedaan.
+   */
+  const handleSyncPorts = async (routerId: string, routerName: string) => {
+    setSyncingPorts(routerId)
+    try {
+      const res = await fetch('/api/network/routers/sync-ports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ routerId }),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        showError(result.error || 'Gagal sync ports')
+        return
+      }
+      if (result.changes?.length > 0) {
+        const changeList = result.changes.map((c: any) =>
+          `${c.service}: port ${c.oldTarget} → ${c.newTarget} (publik: ${c.publicPort})`
+        ).join('\n')
+        showSuccess(`Sync selesai! ${result.changes.length} port diperbarui:\n${changeList}`)
+      } else {
+        showSuccess(result.message || 'Semua port sudah sinkron.')
+      }
+      loadRouters()
+    } catch (e: any) {
+      showError('Gagal sync ports: ' + e.message)
+    } finally {
+      setSyncingPorts(null)
+    }
   }
 
   // Stats
@@ -663,6 +701,20 @@ export default function RouterPage() {
                           >
                             <Radio className="w-5 h-5" />
                           </button>
+                          {/* Tombol Sync Ports — hanya tampil jika router punya VPN client dengan publicPorts */}
+                          {routerData.vpnClient?.publicPorts && (
+                            <button
+                              onClick={() => handleSyncPorts(routerData.id, routerData.name)}
+                              disabled={syncingPorts === routerData.id}
+                              className="p-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-xl hover:bg-amber-500/20 transition-all disabled:opacity-50"
+                              title="Sync Port Aktual dari MikroTik (baca /ip/service/print)"
+                            >
+                              {syncingPorts === routerData.id
+                                ? <Loader2 className="w-5 h-5 animate-spin" />
+                                : <RefreshCw className="w-5 h-5" />
+                              }
+                            </button>
+                          )}
                           <button
                             onClick={() => handleEdit(routerData)}
                             className="p-2.5 bg-muted border border-border text-foreground rounded-xl hover:bg-accent transition-all"

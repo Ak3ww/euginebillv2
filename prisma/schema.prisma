@@ -308,6 +308,7 @@ model vpnClient {
   vpnType          String     @default("L2TP")
   description      String?    @db.Text
   winboxPort       Int?
+  publicPorts      Json?              // { winbox, api, apiSsl, www, wwwSsl, ssh, ftp, telnet, blockStart }
   apiUsername      String?
   apiPassword      String?
   clientPublicKey  String?    @db.Text

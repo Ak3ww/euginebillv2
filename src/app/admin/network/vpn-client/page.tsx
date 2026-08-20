@@ -15,6 +15,10 @@ interface VpnClient {
   vpnType: string
   description?: string
   winboxPort?: number
+  publicPorts?: {
+    blockStart: number
+    services: Record<string, { public: number; target: number }>
+  }
   apiUsername?: string
   apiPassword?: string
   clientPublicKey?: string | null
@@ -803,7 +807,7 @@ ${vpnCmd}
       const wgSubnet = credentials.wgSubnet || '10.200.0.0/24'
       const wgGatewayIp = credentials.wgGatewayIp || wgSubnet.replace(/\.\d+\/\d+$/, '.1')
       const safeApiUsername = credentials.apiUsername || `api-${credentials.vpnIp?.replace(/\./g, '-')}`
-      const safeApiPassword = credentials.apiPassword || '<generate-on-mikrotik>'
+      const safeApiPassword = credentials.apiPassword || 'EugineBillApi123!'
       return `# ============================================================
 # MikroTik WireGuard Client Setup Script (RouterOS 7+)
 # NAS IP     : ${credentials.vpnIp}
@@ -824,12 +828,7 @@ ${vpnCmd}
 
 # 2. Tambah peer (VPS WireGuard server)
 #    allowed-address = subnet VPN agar semua host VPN dapat diakses
-/interface/wireguard/peers/add interface=${ifaceName} \\
-  public-key="${serverPk}" \\
-  endpoint-address="${serverHost}" \\
-  endpoint-port=${wgPort} \\
-  allowed-address="${wgSubnet}" \\
-  persistent-keepalive=25
+/interface/wireguard/peers/add interface=${ifaceName} public-key="${serverPk}" endpoint-address="${serverHost}" endpoint-port=${wgPort} allowed-address="${wgSubnet}" persistent-keepalive=25
 
 # 3. Assign IP address NAS ke interface WireGuard
 /ip/address/remove [find where interface=${ifaceName}]
@@ -841,7 +840,7 @@ ${vpnCmd}
 
 # 5. Buat API User (untuk remote management MikroTik)
 :do { /user/group/add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group" } on-error={}
-/user/add name=${safeApiUsername} group=api-users password=${safeApiPassword} comment="API User for Remote Access"
+/user/add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API User EugineBill"
 # API Username : ${safeApiUsername}
 # API Password : ${safeApiPassword}
 

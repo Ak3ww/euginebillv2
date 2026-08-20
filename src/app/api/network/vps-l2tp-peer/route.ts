@@ -5,6 +5,7 @@ import { exec as execCb } from 'child_process'
 import { promisify } from 'util'
 import { readFile, writeFile } from 'fs/promises'
 import { prisma } from '@/server/db/client'
+import { getNextPortBlock, buildPublicPorts, addIptablesRules, removeIptablesRules } from '@/lib/vpn-port-allocator'
 
 // Fixed DB ID for VPS L2TP virtual server entry
 const VPS_L2TP_SERVER_ID = '__vps_l2tp_server__'
@@ -110,13 +111,17 @@ export async function POST(req: NextRequest) {
   if (action === 'add') {
     if (!label) return NextResponse.json({ error: 'label wajib diisi' }, { status: 400 })
 
-    const { localNetworks } = body
+    const { localNetworks, targetPorts: rawTargetPorts } = body
     const parsedLocalNets: string[] = localNetworks
       ? String(localNetworks).split(',').map((s: string) => s.trim()).filter((s: string) => s && s.includes('/'))
       : []
 
+    // Target ports yang bisa berbeda per MikroTik (dari form admin, atau pakai default)
+    const targetPorts: Partial<Record<string, number>> = rawTargetPorts || {}
+
     const username = `nas-${label.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Math.random().toString(36).substring(2, 6)}`
     const password = generatePassword(16)
+    const apiPassword = generatePassword(16)
     const vpnIp = await getNextAvailableIp(info.subnet || '10.201.0.0/24', info.poolStart ?? 10, info.poolEnd ?? 254)
 
     // Add to chap-secrets via helper script
@@ -130,9 +135,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Persist local-network routes so they are restored every time PPP comes up.
-    // Appends idempotent `ip route replace` lines to ip-up.d/99-vpn-routes for each
-    // local network behind this Mikrotik peer. Uses $REMOTE_IP (PPP peer IP) and $IFACE
-    // which are provided automatically by the PPP ip-up framework.
     if (parsedLocalNets.length > 0) {
       const IP_UP_SCRIPT = '/etc/ppp/ip-up.d/99-vpn-routes'
       try {
@@ -141,7 +143,6 @@ export async function POST(req: NextRequest) {
         try { ipUpContent = await fsRead(IP_UP_SCRIPT, 'utf8') } catch { /* first time */ }
 
         for (const net of parsedLocalNets) {
-          // Marker to avoid duplicate entries
           if (ipUpContent.includes(`# localnet:${net}`)) continue
           const routeLines = [
             `# localnet:${net} peer:${vpnIp}`,
@@ -154,8 +155,6 @@ export async function POST(req: NextRequest) {
         await exec(`chmod +x ${IP_UP_SCRIPT}`)
       } catch { /* non-fatal */ }
 
-      // Also persist in a simple route file so vpn-watchdog can restore without re-parsing
-      // Format: one line per local net: "net via vpnIp"
       const L2TP_ROUTES_FILE = '/etc/EugineBill/l2tp/peer-routes.conf'
       try {
         const { mkdir, readFile: fsRead, writeFile: fsWrite } = await import('fs/promises')
@@ -172,7 +171,7 @@ export async function POST(req: NextRequest) {
       } catch { /* non-fatal */ }
     }
 
-    // Ensure iptables rules allow PPP traffic to reach RADIUS (idempotent check-then-insert)
+    // Ensure iptables rules allow PPP traffic to reach RADIUS
     const pppRules = [
       'FORWARD -i ppp+ -j ACCEPT',
       'FORWARD -o ppp+ -j ACCEPT',
@@ -184,6 +183,16 @@ export async function POST(req: NextRequest) {
       } catch { /* ignore */ }
     }
 
+    // Alokasi port publik unik untuk semua layanan MikroTik
+    let publicPorts
+    try {
+      const blockStart = await getNextPortBlock()
+      publicPorts = buildPublicPorts(blockStart, targetPorts as any)
+      await addIptablesRules(vpnIp, publicPorts)
+    } catch (portErr) {
+      console.error('[vps-l2tp-peer] Gagal alokasi port (lanjutkan):', portErr)
+    }
+
     const routerosScript = generateL2tpScript({
       serverIp: info.publicIp || '',
       username,
@@ -191,9 +200,12 @@ export async function POST(req: NextRequest) {
       ipsecPsk: info.ipsecPsk || '',
       vpnIp,
       label,
+      apiPassword,
+      publicPorts,
+      vpsPublicIp: info.publicIp || '',
     })
 
-    // Simpan VPN client ke DB (tanpa auto-create NAS/router)
+    // Simpan VPN client ke DB
     let nasSecretForResponse: string | undefined
 
     try {
@@ -216,7 +228,7 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      // Upsert VPN client record saja — NAS/router tidak dibuat otomatis
+      // Upsert VPN client record
       await prisma.vpnClient.upsert({
         where: { vpnServerId_vpnIp: { vpnServerId: VPS_L2TP_SERVER_ID, vpnIp } },
         create: {
@@ -225,20 +237,53 @@ export async function POST(req: NextRequest) {
           vpnIp,
           username,
           password,
+          apiUsername: `api-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 16)}`,
+          apiPassword,
           vpnType: 'L2TP',
+          publicPorts: publicPorts ? (publicPorts as any) : undefined,
           isActive: true,
         },
-        update: { name: label, username, password, isActive: true },
+        update: {
+          name: label,
+          username,
+          password,
+          apiPassword,
+          publicPorts: publicPorts ? (publicPorts as any) : undefined,
+          isActive: true,
+        },
       })
     } catch (dbErr) {
       console.error('[vps-l2tp-peer] POST: failed to save to DB (non-fatal):', dbErr)
     }
 
-    return NextResponse.json({ success: true, username, password, vpnIp, ipsecPsk: info.ipsecPsk || '', routerosScript, nasSecret: nasSecretForResponse })
+    return NextResponse.json({
+      success: true,
+      username,
+      password,
+      apiPassword,
+      vpnIp,
+      ipsecPsk: info.ipsecPsk || '',
+      publicPorts: publicPorts || null,
+      vpsPublicIp: info.publicIp || '',
+      routerosScript,
+      nasSecret: nasSecretForResponse,
+    })
   }
 
   if (action === 'remove') {
     if (!suppliedUsername) return NextResponse.json({ error: 'username wajib diisi' }, { status: 400 })
+
+    // Hapus iptables rules dulu
+    try {
+      const client = await prisma.vpnClient.findFirst({
+        where: { username: suppliedUsername, vpnServerId: VPS_L2TP_SERVER_ID },
+        select: { vpnIp: true, publicPorts: true },
+      })
+      if (client?.publicPorts && client?.vpnIp) {
+        await removeIptablesRules(client.vpnIp, client.publicPorts as any)
+      }
+    } catch { /* non-fatal */ }
+
     try {
       await exec(`EugineBill-l2tp-peer remove "${suppliedUsername}"`)
     } catch {
@@ -339,40 +384,59 @@ function toL2tpIfaceName(label: string): string {
   return `vpn-${safe || 'vpn'}`
 }
 
-function generateL2tpScript({ serverIp, username, password, ipsecPsk, vpnIp, label }: {
-  serverIp: string; username: string; password: string; ipsecPsk: string; vpnIp: string; label: string
+function generateL2tpScript({ serverIp, username, password, ipsecPsk, vpnIp, label, apiPassword, publicPorts, vpsPublicIp }: {
+  serverIp: string
+  username: string
+  password: string
+  ipsecPsk: string
+  vpnIp: string
+  label: string
+  apiPassword?: string
+  publicPorts?: { blockStart: number; services: Record<string, { public: number; target: number }> }
+  vpsPublicIp?: string
 }): string {
   const ifaceName = toL2tpIfaceName(label)
+  const safeApiUser = `api-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 16)}`
+  const safeApiPass = apiPassword || 'EugineBillApi123!'
+
+  // Bangun info port forwarding jika tersedia
+  let portInfo = ''
+  if (publicPorts && vpsPublicIp) {
+    const svc = publicPorts.services
+    const lines = []
+    if (svc.winbox)  lines.push(`# Winbox  : ${vpsPublicIp}:${svc.winbox.public}  (→ MikroTik:${svc.winbox.target})`)
+    if (svc.api)     lines.push(`# API     : ${vpsPublicIp}:${svc.api.public}  (→ MikroTik:${svc.api.target})`)
+    if (svc.apiSsl)  lines.push(`# API-SSL : ${vpsPublicIp}:${svc.apiSsl.public}  (→ MikroTik:${svc.apiSsl.target})`)
+    if (svc.www)     lines.push(`# WWW     : ${vpsPublicIp}:${svc.www.public}  (→ MikroTik:${svc.www.target})`)
+    if (svc.wwwSsl)  lines.push(`# WWW-SSL : ${vpsPublicIp}:${svc.wwwSsl.public}  (→ MikroTik:${svc.wwwSsl.target})`)
+    if (svc.ssh)     lines.push(`# SSH     : ${vpsPublicIp}:${svc.ssh.public}  (→ MikroTik:${svc.ssh.target})`)
+    portInfo = lines.length > 0 ? '\n' + lines.join('\n') : ''
+  }
+
+  // PENTING: Gunakan syntax spasi RouterOS 6 (bukan slash "/" RouterOS 7)
   return `# ═══════════════════════════════════════════════════════
-# EugineBill — Script L2TP/IPsec ke VPS
+# EugineBill — Script L2TP/IPsec ke VPS (RouterOS 6)
 # Server VPS : ${serverIp}
 # NAS IP VPN : ${vpnIp}
 # Interface  : ${ifaceName}
 # ═══════════════════════════════════════════════════════
 
+# [0] Hapus setup lama jika ada (mencegah error duplicate)
+:do { /interface l2tp-client remove [find name="${ifaceName}"] } on-error={}
+:do { /user remove [find name="${safeApiUser}"] } on-error={}
+
 # [1] Tambah interface L2TP Client ke VPS
-/interface/l2tp-client/add \\
-  name=${ifaceName} \\
-  connect-to=${serverIp} \\
-  user="${username}" \\
-  password="${password}" \\
-  use-ipsec=yes \\
-  ipsec-secret="${ipsecPsk}" \\
-  profile=default-encryption \\
-  add-default-route=no \\
-  disabled=no \\
-  comment="EugineBill VPN"
+/interface l2tp-client add name=${ifaceName} connect-to=${serverIp} user="${username}" password="${password}" use-ipsec=yes ipsec-secret="${ipsecPsk}" profile=default-encryption add-default-route=no disabled=no comment="EugineBill VPN"
 
-# [2] Tunggu koneksi terbentuk (~15 detik), lalu cek:
-# /interface/l2tp-client/print
-# Pastikan status = "connected"
-
-# [3] Setup API User untuk remote management MikroTik
-/user/group/add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group"
-/user/add name=api-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 16)} group=api-users comment="API User EugineBill"
-# (set password sendiri via WinBox: menu Users)
+# [2] Buat API User untuk remote management
+:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api comment="EugineBill API Group" } on-error={}
+/user add name=${safeApiUser} group=api-users password="${safeApiPass}" comment="API User EugineBill"
 
 # ═══════════════════════════════════════════════════════
+# INFO AKSES REMOTE (dari luar jaringan):
+# API Username: ${safeApiUser}
+# API Password: ${safeApiPass}${portInfo}
+#
 # LANGKAH SELANJUTNYA:
 # 1. Pergi ke menu Routers/NAS di dashboard
 # 2. Pilih router ini → klik tombol Setup RADIUS (ikon sinyal)

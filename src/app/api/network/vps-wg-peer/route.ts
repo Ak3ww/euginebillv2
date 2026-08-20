@@ -5,6 +5,7 @@ import { exec as execCb } from 'child_process'
 import { promisify } from 'util'
 import { readFile, writeFile } from 'fs/promises'
 import { prisma } from '@/server/db/client'
+import { getNextPortBlock, buildPublicPorts, addIptablesRules, removeIptablesRules } from '@/lib/vpn-port-allocator'
 
 // Fixed DB ID for VPS WireGuard virtual server entry
 const VPS_WG_SERVER_ID = '__vps_wg_server__'
@@ -397,6 +398,11 @@ export async function POST(req: NextRequest) {
       const username = `wg-${nasName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.random().toString(36).substring(2, 6)}`
       const apiUsername = `api-${nasName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
       const apiPassword = generatePassword(16)
+
+      // Alokasi port publik unik untuk semua layanan MikroTik
+      const blockStart = await getNextPortBlock()
+      const publicPorts = buildPublicPorts(blockStart)
+
       const dbClient = await prisma.vpnClient.upsert({
         where: {
           vpnServerId_vpnIp: { vpnServerId: VPS_WG_SERVER_ID, vpnIp },
@@ -413,6 +419,7 @@ export async function POST(req: NextRequest) {
           clientPublicKey,
           clientPrivateKey: clientPrivateKey || null,
           description: localNetworks ? `localNets=${localNetworks}` : null,
+          publicPorts: publicPorts as any,
           isActive: true,
         },
         update: {
@@ -428,6 +435,9 @@ export async function POST(req: NextRequest) {
       void dbClient // used only for vpnClient record, no NAS auto-create
       apiUsernameForResponse = apiUsername
       apiPasswordForResponse = apiPassword
+
+      // Pasang iptables PREROUTING DNAT rules untuk semua layanan (non-fatal jika dev env)
+      await addIptablesRules(vpnIp, publicPorts)
     } catch (dbErr) {
       console.error('[vps-wg-peer] Gagal simpan ke DB (lanjutkan):', dbErr)
     }
@@ -458,6 +468,18 @@ export async function POST(req: NextRequest) {
 
   if (action === 'remove') {
     if (!suppliedPubKey) return NextResponse.json({ error: 'publicKey wajib untuk remove' }, { status: 400 })
+
+    // Cari vpnClient yang punya publicKey ini, hapus iptables rules dulu
+    try {
+      const client = await prisma.vpnClient.findFirst({
+        where: { clientPublicKey: suppliedPubKey, vpnServerId: VPS_WG_SERVER_ID },
+        select: { vpnIp: true, publicPorts: true },
+      })
+      if (client?.publicPorts && client?.vpnIp) {
+        await removeIptablesRules(client.vpnIp, client.publicPorts as any)
+      }
+    } catch { /* non-fatal */ }
+
     await removePeerFromConf(suppliedPubKey)
     return NextResponse.json({ success: true })
   }
