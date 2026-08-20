@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import os from 'os';
 const RouterOSAPI = require('node-routeros').RouterOSAPI;
 import { prisma } from '@/server/db/client';
+import { getNextPortBlock, buildPublicPorts, addIptablesRules, type PublicPorts } from '@/lib/vpn-port-allocator';
 
 // Auto-detect server IP from network interfaces
 const getServerIp = (): string => {
@@ -24,6 +25,94 @@ const getServerIp = (): string => {
 
 // RADIUS Server IP - prioritas: ENV > auto-detect
 const getRadiusServerIp = () => process.env.RADIUS_SERVER_IP || process.env.VPS_IP || getServerIp();
+
+// Mapping nama service RouterOS → nama service port allocator kita
+const ROS_TO_OUR_SERVICE: Record<string, string> = {
+  'api':     'api',
+  'api-ssl': 'apiSsl',
+  'www':     'www',
+  'www-ssl': 'wwwSsl',
+  'ssh':     'ssh',
+  'ftp':     'ftp',
+  'telnet':  'telnet',
+  'winbox':  'winbox',
+}
+
+/**
+ * Baca port aktual dari MikroTik (/ip/service/print), alokasikan port blok publik,
+ * pasang iptables PREROUTING DNAT, dan simpan ke vpnClient.publicPorts di DB.
+ *
+ * Dipanggil saat Router/NAS disave dengan vpnClientId yang valid.
+ * Non-fatal — jika gagal (MikroTik belum konek), hanya log error.
+ */
+async function autoSetupPortForwarding(
+  vpnClientId: string,
+  fallbackIp: string,    // ipAddress dari router sebagai fallback
+  fallbackPort: number,  // port API dari router sebagai fallback
+  fallbackUser: string,
+  fallbackPass: string,
+): Promise<void> {
+  try {
+    // Ambil vpnClient untuk mendapatkan vpnIp + API credentials
+    const vpnClient = await prisma.vpnClient.findUnique({
+      where: { id: vpnClientId },
+      select: { id: true, vpnIp: true, apiUsername: true, apiPassword: true, publicPorts: true },
+    })
+    if (!vpnClient) return
+
+    // Jika publicPorts sudah ada, tidak perlu setup ulang (sudah dilakukan sebelumnya)
+    if (vpnClient.publicPorts) {
+      console.log(`[routers] vpnClient ${vpnClientId} sudah punya publicPorts, skip auto-setup`)
+      return
+    }
+
+    const connectIp   = vpnClient.vpnIp || fallbackIp
+    const connectUser = vpnClient.apiUsername || fallbackUser
+    const connectPass = vpnClient.apiPassword || fallbackPass
+
+    // Konek ke MikroTik via API (melalui VPN tunnel)
+    const conn = new RouterOSAPI({
+      host: connectIp,
+      user: connectUser,
+      password: connectPass,
+      port: fallbackPort || 8728,
+      timeout: 8,
+    })
+
+    await Promise.race([
+      conn.connect(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000)),
+    ])
+
+    // Baca port aktual semua layanan dari MikroTik
+    const services = await conn.write('/ip/service/print')
+    conn.close()
+
+    const targetPorts: Partial<Record<string, number>> = {}
+    for (const svc of services) {
+      const ourName = ROS_TO_OUR_SERVICE[svc.name?.toLowerCase()]
+      if (!ourName) continue
+      const port = parseInt(svc.port)
+      if (!isNaN(port) && port > 0) targetPorts[ourName] = port
+    }
+
+    // Alokasi port block + pasang iptables
+    const blockStart = await getNextPortBlock()
+    const publicPorts = buildPublicPorts(blockStart, targetPorts)
+    await addIptablesRules(connectIp, publicPorts)
+
+    // Simpan ke DB
+    await prisma.vpnClient.update({
+      where: { id: vpnClientId },
+      data: { publicPorts: publicPorts as any },
+    })
+
+    console.log(`[routers] Auto port forwarding setup untuk vpnClient ${vpnClientId}: block ${blockStart}`)
+  } catch (err: any) {
+    // Non-fatal: MikroTik mungkin belum konek ke VPN saat router baru dibuat
+    console.warn(`[routers] Auto port forwarding gagal (non-fatal): ${err.message}`)
+  }
+}
 
 // GET - Load all routers
 export async function GET() {

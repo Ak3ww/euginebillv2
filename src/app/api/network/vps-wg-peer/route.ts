@@ -336,6 +336,9 @@ export async function POST(req: NextRequest) {
   if (action === 'add') {
     if (!nasName) return NextResponse.json({ error: 'nasName wajib diisi' }, { status: 400 })
 
+    const { targetPorts: rawTargetPorts } = body
+    const targetPorts: Partial<Record<string, number>> = rawTargetPorts || {}
+
     // If caller provides a NAS public key (NAS-generated), use it.
     // Otherwise generate a full keypair (VPS manages keys for NAS).
     let clientPrivateKey: string | undefined
@@ -349,8 +352,7 @@ export async function POST(req: NextRequest) {
       clientPublicKey = kp.publicKey
     }
 
-    // Bersihkan peer orphan di wg.conf (peer yang IP-nya sudah tidak ada di DB)
-    // agar IP pool bisa dipakai ulang oleh client baru
+    // Bersihkan peer orphan di wg.conf
     try {
       const dbClients = await prisma.vpnClient.findMany({
         where: { vpnServerId: VPS_WG_SERVER_ID },
@@ -374,8 +376,6 @@ export async function POST(req: NextRequest) {
     let apiUsernameForResponse: string | undefined
     let apiPasswordForResponse: string | undefined
 
-    // VPS WG adalah server built-in — auto-create vpnServer dari info file jika belum ada di DB.
-    // Tidak perlu setup manual di halaman VPN Server terlebih dahulu.
     const existingWgServer = await prisma.vpnServer.findUnique({ where: { id: VPS_WG_SERVER_ID } })
     if (!existingWgServer) {
       await prisma.vpnServer.create({
@@ -393,15 +393,16 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    let publicPorts
     try {
-      // Simpan VPN client ke DB — NAS/router tidak dibuat otomatis
+      // Simpan VPN client ke DB
       const username = `wg-${nasName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.random().toString(36).substring(2, 6)}`
       const apiUsername = `api-${nasName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
       const apiPassword = generatePassword(16)
 
       // Alokasi port publik unik untuk semua layanan MikroTik
       const blockStart = await getNextPortBlock()
-      const publicPorts = buildPublicPorts(blockStart)
+      publicPorts = buildPublicPorts(blockStart, targetPorts as any)
 
       const dbClient = await prisma.vpnClient.upsert({
         where: {
@@ -429,20 +430,21 @@ export async function POST(req: NextRequest) {
           apiUsername,
           apiPassword,
           description: localNetworks ? `localNets=${localNetworks}` : undefined,
+          publicPorts: publicPorts as any,
           isActive: true,
         },
       })
-      void dbClient // used only for vpnClient record, no NAS auto-create
+      void dbClient
       apiUsernameForResponse = apiUsername
       apiPasswordForResponse = apiPassword
 
-      // Pasang iptables PREROUTING DNAT rules untuk semua layanan (non-fatal jika dev env)
+      // Pasang iptables PREROUTING DNAT rules untuk semua layanan
       await addIptablesRules(vpnIp, publicPorts)
     } catch (dbErr) {
       console.error('[vps-wg-peer] Gagal simpan ke DB (lanjutkan):', dbErr)
     }
 
-    // Derive the pool prefix (may differ from wg interface subnet when user customized it)
+    // Derive the pool prefix
     const poolBase = (typeof info.poolStart === 'string' && info.poolStart.includes('.'))
       ? info.poolStart.split('.').slice(0, 3).join('.')
       : info.subnet.split('/')[0].split('.').slice(0, 3).join('.')
@@ -453,23 +455,24 @@ export async function POST(req: NextRequest) {
       success: true,
       vpnIp,
       clientPublicKey,
-      clientPrivateKey, // undefined if caller supplied the key
+      clientPrivateKey,
       serverPublicKey: info.publicKey,
       serverEndpoint: `${info.publicIp}:${info.listenPort}`,
-      vpnSubnet: effectiveVpnSubnet,       // derived from pool prefix
-      gatewayIp: effectiveGatewayIp,       // VPS tunnel IP derived from pool prefix
-      allowedIps: `${effectiveGatewayIp}/32`, // kept for backward compat
+      vpnSubnet: effectiveVpnSubnet,
+      gatewayIp: effectiveGatewayIp,
+      allowedIps: `${effectiveGatewayIp}/32`,
       wgPort: info.listenPort,
-      localNetworks: localNetworks || null, // echo back the local networks that were configured
+      localNetworks: localNetworks || null,
       apiUsername: apiUsernameForResponse,
       apiPassword: apiPasswordForResponse,
+      publicPorts: publicPorts || null,
+      vpsPublicIp: info.publicIp || '',
     })
   }
 
   if (action === 'remove') {
     if (!suppliedPubKey) return NextResponse.json({ error: 'publicKey wajib untuk remove' }, { status: 400 })
 
-    // Cari vpnClient yang punya publicKey ini, hapus iptables rules dulu
     try {
       const client = await prisma.vpnClient.findFirst({
         where: { clientPublicKey: suppliedPubKey, vpnServerId: VPS_WG_SERVER_ID },
@@ -478,7 +481,7 @@ export async function POST(req: NextRequest) {
       if (client?.publicPorts && client?.vpnIp) {
         await removeIptablesRules(client.vpnIp, client.publicPorts as any)
       }
-    } catch { /* non-fatal */ }
+    } catch { /* ignore */ }
 
     await removePeerFromConf(suppliedPubKey)
     return NextResponse.json({ success: true })

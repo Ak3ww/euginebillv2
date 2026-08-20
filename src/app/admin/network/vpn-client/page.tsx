@@ -63,6 +63,8 @@ interface Credentials {
   wgSubnet?: string                 // WireGuard VPN subnet e.g. 10.200.0.0/24
   wgGatewayIp?: string              // VPS tunnel gateway IP e.g. 10.200.0.1
   nasName?: string                  // Display name of the NAS (used for interface naming)
+  publicPorts?: any                 // Auto-allocated public port mapping
+  vpsPublicIp?: string              // VPS public IP
 }
 
 /** Convert a NAS name to a safe MikroTik interface name segment (max 12 chars, alphanumeric + dash) */
@@ -75,8 +77,6 @@ function toSafeIfaceName(prefix: string, name: string): string {
 function RedundancyInfoPanel(_props: Record<string, unknown>) {
   return null;
 }
-
-
 
 export default function VpnClientPage() {
   const { t } = useTranslation();
@@ -105,6 +105,9 @@ export default function VpnClientPage() {
     vpnType: 'l2tp' as 'l2tp' | 'pptp' | 'sstp' | 'wireguard',
     customVpnIp: '',
     localNetworks: '', // IP lokal di balik NAS (misal: 192.168.75.0/24,136.1.1.100/32)
+    targetWinboxPort: '8291',
+    targetApiPort: '8728',
+    targetWwwPort: '80',
   });
   // WireGuard NAS Peers (VPS as WG server)
   const [wgPeers, setWgPeers] = useState<{ publicKey: string; endpoint?: string; allowedIps?: string; lastHandshake?: string }[]>([]);
@@ -499,6 +502,13 @@ export default function VpnClientPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Target ports dari form
+    const targetPorts = {
+      winbox: parseInt(formData.targetWinboxPort) || 8291,
+      api: parseInt(formData.targetApiPort) || 8728,
+      www: parseInt(formData.targetWwwPort) || 80,
+    }
+
     // VPS WireGuard mode: intercept and use vps-wg-peer flow
     if (formData.vpnType === 'wireguard' && formData.vpnServerId === '__vps_wg__') {
       if (!formData.name.trim()) return
@@ -506,7 +516,7 @@ export default function VpnClientPage() {
       const localNetworks = formData.localNetworks.trim()
       setWgNewPeerName(peerName)
       setShowModal(false)
-      setFormData({ name: '', description: '', vpnServerId: '', vpnType: 'l2tp', customVpnIp: '', localNetworks: '' })
+      setFormData({ name: '', description: '', vpnServerId: '', vpnType: 'l2tp', customVpnIp: '', localNetworks: '', targetWinboxPort: '8291', targetApiPort: '8728', targetWwwPort: '80' })
       setShowWgSection(true)
       // Trigger add peer with the name from the form
       setCreating(true)
@@ -514,7 +524,7 @@ export default function VpnClientPage() {
         const res = await fetch('/api/network/vps-wg-peer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'add', nasName: peerName, localNetworks: localNetworks || undefined }),
+          body: JSON.stringify({ action: 'add', nasName: peerName, localNetworks: localNetworks || undefined, targetPorts }),
         })
         const data = await res.json()
         if (data.success) {
@@ -525,9 +535,13 @@ export default function VpnClientPage() {
           // Auto-show credentials with generated script so user can copy it immediately
           const wgSubnet = data.vpnSubnet || wgServerInfo?.subnet || '10.200.0.0/24'
           const wgGatewayIp = data.gatewayIp || wgSubnet.replace(/\.\d+\/\d+$/, '.1')
+          const vpsIp = data.vpsPublicIp || wgServerInfo?.publicIp || data.serverEndpoint?.split(':')[0] || 'VPS'
+          const winboxPublicPort = data.publicPorts?.services?.winbox?.public
+          const winboxRemoteStr = winboxPublicPort ? `${vpsIp}:${winboxPublicPort}` : undefined
+
           setCredentials({
-            server: wgServerInfo?.publicIp || data.serverEndpoint?.split(':')[0] || 'VPS',
-            serverHost: wgServerInfo?.publicIp || data.serverEndpoint?.split(':')[0] || 'VPS',
+            server: vpsIp,
+            serverHost: vpsIp,
             username: peerName,
             nasName: peerName,
             password: '',
@@ -541,7 +555,10 @@ export default function VpnClientPage() {
             nasSecret: data.nasSecret || undefined,
             apiUsername: data.apiUsername || undefined,
             apiPassword: data.apiPassword || undefined,
-            radiusServerIp: undefined, // VPS gateway is used as fallback in generateMikroTikScript
+            winboxRemote: winboxRemoteStr,
+            publicPorts: data.publicPorts,
+            vpsPublicIp: vpsIp,
+            radiusServerIp: undefined,
           })
           setSelectedVpnType('wireguard')
           setShowCredentials(true)
@@ -565,18 +582,22 @@ export default function VpnClientPage() {
         const res = await fetch('/api/network/vps-l2tp-peer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'add', label: formData.name.trim(), localNetworks: formData.localNetworks.trim() || undefined }),
+          body: JSON.stringify({ action: 'add', label: formData.name.trim(), localNetworks: formData.localNetworks.trim() || undefined, targetPorts }),
         })
         const data = await res.json()
         if (data.success) {
           setShowModal(false)
           const ipsecPsk = data.ipsecPsk || l2tpServerInfo?.ipsecPsk || ''
           const nasDisplayName = formData.name.trim()
-          const safeApiUser = `api-${nasDisplayName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
-          const safeApiPass = data.apiPassword || Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10)
+          const safeApiUser = data.apiUsername || `api-${nasDisplayName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+          const safeApiPass = data.apiPassword || 'EugineBillApi123!'
+          const vpsIp = data.vpsPublicIp || l2tpServerInfo?.publicIp || 'VPS'
+          const winboxPublicPort = data.publicPorts?.services?.winbox?.public
+          const winboxRemoteStr = winboxPublicPort ? `${vpsIp}:${winboxPublicPort}` : undefined
+
           setCredentials({
-            server: l2tpServerInfo?.publicIp || 'VPS',
-            serverHost: l2tpServerInfo?.publicIp || 'VPS',
+            server: vpsIp,
+            serverHost: vpsIp,
             username: data.username,
             password: data.password,
             vpnIp: data.vpnIp,
@@ -584,16 +605,18 @@ export default function VpnClientPage() {
             nasName: nasDisplayName,
             ipsecPsk,
             apiUsername: safeApiUser,
-            apiPassword: data.apiPassword || safeApiPass,
+            apiPassword: safeApiPass,
             nasSecret: data.nasSecret || undefined,
+            winboxRemote: winboxRemoteStr,
+            publicPorts: data.publicPorts,
+            vpsPublicIp: vpsIp,
           })
           setSelectedVpnType('l2tp')
           setShowCredentials(true)
-          // Store generated script in wgGeneratedScript state for display
           setWgGeneratedScript(data.routerosScript || null)
           setShowWgSection(true)
           showSuccess('L2TP user berhasil ditambahkan ke VPS', 'Berhasil')
-          setFormData({ name: '', description: '', vpnServerId: '', vpnType: 'l2tp', customVpnIp: '', localNetworks: '' })
+          setFormData({ name: '', description: '', vpnServerId: '', vpnType: 'l2tp', customVpnIp: '', localNetworks: '', targetWinboxPort: '8291', targetApiPort: '8728', targetWwwPort: '80' })
           loadClients()
         } else {
           showError(data.error || 'Gagal menambahkan L2TP user ke VPS')
@@ -1576,6 +1599,51 @@ ${vpnCmd}
                     </p>
                   </div>
                 )}
+
+                {/* Target Service Ports di MikroTik */}
+                <div className="p-4 bg-[#bc13fe]/10 border border-[#bc13fe]/30 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-[#00f7ff] uppercase tracking-wider">
+                      Port Layanan MikroTik <span className="text-muted-foreground font-normal">(Target Port)</span>
+                    </label>
+                    <span className="text-[11px] text-muted-foreground">Default: Winbox 8291, API 8728</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <span className="text-[11px] text-muted-foreground block mb-1">Winbox Port</span>
+                      <input
+                        type="text"
+                        value={formData.targetWinboxPort}
+                        onChange={(e) => setFormData({ ...formData, targetWinboxPort: e.target.value })}
+                        className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-xs focus:border-[#00f7ff]"
+                        placeholder="8291"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-muted-foreground block mb-1">API Port</span>
+                      <input
+                        type="text"
+                        value={formData.targetApiPort}
+                        onChange={(e) => setFormData({ ...formData, targetApiPort: e.target.value })}
+                        className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-xs focus:border-[#00f7ff]"
+                        placeholder="8728"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-muted-foreground block mb-1">WWW Port</span>
+                      <input
+                        type="text"
+                        value={formData.targetWwwPort}
+                        onChange={(e) => setFormData({ ...formData, targetWwwPort: e.target.value })}
+                        className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-xs focus:border-[#00f7ff]"
+                        placeholder="80"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    💡 Jika MikroTik Anda menggunakan port kustom (misal Winbox di port 8520), ubah angka di atas. Port publik VPS akan otomatis di-forward (DNAT) ke port ini.
+                  </p>
+                </div>
 
                 {/* Custom VPN IP — only for non-VPS WG (VPS WG assigns IPs automatically) */}
                 {formData.vpnServerId && formData.vpnServerId !== '__vps_wg__' && (
