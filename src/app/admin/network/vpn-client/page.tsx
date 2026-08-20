@@ -230,6 +230,12 @@ export default function VpnClientPage() {
 # VPS Endpoint: ${data.serverEndpoint}
 # ──────────────────────────────────────────────────
 
+# 0. Hapus setup WireGuard terdahulu jika ada
+:do { /interface/wireguard/peers/remove [find where interface=${toSafeIfaceName('wg', wgNewPeerName.trim())}] } on-error={}
+:do { /interface/wireguard/remove [find where name=${toSafeIfaceName('wg', wgNewPeerName.trim())}] } on-error={}
+:do { /ip/address/remove [find where interface=${toSafeIfaceName('wg', wgNewPeerName.trim())}] } on-error={}
+:do { /ip/route/remove [find where comment="EugineBill-VPN"] } on-error={}
+
 # 1. Buat WireGuard interface dengan private key NAS
 /interface/wireguard/add name=${toSafeIfaceName('wg', wgNewPeerName.trim())} private-key="${data.clientPrivateKey || '<PRIVATE_KEY>'}"
 
@@ -238,7 +244,7 @@ export default function VpnClientPage() {
   public-key="${data.serverPublicKey}" \\
   endpoint-address="${data.serverEndpoint?.split(':')[0]}" \\
   endpoint-port=${data.wgPort} \\
-  allowed-address="0.0.0.0/0" \\
+  allowed-address="${data.vpnSubnet || '10.200.0.0/24'}" \\
   persistent-keepalive=25
 
 # 3. Assign IP address NAS ke interface WireGuard
@@ -739,24 +745,28 @@ export default function VpnClientPage() {
       const safeApiUsername = credentials.apiUsername || `api-${credentials.vpnIp?.replace(/\./g, '-')}`
       const safeApiPassword = credentials.apiPassword || '<generate-password>'
       const safeWinbox = credentials.winboxRemote || `${credentials.serverHost || credentials.server}:8291`
+      const nasDisplayName = credentials.nasName || credentials.username
+      const ifaceName = toSafeIfaceName(iface.replace('-client', ''), nasDisplayName)
       return `# ============================================================
 # MikroTik VPN Client Setup Script
 # NAS: ${credentials.vpnIp}
 # VPN Server: ${credentials.server}
 # ============================================================
 
+# 0. Hapus setup terdahulu jika sudah ada (mencegah error duplicate)
+:do { /interface/${iface}/remove [find where name="${ifaceName}"] } on-error={}
+:do { /interface/${iface}/remove [find where comment~"EugineBill"] } on-error={}
+:do { /user/remove [find where name="${safeApiUsername}"] } on-error={}
+
 # 1. Create API User Group
-/user group add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group"
+:do { /user/group/add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group" } on-error={}
 
 # 2. Create API User
-/user add name=${safeApiUsername} group=api-users password=${safeApiPassword} comment="API User for Remote Access"
+/user/add name=${safeApiUsername} group=api-users password=${safeApiPassword} comment="API User for Remote Access"
 
 # 3. Setup ${(selectedVpnType as string).toUpperCase()} Client
-/interface ${iface}
+/interface/${iface}
 ${vpnCmd}
-
-# 4. Assign IP Address (if needed)
-# /ip address add address=${credentials.vpnIp}/32 interface=${iface}-EugineBill
 
 # Remote Winbox Access: ${safeWinbox}
 # API Username: ${safeApiUsername}
@@ -785,6 +795,7 @@ ${vpnCmd}
       )
     } else if (selectedVpnType === 'wireguard') {
       // WireGuard script for RouterOS 7+
+      const ifaceName = toSafeIfaceName('wg', nasDisplayName)
       const serverPk = credentials.serverPublicKey || '<SERVER_PUBLIC_KEY>'
       const clientPk = credentials.clientPrivateKey || '<CLIENT_PRIVATE_KEY>'
       const wgPort = credentials.wgPort || 51820
@@ -801,28 +812,35 @@ ${vpnCmd}
 # API User   : ${safeApiUsername}
 # ============================================================
 
+# 0. Hapus setup terdahulu jika sudah ada (mencegah error duplicate)
+:do { /interface/wireguard/peers/remove [find where interface=${ifaceName}] } on-error={}
+:do { /interface/wireguard/remove [find where name=${ifaceName}] } on-error={}
+:do { /ip/address/remove [find where interface=${ifaceName}] } on-error={}
+:do { /ip/route/remove [find where comment="EugineBill-VPN"] } on-error={}
+:do { /user/remove [find where name="${safeApiUsername}"] } on-error={}
+
 # 1. Buat WireGuard interface dengan private key NAS
-/interface/wireguard/add name=${toSafeIfaceName('wg', credentials.nasName || credentials.username)} private-key="${clientPk}"
+/interface/wireguard/add name=${ifaceName} private-key="${clientPk}"
 
 # 2. Tambah peer (VPS WireGuard server)
 #    allowed-address = subnet VPN agar semua host VPN dapat diakses
-/interface/wireguard/peers/add interface=${toSafeIfaceName('wg', credentials.nasName || credentials.username)} \\
+/interface/wireguard/peers/add interface=${ifaceName} \\
   public-key="${serverPk}" \\
   endpoint-address="${serverHost}" \\
   endpoint-port=${wgPort} \\
-  allowed-address="0.0.0.0/0" \\
+  allowed-address="${wgSubnet}" \\
   persistent-keepalive=25
 
 # 3. Assign IP address NAS ke interface WireGuard
-/ip/address/remove [find where interface=${toSafeIfaceName('wg', credentials.nasName || credentials.username)}]
-/ip/address/add address=${credentials.vpnIp}/32 interface=${toSafeIfaceName('wg', credentials.nasName || credentials.username)}
+/ip/address/remove [find where interface=${ifaceName}]
+/ip/address/add address=${credentials.vpnIp}/32 interface=${ifaceName}
 
 # 4. Route seluruh subnet VPN melalui WireGuard
 /ip/route/remove [find where comment="EugineBill-VPN"]
-/ip/route/add dst-address=${wgSubnet} gateway=${toSafeIfaceName('wg', credentials.nasName || credentials.username)} comment="EugineBill-VPN"
+/ip/route/add dst-address=${wgSubnet} gateway=${ifaceName} comment="EugineBill-VPN"
 
 # 5. Buat API User (untuk remote management MikroTik)
-/user/group/add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group"
+:do { /user/group/add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group" } on-error={}
 /user/add name=${safeApiUsername} group=api-users password=${safeApiPassword} comment="API User for Remote Access"
 # API Username : ${safeApiUsername}
 # API Password : ${safeApiPassword}
