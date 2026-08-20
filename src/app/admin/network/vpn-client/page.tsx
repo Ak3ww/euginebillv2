@@ -238,7 +238,7 @@ export default function VpnClientPage() {
   public-key="${data.serverPublicKey}" \\
   endpoint-address="${data.serverEndpoint?.split(':')[0]}" \\
   endpoint-port=${data.wgPort} \\
-  allowed-address="${data.vpnSubnet || '10.200.0.0/24'}" \\
+  allowed-address="0.0.0.0/0" \\
   persistent-keepalive=25
 
 # 3. Assign IP address NAS ke interface WireGuard
@@ -810,7 +810,7 @@ ${vpnCmd}
   public-key="${serverPk}" \\
   endpoint-address="${serverHost}" \\
   endpoint-port=${wgPort} \\
-  allowed-address="${wgSubnet}" \\
+  allowed-address="0.0.0.0/0" \\
   persistent-keepalive=25
 
 # 3. Assign IP address NAS ke interface WireGuard
