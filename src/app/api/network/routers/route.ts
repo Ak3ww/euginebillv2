@@ -379,9 +379,26 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Router not found' }, { status: 404 });
     }
 
-    // Unlink any pppoeUsers or areas before deleting router to avoid FK constraint errors
-    await prisma.pppoeUser.updateMany({ where: { routerId: id }, data: { routerId: null } }).catch(() => {});
-    await prisma.pppoeArea.updateMany({ where: { routerId: id }, data: { routerId: null } }).catch(() => {});
+    // Find fallback router to smoothly migrate customers & areas (e.g. Router ID 3 VPN version)
+    const targetReassignId = searchParams.get('reassignToRouterId');
+    let fallbackRouterId = targetReassignId;
+    if (!fallbackRouterId) {
+      const altRouter = await prisma.router.findFirst({
+        where: { id: { not: id }, isActive: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (altRouter) fallbackRouterId = altRouter.id;
+    }
+
+    if (fallbackRouterId) {
+      console.log(`[Router Delete] Smoothly reassigning customers & areas from ${id} to ${fallbackRouterId}`);
+      await prisma.pppoeUser.updateMany({ where: { routerId: id }, data: { routerId: fallbackRouterId } }).catch(() => {});
+      await prisma.pppoeArea.updateMany({ where: { routerId: id }, data: { routerId: fallbackRouterId } }).catch(() => {});
+    } else {
+      await prisma.pppoeUser.updateMany({ where: { routerId: id }, data: { routerId: null } }).catch(() => {});
+      await prisma.pppoeArea.updateMany({ where: { routerId: id }, data: { routerId: null } }).catch(() => {});
+    }
+
     if ((prisma as any).routerStatusHistory) {
       await (prisma as any).routerStatusHistory.deleteMany({ where: { routerId: id } }).catch(() => {});
     }
