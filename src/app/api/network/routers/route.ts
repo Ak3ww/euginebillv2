@@ -379,6 +379,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Router not found' }, { status: 404 });
     }
 
+    // Unlink any pppoeUsers or areas before deleting router to avoid FK constraint errors
+    await prisma.pppoeUser.updateMany({ where: { routerId: id }, data: { routerId: null } }).catch(() => {});
+    await prisma.pppoeArea.updateMany({ where: { routerId: id }, data: { routerId: null } }).catch(() => {});
+    if ((prisma as any).routerStatusHistory) {
+      await (prisma as any).routerStatusHistory.deleteMany({ where: { routerId: id } }).catch(() => {});
+    }
+
     await prisma.router.delete({
       where: { id },
     });
