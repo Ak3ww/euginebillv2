@@ -32,23 +32,23 @@ export async function POST(req: Request) {
     // 1. Update oldRouter (ID 1) with config from newRouter (ID 3)
     await prisma.router.update({
       where: { id: oldRouter.id },
-      data: {
-        name: newRouter.name,
-        ipAddress: newRouter.ipAddress,
-        nasname: newRouter.nasname,
-        shortname: newRouter.shortname,
-        type: newRouter.type,
-        ports: newRouter.ports,
-        secret: newRouter.secret,
-        apiUsername: newRouter.apiUsername,
-        apiPassword: newRouter.apiPassword,
-        apiPort: newRouter.apiPort,
-        vpnClientId: newRouter.vpnClientId,
-        isActive: true,
-      }
-    });
+    // Save config in memory before deleting newRouter
+    const newConfig = {
+      name: newRouter.name,
+      ipAddress: newRouter.ipAddress,
+      nasname: newRouter.nasname,
+      shortname: newRouter.shortname,
+      type: newRouter.type,
+      ports: newRouter.ports,
+      secret: newRouter.secret,
+      apiUsername: newRouter.apiUsername,
+      apiPassword: newRouter.apiPassword,
+      apiPort: newRouter.apiPort,
+      vpnClientId: newRouter.vpnClientId,
+      isActive: true,
+    };
 
-    // 2. Reassign all users & areas from newRouter (ID 3) to oldRouter (ID 1)
+    // 1. Reassign all users & areas from newRouter (ID 3) to oldRouter (ID 1)
     const usersUpdated = await prisma.pppoeUser.updateMany({
       where: { routerId: newRouter.id },
       data: { routerId: oldRouter.id }
@@ -65,13 +65,19 @@ export async function POST(req: Request) {
       data: { routerId: oldRouter.id }
     });
 
-    // 3. Delete newRouter (ID 3)
+    // 2. Delete newRouter (ID 3) first to release unique constraint on nasname/ipAddress
     if ((prisma as any).routerStatusHistory) {
       await (prisma as any).routerStatusHistory.deleteMany({ where: { routerId: newRouter.id } }).catch(() => {});
     }
 
     await prisma.router.delete({
       where: { id: newRouter.id }
+    });
+
+    // 3. Update oldRouter (ID 1) with newConfig
+    await prisma.router.update({
+      where: { id: oldRouter.id },
+      data: newConfig
     });
 
     return NextResponse.json({
