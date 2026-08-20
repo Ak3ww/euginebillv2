@@ -264,9 +264,9 @@ export default function VpnClientPage() {
   authentication-port=1812 \\
   accounting-port=1813 \\
   timeout=3s \\
-  comment="EugineBill RADIUS via WireGuard"
-/ppp/aaa/set use-radius=yes accounting=yes interim-update=5m
-/radius/incoming/set accept=yes port=3799`;
+# Catatan: Jika menggunakan RADIUS mode, aktifkan baris berikut:
+# /ppp/aaa/set use-radius=yes accounting=yes interim-update=5m
+# /radius/incoming/set accept=yes port=3799`;
       setWgGeneratedScript(script);
       setWgNewPeerName('');
       showSuccess(`Peer "${wgNewPeerName}" berhasil ditambahkan! VPN IP: ${data.vpnIp}`);

@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Tidak dapat menemukan pasangan router lama & baru.', routers });
     }
 
-    console.log([Merge Router] Copying config from newRouter () into oldRouter ());
+    console.log('[Merge Router] Copying config from newRouter (' + newRouter.id + ') into oldRouter (' + oldRouter.id + ')');
 
     // 1. Update oldRouter (ID 1) with config from newRouter (ID 3)
     await prisma.router.update({
