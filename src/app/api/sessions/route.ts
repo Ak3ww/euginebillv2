@@ -92,7 +92,7 @@ async function cleanupStaleSessions(): Promise<number> {
   }
   lastStaleCleanupTime = now;
 
-  const STALE_HOURS = 8;
+  const STALE_MINUTES = 30;
   try {
     const result = await prisma.$executeRawUnsafe(`
       UPDATE radacct
@@ -101,8 +101,8 @@ async function cleanupStaleSessions(): Promise<number> {
           acctsessiontime = TIMESTAMPDIFF(SECOND, acctstarttime, acctupdatetime)
       WHERE acctstoptime IS NULL
         AND acctupdatetime IS NOT NULL
-        AND TIMESTAMPDIFF(HOUR, acctupdatetime, NOW()) > ${STALE_HOURS}
-        AND TIMESTAMPDIFF(HOUR, acctupdatetime, NOW()) < 720
+        AND TIMESTAMPDIFF(MINUTE, acctupdatetime, NOW()) > ${STALE_MINUTES}
+        AND TIMESTAMPDIFF(MINUTE, acctupdatetime, NOW()) < 43200
     `);
     const total = Number(result);
     if (total > 0) {

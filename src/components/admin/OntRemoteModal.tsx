@@ -148,23 +148,37 @@ export default function OntRemoteModal({
                 </div>
               </div>
 
-              <button
-                onClick={handleLaunch}
-                disabled={loading}
-                className="w-full inline-flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-bold rounded-xl shadow-lg transition-all disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <RotateCw className="w-4 h-4 animate-spin" />
-                    Menyiapkan Link Remote...
-                  </>
-                ) : (
-                  <>
-                    <Globe className="w-4 h-4" />
-                    Buka Web GUI ONT (10 Menit)
-                  </>
-                )}
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleLaunch}
+                  disabled={loading}
+                  className="inline-flex items-center justify-center gap-1.5 py-3 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold rounded-xl shadow-lg transition-all disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                      Menyiapkan...
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="w-3.5 h-3.5" />
+                      Socat Remote Port
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const directUrl = `/api/network/ont-proxy?ip=${targetIp}&port=${targetPort}`
+                    window.open(directUrl, '_blank')
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 py-3 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-bold rounded-xl transition-all"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Direct HTTP Proxy
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
