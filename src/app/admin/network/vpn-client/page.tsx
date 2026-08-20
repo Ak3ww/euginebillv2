@@ -743,7 +743,7 @@ export default function VpnClientPage() {
 
     const scriptBase = (vpnCmd: string, iface: string) => {
       const safeApiUsername = credentials.apiUsername || `api-${credentials.vpnIp?.replace(/\./g, '-')}`
-      const safeApiPassword = credentials.apiPassword || '<generate-password>'
+      const safeApiPassword = credentials.apiPassword || 'EugineBillApi123!'
       const safeWinbox = credentials.winboxRemote || `${credentials.serverHost || credentials.server}:8291`
       const nasDisplayName = credentials.nasName || credentials.username
       const ifaceName = toSafeIfaceName(iface.replace('-client', ''), nasDisplayName)
@@ -754,18 +754,18 @@ export default function VpnClientPage() {
 # ============================================================
 
 # 0. Hapus setup terdahulu jika sudah ada (mencegah error duplicate)
-:do { /interface/${iface}/remove [find where name="${ifaceName}"] } on-error={}
-:do { /interface/${iface}/remove [find where comment~"EugineBill"] } on-error={}
-:do { /user/remove [find where name="${safeApiUsername}"] } on-error={}
+:do { /interface ${iface} remove [find name="${ifaceName}"] } on-error={}
+:do { /interface ${iface} remove [find comment~"EugineBill"] } on-error={}
+:do { /user remove [find name="${safeApiUsername}"] } on-error={}
 
 # 1. Create API User Group
-:do { /user/group/add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group" } on-error={}
+:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group" } on-error={}
 
 # 2. Create API User
-/user/add name=${safeApiUsername} group=api-users password=${safeApiPassword} comment="API User for Remote Access"
+/user add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API User for Remote Access"
 
 # 3. Setup ${(selectedVpnType as string).toUpperCase()} Client
-/interface/${iface}
+/interface ${iface}
 ${vpnCmd}
 
 # Remote Winbox Access: ${safeWinbox}
