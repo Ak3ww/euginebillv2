@@ -80,7 +80,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: Berhasil menggabungkan Router! Pengaturan VPN telah dipindahkan ke Router ID 1 (), dan Router ID 3 telah dihapus.,
+      message: 'Berhasil menggabungkan Router! Pengaturan VPN telah dipindahkan ke Router ID 1 (' + oldRouter.name + '), dan Router ID 3 telah dihapus.',
       keptRouterId: oldRouter.id,
       deletedRouterId: newRouter.id,
       migratedUsers: usersUpdated.count + unassignedUpdated.count,
