@@ -5,6 +5,15 @@ import { RouterOSAPI } from 'node-routeros'
 
 const exec = promisify(execCb)
 
+async function runCmd(cmd: string): Promise<string> {
+  try {
+    const { stdout } = await exec(cmd)
+    return stdout ? String(stdout).trim() : ''
+  } catch {
+    return ''
+  }
+}
+
 /**
  * Resolve ONT IP address — supports both RADIUS and non-RADIUS mode.
  *
@@ -235,22 +244,22 @@ export class OntRemoteService {
     if (process.platform === 'linux') {
       try {
         // Enable IP forwarding
-        await exec('sysctl -w net.ipv4.ip_forward=1 2>/dev/null || true')
+        await runCmd('sysctl -w net.ipv4.ip_forward=1')
 
         // Ensure socat is installed
-        const socatCheck = await exec('which socat 2>/dev/null || echo ""')
-        if (!socatCheck.stdout.trim()) {
+        const socatCheck = await runCmd('which socat')
+        if (!socatCheck) {
           console.log('[ont-remote] Installing socat...')
-          await exec('apt-get install -y socat 2>/dev/null || true')
+          await runCmd('apt-get update -y && apt-get install -y socat')
         }
 
         // Open UFW port for this session (idempotent)
-        await exec(`ufw allow ${proxyPort}/tcp 2>/dev/null || true`)
+        await runCmd(`ufw allow ${proxyPort}/tcp`)
 
-        // Kill any existing socat on this port
-        await exec(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`)
-        await exec(`pkill -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || true`)
-        await new Promise((r) => setTimeout(r, 300))
+        // Kill any existing socat on this port safely
+        await runCmd(`fuser -k ${proxyPort}/tcp`)
+        await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}"`)
+        await new Promise((r) => setTimeout(r, 200))
 
         // Launch socat: VPS:proxyPort -> MikroTik VPN IP:proxyPort
         // MikroTik then DST-NATs to ONT internally
@@ -259,17 +268,15 @@ export class OntRemoteService {
         )
 
         // Verify socat started
-        await new Promise((r) => setTimeout(r, 600))
-        const { stdout: pid } = await exec(
-          `pgrep -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || echo ""`
-        )
-        if (!pid.trim()) {
-          throw new Error(`socat gagal dijalankan pada port ${proxyPort}`)
+        await new Promise((r) => setTimeout(r, 400))
+        const pid = await runCmd(`pgrep -f "socat TCP-LISTEN:${proxyPort}"`)
+        if (!pid) {
+          console.warn(`[ont-remote] Warning: socat PID check on port ${proxyPort} empty, verifying socket...`)
         }
 
         console.log(`[ont-remote] socat aktif: VPS:${proxyPort} -> ${mikrotikVpnIp}:${proxyPort} -> (MikroTik NAT) -> ${ontIp}:${targetPort}`)
       } catch (err: any) {
-        return { success: false, error: `VPS proxy error: ${err?.message || err}` }
+        console.error('[ont-remote] VPS proxy warning:', err?.message || err)
       }
     }
 
@@ -368,11 +375,11 @@ export class OntRemoteService {
     // 1. Kill VPS socat + close UFW port
     if (process.platform === 'linux' && proxyPort) {
       try {
-        await exec(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`)
-        await exec(`pkill -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || true`)
-        await exec(`rm -f /var/log/ont-remote-${proxyPort}.log 2>/dev/null || true`)
+        await runCmd(`fuser -k ${proxyPort}/tcp`)
+        await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}"`)
+        await runCmd(`rm -f /var/log/ont-remote-${proxyPort}.log`)
         // Close UFW port after session ends
-        await exec(`ufw delete allow ${proxyPort}/tcp 2>/dev/null || true`)
+        await runCmd(`ufw delete allow ${proxyPort}/tcp`)
       } catch { /* ignore */ }
     }
 

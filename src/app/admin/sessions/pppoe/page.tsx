@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { createPortal } from 'react-dom'
 import {
   Activity,
@@ -20,6 +21,7 @@ import {
   Calendar,
   Copy,
   Check,
+  AlertCircle,
 } from 'lucide-react'
 import { useToast } from '@/components/cyberpunk/CyberToast'
 import { useTranslation } from '@/hooks/useTranslation'
@@ -42,7 +44,7 @@ interface Session {
   downloadFormatted: string
   totalFormatted: string
   router: { id: string; name: string } | null
-  user: { id: string; name: string; phone: string; profile: string } | null
+  user: { id: string; customerId?: string | null; name: string; phone: string; profile: string } | null
 }
 
 interface Pagination {
@@ -77,6 +79,7 @@ export default function PPPoESessionsPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [allTimeStats, setAllTimeStats] = useState<AllTimeStats | null>(null)
   const [routers, setRouters] = useState<Router[]>([])
+  const [routerStatus, setRouterStatus] = useState<{ id: string; name: string; isOnline: boolean; error?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set())
   const [disconnecting, setDisconnecting] = useState(false)
@@ -147,6 +150,7 @@ export default function PPPoESessionsPage() {
       setSessions(data.sessions || [])
       setStats(data.stats)
       setAllTimeStats(data.allTimeStats)
+      setRouterStatus(data.routerStatus || null)
       if (data.pagination) {
         setPagination(data.pagination)
         setCurrentPage(data.pagination.page)
@@ -320,11 +324,11 @@ export default function PPPoESessionsPage() {
     setSelectedSessions(newSelected)
   }
 
-  const handleDisconnect = async (sessionIds: string[]) => {
+  const handleDisconnect = async (sessionIds: string[], usernames?: string[]) => {
     if (
       !(await confirm({
         title: 'Putuskan Sesi PPPoE?',
-        message: `Yakin ingin memutuskan koneksi ${sessionIds.length} sesi pelanggan terpilih?`,
+        message: `Yakin ingin memutuskan koneksi ${usernames?.length || sessionIds.length} sesi pelanggan terpilih dari MikroTik?`,
         confirmText: 'Putuskan Sesi',
         cancelText: 'Batal',
         variant: 'danger',
@@ -337,7 +341,7 @@ export default function PPPoESessionsPage() {
       const res = await fetch('/api/sessions/disconnect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionIds }),
+        body: JSON.stringify({ sessionIds, usernames }),
       })
 
       const data = await res.json()
@@ -345,7 +349,7 @@ export default function PPPoESessionsPage() {
         addToast({
           type: 'success',
           title: 'Berhasil',
-          description: `Berhasil memutuskan ${data.summary?.successful || sessionIds.length} sesi.`,
+          description: `Berhasil memutuskan ${data.summary?.successful || sessionIds.length} sesi dari MikroTik.`,
         })
         setSelectedSessions(new Set())
         await fetchSessions(currentPage, false, true)
@@ -361,7 +365,10 @@ export default function PPPoESessionsPage() {
 
   const handleBulkDisconnect = () => {
     const sessionIds = Array.from(selectedSessions)
-    handleDisconnect(sessionIds)
+    const selectedUsernames = sessions
+      .filter((s) => selectedSessions.has(s.sessionId) || selectedSessions.has(s.id))
+      .map((s) => s.username)
+    handleDisconnect(sessionIds, selectedUsernames)
   }
 
   const handleCopyIp = (ip: string) => {
@@ -569,6 +576,8 @@ export default function PPPoESessionsPage() {
           {/* Card 3 & 4: Router Filter Badges */}
           {routers.slice(0, 2).map((router) => {
             const isSelected = routerFilter === router.id
+            const isOffline = routerStatus?.id === router.id && !routerStatus.isOnline
+            const routerCount = sessions.filter(s => s.router?.id === router.id).length
             return (
               <div
                 key={router.id}
@@ -579,18 +588,39 @@ export default function PPPoESessionsPage() {
               >
                 <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
                   <span className="font-semibold truncate uppercase tracking-wider">{router.name}</span>
-                  <Server className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div className="flex items-center gap-1">
+                    {isOffline ? (
+                      <span className="px-1.5 py-0.5 text-[9px] font-bold bg-destructive/10 text-destructive rounded">OFFLINE</span>
+                    ) : (
+                      <Server className="w-4 h-4 text-muted-foreground shrink-0" />
+                    )}
+                  </div>
                 </div>
                 <div className="text-2xl font-bold text-foreground">
-                  {isSelected ? sessions.length : '-'}
+                  {isOffline ? '0' : (routerFilter === '' ? routerCount : (isSelected ? sessions.length : '-'))}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  {isSelected ? 'Filter aktif (klik lepas)' : 'Klik untuk filter router'}
+                  {isOffline ? 'Router tidak dapat diakses' : (isSelected ? 'Filter aktif (klik lepas)' : 'Klik untuk filter router')}
                 </p>
               </div>
             )
           })}
         </div>
+
+        {/* Router Offline Alert Banner */}
+        {routerStatus && !routerStatus.isOnline && (
+          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-3 text-amber-600 dark:text-amber-400">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-sm">
+                Router &quot;{routerStatus.name}&quot; Sedang Tidak Dapat Diakses / Offline
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {routerStatus.error || 'Koneksi ke port API MikroTik gagal. Pastikan Router menyala dan VPN Client terhubung.'}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Filters Toolbar */}
         <div className="p-3 bg-card border border-border rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
@@ -623,12 +653,12 @@ export default function PPPoESessionsPage() {
             </div>
           </div>
 
-          {/* Bulk Disconnect Action */}
+          {/* Bulk Actions */}
           {selectedSessions.size > 0 && (
             <button
               onClick={handleBulkDisconnect}
               disabled={disconnecting}
-              className="w-full md:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-destructive text-destructive-foreground text-xs font-semibold rounded-xl hover:bg-destructive/90 transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl text-xs font-semibold shadow-sm transition-all animate-in fade-in"
             >
               <Power className="w-3.5 h-3.5" />
               <span>Putuskan {selectedSessions.size} Sesi Terpilih</span>
@@ -695,15 +725,23 @@ export default function PPPoESessionsPage() {
                       ) : (
                         <div className="flex flex-col items-center gap-1.5">
                           <Wifi className="w-8 h-8 text-muted-foreground/50 mb-1" />
-                          <p className="font-semibold text-foreground">Tidak Ada Sesi PPPoE Aktif</p>
-                          <p className="text-[11px]">Tidak ada koneksi yang cocok dengan filter saat ini.</p>
+                          <p className="font-semibold text-foreground">
+                            {routerStatus && !routerStatus.isOnline
+                              ? `Router "${routerStatus.name}" Offline`
+                              : 'Tidak Ada Sesi PPPoE Aktif'}
+                          </p>
+                          <p className="text-[11px]">
+                            {routerStatus && !routerStatus.isOnline
+                              ? 'Tidak dapat mengambil sesi karena router sedang tidak dapat dijangkau.'
+                              : 'Tidak ada koneksi yang cocok dengan filter saat ini.'}
+                          </p>
                         </div>
                       )}
                     </td>
                   </tr>
                 ) : (
                   sessions.map((session) => {
-                    const isSelected = selectedSessions.has(session.sessionId)
+                    const isSelected = selectedSessions.has(session.sessionId) || selectedSessions.has(session.id)
                     const durationSec = liveDuration(session.startTime)
                     return (
                       <tr
@@ -715,7 +753,7 @@ export default function PPPoESessionsPage() {
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            onChange={(e) => handleSelectSession(session.sessionId, e.target.checked)}
+                            onChange={(e) => handleSelectSession(session.sessionId || session.id, e.target.checked)}
                             className="rounded border-border"
                           />
                         </td>
@@ -728,9 +766,19 @@ export default function PPPoESessionsPage() {
                               <div className="font-mono font-bold text-foreground">
                                 {session.username}
                               </div>
-                              <div className="text-[11px] text-muted-foreground truncate max-w-[180px]">
-                                {session.user?.name || '-'}
-                              </div>
+                              {session.user?.id ? (
+                                <Link
+                                  href={`/admin/pppoe/users/${session.user.id}`}
+                                  className="text-[11px] text-primary hover:underline font-medium truncate max-w-[180px] block"
+                                  title="Lihat Profil Detail Pelanggan"
+                                >
+                                  {session.user.name || session.username}
+                                </Link>
+                              ) : (
+                                <div className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+                                  {session.user?.name || '-'}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -806,10 +854,10 @@ export default function PPPoESessionsPage() {
                             </button>
 
                             <button
-                              onClick={() => handleDisconnect([session.sessionId])}
+                              onClick={() => handleDisconnect([session.sessionId || session.id], [session.username])}
                               disabled={disconnecting}
                               className="p-1.5 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg transition-colors disabled:opacity-50"
-                              title="Putuskan Sesi"
+                              title="Putuskan Sesi di MikroTik"
                             >
                               <Power className="w-3.5 h-3.5" />
                             </button>

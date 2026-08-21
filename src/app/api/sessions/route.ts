@@ -115,7 +115,37 @@ async function cleanupStaleSessions(): Promise<number> {
   }
 }
 
-// ─── GET handler: list active sessions from RADIUS (radacct) ────────────────
+async function checkRouterReachable(router: { ipAddress?: string | null; nasname: string; port?: number | null; username: string; password: string }): Promise<{ isOnline: boolean; error?: string }> {
+  const host = router.ipAddress || router.nasname;
+  if (!host) return { isOnline: false, error: 'Host IP router belum diatur' };
+  const port = router.port || 8728;
+  
+  try {
+    const { RouterOSAPI } = await import('node-routeros');
+    const api = new RouterOSAPI({
+      host,
+      port,
+      user: router.username,
+      password: router.password,
+      timeout: 2,
+    });
+    
+    const connectPromise = api.connect();
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Koneksi timeout — router offline atau VPN terputus')), 2000)
+    );
+    await Promise.race([connectPromise, timeoutPromise]);
+    await api.close().catch(() => {});
+    return { isOnline: true };
+  } catch (err: any) {
+    return { 
+      isOnline: false, 
+      error: err?.message || 'Tidak dapat terhubung ke Router (Offline)' 
+    };
+  }
+}
+
+// ─── GET handler: list active sessions from RADIUS (radacct) or MikroTik ─────
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -135,12 +165,9 @@ export async function GET(request: NextRequest) {
     // ── 0. Cleanup stale sessions (throttled to every 15 min) ────────────────
     cleanupStaleSessions().catch(() => {});
 
-    // ── 1. Get active routers (for NAS IP → router mapping) ─────────────────
-    const routerWhere: any = { isActive: true };
-    if (routerId) routerWhere.id = routerId;
-
-    const routers = await prisma.router.findMany({
-      where: routerWhere,
+    // ── 1. Get all active routers ───────────────────────────────────────────
+    const allRouters = await prisma.router.findMany({
+      where: { isActive: true },
       select: {
         id: true,
         name: true,
@@ -152,16 +179,38 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Check specific router if routerId is passed
+    let selectedRouter: typeof allRouters[0] | undefined = undefined;
+    let selectedRouterStatus: { id: string; name: string; isOnline: boolean; error?: string } | null = null;
+
+    if (routerId) {
+      selectedRouter = allRouters.find(r => r.id === routerId);
+      if (!selectedRouter) {
+        return NextResponse.json({
+          sessions: [],
+          stats: { total: 0, pppoe: 0, hotspot: 0, totalBandwidth: 0, totalBandwidthFormatted: '0 B' },
+          routerStatus: { id: routerId, name: 'Router', isOnline: false, error: 'Router tidak ditemukan' },
+          pagination: { page: 1, limit, total: 0, totalPages: 1 },
+        });
+      }
+
+      // Check reachability for the selected router
+      const reachability = await checkRouterReachable(selectedRouter);
+      selectedRouterStatus = {
+        id: selectedRouter.id,
+        name: selectedRouter.name,
+        isOnline: reachability.isOnline,
+        error: reachability.error,
+      };
+    }
+
     // Build NAS IP → router mapping
     const routerByNasIp = new Map<string, { id: string; name: string }>();
-    const nasIpList: string[] = [];
-    for (const r of routers) {
-      routerByNasIp.set(r.nasname, { id: r.id, name: r.name });
-      nasIpList.push(r.nasname);
-      if (r.ipAddress && r.ipAddress !== r.nasname) {
-        routerByNasIp.set(r.ipAddress, { id: r.id, name: r.name });
-        nasIpList.push(r.ipAddress);
-      }
+    const routerById = new Map<string, { id: string; name: string }>();
+    for (const r of allRouters) {
+      routerById.set(r.id, { id: r.id, name: r.name });
+      if (r.nasname) routerByNasIp.set(r.nasname, { id: r.id, name: r.name });
+      if (r.ipAddress) routerByNasIp.set(r.ipAddress, { id: r.id, name: r.name });
     }
 
     // ── 2. Query active sessions (RADIUS or MikroTik) ───────────────────────
@@ -172,9 +221,6 @@ export async function GET(request: NextRequest) {
 
     if (radiusEnabled) {
       const radacctWhere: any = { acctstoptime: null };
-      if (routerId && nasIpList.length > 0) {
-        radacctWhere.nasipaddress = { in: nasIpList };
-      }
       if (search) {
         radacctWhere.OR = [
           { username: { contains: search } },
@@ -188,7 +234,6 @@ export async function GET(request: NextRequest) {
       });
     } else {
       const msWhere: any = { stopTime: null };
-      if (routerId) msWhere.routerId = routerId;
       if (search) {
         msWhere.OR = [
           { username: { contains: search } },
@@ -205,7 +250,7 @@ export async function GET(request: NextRequest) {
         radacctid: BigInt(0),
         acctsessionid: ms.id,
         username: ms.username,
-        nasipaddress: ms.router?.nasname || '',
+        nasipaddress: ms.router?.nasname || ms.router?.ipAddress || '',
         framedipaddress: ms.ipAddress || '',
         callingstationid: ms.macAddress || '',
         acctstarttime: ms.startTime,
@@ -215,28 +260,43 @@ export async function GET(request: NextRequest) {
         acctinputoctets: ms.rxBytes,
         acctoutputoctets: ms.txBytes,
         acctterminatecause: ms.terminateCause || '',
+        routerId: ms.routerId,
+        service: 'pppoe',
       }));
     }
 
-    // ── 3. Determine session types ──────────────────────────────────────────
-    // Look up all usernames in pppoeUser and hotspotVoucher
-    const allUsernames = [...new Set(activeSessions.map((s) => s.username))];
+    // ── 3. Determine session types & Lookup Users ────────────────────────────
+    const allUsernames = [...new Set(activeSessions.map((s) => s.username?.trim()).filter(Boolean))];
 
     const [pppoeUsers, hotspotVouchers] = await Promise.all([
       prisma.pppoeUser.findMany({
-        where: { username: { in: allUsernames } },
+        where: {
+          OR: [
+            { username: { in: allUsernames } },
+            { username: { in: allUsernames.map(u => u.toLowerCase()) } },
+            { username: { in: allUsernames.map(u => u.toUpperCase()) } },
+          ]
+        },
         select: {
           id: true,
           username: true,
           customerId: true,
           name: true,
           phone: true,
+          routerId: true,
+          router: { select: { id: true, name: true, ipAddress: true, nasname: true } },
           profile: { select: { name: true } },
           area: { select: { id: true, name: true } },
         },
       }),
       prisma.hotspotVoucher.findMany({
-        where: { code: { in: allUsernames } },
+        where: {
+          OR: [
+            { code: { in: allUsernames } },
+            { code: { in: allUsernames.map(u => u.toLowerCase()) } },
+            { code: { in: allUsernames.map(u => u.toUpperCase()) } },
+          ]
+        },
         select: {
           id: true,
           code: true,
@@ -255,12 +315,14 @@ export async function GET(request: NextRequest) {
     for (const u of pppoeUsers) {
       pppoeByUsername.set(u.username, u);
       pppoeByUsername.set(u.username.toLowerCase(), u);
+      pppoeByUsername.set(u.username.toUpperCase(), u);
     }
 
     const voucherByCode = new Map<string, any>();
     for (const v of hotspotVouchers) {
       voucherByCode.set(v.code, v);
       voucherByCode.set(v.code.toLowerCase(), v);
+      voucherByCode.set(v.code.toUpperCase(), v);
     }
 
     // ── 4. Build response sessions ──────────────────────────────────────────
@@ -384,193 +446,121 @@ export async function GET(request: NextRequest) {
         };
       });
 
-    // Only show sessions for users registered in the database.
-    // Sessions where the username is not in pppoeUser OR hotspotVoucher are
-    // from unregistered/ghost users and must be excluded from all views.
+    // ── 4. Build response sessions ──────────────────────────────────────────
     let allSessions = [...activeSessions
-      .filter((acct) => {
-        const u = acct.username || '';
-        const lowerU = u.toLowerCase();
-        return pppoeByUsername.has(u) || pppoeByUsername.has(lowerU) || voucherByCode.has(u) || voucherByCode.has(lowerU) || type === 'pppoe' || !type;
-      })
       .map((acct) => {
-      const u = acct.username || '';
-      const lowerU = u.toLowerCase();
-      const pppoeUser = pppoeByUsername.get(u) || pppoeByUsername.get(lowerU);
-      const voucher = voucherByCode.get(u) || voucherByCode.get(lowerU);
-      const sessionType: 'pppoe' | 'hotspot' = pppoeUser ? 'pppoe' : 'hotspot';
+        const u = (acct.username || '').trim();
+        const lowerU = u.toLowerCase();
+        const pppoeUser = pppoeByUsername.get(u) || pppoeByUsername.get(lowerU);
+        const voucher = voucherByCode.get(u) || voucherByCode.get(lowerU);
+        
+        // Identify session type: if linked to pppoeUser OR framedprotocol indicates PPP OR service is pppoe
+        const isPPP = !!pppoeUser || (acct.framedprotocol || '').toLowerCase().includes('ppp') || (acct.service || '').toLowerCase().includes('ppp');
+        const sessionType: 'pppoe' | 'hotspot' = isPPP ? 'pppoe' : (voucher ? 'hotspot' : 'pppoe');
 
-      // Both acctstarttime and firstLoginAt are stored as WIB naive DATETIME.
-      // Prisma appends Z so getTime() gives WIB-as-UTC epoch — matches our
-      // WIB-as-UTC "now" for correct duration calculation.
-      const rawStartMs = acct.acctstarttime
-        ? new Date(acct.acctstarttime).getTime()
-        : now;
+        const rawStartMs = acct.acctstarttime
+          ? new Date(acct.acctstarttime).getTime()
+          : now;
 
-      let effectiveStartMs = rawStartMs;
-      let effectiveStartTime: string | null = acct.acctstarttime
-        ? new Date(rawStartMs).toISOString()
-        : null;
+        let effectiveStartMs = rawStartMs;
+        let effectiveStartTime: string | null = acct.acctstarttime
+          ? new Date(rawStartMs).toISOString()
+          : null;
 
-      if (sessionType === 'hotspot' && voucher?.firstLoginAt) {
-        effectiveStartMs = new Date(voucher.firstLoginAt).getTime();
-        effectiveStartTime = new Date(effectiveStartMs).toISOString();
-      }
-
-      // Compute duration clock-independently: prefer (updateTime - startTime)
-      // which is derived entirely from DB timestamps written by the NAS clock
-      // (via FROM_UNIXTIME). Falls back to (now - startMs) for the case where
-      // acctupdatetime is unavailable or earlier than starttime.
-      let duration: number;
-      const rawUpdateMs = acct.acctupdatetime ? new Date(acct.acctupdatetime).getTime() : 0;
-      if (rawUpdateMs > effectiveStartMs) {
-        // DB-based: session time = updateTime - startTime (no VPS-clock dependency)
-        duration = Math.floor((rawUpdateMs - effectiveStartMs) / 1000);
-      } else {
-        // Fallback to acctsessiontime field if available (also from NAS clock)
-        duration = Number(acct.acctsessiontime ?? 0);
-        if (duration === 0) {
-          // Last fallback: VPS-clock based (may be 0 if VPS clock is behind NAS clock)
-          duration = Math.max(0, Math.floor((now - effectiveStartMs) / 1000));
+        if (sessionType === 'hotspot' && voucher?.firstLoginAt) {
+          effectiveStartMs = new Date(voucher.firstLoginAt).getTime();
+          effectiveStartTime = new Date(effectiveStartMs).toISOString();
         }
-      }
 
-      // Re-derive timestamps from VPS's real clock to correct for NAS clock drift.
-      // NAS (MikroTik) sends UNIX epoch based on its LOCAL clock, which may be
-      // wrong (e.g. hours ahead/behind). Since duration = DB(update) - DB(start)
-      // cancels the NAS clock offset, we use:
-      //   real startTime (WIB-as-UTC) = VPS_now - duration
-      //   real lastUpdate (WIB-as-UTC) ≈ VPS_now (last interim was ≤ Acct-Interim-Interval ago)
-      if (acct.acctstarttime && duration > 0) {
-        effectiveStartTime = new Date(now - duration * 1000).toISOString();
-      }
-
-      // Use radacct bytes (updated by Interim-Update packets from router)
-      const uploadBytes   = Number(acct.acctinputoctets  ?? 0);
-      const downloadBytes = Number(acct.acctoutputoctets ?? 0);
-      const router = routerByNasIp.get(acct.nasipaddress) || { id: 'unknown', name: acct.nasipaddress };
-      return {
-        id: String(acct.radacctid),
-        username: acct.username,
-        sessionId: acct.acctsessionid,
-        type: sessionType,
-        nasIpAddress: acct.nasipaddress,
-        framedIpAddress: acct.framedipaddress || null,
-        macAddress: acct.callingstationid || '',
-        calledStationId: acct.calledstationid || '-',
-        startTime: effectiveStartTime,
-        // Re-derive lastUpdate from VPS clock to cancel NAS clock drift.
-        // acctupdatetime has the same skew as acctstarttime (both come from
-        // NAS-clock epoch via FROM_UNIXTIME). Since startTime was re-derived
-        // as (VPS_now - duration), lastUpdate ≈ VPS_now for active sessions.
-        lastUpdate: acct.acctstarttime && duration > 0
-          ? new Date(now).toISOString()
-          : (acct.acctupdatetime ? new Date(acct.acctupdatetime).toISOString() : null),
-        duration,
-        durationFormatted: formatDuration(duration),
-        uploadBytes,
-        downloadBytes,
-        totalBytes: uploadBytes + downloadBytes,
-        uploadFormatted: formatBytes(uploadBytes),
-        downloadFormatted: formatBytes(downloadBytes),
-        totalFormatted: formatBytes(uploadBytes + downloadBytes),
-        router: { id: router.id, name: router.name },
-        user:
-          sessionType === 'pppoe' && pppoeUser
-            ? {
-                id: pppoeUser.id,
-                customerId: pppoeUser.customerId ?? null,
-                name: pppoeUser.name,
-                phone: pppoeUser.phone,
-                profile: pppoeUser.profile?.name ?? null,
-                area: pppoeUser.area ?? null,
-              }
-            : null,
-        voucher:
-          sessionType === 'hotspot' && voucher
-            ? {
-                id: voucher.id,
-                status: voucher.status,
-                profile: voucher.profile?.name ?? null,
-                batchCode: voucher.batchCode,
-                expiresAt: voucher.expiresAt
-                  ? new Date(voucher.expiresAt).toISOString()
-                  : null,
-                agent: voucher.agent
-                  ? { id: voucher.agent.id, name: voucher.agent.name }
-                  : null,
-              }
-            : null,
-        dataSource: 'radius',
-      };
-    }), ...syntheticHotspotSessions];
-
-    // ── 4c. Historical MAC fallback from radacct ───────────────────────────
-    // If current active row still misses MAC, reuse latest known MAC
-    // from previous accounting rows for the same username.
-    const missingMacUsernames = [
-      ...new Set(
-        allSessions
-          .filter((s) => s.type === 'hotspot' && (!s.macAddress || s.macAddress === '-'))
-          .map((s) => s.username),
-      ),
-    ];
-    if (missingMacUsernames.length > 0) {
-      const historicalMacMap = await getLatestMacByUsernames(missingMacUsernames);
-      allSessions = allSessions.map((s) => {
-        if (s.type !== 'hotspot') return s;
-        if (s.macAddress && s.macAddress !== '-') return s;
-        const historicalMac = historicalMacMap.get(s.username);
-        return historicalMac ? { ...s, macAddress: historicalMac } : s;
-      });
-    }
-
-    // ── 4d. Optional live hotspot fallback from MikroTik API ──────────────
-    // If radacct is delayed/missing for hotspot (common when Accounting-Start
-    // does not arrive), patch hotspot bytes using live API counters.
-    if (useLiveTraffic && (type === null || type === 'hotspot')) {
-      const hotspotUsernames = new Set(
-        allSessions
-          .filter((s) => s.type === 'hotspot')
-          .map((s) => s.username),
-      );
-
-      if (hotspotUsernames.size > 0) {
-        const liveMap = await fetchLiveHotspotTrafficMap(routers, hotspotUsernames);
-        const mutableSessions = allSessions as Array<any>;
-        for (const s of mutableSessions) {
-          if (s.type !== 'hotspot') continue;
-          const live = liveMap.get(s.username);
-          if (!live) continue;
-
-          const uploadBytes = live.uploadBytes;
-          const downloadBytes = live.downloadBytes;
-          const totalBytes = uploadBytes + downloadBytes;
-
-          s.sessionId = s.sessionId || live.sessionId || '';
-          s.framedIpAddress = s.framedIpAddress || live.ipAddress || null;
-          s.macAddress =
-            s.macAddress && s.macAddress !== '-'
-              ? s.macAddress
-              : (live.macAddress || s.macAddress || '-');
-          s.uploadBytes = uploadBytes;
-          s.downloadBytes = downloadBytes;
-          s.totalBytes = totalBytes;
-          s.uploadFormatted = formatBytes(uploadBytes);
-          s.downloadFormatted = formatBytes(downloadBytes);
-          s.totalFormatted = formatBytes(totalBytes);
-          // For live hotspot overlay, lastUpdate should represent the live
-          // poll moment (not stale acctupdatetime from DB which may differ
-          // by timezone source). Store in WIB-as-UTC space for formatWIB().
-          s.lastUpdate = new Date(Date.now() + TZ_OFFSET_MS).toISOString();
-          s.dataSource = s.dataSource === 'radius' ? 'radius+realtime' : s.dataSource;
+        let duration: number;
+        const rawUpdateMs = acct.acctupdatetime ? new Date(acct.acctupdatetime).getTime() : 0;
+        if (rawUpdateMs > effectiveStartMs) {
+          duration = Math.floor((rawUpdateMs - effectiveStartMs) / 1000);
+        } else {
+          duration = Number(acct.acctsessiontime ?? 0);
+          if (duration === 0) {
+            duration = Math.max(0, Math.floor((now - effectiveStartMs) / 1000));
+          }
         }
-      }
-    }
 
-    // ── 5. Filter by session type ─────────────────────────────────────────────────
+        if (acct.acctstarttime && duration > 0) {
+          effectiveStartTime = new Date(now - duration * 1000).toISOString();
+        }
+
+        const uploadBytes = Number(acct.acctinputoctets ?? 0);
+        const downloadBytes = Number(acct.acctoutputoctets ?? 0);
+
+        // Resolve Router: prioritize user's assigned router from DB, then NAS IP lookup, then routerId
+        const sessionRouter = pppoeUser?.router || 
+          (acct.routerId && routerById.get(acct.routerId)) || 
+          routerByNasIp.get(acct.nasipaddress) || 
+          (allRouters.length === 1 ? allRouters[0] : { id: 'unknown', name: acct.nasipaddress || 'Router' });
+
+        return {
+          id: String(acct.radacctid || acct.acctsessionid || u),
+          username: u,
+          sessionId: acct.acctsessionid || null,
+          type: sessionType,
+          nasIpAddress: acct.nasipaddress,
+          framedIpAddress: acct.framedipaddress || null,
+          macAddress: acct.callingstationid || '',
+          calledStationId: acct.calledstationid || '-',
+          startTime: effectiveStartTime,
+          lastUpdate: acct.acctstarttime && duration > 0
+            ? new Date(now).toISOString()
+            : (acct.acctupdatetime ? new Date(acct.acctupdatetime).toISOString() : null),
+          duration,
+          durationFormatted: formatDuration(duration),
+          uploadBytes,
+          downloadBytes,
+          totalBytes: uploadBytes + downloadBytes,
+          uploadFormatted: formatBytes(uploadBytes),
+          downloadFormatted: formatBytes(downloadBytes),
+          totalFormatted: formatBytes(uploadBytes + downloadBytes),
+          router: { id: sessionRouter.id, name: sessionRouter.name },
+          user:
+            sessionType === 'pppoe' && pppoeUser
+              ? {
+                  id: pppoeUser.id,
+                  customerId: pppoeUser.customerId ?? null,
+                  name: pppoeUser.name,
+                  phone: pppoeUser.phone,
+                  profile: pppoeUser.profile?.name ?? null,
+                  area: pppoeUser.area ?? null,
+                }
+              : null,
+          voucher:
+            sessionType === 'hotspot' && voucher
+              ? {
+                  id: voucher.id,
+                  status: voucher.status,
+                  profile: voucher.profile?.name ?? null,
+                  batchCode: voucher.batchCode,
+                  expiresAt: voucher.expiresAt
+                    ? new Date(voucher.expiresAt).toISOString()
+                    : null,
+                  agent: voucher.agent
+                    ? { id: voucher.agent.id, name: voucher.agent.name }
+                    : null,
+                }
+              : null,
+          dataSource: radiusEnabled ? 'radius' : 'mikrotik',
+        };
+      }), ...syntheticHotspotSessions];
+
+    // ── 5. Filter by session type ────────────────────────────────────────────
     if (type) {
       allSessions = allSessions.filter((s) => s.type === type);
+    }
+
+    // ── 5b. Strict Filter by Router ──────────────────────────────────────────
+    if (routerId) {
+      if (selectedRouterStatus && !selectedRouterStatus.isOnline) {
+        // If router is offline, show 0 sessions
+        allSessions = [];
+      } else {
+        allSessions = allSessions.filter((s) => s.router?.id === routerId);
+      }
     }
 
     // ── 6. Stats ────────────────────────────────────────────────────────────
@@ -637,6 +627,8 @@ export async function GET(request: NextRequest) {
         totalBandwidthFormatted: formatBytes(totalBandwidth),
       },
       allTimeStats: cachedAllTimeStats,
+      routerStatus: selectedRouterStatus,
+      routerStatuses: allRouters.map(r => ({ id: r.id, name: r.name })),
       pagination: {
         page,
         limit: limit > 0 ? limit : allSessions.length,
@@ -644,7 +636,7 @@ export async function GET(request: NextRequest) {
         totalPages:
           limit > 0 ? Math.max(1, Math.ceil(allSessions.length / limit)) : 1,
       },
-      mode: 'radius',
+      mode: radiusEnabled ? 'radius' : 'mikrotik',
     });
   } catch (error) {
     console.error('[Sessions API] Failed to list active sessions', error);

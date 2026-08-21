@@ -153,7 +153,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 // Disconnect PPPoE user via MikroTik API with fallback to CoA
 async function disconnectPPPoEUser(router: any, username: string): Promise<{ success: boolean; error?: string }> {
   const host = router.ipAddress || router.nasname;
-  // Prioritize router.port (user configured API port e.g. 8728/10772) first, then apiPort/8729
+  if (!host) return { success: false, error: 'Host IP router belum diatur' };
+
   const primaryPort = router.port || 8728;
   const secondaryPort = router.apiPort || (primaryPort === 8729 ? 8728 : 8729);
   const portsToTry = [primaryPort, ...(secondaryPort !== primaryPort ? [secondaryPort] : [])];
@@ -169,7 +170,6 @@ async function disconnectPPPoEUser(router: any, username: string): Promise<{ suc
             password: router.password,
             timeout: 5,
           };
-          // Enable TLS only if port is explicitly 8729 or router.apiPort
           if (tryPort === 8729 || (router.apiPort && tryPort === router.apiPort)) {
             apiOpts.tls = { rejectUnauthorized: false };
           }
@@ -178,42 +178,47 @@ async function disconnectPPPoEUser(router: any, username: string): Promise<{ suc
           try {
             await api.connect();
             
-            // 1. Try finding active PPPoE session by ?name filter
-            let activeSessions = await api.write('/ppp/active/print', [
-              `?name=${username}`,
-            ]);
+            // 1. Fetch active PPPoE sessions
+            const allActive = await api.write('/ppp/active/print');
+            const targetLower = username.toLowerCase().trim();
+            const activeSessions = allActive.filter((s: any) => 
+              (s.name && s.name.toLowerCase().trim() === targetLower) || 
+              (s.user && s.user.toLowerCase().trim() === targetLower) ||
+              (s['service-name'] && s['service-name'].toLowerCase().trim() === targetLower)
+            );
             
-            // 2. If not found by ?name filter, fetch all active PPPoE sessions and filter manually
-            if (activeSessions.length === 0) {
-              const allActive = await api.write('/ppp/active/print');
-              activeSessions = allActive.filter((s: any) => 
-                s.name === username || 
-                s.user === username ||
-                s['service-name'] === username
-              );
+            let removedCount = 0;
+            for (const s of activeSessions) {
+              if (s['.id']) {
+                await api.write('/ppp/active/remove', [`=.id=${s['.id']}`]);
+                removedCount++;
+              }
             }
-            
-            if (activeSessions.length === 0) {
-              await api.close();
-              return { success: false, error: `User ${username} not found in MikroTik PPPoE active list` };
-            }
-            
-            // 3. Remove the session from MikroTik /ppp active
-            for (const session of activeSessions) {
-              await api.write('/ppp/active/remove', [
-                `=.id=${session['.id']}`,
-              ]);
-            }
+
+            // 2. Remove dynamic PPPoE interface if present
+            try {
+              const ifaces = await api.write('/interface/print', [`?name=<pppoe-${username}>`]);
+              for (const iface of ifaces) {
+                if (iface['.id']) {
+                  await api.write('/interface/remove', [`=.id=${iface['.id']}`]);
+                }
+              }
+            } catch { /* ignore */ }
             
             await api.close();
-            console.log(`[Disconnect] Successfully removed PPPoE session ${username} from ${host}:${tryPort}`);
-            return { success: true };
+            
+            if (removedCount > 0) {
+              console.log(`[Disconnect] Successfully removed ${removedCount} PPPoE session(s) for ${username} from ${host}:${tryPort}`);
+              return { success: true };
+            } else {
+              return { success: false, error: `Sesi ${username} tidak ditemukan aktif di MikroTik ${router.name}` };
+            }
           } catch (error: any) {
             try { await api.close(); } catch {}
-            return { success: false, error: error.message };
+            return { success: false, error: error?.message || String(error) };
           }
         })(),
-        8000,
+        7000,
         `MikroTik API ${host}:${tryPort}`
       );
       if (result.success) return result;
@@ -221,27 +226,25 @@ async function disconnectPPPoEUser(router: any, username: string): Promise<{ suc
       console.log(`[Disconnect] PPPoE API failed on ${host}:${tryPort}: ${err?.message}`);
     }
   }
-  return { success: false, error: `All API ports failed for ${host}` };
+  return { success: false, error: `Gagal terhubung ke API MikroTik ${router.name} (${host})` };
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sessionIds, usernames, useCoA } = body; // Support both session IDs or usernames, useCoA for PPPoE
+    const { sessionIds, usernames } = body;
 
-    if (!sessionIds && !usernames) {
+    if ((!sessionIds || !sessionIds.length) && (!usernames || !usernames.length)) {
       return NextResponse.json(
         { error: 'sessionIds or usernames required' },
         { status: 400 }
       );
     }
 
-    // Check if CoA is available
     if (coaAvailable === null) {
       coaAvailable = await isRadclientAvailable();
     }
 
-    // Get all active routers
     const routers = await prisma.router.findMany({
       where: { isActive: true },
       select: {
@@ -252,214 +255,153 @@ export async function POST(request: NextRequest) {
         username: true,
         password: true,
         port: true,
+        apiPort: true,
         secret: true,
       },
     });
 
     if (routers.length === 0) {
       return NextResponse.json(
-        { error: 'No active routers configured' },
+        { error: 'Tidak ada Router aktif yang terdaftar' },
         { status: 400 }
       );
     }
 
-    let results: any[] = [];
-
-    // If sessionIds provided, disconnect by session IDs (from radacct acctsessionid)
-    if (sessionIds && Array.isArray(sessionIds)) {
-      for (const sessionId of sessionIds) {
-        try {
-          // Look up session in radacct by acctsessionid
-          const session = await prisma.radacct.findFirst({
-            where: {
-              acctsessionid: sessionId,
-              acctstoptime: null, // Only active sessions
-            },
-          });
-
-          if (!session) {
-            results.push({
-              sessionId,
-              success: false,
-              error: 'Session not found or already stopped',
-            });
-            continue;
-          }
-
-          const username = session.username;
-
-          // Determine session type by checking if user exists in pppoeUser
-          const pppoeUser = await prisma.pppoeUser.findUnique({
-            where: { username },
-            select: { id: true },
-          });
-          const sessionType = pppoeUser ? 'pppoe' : 'hotspot';
-
-          // Find the router - try matching by nasipaddress first
-          let router = routers.find(r => 
-            r.nasname === session.nasipaddress || 
-            r.ipAddress === session.nasipaddress
-          );
-
-          // If not found and only one router, use it
-          if (!router && routers.length === 1) {
-            router = routers[0];
-          }
-
-          let result: { success: boolean; error?: string };
-          
-          // For PPPoE: use MikroTik API directly (faster, no CoA port needed).
-          // CoA via radclient only as fallback when MikroTik API is unreachable.
-          if (sessionType === 'pppoe') {
-            if (router) {
-              console.log(`[Disconnect] MikroTik API disconnect for PPPoE user: ${username}`);
-              result = await disconnectPPPoEUser(router, username);
-            } else {
-              // Try all routers
-              result = { success: false, error: 'Router not found' };
-              for (const r of routers) {
-                result = await disconnectPPPoEUser(r, username);
-                if (result.success) { router = r; break; }
-              }
-            }
-            // CoA fallback if MikroTik API failed and radclient is available
-            if (!result.success && coaAvailable && session.nasipaddress) {
-              console.log(`[Disconnect] MikroTik API failed, trying CoA fallback for: ${username}`);
-              result = await disconnectPPPoEViaCoA(username, {
-                acctSessionId: session.acctsessionid || undefined,
-                nasIpAddress: session.nasipaddress || undefined,
-                framedIpAddress: session.framedipaddress || undefined,
-              });
-            }
-          } else if (router) {
-            // Hotspot: MikroTik API
-            result = await disconnectHotspotUser(router, username);
-          } else {
-            // Hotspot: try all routers
-            result = { success: false, error: 'Router not found' };
-            for (const r of routers) {
-              result = await disconnectHotspotUser(r, username);
-              if (result.success) { router = r; break; }
-            }
-          }
-
-          results.push({
-            sessionId,
-            username,
-            type: sessionType,
-            router: router?.name || 'unknown',
-            method: 'api',
-            ...result,
-          });
-
-          // If disconnect successful, update radacct to mark session as stopped
-          if (result.success) {
-            await prisma.radacct.update({
-              where: { radacctid: session.radacctid },
-              data: {
-                acctstoptime: new Date(),
-                acctterminatecause: 'Admin-Reset',
-              },
-            });
-          }
-        } catch (error: any) {
-          results.push({
-            sessionId,
-            success: false,
-            error: error.message,
-          });
-        }
-      }
+    // Collect all target usernames to disconnect
+    const targetUsernames = new Set<string>();
+    if (Array.isArray(usernames)) {
+      usernames.filter(Boolean).forEach((u: string) => targetUsernames.add(u.trim()));
     }
 
-    // If usernames provided, disconnect by username
-    if (usernames && Array.isArray(usernames)) {
-      for (const username of usernames) {
-        try {
-          // Determine session type
-          const pppoeUser = await prisma.pppoeUser.findUnique({
-            where: { username },
-            select: { id: true },
-          });
-          const sessionType = pppoeUser ? 'pppoe' : 'hotspot';
+    if (Array.isArray(sessionIds) && sessionIds.length > 0) {
+      const stringIds = sessionIds.map(s => String(s));
+      const [radaccts, mikrotikSessions] = await Promise.all([
+        prisma.radacct.findMany({
+          where: {
+            OR: [
+              { acctsessionid: { in: stringIds } },
+              { username: { in: stringIds } },
+            ]
+          },
+          select: { username: true }
+        }),
+        prisma.mikrotikSession.findMany({
+          where: {
+            OR: [
+              { id: { in: stringIds } },
+              { username: { in: stringIds } },
+            ]
+          },
+          select: { username: true }
+        })
+      ]);
 
-          // Get active session info for CoA
-          const activeSession = await prisma.radacct.findFirst({
-            where: {
-              username,
-              acctstoptime: null,
-            },
-            orderBy: { acctstarttime: 'desc' },
-          });
+      radaccts.forEach(r => { if (r.username) targetUsernames.add(r.username.trim()); });
+      mikrotikSessions.forEach(m => { if (m.username) targetUsernames.add(m.username.trim()); });
+      stringIds.forEach(s => {
+        if (s && !s.startsWith('rad-') && !s.startsWith('voucher-')) {
+          targetUsernames.add(s.trim());
+        }
+      });
+    }
 
-          let result: { success: boolean; error?: string } = { success: false, error: 'Not disconnected' };
-          let usedRouter: any = null;
-          let method = 'api';
+    const results: any[] = [];
 
-          // For PPPoE: MikroTik API first (faster, reliable via VPN tunnel).
-          // CoA via radclient only as fallback when MikroTik API is unreachable.
-          if (sessionType === 'pppoe') {
-            for (const router of routers) {
-              result = await disconnectPPPoEUser(router, username);
-              if (result.success) { usedRouter = router; break; }
+    for (const username of targetUsernames) {
+      try {
+        const pppoeUser = await prisma.pppoeUser.findFirst({
+          where: {
+            OR: [
+              { username },
+              { username: username.toLowerCase() },
+              { username: username.toUpperCase() },
+            ]
+          },
+          include: { router: true }
+        });
+
+        const sessionType = pppoeUser ? 'pppoe' : 'hotspot';
+
+        // Order router candidates: assigned router first
+        const routerCandidates: any[] = [];
+        if (pppoeUser?.router && pppoeUser.router.isActive) {
+          routerCandidates.push(pppoeUser.router);
+        }
+        for (const r of routers) {
+          if (!routerCandidates.find(c => c.id === r.id)) {
+            routerCandidates.push(r);
+          }
+        }
+
+        let disconnectResult: { success: boolean; error?: string } = { success: false, error: 'Router tidak ditemukan' };
+        let matchedRouter: any = null;
+        let method = 'api';
+
+        if (sessionType === 'pppoe') {
+          for (const r of routerCandidates) {
+            disconnectResult = await disconnectPPPoEUser(r, username);
+            if (disconnectResult.success) {
+              matchedRouter = r;
+              break;
             }
-            // CoA fallback if MikroTik API failed and radclient is available
-            if (!result.success && coaAvailable) {
+          }
+
+          // CoA Fallback if API fails
+          if (!disconnectResult.success && coaAvailable) {
+            const activeRad = await prisma.radacct.findFirst({
+              where: { username, acctstoptime: null },
+              orderBy: { acctstarttime: 'desc' },
+            });
+            if (activeRad?.nasipaddress) {
               method = 'coa';
-              console.log(`[Disconnect] MikroTik API failed, trying CoA fallback for: ${username}`);
-              result = await disconnectPPPoEViaCoA(username, {
-                acctSessionId: activeSession?.acctsessionid || undefined,
-                nasIpAddress: activeSession?.nasipaddress || undefined,
-                framedIpAddress: activeSession?.framedipaddress || undefined,
+              disconnectResult = await disconnectPPPoEViaCoA(username, {
+                acctSessionId: activeRad.acctsessionid || undefined,
+                nasIpAddress: activeRad.nasipaddress,
+                framedIpAddress: activeRad.framedipaddress || undefined,
               });
             }
-          } else {
-            // Hotspot: try all routers
-            for (const router of routers) {
-              result = await disconnectHotspotUser(router, username);
-              if (result.success) { usedRouter = router; break; }
+          }
+        } else {
+          // Hotspot disconnect
+          for (const r of routerCandidates) {
+            disconnectResult = await disconnectHotspotUser(r, username);
+            if (disconnectResult.success) {
+              matchedRouter = r;
+              break;
             }
           }
-
-          if (result.success) {
-            results.push({
-              username,
-              type: sessionType,
-              router: usedRouter?.name || 'via-coa',
-              method,
-              success: true,
-            });
-
-            // Update radacct if session exists
-            if (activeSession) {
-              await prisma.radacct.update({
-                where: { radacctid: activeSession.radacctid },
-                data: {
-                  acctstoptime: new Date(),
-                  acctterminatecause: 'Admin-Reset',
-                },
-              });
-            }
-          } else {
-            results.push({
-              username,
-              type: sessionType,
-              method,
-              success: false,
-              error: result.error || 'User not found on any router',
-            });
-          }
-        } catch (error: any) {
-          results.push({
-            username,
-            success: false,
-            error: error.message,
-          });
         }
+
+        // Update database accounting records
+        await Promise.all([
+          prisma.radacct.updateMany({
+            where: { username, acctstoptime: null },
+            data: { acctstoptime: new Date(), acctterminatecause: 'Admin-Reset' }
+          }).catch(() => {}),
+          prisma.mikrotikSession.updateMany({
+            where: { username, stopTime: null },
+            data: { stopTime: new Date(), terminateCause: 'Admin-Reset' }
+          }).catch(() => {})
+        ]);
+
+        results.push({
+          username,
+          type: sessionType,
+          router: matchedRouter?.name || (disconnectResult.success ? 'MikroTik' : 'Unknown'),
+          method,
+          success: disconnectResult.success,
+          error: disconnectResult.error,
+        });
+
+      } catch (err: any) {
+        results.push({
+          username,
+          success: false,
+          error: err.message || 'Error saat memutuskan sesi',
+        });
       }
     }
 
-    // Calculate summary
     const successful = results.filter(r => r.success).length;
     const failed = results.filter(r => !r.success).length;
 
