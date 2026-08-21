@@ -35,10 +35,17 @@ export async function POST(
     const body = await req.json();
     const { isPrepared, equipmentChecklist, reportData, reportPhotos, customerLat, customerLng } = body;
 
-    // Fetch existing work order
+    // Fetch existing work order with customer profile and area
     const wo = await prisma.workOrder.findUnique({
       where: { id },
-      include: { customer: true }
+      include: {
+        customer: {
+          include: {
+            profile: true,
+            area: true,
+          }
+        }
+      }
     });
 
     if (!wo) return NextResponse.json({ error: 'Work order not found' }, { status: 404 });
@@ -154,47 +161,116 @@ export async function POST(
     }
 
     // Auto-Billing Trigger & Admin Alert
+    let invoice = null;
     if (wo.linkedUserId) {
-      // Find the first PENDING or OVERDUE invoice for this customer
-      const invoice = await prisma.invoice.findFirst({
+      invoice = await prisma.invoice.findFirst({
         where: {
           userId: wo.linkedUserId,
-          status: { in: ['PENDING', 'OVERDUE'] }
+          status: { in: ['PENDING', 'OVERDUE'] },
+        },
+        include: {
+          user: {
+            include: {
+              profile: true,
+              area: true,
+            }
+          }
         },
         orderBy: {
-          createdAt: 'desc'
-        }
+          createdAt: 'desc',
+        },
       });
+    }
 
-      if (invoice && wo.customer) {
-        // Send WhatsApp Notification for the Invoice
-        const company = await prisma.company.findFirst();
-        
-        await sendInvoiceReminder({
-          phone: wo.customer.phone,
-          customerName: wo.customer.name,
-          customerId: wo.customer.customerId || undefined,
-          customerUsername: wo.customer.username,
-          invoiceNumber: invoice.invoiceNumber,
-          amount: invoice.amount,
-          dueDate: invoice.dueDate,
-          paymentLink: invoice.paymentToken ? `${process.env.NEXT_PUBLIC_APP_URL}/pay/${invoice.paymentToken}` : '',
-          companyName: company?.name || 'ISP',
-          companyPhone: company?.phone || ''
-        }).catch(e => console.error('Failed to send WA Invoice on completion:', e));
-      } else if (!invoice && wo.customer) {
-        // Send alert to Admin that Installation is complete but Invoice is NOT created yet!
+    if (!invoice && wo.customerPhone) {
+      invoice = await prisma.invoice.findFirst({
+        where: {
+          OR: [
+            { customerPhone: wo.customerPhone },
+            { user: { phone: wo.customerPhone } },
+          ],
+          status: { in: ['PENDING', 'OVERDUE'] },
+        },
+        include: {
+          user: {
+            include: {
+              profile: true,
+              area: true,
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+    }
+
+    const company = await prisma.company.findFirst();
+    const appBaseUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://euginemediagroup.com';
+
+    if (invoice) {
+      // Auto-generate paymentLink and paymentToken if missing
+      let paymentLink = invoice.paymentLink || '';
+      let paymentToken = invoice.paymentToken || '';
+      if (!paymentLink || !paymentToken) {
+        const { randomBytes } = await import('crypto');
+        paymentToken = paymentToken || randomBytes(32).toString('hex');
+        paymentLink = `${appBaseUrl}/pay/${paymentToken}`;
+        await prisma.invoice.update({
+          where: { id: invoice.id },
+          data: { paymentLink, paymentToken },
+        }).catch(() => {});
+      }
+
+      const targetPhone = wo.customer?.phone || wo.customerPhone || invoice.customerPhone || invoice.user?.phone;
+      const targetCustomerName = wo.customer?.name || wo.customerName || invoice.customerName || invoice.user?.name || 'Pelanggan';
+      const targetCustomerId = wo.customer?.customerId || invoice.user?.customerId || undefined;
+      const targetUsername = wo.customer?.username || invoice.customerUsername || invoice.user?.username || undefined;
+      const profileName = wo.customer?.profile?.name || invoice.user?.profile?.name || '-';
+      const areaName = wo.customer?.area?.name || invoice.user?.area?.name || '-';
+
+      if (targetPhone) {
         try {
-          const { NotificationService } = await import('@/server/services/notifications/dispatcher.service');
-          await NotificationService.notifyAdminInstallationCompleteNoInvoice({
-            workOrderId: wo.id,
-            customerName: wo.customerName,
-            customerPhone: wo.customerPhone,
-            customerId: wo.customer.customerId || wo.customer.username,
+          await sendInvoiceReminder({
+            phone: targetPhone,
+            customerName: targetCustomerName,
+            customerId: targetCustomerId,
+            customerUsername: targetUsername,
+            profileName,
+            area: areaName,
+            invoiceNumber: invoice.invoiceNumber,
+            amount: invoice.amount,
+            dueDate: invoice.dueDate,
+            paymentLink,
+            companyName: company?.name || 'ISP',
+            companyPhone: company?.phone || '',
           });
-        } catch (notifErr) {
-          console.error('Failed to send admin installation completed alert:', notifErr);
+
+          await prisma.invoice.update({
+            where: { id: invoice.id },
+            data: {
+              waNotifiedAt: new Date(),
+              waRetryCount: { increment: 1 },
+            },
+          }).catch(() => {});
+
+          console.log(`[WorkOrder Complete] WA Tagihan berhasil dikirim otomatis ke ${targetPhone} untuk Invoice ${invoice.invoiceNumber}`);
+        } catch (e) {
+          console.error('[WorkOrder Complete] Gagal mengirim WA Tagihan otomatis:', e);
         }
+      }
+    } else {
+      // Send alert to Admin that Installation is complete but Invoice is NOT created yet!
+      try {
+        const { NotificationService } = await import('@/server/services/notifications/dispatcher.service');
+        await NotificationService.notifyAdminInstallationCompleteNoInvoice({
+          workOrderId: wo.id,
+          customerName: wo.customerName,
+          customerPhone: wo.customerPhone,
+          customerId: wo.customer?.customerId || wo.customer?.username || wo.customerPhone,
+        });
+      } catch (notifErr) {
+        console.error('[WorkOrder Complete] Failed to send admin installation completed alert:', notifErr);
       }
     }
 

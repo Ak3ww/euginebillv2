@@ -111,27 +111,83 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     });
 
     // If status changed to COMPLETED, trigger auto-billing WhatsApp notification
-    if (status === 'COMPLETED' && existing.status !== 'COMPLETED' && updated.linkedUserId) {
-      const invoice = await prisma.invoice.findFirst({
-        where: { userId: updated.linkedUserId, status: 'PENDING' },
-        orderBy: { createdAt: 'desc' },
-      });
+    if (status === 'COMPLETED' && existing.status !== 'COMPLETED') {
+      let invoice = null;
+      if (updated.linkedUserId) {
+        invoice = await prisma.invoice.findFirst({
+          where: { userId: updated.linkedUserId, status: { in: ['PENDING', 'OVERDUE'] } },
+          include: { user: { include: { profile: true, area: true } } },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
 
-      if (invoice && updated.customer) {
+      if (!invoice && (updated.customerPhone || existing.customerPhone)) {
+        const phone = updated.customerPhone || existing.customerPhone;
+        invoice = await prisma.invoice.findFirst({
+          where: {
+            OR: [
+              { customerPhone: phone },
+              { user: { phone } },
+            ],
+            status: { in: ['PENDING', 'OVERDUE'] },
+          },
+          include: { user: { include: { profile: true, area: true } } },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+
+      if (invoice) {
         const company = await prisma.company.findFirst();
-        const { sendInvoiceReminder } = await import('@/server/services/notifications/whatsapp-templates.service');
-        await sendInvoiceReminder({
-          phone: updated.customer.phone,
-          customerName: updated.customer.name,
-          customerId: updated.customer.customerId || undefined,
-          customerUsername: updated.customer.username || undefined,
-          invoiceNumber: invoice.invoiceNumber,
-          amount: invoice.amount,
-          dueDate: invoice.dueDate,
-          paymentLink: invoice.paymentToken ? `${process.env.NEXT_PUBLIC_APP_URL}/pay/${invoice.paymentToken}` : '',
-          companyName: company?.name || 'ISP',
-          companyPhone: company?.phone || '',
-        }).catch((e) => console.error('Failed to send WA Invoice on admin completion:', e));
+        const appBaseUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://euginemediagroup.com';
+
+        let paymentLink = invoice.paymentLink || '';
+        let paymentToken = invoice.paymentToken || '';
+        if (!paymentLink || !paymentToken) {
+          const { randomBytes } = await import('crypto');
+          paymentToken = paymentToken || randomBytes(32).toString('hex');
+          paymentLink = `${appBaseUrl}/pay/${paymentToken}`;
+          await prisma.invoice.update({
+            where: { id: invoice.id },
+            data: { paymentLink, paymentToken },
+          }).catch(() => {});
+        }
+
+        const targetPhone = updated.customer?.phone || updated.customerPhone || invoice.customerPhone || invoice.user?.phone;
+        const targetCustomerName = updated.customer?.name || updated.customerName || invoice.customerName || invoice.user?.name || 'Pelanggan';
+        const targetCustomerId = updated.customer?.customerId || invoice.user?.customerId || undefined;
+        const targetUsername = updated.customer?.username || invoice.customerUsername || invoice.user?.username || undefined;
+        const profileName = invoice.user?.profile?.name || '-';
+        const areaName = invoice.user?.area?.name || '-';
+
+        if (targetPhone) {
+          try {
+            const { sendInvoiceReminder } = await import('@/server/services/notifications/whatsapp-templates.service');
+            await sendInvoiceReminder({
+              phone: targetPhone,
+              customerName: targetCustomerName,
+              customerId: targetCustomerId,
+              customerUsername: targetUsername,
+              profileName,
+              area: areaName,
+              invoiceNumber: invoice.invoiceNumber,
+              amount: invoice.amount,
+              dueDate: invoice.dueDate,
+              paymentLink,
+              companyName: company?.name || 'ISP',
+              companyPhone: company?.phone || '',
+            });
+
+            await prisma.invoice.update({
+              where: { id: invoice.id },
+              data: {
+                waNotifiedAt: new Date(),
+                waRetryCount: { increment: 1 },
+              },
+            }).catch(() => {});
+          } catch (e) {
+            console.error('Failed to send WA Invoice on admin completion:', e);
+          }
+        }
       }
     }
 
