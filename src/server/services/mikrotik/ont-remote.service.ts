@@ -1,6 +1,7 @@
 import { prisma } from '@/server/db/client'
 import { exec as execCb } from 'child_process'
 import { promisify } from 'util'
+import { writeFile, unlink } from 'fs/promises'
 import { RouterOSAPI } from 'node-routeros'
 
 const exec = promisify(execCb)
@@ -227,54 +228,98 @@ export class OntRemoteService {
    *  3. MikroTik masquerade: so ONT sees MikroTik as source
    *  4. MikroTik forward accept rule
    *
-   * This way admin browser hits VPS:proxyPort, socat sends to MikroTik VPN IP,
-   * MikroTik NAT forwards to ONT web interface internally.
+   * This way admin browser hits VPS:proxyPort, node HTTP proxy rewrites Host header and forwards to MikroTik VPN IP,
+   * MikroTik NAT forwards to ONT web interface internally without 400 Bad Request.
    */
   static async setupOntRemoteRules(params: {
     sessionId: string
     routerId: string | null
     ontIp: string         // IP assigned to customer PPPoE session (from /ppp/active/print)
-    mikrotikVpnIp: string // MikroTik's VPN IP — socat target on VPS
+    mikrotikVpnIp: string // MikroTik's VPN IP — target on VPS
     targetPort: number    // ONT web port (80 or 8080)
     proxyPort: number     // Allocated port on VPS
   }): Promise<{ success: boolean; error?: string }> {
     const { sessionId, routerId, ontIp, mikrotikVpnIp, targetPort, proxyPort } = params
 
-    // ── Step 1: VPS socat (Linux only) ──────────────────────────────────────────
+    // ── Step 1: VPS Node HTTP Reverse Proxy (Linux only) ────────────────────────
     if (process.platform === 'linux') {
       try {
-        // Enable IP forwarding
         await runCmd('sysctl -w net.ipv4.ip_forward=1')
-
-        // Ensure socat is installed
-        const socatCheck = await runCmd('which socat')
-        if (!socatCheck) {
-          console.log('[ont-remote] Installing socat...')
-          await runCmd('apt-get update -y && apt-get install -y socat')
-        }
 
         // Open UFW port for this session (idempotent)
         await runCmd(`ufw allow ${proxyPort}/tcp`)
 
-        // Kill any existing socat on this port safely
+        // Kill any existing proxy on this port safely
         await runCmd(`fuser -k ${proxyPort}/tcp`)
+        await runCmd(`pkill -9 -f "ont-proxy-${proxyPort}.js"`)
         await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}"`)
         await new Promise((r) => setTimeout(r, 200))
 
-        // Launch socat: VPS:proxyPort -> MikroTik VPN IP:proxyPort
-        // MikroTik then DST-NATs to ONT internally
-        await exec(
-          `nohup socat TCP-LISTEN:${proxyPort},reuseaddr,fork TCP:${mikrotikVpnIp}:${proxyPort} >/var/log/ont-remote-${proxyPort}.log 2>&1 &`
-        )
+        // Create standalone HTTP reverse proxy script that rewrites Host header
+        // This solves "400 Bad Request: Your request has bad syntax" on ZTE/Huawei ONTs (Boa webserver)
+        const proxyScriptContent = `
+const http = require('http');
+const listenPort = ${proxyPort};
+const mikrotikVpnIp = '${mikrotikVpnIp}';
+const ontIp = '${ontIp}';
+const targetPort = ${targetPort};
 
-        // Verify socat started
+const server = http.createServer((req, res) => {
+  const headers = { ...req.headers };
+  headers['host'] = ontIp + (targetPort === 80 ? '' : ':' + targetPort);
+  delete headers['connection'];
+
+  const options = {
+    hostname: mikrotikVpnIp,
+    port: listenPort,
+    path: req.url,
+    method: req.method,
+    headers: headers,
+    timeout: 15000,
+  };
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    const resHeaders = { ...proxyRes.headers };
+    if (resHeaders['location']) {
+      resHeaders['location'] = resHeaders['location'].replace(
+        new RegExp('https?://' + ontIp.replace(/\\./g, '\\\\.') + '(:' + targetPort + ')?', 'g'),
+        ''
+      );
+    }
+    res.writeHead(proxyRes.statusCode || 200, resHeaders);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error('[ONT-Proxy:' + listenPort + '] Error forwarding to ' + mikrotikVpnIp + ':' + listenPort + ' (' + ontIp + '):', err.message);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px;background:#0f172a;color:#f8fafc;text-align:center;"><div style="max-width:500px;margin:0 auto;background:#1e293b;padding:30px;border-radius:16px;"><h2 style="color:#ef4444;">502 Bad Gateway</h2><p>Gagal menghubungi modem ONT di IP <b>' + ontIp + '</b> via MikroTik <b>' + mikrotikVpnIp + '</b>.</p><p style="color:#94a3b8;font-size:13px;">' + err.message + '</p></div></body></html>');
+    }
+  });
+
+  proxyReq.on('timeout', () => {
+    proxyReq.destroy(new Error('Gateway Timeout (ONT tidak merespons dalam 15 detik)'));
+  });
+
+  req.pipe(proxyReq, { end: true });
+});
+
+server.on('error', (err) => {
+  console.error('[ONT-Proxy:' + listenPort + '] Server error:', err);
+  process.exit(1);
+});
+
+server.listen(listenPort, '0.0.0.0', () => {
+  console.log('[ONT-Proxy] Active on 0.0.0.0:' + listenPort + ' -> ' + mikrotikVpnIp + ':' + listenPort + ' (Host: ' + ontIp + ')');
+});
+`
+        const scriptPath = `/tmp/ont-proxy-${proxyPort}.js`
+        await writeFile(scriptPath, proxyScriptContent.trim(), 'utf8')
+        await exec(`nohup node ${scriptPath} >/var/log/ont-remote-${proxyPort}.log 2>&1 &`)
+
         await new Promise((r) => setTimeout(r, 400))
-        const pid = await runCmd(`pgrep -f "socat TCP-LISTEN:${proxyPort}"`)
-        if (!pid) {
-          console.warn(`[ont-remote] Warning: socat PID check on port ${proxyPort} empty, verifying socket...`)
-        }
-
-        console.log(`[ont-remote] socat aktif: VPS:${proxyPort} -> ${mikrotikVpnIp}:${proxyPort} -> (MikroTik NAT) -> ${ontIp}:${targetPort}`)
+        console.log(`[ont-remote] HTTP Reverse Proxy aktif: VPS:${proxyPort} -> ${mikrotikVpnIp}:${proxyPort} (Host: ${ontIp}) -> (MikroTik NAT) -> ${ontIp}:${targetPort}`)
       } catch (err: any) {
         console.error('[ont-remote] VPS proxy warning:', err?.message || err)
       }
@@ -303,15 +348,23 @@ export class OntRemoteService {
 
       const comment = `ont-remote sess=${sessionId}`
 
-      // Clean any pre-existing rules for this session
+      // Clean any pre-existing rules for this session or port
       try {
-        const oldNat = await api.write('/ip/firewall/nat/print', [`?comment=${comment}`]).catch(() => [])
-        for (const r of oldNat) {
-          if (r['.id']) await api.write('/ip/firewall/nat/remove', [`=.id=${r['.id']}`]).catch(() => {})
+        const allNat = await api.write('/ip/firewall/nat/print').catch(() => [])
+        for (const r of allNat) {
+          const matchComment = r.comment && (r.comment.includes(sessionId) || r.comment.includes(`ont-remote sess=${sessionId}`))
+          const matchPort = proxyPort && String(r['dst-port']) === String(proxyPort)
+          if (matchComment || matchPort) {
+            if (r['.id']) await api.write('/ip/firewall/nat/remove', [`=.id=${r['.id']}`]).catch(() => {})
+          }
         }
-        const oldFilter = await api.write('/ip/firewall/filter/print', [`?comment=${comment}`]).catch(() => [])
-        for (const r of oldFilter) {
-          if (r['.id']) await api.write('/ip/firewall/filter/remove', [`=.id=${r['.id']}`]).catch(() => {})
+        const allFilter = await api.write('/ip/firewall/filter/print').catch(() => [])
+        for (const r of allFilter) {
+          const matchComment = r.comment && (r.comment.includes(sessionId) || r.comment.includes(`ont-remote sess=${sessionId}`))
+          const matchPort = proxyPort && String(r['dst-port']) === String(proxyPort)
+          if (matchComment || matchPort) {
+            if (r['.id']) await api.write('/ip/firewall/filter/remove', [`=.id=${r['.id']}`]).catch(() => {})
+          }
         }
       } catch { /* ignore cleanup errors */ }
 
@@ -349,10 +402,9 @@ export class OntRemoteService {
       await api.close()
       console.log(`[ont-remote] MikroTik NAT rules created: port ${proxyPort} -> ${ontIp}:${targetPort}`)
     } catch (err: any) {
-      // If MikroTik API fails, kill the socat too to avoid dangling proxy
       if (process.platform === 'linux') {
         await exec(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`).catch(() => {})
-        await exec(`pkill -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || true`).catch(() => {})
+        await exec(`pkill -f "ont-proxy-${proxyPort}.js" 2>/dev/null || true`).catch(() => {})
       }
       return { success: false, error: `MikroTik API error: ${err?.message || err}` }
     }
@@ -361,7 +413,7 @@ export class OntRemoteService {
   }
 
   /**
-   * Teardown: kill socat + remove MikroTik rules
+   * Teardown: kill proxy + remove all matching MikroTik NAT & Filter rules
    */
   static async removeOntRemoteRules(params: {
     sessionId: string
@@ -372,51 +424,64 @@ export class OntRemoteService {
   }): Promise<void> {
     const { sessionId, routerId, proxyPort, ontIp, targetPort } = params
 
-    // 1. Kill VPS socat + close UFW port
+    // 1. Kill VPS proxy process + close UFW port + remove tmp script
     if (process.platform === 'linux' && proxyPort) {
       try {
         await runCmd(`fuser -k ${proxyPort}/tcp`)
+        await runCmd(`pkill -9 -f "ont-proxy-${proxyPort}.js"`)
         await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}"`)
-        await runCmd(`rm -f /var/log/ont-remote-${proxyPort}.log`)
-        // Close UFW port after session ends
+        await runCmd(`rm -f /tmp/ont-proxy-${proxyPort}.js /var/log/ont-remote-${proxyPort}.log`)
         await runCmd(`ufw delete allow ${proxyPort}/tcp`)
       } catch { /* ignore */ }
     }
 
-    // 2. Remove MikroTik rules
+    // 2. Remove MikroTik rules across target or all active routers
     try {
-      const router = routerId
-        ? await prisma.router.findUnique({ where: { id: routerId } })
-        : await prisma.router.findFirst({ where: { isActive: true } })
+      const targetRouters = routerId
+        ? await prisma.router.findMany({ where: { id: routerId } })
+        : await prisma.router.findMany({ where: { isActive: true } })
 
-      if (router) {
-        const { RouterOSAPI: RAPI } = await import('node-routeros')
-        const api = new RAPI({
-          host: router.ipAddress || router.nasname,
-          port: router.port || 8728,
-          user: router.username,
-          password: router.password,
-          timeout: 4,
-        })
-        await api.connect()
+      const { RouterOSAPI: RAPI } = await import('node-routeros')
 
-        const comment = `ont-remote sess=${sessionId}`
+      for (const router of targetRouters) {
+        try {
+          const api = new RAPI({
+            host: router.ipAddress || router.nasname,
+            port: router.port || 8728,
+            user: router.username,
+            password: router.password,
+            timeout: 4,
+          })
+          await api.connect()
 
-        const natRules = await api.write('/ip/firewall/nat/print', [`?comment=${comment}`]).catch(() => [])
-        for (const r of natRules) {
-          if (r['.id']) await api.write('/ip/firewall/nat/remove', [`=.id=${r['.id']}`]).catch(() => {})
+          // Remove all NAT rules matching this session ID or proxy port
+          const natRules = await api.write('/ip/firewall/nat/print').catch(() => [])
+          for (const r of natRules) {
+            const matchComment = r.comment && (r.comment.includes(sessionId) || r.comment.includes(`ont-remote sess=${sessionId}`))
+            const matchPort = proxyPort && String(r['dst-port']) === String(proxyPort)
+            if (matchComment || matchPort) {
+              if (r['.id']) await api.write('/ip/firewall/nat/remove', [`=.id=${r['.id']}`]).catch(() => {})
+            }
+          }
+
+          // Remove all Filter rules matching this session ID or proxy port
+          const filterRules = await api.write('/ip/firewall/filter/print').catch(() => [])
+          for (const r of filterRules) {
+            const matchComment = r.comment && (r.comment.includes(sessionId) || r.comment.includes(`ont-remote sess=${sessionId}`))
+            const matchPort = proxyPort && String(r['dst-port']) === String(proxyPort)
+            if (matchComment || matchPort) {
+              if (r['.id']) await api.write('/ip/firewall/filter/remove', [`=.id=${r['.id']}`]).catch(() => {})
+            }
+          }
+
+          await api.close()
+          console.log(`[ont-remote] MikroTik rules removed on router ${router.name} for session ${sessionId} (port ${proxyPort})`)
+        } catch (rErr: any) {
+          console.warn(`[ont-remote] Failed removing rules on router ${router.name}:`, rErr?.message)
         }
-
-        const filterRules = await api.write('/ip/firewall/filter/print', [`?comment=${comment}`]).catch(() => [])
-        for (const r of filterRules) {
-          if (r['.id']) await api.write('/ip/firewall/filter/remove', [`=.id=${r['.id']}`]).catch(() => {})
-        }
-
-        await api.close()
-        console.log(`[ont-remote] MikroTik rules removed for session ${sessionId}`)
       }
     } catch (err: any) {
-      console.warn('[ont-remote] removeOntRemoteRules MikroTik error:', err?.message)
+      console.warn('[ont-remote] removeOntRemoteRules error:', err?.message)
     }
   }
 

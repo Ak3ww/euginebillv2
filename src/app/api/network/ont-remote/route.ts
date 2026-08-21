@@ -217,6 +217,13 @@ export async function DELETE(request: NextRequest) {
       }).catch(() => null)
       routerId = u?.routerId || null
     }
+    if (!routerId && ontSession.username) {
+      const u = await prisma.pppoeUser.findUnique({
+        where: { username: ontSession.username },
+        select: { routerId: true },
+      }).catch(() => null)
+      routerId = u?.routerId || null
+    }
 
     await OntRemoteService.removeOntRemoteRules({
       sessionId: ontSession.id,
