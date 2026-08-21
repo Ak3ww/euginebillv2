@@ -12,6 +12,15 @@
 const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 
+// Normalize phone helper
+function normalizePhone(p) {
+  if (!p) return ''
+  let clean = String(p).replace(/[^0-9]/g, '')
+  if (clean.startsWith('62')) clean = '0' + clean.slice(2)
+  if (clean.startsWith('8')) clean = '08' + clean.slice(1)
+  return clean
+}
+
 async function main() {
   console.log('=== MEMULAI REASSIGN AREA, PELANGGAN, & TAGIHAN PPPOE ===\n')
 
@@ -109,84 +118,126 @@ async function main() {
     data: { routerId: cibinongRouter.id },
   })
 
-  // 3. Auto-link unlinked invoices (userId = null) to pppoeUser by customerUsername or customerPhone
-  const unlinkedInvoices = await prisma.invoice.findMany({
-    where: { userId: null },
-    select: { id: true, customerUsername: true, customerPhone: true },
+  // 3. Deep Match & Link ALL Invoices to pppoeUser
+  const allUsers = await prisma.pppoeUser.findMany({
+    select: { id: true, username: true, name: true, phone: true, customerId: true, routerId: true },
   })
 
-  let linkedInvoicesCount = 0
-  if (unlinkedInvoices.length > 0) {
-    const allUsers = await prisma.pppoeUser.findMany({
-      select: { id: true, username: true, phone: true },
-    })
-    const userByUsername = new Map(allUsers.filter(u => u.username).map(u => [u.username, u.id]))
-    const userByPhone = new Map(allUsers.filter(u => u.phone).map(u => [u.phone, u.id]))
+  const userById = new Map(allUsers.map((u) => [u.id, u]))
+  const userByUsername = new Map()
+  const userByPhone = new Map()
+  const userByName = new Map()
 
-    for (const inv of unlinkedInvoices) {
-      let matchedUserId = null
-      if (inv.customerUsername && userByUsername.has(inv.customerUsername)) {
-        matchedUserId = userByUsername.get(inv.customerUsername)
-      } else if (inv.customerPhone && userByPhone.has(inv.customerPhone)) {
-        matchedUserId = userByPhone.get(inv.customerPhone)
-      }
+  for (const u of allUsers) {
+    if (u.username) userByUsername.set(u.username.toLowerCase().trim(), u)
+    if (u.phone) userByPhone.set(normalizePhone(u.phone), u)
+    if (u.name) userByName.set(u.name.toLowerCase().trim(), u)
+  }
 
-      if (matchedUserId) {
-        await prisma.invoice.update({
-          where: { id: inv.id },
-          data: { userId: matchedUserId },
-        })
-        linkedInvoicesCount++
-      }
+  const allInvoices = await prisma.invoice.findMany({
+    select: {
+      id: true,
+      userId: true,
+      customerUsername: true,
+      customerPhone: true,
+      customerName: true,
+      status: true,
+      createdAt: true,
+    },
+  })
+
+  let updatedInvoiceUserLinks = 0
+
+  for (const inv of allInvoices) {
+    let targetUser = null
+
+    // 1. Check existing userId link
+    if (inv.userId && userById.has(inv.userId)) {
+      targetUser = userById.get(inv.userId)
+    }
+
+    // 2. Check customerUsername match
+    if (!targetUser && inv.customerUsername) {
+      const uKey = inv.customerUsername.toLowerCase().trim()
+      if (userByUsername.has(uKey)) targetUser = userByUsername.get(uKey)
+    }
+
+    // 3. Check customerPhone match
+    if (!targetUser && inv.customerPhone) {
+      const pKey = normalizePhone(inv.customerPhone)
+      if (pKey && userByPhone.has(pKey)) targetUser = userByPhone.get(pKey)
+    }
+
+    // 4. Check customerName match
+    if (!targetUser && inv.customerName) {
+      const nKey = inv.customerName.toLowerCase().trim()
+      if (userByName.has(nKey)) targetUser = userByName.get(nKey)
+    }
+
+    if (targetUser && inv.userId !== targetUser.id) {
+      await prisma.invoice.update({
+        where: { id: inv.id },
+        data: { userId: targetUser.id },
+      })
+      updatedInvoiceUserLinks++
     }
   }
 
-  // Hitung jumlah tagihan per router sekarang
-  const citeureupUsers = await prisma.pppoeUser.findMany({
-    where: { routerId: citeureupRouter.id },
-    select: { id: true, username: true },
-  })
-  const citeureupUserIds = citeureupUsers.map(u => u.id)
-  const citeureupUsernames = citeureupUsers.map(u => u.username)
-
-  const cibinongUsers = await prisma.pppoeUser.findMany({
-    where: { routerId: cibinongRouter.id },
-    select: { id: true, username: true },
-  })
-  const cibinongUserIds = cibinongUsers.map(u => u.id)
-  const cibinongUsernames = cibinongUsers.map(u => u.username)
-
-  const citeureupInvoicesCount = await prisma.invoice.count({
-    where: {
-      OR: [
-        { userId: { in: citeureupUserIds } },
-        { customerUsername: { in: citeureupUsernames } },
-      ],
+  // 4. Hitung rincian Tagihan setelah re-linking
+  const updatedInvoices = await prisma.invoice.findMany({
+    select: {
+      id: true,
+      userId: true,
+      customerUsername: true,
+      status: true,
+      createdAt: true,
+      user: {
+        select: { routerId: true },
+      },
     },
   })
 
-  const cibinongInvoicesCount = await prisma.invoice.count({
-    where: {
-      OR: [
-        { userId: { in: cibinongUserIds } },
-        { customerUsername: { in: cibinongUsernames } },
-      ],
-    },
-  })
+  let citeureupTotalInvoices = 0
+  let cibinongTotalInvoices = 0
+  let citeureupUnpaidInvoices = 0
+  let cibinongUnpaidInvoices = 0
+  let unlinkedInvoicesCount = 0
 
-  console.log('=== HASIL EKSEKUSI PEMISAHAN ===')
-  console.log(`📍 Citeureup:`)
-  console.log(`   - Area assigned : ${citeureupAreaNames.join(', ') || '(tanpa area spesifik)'}`)
-  console.log(`   - Pelanggan     : ${usersInTegalArea.count} user`)
-  console.log(`   - Tagihan       : ${citeureupInvoicesCount} tagihan`)
-  console.log(`📍 Cibinong:`)
-  console.log(`   - Area assigned : ${cibinongAreaNames.join(', ') || '(seluruh area lainnya)'}`)
-  console.log(`   - Pelanggan     : ${usersInCibinong.count} user`)
-  console.log(`   - Tagihan       : ${cibinongInvoicesCount} tagihan`)
-  if (linkedInvoicesCount > 0) {
-    console.log(`🔗 Auto-linked ${linkedInvoicesCount} tagihan tanpa userId ke akun pelanggan`)
+  for (const inv of updatedInvoices) {
+    const rId = inv.user?.routerId
+
+    if (rId === citeureupRouter.id) {
+      citeureupTotalInvoices++
+      if (inv.status === 'PENDING' || inv.status === 'OVERDUE') citeureupUnpaidInvoices++
+    } else if (rId === cibinongRouter.id) {
+      cibinongTotalInvoices++
+      if (inv.status === 'PENDING' || inv.status === 'OVERDUE') cibinongUnpaidInvoices++
+    } else {
+      // Default unlinked fallback to Cibinong if not Tegal
+      cibinongTotalInvoices++
+      if (inv.status === 'PENDING' || inv.status === 'OVERDUE') cibinongUnpaidInvoices++
+      unlinkedInvoicesCount++
+    }
   }
-  console.log('\n✅ PROSES SELESAI DENGAN SUKSES!')
+
+  console.log('=== HASIL EKSEKUSI PEMISAHAN PELANGGAN & TAGIHAN ===')
+  console.log(`📍 Citeureup:`)
+  console.log(`   - Area assigned     : ${citeureupAreaNames.join(', ') || '(KAMPUNG TEGAL)'}`)
+  console.log(`   - Pelanggan Aktif   : ${usersInTegalArea.count} user`)
+  console.log(`   - Tagihan Belum Lunas: ${citeureupUnpaidInvoices} tagihan`)
+  console.log(`   - Total Riwayat     : ${citeureupTotalInvoices} tagihan (termasuk riwayat bulan-bulan lalu)\n`)
+
+  console.log(`📍 Cibinong:`)
+  console.log(`   - Area assigned     : ${cibinongAreaNames.join(', ') || '(MUARA BERES, PURI NIRWANA 3, PISANG, dll)'}`)
+  console.log(`   - Pelanggan Aktif   : ${usersInCibinong.count} user`)
+  console.log(`   - Tagihan Belum Lunas: ${cibinongUnpaidInvoices} tagihan`)
+  console.log(`   - Total Riwayat     : ${cibinongTotalInvoices} tagihan (termasuk riwayat bulan-bulan lalu)\n`)
+
+  if (updatedInvoiceUserLinks > 0) {
+    console.log(`🔗 Berhasil menyatukan ${updatedInvoiceUserLinks} tagihan ke akun pelanggan yang pas (by username/phone/name)`)
+  }
+
+  console.log('✅ PROSES REASSIGNMENT SELESAI 100%!')
 }
 
 main()
