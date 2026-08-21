@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Loader2, Download, FileText, Users, CreditCard, Filter, RefreshCw, FileSpreadsheet, BarChart3, TrendingUp, Calendar, Activity } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';

@@ -1120,7 +1120,7 @@ export async function handleCustomerTopUp(
           profileName: 'Top-Up Saldo',
           invoiceNumber: invoice.invoiceNumber,
           amount: topupAmount,
-          paymentMethod: invoice.paymentMethod || undefined,
+          paymentMethod: (invoice as any).paymentMethod || undefined,
         });
         console.log(`[Customer Top-Up] ✅ WhatsApp notification sent`);
       } catch (waError) {
@@ -1498,7 +1498,7 @@ export async function handleInvoicePayment(
             profileName: profile.name,
             invoiceNumber: invoice.invoiceNumber,
             amount: invoice.amount,
-            paymentMethod: invoice.paymentMethod || undefined,
+            paymentMethod: (invoice as any).paymentMethod || undefined,
             newExpiredAt: finalExpiredAt ?? undefined,
           });
           console.log(`✅ WhatsApp payment success notification sent`);

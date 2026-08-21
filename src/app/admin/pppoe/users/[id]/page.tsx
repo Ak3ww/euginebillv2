@@ -738,7 +738,7 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
           setIsUserDetailModalOpen(false);
           setModalLatLng(undefined);
         }}
-        user={user}
+        user={user as any}
         onSave={handleSaveUser}
         profiles={profiles}
         routers={routers}
@@ -758,7 +758,7 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
           onClose={() => setShowMapPicker(false)}
           initialLat={mapPickerLat ? parseFloat(mapPickerLat) : undefined}
           initialLng={mapPickerLon ? parseFloat(mapPickerLon) : undefined}
-          onSelectLocation={(lat, lng) => {
+          onSelect={(lat: number, lng: number) => {
             setModalLatLng({ lat: lat.toString(), lng: lng.toString() });
             setShowMapPicker(false);
           }}

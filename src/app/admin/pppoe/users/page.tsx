@@ -73,7 +73,7 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
 }) {
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
-    username: '', password: '', profileId: '', routerId: '', areaId: '', name: '', phone: '',
+    username: '', password: '', portalPassword: '123', profileId: '', routerId: '', areaId: '', name: '', phone: '',
     email: '', address: '', latitude: '', longitude: '', ipAddress: '', expiredAt: '',
     subscriptionType: 'POSTPAID' as 'POSTPAID' | 'PREPAID',
     billingDay: '1',

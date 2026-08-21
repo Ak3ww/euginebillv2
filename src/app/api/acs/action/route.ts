@@ -104,7 +104,7 @@ export async function POST(request: Request) {
         deviceId: device.id,
         command: action,
         name: action,
-        payload: Object.keys(payload).length > 0 ? JSON.stringify(payload) : null,
+        payload: Object.keys(payload).length > 0 ? payload : undefined,
         status: 'pending',
       }
     });

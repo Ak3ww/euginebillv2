@@ -515,7 +515,7 @@ export default function InvoicesPage() {
       const data = await res.json();
       if (data.success) {
         showSuccess('Berhasil!', data.message || `Terpakai mengirim ${data.sent} pesan WhatsApp.`);
-        fetchInvoices();
+        loadInvoices();
       } else {
         showError('Gagal', data.error || 'Gagal mengirim reminder WA');
       }

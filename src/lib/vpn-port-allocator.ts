@@ -203,7 +203,7 @@ export async function getPublicPortsByVpnIp(vpnIp: string): Promise<PublicPorts 
     select: { publicPorts: true },
   })
   if (!client?.publicPorts) return null
-  return client.publicPorts as PublicPorts
+  return client.publicPorts as unknown as PublicPorts
 }
 
 /**

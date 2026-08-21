@@ -7,9 +7,9 @@ export const dynamic = 'force-dynamic';
 // POST /api/admin/routers/assign-cibinong
 export async function POST(req: Request) {
   try {
-    const auth = await checkAuth(req);
-    if (!auth.valid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await checkAuth();
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const body = await req.json().catch(() => ({}));

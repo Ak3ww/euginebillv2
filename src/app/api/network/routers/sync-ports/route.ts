@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   if (!router.vpnClient.publicPorts) return NextResponse.json({ error: 'Router ini belum memiliki alokasi port publik. Buat ulang VPN Client untuk mendapatkan alokasi port otomatis.' }, { status: 400 })
 
   const vpnIp = router.vpnClient.vpnIp
-  const oldPorts = router.vpnClient.publicPorts as PublicPorts
+  const oldPorts = router.vpnClient.publicPorts as unknown as PublicPorts
 
   // 2. Konek ke MikroTik via API (via VPN tunnel)
   let actualPorts: Partial<Record<ServiceName, number>> = {}

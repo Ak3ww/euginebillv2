@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Order already paid' }, { status: 400 });
       }
 
-      return await createVoucherPayment(order, gateway);
+      return await createVoucherPayment(order, gateway, paymentMethod);
     }
 
     // For invoices (PPPoE)
@@ -416,7 +416,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Create payment for voucher order
-async function createVoucherPayment(order: any, gateway: string) {
+async function createVoucherPayment(order: any, gateway: string, paymentMethod?: string) {
   // Check if payment gateway is active
   const gatewayConfig = await prisma.paymentGateway.findUnique({
     where: { provider: gateway }

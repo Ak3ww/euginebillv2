@@ -120,7 +120,7 @@ export async function GET(
             startTime: session.startTime,
             stopTime: session.stopTime,
             duration: session.uptime,
-            durationFormatted: formatDuration(session.uptime),
+            durationFormatted: formatDuration(Number(session.uptime) || 0),
             download: formatBytes(download),
             upload: formatBytes(upload),
             total: formatBytes(total),

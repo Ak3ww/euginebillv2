@@ -141,7 +141,8 @@ export async function POST(request: NextRequest) {
       const sheetTargetUsers: { name: string; customerId: string; address: string; phone: string }[] = [];
 
       ws.eachRow((row) => {
-        const vals = row.values.slice(1).map(v => (v !== null && typeof v === 'object' && (v as any).result !== undefined) ? (v as any).result : v);
+        const rawVals = Array.isArray(row.values) ? row.values.slice(1) : Object.values(row.values || {});
+        const vals = rawVals.map((v: any) => (v !== null && typeof v === 'object' && v.result !== undefined) ? v.result : v);
         const name = vals[0] ? String(vals[0]).trim() : '';
         const customerId = vals[1] ? String(vals[1]).trim() : '';
         const address = vals[2] ? String(vals[2]).trim() : '';

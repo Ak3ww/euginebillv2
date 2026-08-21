@@ -10,7 +10,7 @@ import {
   ExcelColumnDef,
 } from '@/lib/utils/export';
 import { checkAuth } from '@/server/middleware/api-auth';
-import { startOfDayWIBtoUTC, endOfDayWIBtoUTC } from '@/lib/timezone';
+import { startOfDayWIBtoUTC, endOfDayWIBtoUTC, formatWIB } from '@/lib/timezone';
 
 export async function GET(req: NextRequest) {
   const auth = await checkAuth();
@@ -36,6 +36,9 @@ export async function GET(req: NextRequest) {
     } else {
       if (status && status !== 'all') {
         where.status = status.toUpperCase();
+      } else {
+        // Exclude CANCELLED by default per enterprise billing standard
+        where.status = { in: ['PAID', 'PENDING', 'OVERDUE'] };
       }
 
       if (invoiceType && invoiceType !== 'all') {
@@ -59,6 +62,7 @@ export async function GET(req: NextRequest) {
           { customerName: { contains: search } },
           { customerUsername: { contains: search } },
           { customerPhone: { contains: search } },
+          { user: { customerId: { contains: search } } },
         ];
       }
     }
@@ -69,12 +73,26 @@ export async function GET(req: NextRequest) {
         user: {
           select: {
             id: true,
+            customerId: true,
             name: true,
             phone: true,
             email: true,
+            address: true,
             username: true,
-            profile: { select: { name: true, price: true } }
+            area: { select: { name: true } },
+            router: { select: { name: true } },
+            profile: { select: { name: true, price: true, ppnActive: true, ppnRate: true } }
           }
+        },
+        payments: {
+          select: { method: true, status: true, paidAt: true },
+          orderBy: { paidAt: 'desc' },
+          take: 1
+        },
+        manualPayments: {
+          select: { bankName: true, destinationBank: true, status: true, approvedAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1
         }
       },
       orderBy: { createdAt: 'desc' },
@@ -83,14 +101,114 @@ export async function GET(req: NextRequest) {
 
     const companyInfo = await getCompanyExportInfo();
 
+    // Map each invoice into enriched accounting data
+    const enrichedData = (invoices as any[]).map((inv, idx) => {
+      const profilePrice = inv.user?.profile?.price ? Number(inv.user.profile.price) : (inv.baseAmount || inv.amount);
+      let additionalAmount = 0;
+      let discountAmount = 0;
+
+      if (Array.isArray(inv.additionalFees)) {
+        for (const fee of (inv.additionalFees as any[])) {
+          const amt = Number(fee.amount) || 0;
+          if (amt > 0) additionalAmount += amt;
+          else if (amt < 0) discountAmount += Math.abs(amt);
+        }
+      }
+
+      // If INSTALLATION (PSB/Prorate) and invoice amount < profilePrice, calculate prorate difference
+      if (inv.invoiceType === 'INSTALLATION') {
+        if (inv.amount < profilePrice) {
+          const prorateDiff = profilePrice - inv.amount;
+          discountAmount = Math.max(discountAmount, prorateDiff);
+        }
+      }
+
+      // Calculate PPN
+      let ppnAmount = 0;
+      if (inv.taxRate && Number(inv.taxRate) > 0) {
+        ppnAmount = Math.round(inv.amount * (Number(inv.taxRate) / 100));
+      } else if (inv.user?.profile?.ppnActive && inv.user?.profile?.ppnRate) {
+        const rate = Number(inv.user.profile.ppnRate) || 11;
+        ppnAmount = Math.round((profilePrice * rate) / 100);
+      }
+
+      // Invoice Type Label
+      let typeLabel = 'Bulanan (Renewal)';
+      if (inv.invoiceType === 'INSTALLATION') {
+        typeLabel = discountAmount > 0 ? 'Pasang Baru (Prorate)' : 'Pasang Baru (Full)';
+      } else if (inv.invoiceType === 'ADDON') {
+        typeLabel = 'Biaya Tambahan';
+      } else if (inv.invoiceType === 'TOPUP') {
+        typeLabel = 'Top Up Saldo';
+      } else if (inv.invoiceType === 'RENEWAL') {
+        typeLabel = 'Bulanan (Renewal)';
+      }
+
+      // Payment Status: LUNAS or BELUM BAYAR (Overdue is treated as Belum Bayar)
+      const statusText = inv.status === 'PAID' ? 'LUNAS' : 'BELUM BAYAR';
+
+      // Accurate Payment Method
+      let paymentMethodText = '-';
+      if (inv.status === 'PAID') {
+        if (inv.payments && inv.payments.length > 0 && inv.payments[0].method) {
+          paymentMethodText = inv.payments[0].method.toUpperCase();
+        } else if (inv.manualPayments && inv.manualPayments.length > 0) {
+          paymentMethodText = inv.manualPayments[0].bankName
+            ? `Transfer (${inv.manualPayments[0].bankName})`
+            : 'Manual Transfer';
+        } else {
+          paymentMethodText = 'Cash / Tunai';
+        }
+      }
+
+      // WA Notification Status
+      const waStatusText = inv.waNotifiedAt
+        ? `Terkirim (${formatWIB(inv.waNotifiedAt, 'dd/MM HH:mm')})`
+        : inv.waRetryCount > 0
+        ? 'Gagal'
+        : 'Belum Kirim';
+
+      // Billing Period
+      const periodeText = formatWIB(inv.dueDate || inv.createdAt, 'MMMM yyyy');
+
+      return {
+        no: idx + 1,
+        invoiceNumber: inv.invoiceNumber,
+        periode: periodeText,
+        typeLabel,
+        customerId: inv.user?.customerId || '-',
+        username: inv.user?.username || inv.customerUsername || '-',
+        customerName: inv.user?.name || inv.customerName || 'Pelanggan',
+        customerPhone: inv.user?.phone || inv.customerPhone || '-',
+        address: inv.user?.address || '-',
+        area: inv.user?.area?.name || '-',
+        router: inv.user?.router?.name || '-',
+        package: inv.user?.profile?.name || '-',
+        profilePrice,
+        additionalAmount,
+        discountAmount,
+        ppnAmount,
+        amount: inv.amount,
+        status: statusText,
+        paymentMethod: paymentMethodText,
+        dueDate: formatDateExport(inv.dueDate),
+        paidAt: inv.paidAt ? formatWIB(inv.paidAt, 'dd/MM/yyyy HH:mm') : '-',
+        waStatus: waStatusText,
+        rawStatus: inv.status,
+      };
+    });
+
     const stats = {
-      total: invoices.length,
-      pending: invoices.filter(i => i.status === 'PENDING').length,
-      paid: invoices.filter(i => i.status === 'PAID').length,
-      overdue: invoices.filter(i => i.status === 'OVERDUE').length,
-      totalAmount: invoices.reduce((sum, i) => sum + i.amount, 0),
-      totalPaid: invoices.filter(i => i.status === 'PAID').reduce((sum, i) => sum + i.amount, 0),
-      totalUnpaid: invoices.filter(i => i.status !== 'PAID').reduce((sum, i) => sum + i.amount, 0)
+      total: enrichedData.length,
+      paid: enrichedData.filter(i => i.rawStatus === 'PAID').length,
+      unpaid: enrichedData.filter(i => i.rawStatus !== 'PAID').length,
+      totalProfilePrice: enrichedData.reduce((sum, i) => sum + i.profilePrice, 0),
+      totalAdditional: enrichedData.reduce((sum, i) => sum + i.additionalAmount, 0),
+      totalDiscount: enrichedData.reduce((sum, i) => sum + i.discountAmount, 0),
+      totalPpn: enrichedData.reduce((sum, i) => sum + i.ppnAmount, 0),
+      totalAmount: enrichedData.reduce((sum, i) => sum + i.amount, 0),
+      totalPaid: enrichedData.filter(i => i.rawStatus === 'PAID').reduce((sum, i) => sum + i.amount, 0),
+      totalUnpaid: enrichedData.filter(i => i.rawStatus !== 'PAID').reduce((sum, i) => sum + i.amount, 0),
     };
 
     const dateSuffix = startDate && endDate ? `${startDate}_to_${endDate}` : new Date().toISOString().split('T')[0];
@@ -99,7 +217,7 @@ export async function GET(req: NextRequest) {
     // Single Invoice PDF Export
     if (format === 'invoice-pdf' && invoiceIds) {
       const invoiceId = invoiceIds.split(',')[0];
-      const invoice = invoices.find(i => i.id === invoiceId);
+      const invoice = (invoices as any[]).find(i => i.id === invoiceId);
 
       if (!invoice) {
         return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
@@ -108,7 +226,7 @@ export async function GET(req: NextRequest) {
       const pdfBuffer = generateInvoicePDF({
         invoiceNumber: invoice.invoiceNumber,
         customerName: invoice.user?.name || invoice.customerName || 'Pelanggan',
-        customerAddress: invoice.user?.email || '',
+        customerAddress: invoice.user?.address || '',
         customerPhone: invoice.user?.phone || invoice.customerPhone || '',
         items: [
           {
@@ -133,28 +251,69 @@ export async function GET(req: NextRequest) {
 
     // Binary PDF Export (Client or direct download)
     if (format === 'pdf') {
-      const headers = ['No.', 'No. Invoice', 'Nama Pelanggan', 'No. Telepon', 'Username', 'Paket Internet', 'Jumlah (Rp)', 'Status', 'Jatuh Tempo', 'Paid At'];
-      const pdfRows = invoices.map((inv, idx) => [
-        idx + 1,
-        inv.invoiceNumber,
-        inv.user?.name || inv.customerName || '-',
-        inv.user?.phone || inv.customerPhone || '-',
-        inv.user?.username || inv.customerUsername || '-',
-        inv.user?.profile?.name || inv.invoiceType || '-',
-        formatCurrencyExport(inv.amount),
-        inv.status === 'PAID' ? 'LUNAS' : inv.status === 'PENDING' ? 'PENDING' : inv.status === 'OVERDUE' ? 'JATUH TEMPO' : 'BATAL',
-        formatDateExport(inv.dueDate),
-        inv.paidAt ? formatDateExport(inv.paidAt) : '-'
+      const headers = [
+        'No.',
+        'No. Tagihan',
+        'Periode',
+        'ID Pelanggan',
+        'Nama Pelanggan',
+        'Paket Internet',
+        'Tipe',
+        'Harga Paket',
+        'Tambahan',
+        'Potongan',
+        'PPN',
+        'Total Bayar',
+        'Status',
+        'Metode',
+        'Jatuh Tempo',
+        'Tgl Bayar',
+      ];
+
+      const pdfRows = enrichedData.map((d) => [
+        d.no,
+        d.invoiceNumber,
+        d.periode,
+        d.customerId,
+        d.customerName,
+        d.package,
+        d.typeLabel,
+        formatCurrencyExport(d.profilePrice),
+        formatCurrencyExport(d.additionalAmount),
+        formatCurrencyExport(d.discountAmount),
+        formatCurrencyExport(d.ppnAmount),
+        formatCurrencyExport(d.amount),
+        d.status,
+        d.paymentMethod,
+        d.dueDate,
+        d.paidAt,
       ]);
 
       const summary = [
-        { label: 'Total Invoice', value: `${stats.total} Item` },
+        { label: 'Total Tagihan', value: `${stats.total} Item (${formatCurrencyExport(stats.totalAmount)})` },
         { label: 'Lunas', value: `${stats.paid} (${formatCurrencyExport(stats.totalPaid)})` },
-        { label: 'Belum Bayar', value: `${stats.pending + stats.overdue} (${formatCurrencyExport(stats.totalUnpaid)})` },
-        { label: 'Total Tagihan', value: formatCurrencyExport(stats.totalAmount) }
+        { label: 'Belum Bayar', value: `${stats.unpaid} (${formatCurrencyExport(stats.totalUnpaid)})` },
+        { label: 'Total Potongan/Diskon', value: formatCurrencyExport(stats.totalDiscount) }
       ];
 
-      const totalRow = ['', '', 'TOTAL TAGIHAN KESELURUHAN', '', '', '', formatCurrencyExport(stats.totalAmount), '', '', ''];
+      const totalRow = [
+        '',
+        '',
+        '',
+        '',
+        'TOTAL KESELURUHAN',
+        '',
+        '',
+        formatCurrencyExport(stats.totalProfilePrice),
+        formatCurrencyExport(stats.totalAdditional),
+        formatCurrencyExport(stats.totalDiscount),
+        formatCurrencyExport(stats.totalPpn),
+        formatCurrencyExport(stats.totalAmount),
+        '',
+        '',
+        '',
+        '',
+      ];
 
       const pdfBuffer = generatePDFBuffer(
         {
@@ -170,7 +329,6 @@ export async function GET(req: NextRequest) {
         totalRow
       );
 
-      // Check if caller requests JSON metadata (backward compatibility) or binary file
       const acceptHeader = req.headers.get('accept') || '';
       if (acceptHeader.includes('application/json') && searchParams.get('mode') === 'json') {
         return NextResponse.json({
@@ -195,65 +353,70 @@ export async function GET(req: NextRequest) {
     // Excel Export (ExcelJS)
     const columns: ExcelColumnDef[] = [
       { key: 'no', header: 'No.', width: 6, isNumber: true },
-      { key: 'invoiceNumber', header: 'No. Invoice', width: 22 },
-      { key: 'customerName', header: 'Nama Pelanggan', width: 26 },
-      { key: 'customerPhone', header: 'No. Telepon', width: 16 },
+      { key: 'invoiceNumber', header: 'No. Tagihan', width: 22 },
+      { key: 'periode', header: 'Periode', width: 16 },
+      { key: 'typeLabel', header: 'Tipe Tagihan', width: 22 },
+      { key: 'customerId', header: 'ID Pelanggan', width: 16 },
       { key: 'username', header: 'Username PPPoE', width: 18 },
-      { key: 'package', header: 'Paket Internet', width: 18 },
-      { key: 'jenis', header: 'Jenis Tagihan', width: 15 },
-      { key: 'amount', header: 'Jumlah Tagihan (Rp)', width: 20, isCurrency: true },
-      { key: 'status', header: 'Status', width: 14 },
-      { key: 'dueDate', header: 'Jatuh Tempo', width: 14, isDate: true },
-      { key: 'paidAt', header: 'Tanggal Dibayar', width: 14, isDate: true },
-      { key: 'createdAt', header: 'Tanggal Dibuat', width: 14, isDate: true }
+      { key: 'customerName', header: 'Nama Pelanggan', width: 26 },
+      { key: 'customerPhone', header: 'No. WhatsApp', width: 16 },
+      { key: 'address', header: 'Alamat Pemasangan', width: 32 },
+      { key: 'area', header: 'Area Coverage', width: 20 },
+      { key: 'router', header: 'Router NAS', width: 22 },
+      { key: 'package', header: 'Paket Internet', width: 20 },
+      { key: 'profilePrice', header: 'Harga Paket', width: 18, isCurrency: true },
+      { key: 'additionalAmount', header: 'Tambahan Biaya', width: 18, isCurrency: true },
+      { key: 'discountAmount', header: 'Potongan Bayar', width: 18, isCurrency: true },
+      { key: 'ppnAmount', header: 'PPN', width: 16, isCurrency: true },
+      { key: 'amount', header: 'Total Bayar', width: 18, isCurrency: true },
+      { key: 'status', header: 'Status Bayar', width: 16 },
+      { key: 'paymentMethod', header: 'Metode Bayar', width: 18 },
+      { key: 'dueDate', header: 'Tanggal Jatuh Tempo', width: 18, isDate: true },
+      { key: 'paidAt', header: 'Tanggal Bayar', width: 18, isDate: true },
+      { key: 'waStatus', header: 'Status Kirim WA', width: 22 },
     ];
 
-    const excelData = invoices.map((inv, idx) => ({
-      no: idx + 1,
-      invoiceNumber: inv.invoiceNumber,
-      customerName: inv.user?.name || inv.customerName || 'Deleted',
-      customerPhone: inv.user?.phone || inv.customerPhone || '',
-      username: inv.user?.username || inv.customerUsername || '',
-      package: inv.user?.profile?.name || '-',
-      jenis: inv.invoiceType || 'PPPoE',
-      amount: inv.amount,
-      status: inv.status === 'PAID' ? 'LUNAS' : inv.status === 'PENDING' ? 'PENDING' : inv.status === 'OVERDUE' ? 'JATUH TEMPO' : 'BATAL',
-      dueDate: formatDateExport(inv.dueDate),
-      paidAt: inv.paidAt ? formatDateExport(inv.paidAt) : '-',
-      createdAt: formatDateExport(inv.createdAt)
-    }));
-
     const summaryMetrics = [
-      { label: 'Total Invoice', value: `${stats.total} Item` },
+      { label: 'Total Tagihan', value: stats.totalAmount },
       { label: 'Total Lunas', value: stats.totalPaid },
       { label: 'Total Belum Bayar', value: stats.totalUnpaid },
-      { label: 'Grand Total', value: stats.totalAmount }
+      { label: 'Total Potongan/Diskon', value: stats.totalDiscount },
     ];
 
     const totalRow = {
       no: '',
       invoiceNumber: '',
+      periode: '',
+      typeLabel: '',
+      customerId: '',
+      username: '',
       customerName: 'TOTAL KESELURUHAN',
       customerPhone: '',
-      username: '',
+      address: '',
+      area: '',
+      router: '',
       package: '',
-      jenis: '',
+      profilePrice: stats.totalProfilePrice,
+      additionalAmount: stats.totalAdditional,
+      discountAmount: stats.totalDiscount,
+      ppnAmount: stats.totalPpn,
       amount: stats.totalAmount,
       status: '',
+      paymentMethod: '',
       dueDate: '',
       paidAt: '',
-      createdAt: ''
+      waStatus: '',
     };
 
-    const excelBuffer = await generateExcelBuffer(excelData, columns, 'Daftar Invoice', {
-      title: 'DAFTAR INVOICE & TAGIHAN',
+    const excelBuffer = await generateExcelBuffer(enrichedData, columns, 'Daftar Tagihan', {
+      title: 'DAFTAR TAGIHAN & INVOICE',
       dateRange: dateRangeStr,
       summary: summaryMetrics,
       totalRow,
       companyInfo
     });
 
-    const filename = `Invoices-${dateSuffix}.xlsx`;
+    const filename = `Tagihan-${dateSuffix}.xlsx`;
 
     return new NextResponse(Buffer.from(excelBuffer), {
       headers: {

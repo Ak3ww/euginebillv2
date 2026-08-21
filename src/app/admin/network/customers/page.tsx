@@ -5,7 +5,7 @@ import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   Plus, Pencil, Trash2, Users, MapPin, X, RefreshCcw,
-  User, Box, Server, HardDrive, Link2, Navigation, Search,
+  User, Box, Server, HardDrive, Link2, Navigation, Search, Globe,
 } from 'lucide-react';
 import {
   SimpleModal,

@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
         deviceId: device.id,
         command: 'Reboot',
         name: 'Reboot',
-        payload: null,
         status: 'pending'
       }
     });

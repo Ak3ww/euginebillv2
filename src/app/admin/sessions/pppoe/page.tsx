@@ -2,31 +2,28 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
+  Activity,
+  Filter,
   Power,
   RefreshCw,
   Wifi,
   Search,
   Download,
-  Router as RouterIcon,
-  CheckCircle2,
-  User,
   Globe,
-  ExternalLink,
-  Activity,
+  Clock,
+  ArrowDown,
+  ArrowUp,
   Server,
-  MessageSquare,
-  Zap,
-  BarChart3,
-  TrendingUp,
-  X,
-  Play,
-  Pause,
+  Calendar,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { useToast } from '@/components/cyberpunk/CyberToast'
 import { useTranslation } from '@/hooks/useTranslation'
-import { cn } from '@/lib/utils'
+import { formatWIB, nowWIB, todayWIBStr } from '@/lib/timezone'
 import OntRemoteModal from '@/components/admin/OntRemoteModal'
 
 interface Session {
@@ -40,259 +37,182 @@ interface Session {
   startTime: string
   lastUpdate: string | null
   duration: number
-  upload?: number
-  download?: number
   durationFormatted: string
   uploadFormatted: string
   downloadFormatted: string
   totalFormatted: string
   router: { id: string; name: string } | null
-  user: {
-    id: string
-    customerId: string
-    name: string
-    phone: string
-    profile: string
-    area?: { id: string; name: string } | null
-  } | null
+  user: { id: string; name: string; phone: string; profile: string } | null
 }
 
-interface OntSession {
-  id: string
-  customerId: string | null
-  customerName: string | null
-  username: string | null
-  routerName: string | null
-  targetIp: string
-  targetPort: number
-  proxyPort: number
-  proxyUrl: string
-  status: string
-  expiresAt: string
-  createdAt: string
-  remainingSeconds: number
-  isExpired: boolean
+interface Pagination {
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }
 
-interface RouterOption {
+interface Stats {
+  total: number
+  pppoe: number
+  hotspot: number
+  totalBandwidthFormatted: string
+}
+
+interface AllTimeStats {
+  totalSessions: number
+  totalBandwidthFormatted: string
+  totalDurationFormatted: string
+}
+
+interface Router {
   id: string
   name: string
-}
-
-interface AnalyticsData {
-  source: string
-  summary: {
-    totalUploadFormatted: string
-    totalDownloadFormatted: string
-    totalBandwidthFormatted: string
-    activeSessionsCount?: number
-  }
-  dailyTrends: Array<{
-    date: string
-    uploadGb: number
-    downloadGb: number
-    totalGb: number
-  }>
 }
 
 export default function PPPoESessionsPage() {
   const { t } = useTranslation()
   const { addToast, confirm } = useToast()
-
   const [sessions, setSessions] = useState<Session[]>([])
-  const [stats, setStats] = useState<any>(null)
-  const [routers, setRouters] = useState<RouterOption[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [allTimeStats, setAllTimeStats] = useState<AllTimeStats | null>(null)
+  const [routers, setRouters] = useState<Router[]>([])
   const [loading, setLoading] = useState(true)
-  const [disconnecting, setDisconnecting] = useState<string | null>(null)
+  const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set())
+  const [disconnecting, setDisconnecting] = useState(false)
   const [routerFilter, setRouterFilter] = useState<string>('')
   const [searchFilter, setSearchFilter] = useState<string>('')
+  const [pagination, setPagination] = useState<Pagination>({ total: 0, page: 1, limit: 25, totalPages: 1 })
+  const [pageSize, setPageSize] = useState<number>(25)
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [showDateRangeModal, setShowDateRangeModal] = useState(false)
+  const [exportStartDate, setExportStartDate] = useState(formatWIB(new Date(nowWIB().getTime() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'))
+  const [exportEndDate, setExportEndDate] = useState(todayWIBStr())
+  const [now, setNow] = useState(() => nowWIB().getTime())
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [copiedIp, setCopiedIp] = useState<string | null>(null)
 
-  // Bandwidth Analytics (Mirrored from DB - ZERO RouterOS API strain)
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
-  const [analyticsLoading, setAnalyticsLoading] = useState(true)
-  const [showAnalytics, setShowAnalytics] = useState(true)
+  // ONT Remote Modal state
+  const [ontModalOpen, setOntModalOpen] = useState(false)
+  const [ontTarget, setOntTarget] = useState<{
+    customerName: string
+    username: string
+    targetIp: string
+    routerName: string
+  }>({
+    customerName: '',
+    username: '',
+    targetIp: '',
+    routerName: '',
+  })
 
-  // On-Demand Single User Live Stream Monitor
-  const [liveStreamUser, setLiveStreamUser] = useState<Session | null>(null)
-  const [liveTraffic, setLiveTraffic] = useState<{ rxMbps: number; txMbps: number } | null>(null)
-  const [isStreaming, setIsStreaming] = useState(false)
+  // 1-second ticker for live duration counter
+  useEffect(() => {
+    const ticker = setInterval(() => setNow(nowWIB().getTime()), 1000)
+    return () => clearInterval(ticker)
+  }, [])
 
-  // ONT Remote Sessions state
-  const [ontSessions, setOntSessions] = useState<OntSession[]>([])
-  const [showOntRemotePanel, setShowOntRemotePanel] = useState(false)
-  const [remoteModalTarget, setRemoteModalTarget] = useState<{
-    isOpen: boolean
-    customerName?: string
-    username?: string
-    targetIp?: string
-    routerName?: string
-  }>({ isOpen: false })
+  const formatDuration = (seconds: number) => {
+    if (!seconds || seconds < 0) return '0d'
+    const d = Math.floor(seconds / 86400)
+    const h = Math.floor((seconds % 86400) / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    const s = seconds % 60
+    if (d > 0) return `${d}h ${h}j ${m}m`
+    if (h > 0) return `${h}j ${m}m ${s}d`
+    if (m > 0) return `${m}m ${s}d`
+    return `${s}d`
+  }
+
+  const liveDuration = (startTimeStr: string | null) => {
+    if (!startTimeStr) return 0
+    const startMs = new Date(startTimeStr).getTime()
+    return Math.max(0, Math.floor((now - startMs) / 1000))
+  }
+
+  const fetchSessions = async (page: number = 1, silent = false, isLive = false) => {
+    try {
+      const pageNum = typeof page === 'number' ? page : 1
+      if (!silent) setLoading(true)
+      const params = new URLSearchParams()
+      params.set('page', pageNum.toString())
+      params.set('limit', pageSize.toString())
+      params.set('type', 'pppoe')
+      if (isLive) params.set('live', 'true')
+      if (routerFilter) params.set('routerId', routerFilter)
+      if (searchFilter) params.set('search', searchFilter)
+
+      const res = await fetch(`/api/sessions?${params}`)
+      const data = await res.json()
+      setSessions(data.sessions || [])
+      setStats(data.stats)
+      setAllTimeStats(data.allTimeStats)
+      if (data.pagination) {
+        setPagination(data.pagination)
+        setCurrentPage(data.pagination.page)
+      }
+    } catch (error) {
+      console.error('Failed to fetch sessions:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchRouters = async () => {
     try {
       const res = await fetch('/api/network/routers')
       const data = await res.json()
-      const list = data.routers || data.data || []
-      if (Array.isArray(list) && list.length > 0) {
-        setRouters(list.map((r: any) => ({ id: r.id, name: r.name })))
-      }
-    } catch {
-      /* ignore */
+      setRouters(data.routers || [])
+    } catch (error) {
+      console.error('Failed to fetch routers:', error)
     }
   }
-
-  const fetchOntSessions = async () => {
-    try {
-      const res = await fetch('/api/network/ont-remote')
-      const data = await res.json()
-      if (data.sessions) {
-        setOntSessions(data.sessions)
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const fetchAnalytics = async () => {
-    try {
-      setAnalyticsLoading(true)
-      const res = await fetch('/api/sessions/analytics?days=7')
-      const data = await res.json()
-      if (data.success) {
-        setAnalytics(data)
-      }
-    } catch {
-      /* ignore */
-    } finally {
-      setAnalyticsLoading(false)
-    }
-  }
-
-  const fetchSessions = useCallback(
-    async (isForceApi: boolean = false) => {
-      try {
-        setLoading(true)
-        const params = new URLSearchParams()
-        params.set('type', 'pppoe')
-        params.set('limit', '500')
-        if (isForceApi) params.set('forceApi', 'true')
-        if (routerFilter) params.set('routerId', routerFilter)
-        if (searchFilter) params.set('search', searchFilter)
-
-        const res = await fetch(`/api/sessions/realtime?${params}`)
-        const data = await res.json()
-
-        if (data.success) {
-          setSessions(data.sessions || [])
-          setStats(data.stats || null)
-          if (data.routers && data.routers.length > 0) setRouters(data.routers)
-        }
-      } catch (err) {
-        console.error('Fetch PPPoE sessions error:', err)
-        addToast({ type: 'error', title: t('common.error'), description: 'Gagal memuat sesi PPPoE' })
-      } finally {
-        setLoading(false)
-      }
-    },
-    [routerFilter, searchFilter, addToast, t]
-  )
 
   useEffect(() => {
-    fetchSessions(false)
-    fetchOntSessions()
     fetchRouters()
-    fetchAnalytics()
+  }, [])
 
-    // Auto-open modal if URL query params present (e.g. from ACS redirect)
+  useEffect(() => {
+    fetchSessions(1)
+    if (!autoRefresh) return
+    const interval = setInterval(() => {
+      fetchSessions(currentPage, true)
+    }, 10000)
+
+    const onVisible = () => {
+      if (!document.hidden) fetchSessions(currentPage, true)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routerFilter, searchFilter, pageSize, currentPage, autoRefresh])
+
+  // Auto-open modal if URL query params present (e.g. from ACS redirect)
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const sp = new URLSearchParams(window.location.search)
       const username = sp.get('username')
       if (username) {
-        setRemoteModalTarget({
-          isOpen: true,
-          username,
+        setOntTarget({
           customerName: username,
+          username,
+          targetIp: '',
+          routerName: 'Router',
         })
+        setOntModalOpen(true)
       }
     }
-  }, [fetchSessions])
+  }, [])
 
-  // Live Traffic Simulation for focused Single User Stream (On-Demand)
-  useEffect(() => {
-    let timer: any = null
-    if (isStreaming && liveStreamUser) {
-      timer = setInterval(() => {
-        setLiveTraffic({
-          rxMbps: parseFloat((Math.random() * 15 + 2).toFixed(2)),
-          txMbps: parseFloat((Math.random() * 3 + 0.5).toFixed(2)),
-        })
-      }, 1500)
-    } else {
-      setLiveTraffic(null)
-    }
-    return () => clearInterval(timer)
-  }, [isStreaming, liveStreamUser])
-
-  const handleDisconnect = async (sessionId: string, username: string) => {
-    if (
-      !(await confirm({
-        title: 'Putuskan Sesi PPPoE',
-        message: `Apakah Anda yakin ingin memutuskan dan menendang sesi PPPoE untuk user "${username}"?`,
-        confirmText: 'Ya, Tendang Sesi',
-        cancelText: 'Batal',
-        variant: 'danger',
-      }))
-    )
-      return
-
-    setDisconnecting(sessionId)
-    try {
-      const res = await fetch('/api/sessions/disconnect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionIds: [sessionId] }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        addToast({
-          type: 'success',
-          title: t('common.success'),
-          description: `Sesi PPPoE ${username} berhasil diputuskan`,
-        })
-        fetchSessions(false)
-      } else {
-        addToast({
-          type: 'error',
-          title: t('common.error'),
-          description: data.error || 'Gagal memutuskan sesi',
-        })
-      }
-    } catch {
-      addToast({
-        type: 'error',
-        title: t('common.error'),
-        description: 'Gagal menghubungi server',
-      })
-    } finally {
-      setDisconnecting(null)
-    }
-  }
-
-  const handleCloseOntSession = async (id: string) => {
-    try {
-      const res = await fetch(`/api/network/ont-remote?id=${id}`, { method: 'DELETE' })
-      if (res.ok) {
-        addToast({ type: 'success', title: 'Berhasil', description: 'Sesi remote ONT ditutup' })
-        fetchOntSessions()
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
+  // Exports
   const handleExportExcel = async () => {
     try {
       const params = new URLSearchParams()
+      params.set('format', 'excel')
+      params.set('mode', 'active')
       params.set('type', 'pppoe')
       if (routerFilter) params.set('routerId', routerFilter)
       if (searchFilter) params.set('username', searchFilter)
@@ -301,525 +221,651 @@ export default function PPPoESessionsPage() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Sessions-PPPoE-${new Date().toISOString().split('T')[0]}.xlsx`
+      a.download = `Sesi-PPPoE-Aktif-${new Date().toISOString().split('T')[0]}.xlsx`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
-    } catch {
-      addToast({ type: 'error', title: 'Error', description: t('sessions.exportFailed') })
+    } catch (error) {
+      console.error('Export error:', error)
+      addToast({ type: 'error', title: 'Error', description: 'Gagal mengekspor file Excel' })
     }
   }
 
-  const activeOntCount = ontSessions.filter((s) => s.status === 'ACTIVE').length
+  const handleExportHistoryExcel = () => {
+    setShowDateRangeModal(true)
+  }
 
-  const filteredSessions = useMemo(() => {
-    return sessions.filter((s) => {
-      if (routerFilter && s.router?.id !== routerFilter) return false
-      if (searchFilter) {
-        const q = searchFilter.toLowerCase()
-        const matchName = s.user?.name?.toLowerCase().includes(q)
-        const matchUser = s.username.toLowerCase().includes(q)
-        const matchIp = s.framedIpAddress?.toLowerCase().includes(q)
-        const matchCustId = s.user?.customerId?.toLowerCase().includes(q)
-        if (!matchName && !matchUser && !matchIp && !matchCustId) return false
+  const handlePerformHistoryExport = async () => {
+    setShowDateRangeModal(false)
+    try {
+      const params = new URLSearchParams()
+      params.set('format', 'excel')
+      params.set('mode', 'history')
+      params.set('type', 'pppoe')
+      params.set('startDate', exportStartDate)
+      params.set('endDate', exportEndDate)
+      if (routerFilter) params.set('routerId', routerFilter)
+      const res = await fetch(`/api/sessions/export?${params}`)
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Riwayat-Sesi-PPPoE-${exportStartDate}-${exportEndDate}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Export error:', error)
+      addToast({ type: 'error', title: 'Error', description: 'Gagal mengekspor riwayat' })
+    }
+  }
+
+  const handleExportPDF = async () => {
+    try {
+      const params = new URLSearchParams()
+      params.set('format', 'pdf')
+      params.set('mode', 'active')
+      params.set('type', 'pppoe')
+      if (routerFilter) params.set('routerId', routerFilter)
+      const res = await fetch(`/api/sessions/export?${params}`)
+      const data = await res.json()
+      if (data.pdfData) {
+        const jsPDF = (await import('jspdf')).default
+        const autoTable = (await import('jspdf-autotable')).default
+        const doc = new jsPDF({ orientation: 'landscape' })
+        doc.setFontSize(14)
+        doc.text(data.pdfData.title, 14, 15)
+        doc.setFontSize(8)
+        doc.text(`Dicetak: ${data.pdfData.generatedAt}`, 14, 21)
+        autoTable(doc, {
+          head: [data.pdfData.headers],
+          body: data.pdfData.rows,
+          startY: 26,
+          styles: { fontSize: 7 },
+          headStyles: { fillColor: [0, 44, 96] },
+        })
+        if (data.pdfData.summary) {
+          const finalY = (doc as any).lastAutoTable.finalY + 8
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'bold')
+          data.pdfData.summary.forEach((s: any, i: number) => {
+            doc.text(`${s.label}: ${s.value}`, 14, finalY + i * 5)
+          })
+        }
+        doc.save(`Sesi-PPPoE-Aktif-${new Date().toISOString().split('T')[0]}.pdf`)
       }
-      return true
-    })
-  }, [sessions, routerFilter, searchFilter])
+    } catch (error) {
+      console.error('PDF error:', error)
+      addToast({ type: 'error', title: 'Error', description: 'Gagal mengekspor PDF' })
+    }
+  }
 
-  // Max value for Bandwidth Trend Chart scaling
-  const maxTrendGb = useMemo(() => {
-    if (!analytics?.dailyTrends || analytics.dailyTrends.length === 0) return 100
-    const maxVal = Math.max(...analytics.dailyTrends.map((d) => d.totalGb))
-    return Math.max(10, maxVal)
-  }, [analytics])
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedSessions(new Set(sessions.map((s) => s.sessionId)))
+    } else {
+      setSelectedSessions(new Set())
+    }
+  }
+
+  const handleSelectSession = (sessionId: string, checked: boolean) => {
+    const newSelected = new Set(selectedSessions)
+    if (checked) {
+      newSelected.add(sessionId)
+    } else {
+      newSelected.delete(sessionId)
+    }
+    setSelectedSessions(newSelected)
+  }
+
+  const handleDisconnect = async (sessionIds: string[]) => {
+    if (
+      !(await confirm({
+        title: 'Putuskan Sesi PPPoE?',
+        message: `Yakin ingin memutuskan koneksi ${sessionIds.length} sesi pelanggan terpilih?`,
+        confirmText: 'Putuskan Sesi',
+        cancelText: 'Batal',
+        variant: 'danger',
+      }))
+    )
+      return
+
+    setDisconnecting(true)
+    try {
+      const res = await fetch('/api/sessions/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionIds }),
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        addToast({
+          type: 'success',
+          title: 'Berhasil',
+          description: `Berhasil memutuskan ${data.summary?.successful || sessionIds.length} sesi.`,
+        })
+        setSelectedSessions(new Set())
+        await fetchSessions(currentPage, false, true)
+      } else {
+        addToast({ type: 'error', title: 'Gagal', description: data.error || 'Gagal memutuskan sesi' })
+      }
+    } catch (error) {
+      addToast({ type: 'error', title: 'Gagal', description: 'Terjadi kesalahan sistem' })
+    } finally {
+      setDisconnecting(false)
+    }
+  }
+
+  const handleBulkDisconnect = () => {
+    const sessionIds = Array.from(selectedSessions)
+    handleDisconnect(sessionIds)
+  }
+
+  const handleCopyIp = (ip: string) => {
+    navigator.clipboard.writeText(ip)
+    setCopiedIp(ip)
+    setTimeout(() => setCopiedIp(null), 2000)
+    addToast({ type: 'info', title: 'Tersalin', description: `IP ${ip} berhasil disalin.` })
+  }
+
+  const openOntModalForSession = (session: Session) => {
+    setOntTarget({
+      customerName: session.user?.name || session.username,
+      username: session.username,
+      targetIp: session.framedIpAddress || '',
+      routerName: session.router?.name || 'Router',
+    })
+    setOntModalOpen(true)
+  }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* SaaS Standard Top Banner Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border rounded-2xl p-6 shadow-sm">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded-full uppercase tracking-wider">
-            <Wifi className="w-3.5 h-3.5" />
-            Pusat Sesi PPPoE &amp; Remote Web ONT
-          </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">
-            Sesi PPPoE Online &amp; Remote ONT 1-Klik
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Kelola sesi aktif pelanggan, pantau statistik bandwidth, dan buka Web Interface ONT modem 1-klik tanpa alur berbelit.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setShowAnalytics((prev) => !prev)}
-            className={cn(
-              'px-3.5 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 border transition-all shadow-sm',
-              showAnalytics
-                ? 'bg-primary/10 text-primary border-primary/30 font-bold'
-                : 'bg-background hover:bg-muted text-muted-foreground border-border'
-            )}
+    <>
+      {/* Date Range Modal for History Export */}
+      {showDateRangeModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in"
+            onClick={() => setShowDateRangeModal(false)}
           >
-            <BarChart3 className="w-4 h-4 text-primary" />
-            <span>Grafik Bandwidth</span>
-          </button>
+            <div
+              className="bg-card border border-border rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl space-y-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-border flex items-center justify-between bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Ekspor Riwayat Sesi PPPoE
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowDateRangeModal(false)}
+                  className="text-muted-foreground hover:text-foreground text-lg leading-none"
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="p-4 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
+                    Dari Tanggal
+                  </label>
+                  <input
+                    type="date"
+                    value={exportStartDate}
+                    onChange={(e) => setExportStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded-xl bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
+                    Sampai Tanggal
+                  </label>
+                  <input
+                    type="date"
+                    value={exportEndDate}
+                    onChange={(e) => setExportEndDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded-xl bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 p-4 border-t border-border bg-muted/20">
+                <button
+                  onClick={() => setShowDateRangeModal(false)}
+                  className="flex-1 px-3 py-2 text-xs border border-border rounded-xl text-muted-foreground hover:bg-muted font-medium"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handlePerformHistoryExport}
+                  className="flex-1 px-3 py-2 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-sm"
+                >
+                  Unduh Excel
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
-          <button
-            onClick={() => setShowOntRemotePanel((prev) => !prev)}
-            className={cn(
-              'px-3.5 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 border transition-all shadow-sm',
-              showOntRemotePanel || activeOntCount > 0
-                ? 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30 font-bold'
-                : 'bg-background hover:bg-muted text-muted-foreground border-border'
-            )}
-          >
-            <Globe className="w-4 h-4 text-cyan-400" />
-            <span>Sesi Remote Active</span>
-            {activeOntCount > 0 && (
-              <span className="px-2 py-0.5 bg-cyan-500 text-black text-[10px] font-bold rounded-full">
-                {activeOntCount}
-              </span>
-            )}
-          </button>
+      {/* ONT Remote Modal */}
+      <OntRemoteModal
+        isOpen={ontModalOpen}
+        onClose={() => setOntModalOpen(false)}
+        customerName={ontTarget.customerName}
+        username={ontTarget.username}
+        targetIp={ontTarget.targetIp}
+        routerName={ontTarget.routerName}
+      />
 
-          <button
-            onClick={() => fetchSessions(true)}
-            disabled={loading}
-            className="px-3.5 py-2 text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
-            title="Tarik Data Sesi Langsung Dari RouterOS API MikroTik"
-          >
-            <Zap className={`w-4 h-4 text-emerald-400 ${loading ? 'animate-spin' : ''}`} />
-            Pull Live API
-          </button>
-
-          <button
-            onClick={handleExportExcel}
-            className="px-3.5 py-2 text-xs font-semibold bg-background hover:bg-muted text-foreground rounded-xl flex items-center gap-1.5 border border-border transition-colors shadow-sm"
-          >
-            <Download className="w-4 h-4 text-primary" />
-            Export Excel
-          </button>
-        </div>
-      </div>
-
-      {/* SECTION: Mirrored DB Bandwidth Analytics Trend Chart */}
-      {showAnalytics && (
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-border pb-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
+      <div className="space-y-6 pb-12">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-primary/10 rounded-xl text-primary">
+                <Wifi className="w-5 h-5" />
+              </div>
               <div>
-                <h2 className="text-base font-bold text-foreground">
-                  Tren Penggunaan Bandwidth (7 Hari Terakhir)
-                </h2>
-                <p className="text-[11px] text-muted-foreground">
-                  Mirrored dari Database DB (Engine:{' '}
-                  <span className="font-mono font-bold text-primary">
-                    {analytics?.source === 'radacct'
-                      ? 'FreeRADIUS RADACCT'
-                      : analytics?.source === 'mikrotikSession'
-                      ? 'MikroTik Session Logs'
-                      : 'Subscriber Profile Estimates'}
-                  </span>
-                  ) &mdash; 0% Router API strain
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+                  Monitoring Sesi PPPoE
+                </h1>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Pantau pelanggan online, traffic realtime, dan remote modem ONT langsung
                 </p>
               </div>
             </div>
-
-            <div className="flex items-center gap-4 text-xs font-mono">
-              <div>
-                <span className="text-muted-foreground text-[10px] uppercase block font-bold">Total Upload (7d)</span>
-                <span className="font-bold text-blue-400">{analytics?.summary.totalUploadFormatted || '0 B'}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground text-[10px] uppercase block font-bold">Total Download (7d)</span>
-                <span className="font-bold text-purple-400">{analytics?.summary.totalDownloadFormatted || '0 B'}</span>
-              </div>
-            </div>
           </div>
 
-          {analyticsLoading ? (
-            <div className="py-8 text-center text-xs text-muted-foreground">
-              <RefreshCw className="w-5 h-5 animate-spin mx-auto text-primary mb-2" />
-              Memuat grafik tren bandwidth dari database...
-            </div>
-          ) : !analytics?.dailyTrends || analytics.dailyTrends.length === 0 ? (
-            <div className="py-6 text-center text-xs text-muted-foreground italic">
-              Belum ada histori data bandwidth 7 hari terakhir.
-            </div>
-          ) : (
-            <div className="space-y-3 pt-2">
-              {/* Daily Trend Bars */}
-              <div className="grid grid-cols-7 gap-2 items-end h-40 pt-6 px-2">
-                {analytics.dailyTrends.map((d, idx) => {
-                  const pct = Math.min(100, Math.max(8, (d.totalGb / maxTrendGb) * 100))
-                  return (
-                    <div key={idx} className="flex flex-col items-center gap-1.5 h-full justify-end group">
-                      <span className="text-[10px] font-mono text-muted-foreground font-bold group-hover:text-foreground transition-colors">
-                        {d.totalGb} GB
-                      </span>
-                      <div className="w-full bg-muted/50 rounded-t-lg overflow-hidden flex flex-col justify-end transition-all" style={{ height: `${pct}%` }}>
-                        <div className="bg-purple-500/80 w-full" style={{ height: `${(d.downloadGb / (d.totalGb || 1)) * 100}%` }} title={`Download: ${d.downloadGb} GB`} />
-                        <div className="bg-blue-500/80 w-full" style={{ height: `${(d.uploadGb / (d.totalGb || 1)) * 100}%` }} title={`Upload: ${d.uploadGb} GB`} />
-                      </div>
-                      <span className="text-[11px] font-mono text-muted-foreground uppercase font-semibold">
-                        {d.date}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Legend */}
-              <div className="flex items-center justify-center gap-6 text-[11px] font-mono pt-2 border-t border-border/50">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded bg-blue-500" />
-                  <span className="text-muted-foreground">Upload (TX)</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded bg-purple-500" />
-                  <span className="text-muted-foreground">Download (RX)</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Summary Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 bg-card border border-border rounded-2xl shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Total Sesi PPPoE Online
-            </span>
-            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-          </div>
-          <p className="text-2xl font-bold text-emerald-500 mt-2">{stats?.pppoe || filteredSessions.length} Koneksi</p>
-        </div>
-
-        <div
-          onClick={() => setShowOntRemotePanel((prev) => !prev)}
-          className="cursor-pointer p-4 bg-card border border-border hover:border-cyan-500/40 rounded-2xl shadow-sm transition-all"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-cyan-500">
-              Sesi Remote ONT Aktif
-            </span>
-            <Globe className="w-5 h-5 text-cyan-500" />
-          </div>
-          <p className="text-2xl font-bold text-cyan-500 mt-2">{activeOntCount} Sesi Terbuka</p>
-        </div>
-
-        <div className="p-4 bg-card border border-border rounded-2xl shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Akumulasi Bandwidth
-            </span>
-            <Activity className="w-5 h-5 text-primary" />
-          </div>
-          <p className="text-xl font-bold text-foreground mt-2 font-mono">
-            {stats?.totalBandwidthFormatted || analytics?.summary.totalBandwidthFormatted || '0 B'}
-          </p>
-        </div>
-
-        <div className="p-4 bg-card border border-border rounded-2xl shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Router Site Terdaftar
-            </span>
-            <Server className="w-5 h-5 text-muted-foreground" />
-          </div>
-          <p className="text-2xl font-bold text-foreground mt-2">{routers.length} Site</p>
-        </div>
-      </div>
-
-      {/* On-Demand Single User Live Stream Monitor Drawer / Card */}
-      {liveStreamUser && (
-        <div className="bg-card border border-emerald-500/40 rounded-2xl p-5 shadow-lg space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <h2 className="text-base font-bold text-foreground">
-                On-Demand Live Traffic Stream: {liveStreamUser.user?.name || liveStreamUser.username} (@{liveStreamUser.username})
-              </h2>
-            </div>
+          {/* Action Toolbar */}
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => {
-                setLiveStreamUser(null)
-                setIsStreaming(false)
-              }}
-              className="p-1 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground"
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border transition-all ${
+                autoRefresh
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  : 'border-border bg-card text-muted-foreground hover:bg-muted'
+              }`}
+              title="Toggle auto-refresh 10 detik"
             >
-              <X className="w-4 h-4" />
+              <span className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground'}`}></span>
+              <span>{autoRefresh ? 'Live (10s)' : 'Pause'}</span>
+            </button>
+
+            <button
+              onClick={() => fetchSessions(currentPage, false, true)}
+              disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-card border border-border rounded-xl hover:bg-muted/70 text-foreground transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+
+            <div className="h-4 w-px bg-border hidden sm:block"></div>
+
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition-all"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Excel</span>
+            </button>
+
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-sm transition-all"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>PDF</span>
+            </button>
+
+            <button
+              onClick={handleExportHistoryExcel}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-card border border-border hover:bg-muted text-foreground rounded-xl transition-all"
+            >
+              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Riwayat</span>
             </button>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-background border border-border p-4 rounded-xl text-xs font-mono">
-            <div>
-              <span className="text-[10px] text-muted-foreground font-bold uppercase block">IP Address Pelanggan</span>
-              <span className="font-bold text-foreground mt-0.5 block">{liveStreamUser.framedIpAddress || '-'}</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-blue-400 font-bold uppercase block">Realtime Upload Throughput</span>
-              <span className="font-bold text-blue-400 text-sm mt-0.5 block">
-                &uarr; {liveTraffic ? `${liveTraffic.txMbps} Mbps` : 'Memulai stream...'}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] text-purple-400 font-bold uppercase block">Realtime Download Throughput</span>
-              <span className="font-bold text-purple-400 text-sm mt-0.5 block">
-                &darr; {liveTraffic ? `${liveTraffic.rxMbps} Mbps` : 'Memulai stream...'}
-              </span>
-            </div>
-          </div>
         </div>
-      )}
 
-      {/* Active Remote ONT Proxies Panel */}
-      {(showOntRemotePanel || activeOntCount > 0) && (
-        <div className="bg-card border border-cyan-500/30 rounded-2xl p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Globe className="w-5 h-5 text-cyan-400" />
-              <h2 className="text-base font-semibold text-foreground">
-                Sesi Remote Web ONT Aktif (10-Menit Reverse Proxy)
-              </h2>
+        {/* Summary Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {/* Card 1: Active PPPoE Sessions */}
+          <div
+            onClick={() => setRouterFilter('')}
+            className={`p-4 bg-card border rounded-2xl cursor-pointer transition-all hover:shadow-sm ${
+              routerFilter === '' ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/5' : 'border-border'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+              <span className="font-semibold uppercase tracking-wider">Total Online</span>
+              <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-[10px] font-bold">LIVE</span>
+              </div>
             </div>
-            <button
-              onClick={() => setShowOntRemotePanel(false)}
-              className="text-xs text-muted-foreground hover:text-foreground font-semibold"
-            >
-              Tutup Panel
-            </button>
+            <div className="text-2xl font-bold text-foreground">
+              {stats ? stats.pppoe || stats.total : 0}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">Sesi PPPoE aktif saat ini</p>
           </div>
 
-          {ontSessions.filter((s) => s.status === 'ACTIVE').length === 0 ? (
-            <p className="text-xs text-muted-foreground italic py-2">
-              Belum ada sesi remote ONT yang aktif saat ini. Klik tombol Remote Web ONT pada card pelanggan di bawah untuk membuka sesi baru!
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {ontSessions
-                .filter((s) => s.status === 'ACTIVE')
-                .map((s) => (
-                  <div key={s.id} className="p-3.5 bg-background border border-cyan-500/30 rounded-xl space-y-2.5">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-bold text-sm text-foreground">{s.customerName || s.username}</div>
-                        <div className="text-[11px] text-muted-foreground font-mono">Site: {s.routerName || 'Router'}</div>
-                      </div>
-                      <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-[11px] font-mono font-bold">
-                        AKTIF
-                      </span>
-                    </div>
+          {/* Card 2: Bandwidth Usage */}
+          <div className="p-4 bg-card border border-border rounded-2xl">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+              <span className="font-semibold uppercase tracking-wider">Total Bandwidth</span>
+              <Activity className="w-4 h-4 text-primary" />
+            </div>
+            <div className="text-2xl font-bold text-foreground">
+              {stats?.totalBandwidthFormatted || '0 B'}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">Akumulasi sesi berjalan</p>
+          </div>
 
-                    <div className="text-xs font-mono text-cyan-400 break-all bg-muted/40 p-2 rounded-lg border border-border">
-                      <a href={s.proxyUrl} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center justify-between">
-                        <span>{s.proxyUrl}</span>
-                        <ExternalLink className="w-3.5 h-3.5 shrink-0 ml-1" />
-                      </a>
-                    </div>
+          {/* Card 3 & 4: Router Filter Badges */}
+          {routers.slice(0, 2).map((router) => {
+            const isSelected = routerFilter === router.id
+            return (
+              <div
+                key={router.id}
+                onClick={() => setRouterFilter(isSelected ? '' : router.id)}
+                className={`p-4 bg-card border rounded-2xl cursor-pointer transition-all hover:shadow-sm ${
+                  isSelected ? 'border-primary ring-1 ring-primary bg-primary/5' : 'border-border'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                  <span className="font-semibold truncate uppercase tracking-wider">{router.name}</span>
+                  <Server className="w-4 h-4 text-muted-foreground shrink-0" />
+                </div>
+                <div className="text-2xl font-bold text-foreground">
+                  {isSelected ? sessions.length : '-'}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {isSelected ? 'Filter aktif (klik lepas)' : 'Klik untuk filter router'}
+                </p>
+              </div>
+            )
+          })}
+        </div>
 
-                    <div className="flex items-center gap-2 pt-1">
-                      <a
-                        href={s.proxyUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" /> Buka Web ONT
-                      </a>
-                      <button
-                        onClick={() => handleCloseOntSession(s.id)}
-                        className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-lg text-xs font-bold transition-colors"
-                      >
-                        Tutup
-                      </button>
-                    </div>
-                  </div>
+        {/* Filters Toolbar */}
+        <div className="p-3 bg-card border border-border rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Cari username, nama, IP, MAC..."
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 bg-background border border-border rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5 text-muted-foreground ml-1" />
+              <select
+                value={routerFilter}
+                onChange={(e) => setRouterFilter(e.target.value)}
+                className="px-2.5 py-1.5 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Semua Router ({routers.length})</option>
+                {routers.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
                 ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Bulk Disconnect Action */}
+          {selectedSessions.size > 0 && (
+            <button
+              onClick={handleBulkDisconnect}
+              disabled={disconnecting}
+              className="w-full md:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-destructive text-destructive-foreground text-xs font-semibold rounded-xl hover:bg-destructive/90 transition-all disabled:opacity-50"
+            >
+              <Power className="w-3.5 h-3.5" />
+              <span>Putuskan {selectedSessions.size} Sesi Terpilih</span>
+            </button>
+          )}
+        </div>
+
+        {/* Sessions Data Table */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+          {/* Table Header Bar */}
+          <div className="px-4 py-3 border-b border-border bg-muted/20 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <span>Tampilkan</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="px-2 py-1 bg-background border border-border rounded-lg text-xs"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span>baris per halaman</span>
+            </div>
+            <div>
+              Menampilkan {pagination.total === 0 ? 0 : (pagination.page - 1) * pageSize + 1} -{' '}
+              {Math.min(pagination.page * pageSize, pagination.total)} dari {pagination.total} sesi
+            </div>
+          </div>
+
+          {/* Desktop & Tablet Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <th className="p-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedSessions.size === sessions.length && sessions.length > 0}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded border-border"
+                    />
+                  </th>
+                  <th className="p-3">Pelanggan / Username</th>
+                  <th className="p-3">Paket</th>
+                  <th className="p-3">Router NAS</th>
+                  <th className="p-3">IP Address (ONT)</th>
+                  <th className="p-3">MAC Address</th>
+                  <th className="p-3">Durasi Online</th>
+                  <th className="p-3 text-right">Traffic (Up / Down)</th>
+                  <th className="p-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {sessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="p-12 text-center text-muted-foreground">
+                      {loading ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+                          <span>Memuat sesi PPPoE...</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1.5">
+                          <Wifi className="w-8 h-8 text-muted-foreground/50 mb-1" />
+                          <p className="font-semibold text-foreground">Tidak Ada Sesi PPPoE Aktif</p>
+                          <p className="text-[11px]">Tidak ada koneksi yang cocok dengan filter saat ini.</p>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ) : (
+                  sessions.map((session) => {
+                    const isSelected = selectedSessions.has(session.sessionId)
+                    const durationSec = liveDuration(session.startTime)
+                    return (
+                      <tr
+                        key={session.id || session.sessionId}
+                        className={`hover:bg-muted/40 transition-colors ${isSelected ? 'bg-primary/5' : ''}`}
+                      >
+                        {/* Checkbox */}
+                        <td className="p-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => handleSelectSession(session.sessionId, e.target.checked)}
+                            className="rounded border-border"
+                          />
+                        </td>
+
+                        {/* Customer & Username */}
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                            <div>
+                              <div className="font-mono font-bold text-foreground">
+                                {session.username}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+                                {session.user?.name || '-'}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Profile */}
+                        <td className="p-3">
+                          <span className="px-2 py-0.5 bg-muted border border-border rounded-lg text-[11px] font-medium text-foreground">
+                            {session.user?.profile || 'PPPoE'}
+                          </span>
+                        </td>
+
+                        {/* Router */}
+                        <td className="p-3 text-muted-foreground">
+                          {session.router?.name || '-'}
+                        </td>
+
+                        {/* Framed IP & ONT Remote Action */}
+                        <td className="p-3">
+                          <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                            <span className="font-semibold text-foreground">
+                              {session.framedIpAddress || '-'}
+                            </span>
+                            {session.framedIpAddress && (
+                              <button
+                                onClick={() => handleCopyIp(session.framedIpAddress)}
+                                className="p-0.5 text-muted-foreground hover:text-foreground"
+                                title="Salin IP"
+                              >
+                                {copiedIp === session.framedIpAddress ? (
+                                  <Check className="w-3 h-3 text-emerald-500" />
+                                ) : (
+                                  <Copy className="w-3 h-3" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* MAC Address */}
+                        <td className="p-3 font-mono text-[11px] text-muted-foreground">
+                          {session.macAddress || '-'}
+                        </td>
+
+                        {/* Duration */}
+                        <td className="p-3">
+                          <div className="flex items-center gap-1 text-primary font-medium">
+                            <Clock className="w-3 h-3 shrink-0" />
+                            <span>{formatDuration(durationSec)}</span>
+                          </div>
+                        </td>
+
+                        {/* Traffic */}
+                        <td className="p-3 text-right">
+                          <div className="text-[11px] space-y-0.5">
+                            <div className="text-emerald-600 dark:text-emerald-400 font-medium">
+                              ↑ {session.uploadFormatted || '0 B'}
+                            </div>
+                            <div className="text-primary font-medium">
+                              ↓ {session.downloadFormatted || '0 B'}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Actions: ONT Remote & Disconnect */}
+                        <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => openOntModalForSession(session)}
+                              className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors"
+                              title="Buka Web GUI Modem ONT"
+                            >
+                              <Globe className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              onClick={() => handleDisconnect([session.sessionId])}
+                              disabled={disconnecting}
+                              className="p-1.5 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg transition-colors disabled:opacity-50"
+                              title="Putuskan Sesi"
+                            >
+                              <Power className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Footer */}
+          {pagination.totalPages > 1 && (
+            <div className="px-4 py-3 border-t border-border bg-muted/20 flex items-center justify-between text-xs">
+              <div className="text-muted-foreground">
+                Halaman {pagination.page} dari {pagination.totalPages}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => fetchSessions(1)}
+                  disabled={pagination.page === 1}
+                  className="px-2.5 py-1 border border-border rounded-lg text-foreground hover:bg-muted disabled:opacity-40"
+                >
+                  Awal
+                </button>
+                <button
+                  onClick={() => fetchSessions(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className="px-2.5 py-1 border border-border rounded-lg text-foreground hover:bg-muted disabled:opacity-40"
+                >
+                  Sebelumnya
+                </button>
+                <span className="px-2.5 py-1 bg-primary text-primary-foreground font-semibold rounded-lg">
+                  {pagination.page}
+                </span>
+                <button
+                  onClick={() => fetchSessions(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className="px-2.5 py-1 border border-border rounded-lg text-foreground hover:bg-muted disabled:opacity-40"
+                >
+                  Selanjutnya
+                </button>
+                <button
+                  onClick={() => fetchSessions(pagination.totalPages)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className="px-2.5 py-1 border border-border rounded-lg text-foreground hover:bg-muted disabled:opacity-40"
+                >
+                  Akhir
+                </button>
+              </div>
             </div>
           )}
         </div>
-      )}
-
-      {/* Control Bar: Filters & Search */}
-      <div className="bg-card border border-border rounded-2xl p-4 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          {/* Router Filter */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <RouterIcon className="w-4 h-4 text-primary shrink-0" />
-            <select
-              value={routerFilter}
-              onChange={(e) => setRouterFilter(e.target.value)}
-              className="w-full sm:w-56 p-2.5 bg-background border border-input rounded-xl text-xs font-semibold text-foreground focus:ring-2 focus:ring-primary outline-none"
-            >
-              <option value="">-- Semua Router Site --</option>
-              {routers.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Search Input */}
-          <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Cari nama, username, IP..."
-              value={searchFilter}
-              onChange={(e) => setSearchFilter(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-background border border-input rounded-xl text-xs font-mono focus:ring-2 focus:ring-primary outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-          <span>Menampilkan <strong className="text-foreground">{filteredSessions.length}</strong> pelanggan online</span>
-        </div>
       </div>
-
-      {/* Grid of Clean SaaS Session Cards */}
-      {loading && filteredSessions.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-12 text-center text-muted-foreground">
-          <RefreshCw className="w-8 h-8 animate-spin mx-auto text-primary mb-3" />
-          <p className="text-sm font-semibold">Memuat sesi PPPoE aktif...</p>
-        </div>
-      ) : filteredSessions.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-12 text-center text-muted-foreground space-y-2">
-          <Wifi className="w-10 h-10 mx-auto opacity-40 mb-2" />
-          <p className="text-sm font-semibold">Tidak ada sesi PPPoE yang sesuai pencarian atau filter.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSessions.map((session) => (
-            <div
-              key={session.id}
-              className="bg-card border border-border hover:border-primary/40 rounded-2xl p-5 shadow-sm space-y-4 transition-all flex flex-col justify-between"
-            >
-              {/* Card Header: Customer Name & ID */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-mono font-bold text-primary">
-                    {session.user?.customerId || session.id.slice(0, 8)}
-                  </span>
-                  <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-mono font-bold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    ONLINE
-                  </span>
-                </div>
-                <h3 className="text-base font-bold text-foreground tracking-tight">
-                  {session.user?.name || session.username}
-                </h3>
-                <div className="text-xs text-muted-foreground font-mono flex items-center gap-2">
-                  <span>{session.username}</span>
-                  {session.user?.profile && <span>• Paket: {session.user.profile}</span>}
-                </div>
-              </div>
-
-              {/* Session Network Metrics Box */}
-              <div className="p-3 bg-muted/40 border border-border rounded-xl space-y-2 text-xs font-mono">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">IP Address:</span>
-                  <span className="font-bold text-foreground">{session.framedIpAddress || '-'}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Router Site:</span>
-                  <span className="font-bold text-foreground">{session.router?.name || 'Router'}</span>
-                </div>
-                <div className="flex justify-between items-center pt-1 border-t border-border/60 text-[11px]">
-                  <span className="text-blue-400 font-bold">&uarr; {session.uploadFormatted}</span>
-                  <span className="text-purple-400 font-bold">&darr; {session.downloadFormatted}</span>
-                </div>
-              </div>
-
-              {/* Action Buttons Row */}
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
-                {/* 1-Click Remote Web ONT Button */}
-                <button
-                  onClick={() =>
-                    setRemoteModalTarget({
-                      isOpen: true,
-                      customerName: session.user?.name || session.username,
-                      username: session.username,
-                      targetIp: session.framedIpAddress,
-                      routerName: session.router?.name || 'Router',
-                    })
-                  }
-                  className="px-3 py-2 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-                  title="Buka Remote Web ONT Proxy (Mode Nottik 10-Min)"
-                >
-                  <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                  Remote Web ONT
-                </button>
-
-                {/* On-Demand Live Traffic Stream Button */}
-                <button
-                  onClick={() => {
-                    setLiveStreamUser(session)
-                    setIsStreaming(true)
-                  }}
-                  className="px-3 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-                  title="Monitor Live Bandwidth Stream untuk pelanggan ini saja"
-                >
-                  <Activity className="w-3.5 h-3.5 text-emerald-400" />
-                  Live Stream
-                </button>
-
-                {/* Tendang Sesi Button */}
-                <button
-                  onClick={() => handleDisconnect(session.sessionId, session.username)}
-                  disabled={disconnecting === session.sessionId}
-                  className="px-3 py-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
-                  title="Putuskan dan tendang sesi PPPoE pelanggan"
-                >
-                  <Power className="w-3.5 h-3.5 text-rose-500" />
-                  {disconnecting === session.sessionId ? 'Tendang...' : 'Tendang Sesi'}
-                </button>
-
-                {/* WhatsApp Chat Button */}
-                {session.user?.phone ? (
-                  <a
-                    href={`https://wa.me/${session.user.phone.replace(/[^0-9]/g, '').replace(/^0/, '62')}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-                    WA Pelanggan
-                  </a>
-                ) : (
-                  <a
-                    href={`/admin/pppoe/users/${session.user?.customerId || session.user?.id || ''}`}
-                    className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-                  >
-                    <User className="w-3.5 h-3.5 text-primary" />
-                    Profil
-                  </a>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* 1-Click ONT Remote Proxy Modal */}
-      <OntRemoteModal
-        isOpen={remoteModalTarget.isOpen}
-        onClose={() => {
-          setRemoteModalTarget({ isOpen: false })
-          fetchOntSessions()
-        }}
-        customerName={remoteModalTarget.customerName}
-        username={remoteModalTarget.username}
-        targetIp={remoteModalTarget.targetIp}
-        routerName={remoteModalTarget.routerName}
-      />
-    </div>
+    </>
   )
 }
