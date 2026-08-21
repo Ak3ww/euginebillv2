@@ -213,7 +213,7 @@ export async function GET(request: NextRequest) {
       if (r.ipAddress) routerByNasIp.set(r.ipAddress, { id: r.id, name: r.name });
     }
 
-    // ── 2. Query active sessions (RADIUS or MikroTik) ───────────────────────
+    // ── 2. Query active sessions (RADIUS or Live MikroTik) ───────────────────
     const company = await prisma.company.findFirst();
     const radiusEnabled = company?.radiusEnabled ?? false;
 
@@ -232,37 +232,162 @@ export async function GET(request: NextRequest) {
         where: radacctWhere,
         orderBy: { acctstarttime: 'desc' },
       });
-    } else {
-      const msWhere: any = { stopTime: null };
-      if (search) {
-        msWhere.OR = [
-          { username: { contains: search } },
-          { ipAddress: { contains: search } },
-          { macAddress: { contains: search } },
-        ];
+    }
+
+    // If non-RADIUS OR radacct returned 0 sessions, query live from MikroTik router(s)
+    if (!radiusEnabled || activeSessions.length === 0) {
+      const targetRouters = selectedRouter ? [selectedRouter] : allRouters;
+      const liveSessionsList: any[] = [];
+
+      await Promise.allSettled(
+        targetRouters.map(async (r) => {
+          const host = r.ipAddress || r.nasname;
+          if (!host || !r.username || !r.password) return;
+          try {
+            const { RouterOSAPI } = await import('node-routeros');
+            const api = new RouterOSAPI({
+              host,
+              port: r.port || 8728,
+              user: r.username,
+              password: r.password,
+              timeout: 3,
+            });
+
+            const connectPromise = api.connect();
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('timeout')), 3000)
+            );
+            await Promise.race([connectPromise, timeoutPromise]);
+
+            // 1. Fetch live PPPoE active sessions
+            if (type !== 'hotspot') {
+              const activePPP = await api.write('/ppp/active/print').catch(() => []);
+              for (const ppp of activePPP) {
+                const username = ppp.name || ppp.user || '';
+                const ip = ppp.address || '';
+                const mac = ppp['caller-id'] || '';
+                const uptimeStr = ppp.uptime || '0s';
+                const uptimeSecs = parseUptime(uptimeStr);
+                const startTime = new Date(Date.now() - uptimeSecs * 1000);
+
+                liveSessionsList.push({
+                  radacctid: BigInt(0),
+                  acctsessionid: ppp['.id'] || ppp['session-id'] || `live-${r.id}-${username}`,
+                  username,
+                  nasipaddress: r.nasname || r.ipAddress || '',
+                  framedipaddress: ip,
+                  callingstationid: mac,
+                  acctstarttime: startTime,
+                  acctupdatetime: new Date(),
+                  acctstoptime: null,
+                  acctsessiontime: uptimeSecs,
+                  acctinputoctets: BigInt(ppp['bytes-in'] || ppp['rx-byte'] || 0),
+                  acctoutputoctets: BigInt(ppp['bytes-out'] || ppp['tx-byte'] || 0),
+                  acctterminatecause: '',
+                  routerId: r.id,
+                  service: 'pppoe',
+                });
+              }
+            }
+
+            // 2. Fetch live Hotspot active sessions
+            if (type !== 'pppoe') {
+              const activeHotspot = await api.write('/ip/hotspot/active/print').catch(() => []);
+              for (const hs of activeHotspot) {
+                const username = hs.user || hs.username || '';
+                const ip = hs.address || '';
+                const mac = hs['mac-address'] || '';
+                const uptimeStr = hs.uptime || '0s';
+                const uptimeSecs = parseUptime(uptimeStr);
+                const startTime = new Date(Date.now() - uptimeSecs * 1000);
+
+                liveSessionsList.push({
+                  radacctid: BigInt(0),
+                  acctsessionid: hs['.id'] || hs['session-id'] || `live-hs-${r.id}-${username}`,
+                  username,
+                  nasipaddress: r.nasname || r.ipAddress || '',
+                  framedipaddress: ip,
+                  callingstationid: mac,
+                  acctstarttime: startTime,
+                  acctupdatetime: new Date(),
+                  acctstoptime: null,
+                  acctsessiontime: uptimeSecs,
+                  acctinputoctets: BigInt(hs['bytes-in'] || 0),
+                  acctoutputoctets: BigInt(hs['bytes-out'] || 0),
+                  acctterminatecause: '',
+                  routerId: r.id,
+                  service: 'hotspot',
+                });
+              }
+            }
+
+            await api.close().catch(() => {});
+          } catch (err) {
+            console.error(`[Sessions] Live MikroTik query failed for router ${r.name}:`, err);
+          }
+        })
+      );
+
+      if (liveSessionsList.length > 0) {
+        activeSessions = liveSessionsList;
+        if (search) {
+          const sLower = search.toLowerCase();
+          activeSessions = activeSessions.filter(s =>
+            s.username.toLowerCase().includes(sLower) ||
+            s.framedipaddress.includes(sLower) ||
+            s.callingstationid.toLowerCase().includes(sLower)
+          );
+        }
+      } else if (!radiusEnabled) {
+        // Fallback to mikrotikSession table if live query yielded no results
+        const msWhere: any = { stopTime: null };
+        if (search) {
+          msWhere.OR = [
+            { username: { contains: search } },
+            { ipAddress: { contains: search } },
+            { macAddress: { contains: search } },
+          ];
+        }
+        const msSessions = await prisma.mikrotikSession.findMany({
+          where: msWhere,
+          orderBy: { startTime: 'desc' },
+          include: { router: true },
+        });
+        activeSessions = msSessions.map(ms => ({
+          radacctid: BigInt(0),
+          acctsessionid: ms.id,
+          username: ms.username,
+          nasipaddress: ms.router?.nasname || ms.router?.ipAddress || '',
+          framedipaddress: ms.ipAddress || '',
+          callingstationid: ms.macAddress || '',
+          acctstarttime: ms.startTime,
+          acctupdatetime: ms.startTime,
+          acctstoptime: ms.stopTime,
+          acctsessiontime: Math.floor((Date.now() - ms.startTime.getTime()) / 1000),
+          acctinputoctets: ms.rxBytes,
+          acctoutputoctets: ms.txBytes,
+          acctterminatecause: ms.terminateCause || '',
+          routerId: ms.routerId,
+          service: 'pppoe',
+        }));
       }
-      const msSessions = await prisma.mikrotikSession.findMany({
-        where: msWhere,
-        orderBy: { startTime: 'desc' },
-        include: { router: true }
-      });
-      activeSessions = msSessions.map(ms => ({
-        radacctid: BigInt(0),
-        acctsessionid: ms.id,
-        username: ms.username,
-        nasipaddress: ms.router?.nasname || ms.router?.ipAddress || '',
-        framedipaddress: ms.ipAddress || '',
-        callingstationid: ms.macAddress || '',
-        acctstarttime: ms.startTime,
-        acctupdatetime: ms.startTime,
-        acctstoptime: ms.stopTime,
-        acctsessiontime: Math.floor((Date.now() - ms.startTime.getTime()) / 1000),
-        acctinputoctets: ms.rxBytes,
-        acctoutputoctets: ms.txBytes,
-        acctterminatecause: ms.terminateCause || '',
-        routerId: ms.routerId,
-        service: 'pppoe',
-      }));
+    }
+
+    // Helper to parse uptime string
+    function parseUptime(uptime: string): number {
+      if (!uptime) return 0;
+      let seconds = 0;
+      const weeks = uptime.match(/(\d+)w/);
+      const days = uptime.match(/(\d+)d/);
+      const hours = uptime.match(/(\d+)h/);
+      const minutes = uptime.match(/(\d+)m/);
+      const secs = uptime.match(/(\d+)s/);
+      if (weeks) seconds += parseInt(weeks[1]) * 7 * 24 * 3600;
+      if (days) seconds += parseInt(days[1]) * 24 * 3600;
+      if (hours) seconds += parseInt(hours[1]) * 3600;
+      if (minutes) seconds += parseInt(minutes[1]) * 60;
+      if (secs) seconds += parseInt(secs[1]);
+      return seconds;
     }
 
     // ── 3. Determine session types & Lookup Users ────────────────────────────
