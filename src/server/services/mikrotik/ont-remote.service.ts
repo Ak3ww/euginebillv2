@@ -255,8 +255,10 @@ export class OntRemoteService {
         await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}"`)
         await new Promise((r) => setTimeout(r, 200))
 
-        // Create standalone HTTP reverse proxy script with header sanitization
-        // This solves "400 Bad Request: Your request has bad syntax" on ZTE/Huawei ONTs (Boa webserver 1KB header buffer limit)
+        // Create standalone HTTP reverse proxy script with header sanitization and ServerName rewriting
+        // ZTE F609/F670/F660 and Huawei modems run Boa Webserver with hardcoded "ServerName 192.168.1.1".
+        // Requests with WAN IP in Host header trigger "400 Bad Request: Your request has bad syntax".
+        // Rewriting Host to "192.168.1.1" solves this completely!
         const proxyScriptContent = `
 const http = require('http');
 const listenPort = ${proxyPort};
@@ -267,16 +269,15 @@ const targetPort = ${targetPort};
 const server = http.createServer((req, res) => {
   // Strip modern browser bloat headers (sec-ch-ua, sec-fetch, etc.) that exceed Boa webserver's 1024-byte buffer
   const cleanHeaders = {};
-  cleanHeaders['host'] = ontIp + (targetPort === 80 ? '' : ':' + targetPort);
-
-  if (req.headers['user-agent']) cleanHeaders['user-agent'] = req.headers['user-agent'];
-  if (req.headers['accept']) cleanHeaders['accept'] = req.headers['accept'];
-  if (req.headers['accept-language']) cleanHeaders['accept-language'] = req.headers['accept-language'];
+  cleanHeaders['host'] = '192.168.1.1';
+  cleanHeaders['user-agent'] = req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)';
+  cleanHeaders['accept'] = req.headers['accept'] || '*/*';
+  cleanHeaders['accept-language'] = req.headers['accept-language'] || 'id,en;q=0.9';
   if (req.headers['cookie']) cleanHeaders['cookie'] = req.headers['cookie'];
   if (req.headers['content-type']) cleanHeaders['content-type'] = req.headers['content-type'];
   if (req.headers['content-length']) cleanHeaders['content-length'] = req.headers['content-length'];
   if (req.headers['authorization']) cleanHeaders['authorization'] = req.headers['authorization'];
-  if (req.headers['referer']) cleanHeaders['referer'] = 'http://' + ontIp + '/';
+  cleanHeaders['referer'] = 'http://192.168.1.1/';
 
   const options = {
     hostname: mikrotikVpnIp,
@@ -289,18 +290,28 @@ const server = http.createServer((req, res) => {
 
   const proxyReq = http.request(options, (proxyRes) => {
     const resHeaders = { ...proxyRes.headers };
+    // Handle redirect locations (prevent browser redirecting to private 192.168.1.1 or WAN IP)
     if (resHeaders['location']) {
       resHeaders['location'] = resHeaders['location'].replace(
-        new RegExp('https?://' + ontIp.replace(/\\./g, '\\\\.') + '(:' + targetPort + ')?', 'g'),
+        /https?:\\/\\/(192\\.168\\.\\d+\\.\\d+|10\\.\\d+\\.\\d+\\.\\d+)(:\\d+)?/gi,
         ''
       );
     }
+    // Strip domain attribute from Set-Cookie so session cookies work on VPS proxy port
+    if (resHeaders['set-cookie']) {
+      if (Array.isArray(resHeaders['set-cookie'])) {
+        resHeaders['set-cookie'] = resHeaders['set-cookie'].map(c => c.replace(/domain=[^;]+;?/gi, ''));
+      } else if (typeof resHeaders['set-cookie'] === 'string') {
+        resHeaders['set-cookie'] = resHeaders['set-cookie'].replace(/domain=[^;]+;?/gi, '');
+      }
+    }
+
     res.writeHead(proxyRes.statusCode || 200, resHeaders);
     proxyRes.pipe(res, { end: true });
   });
 
-  // Explicitly force Host header on the request object so Node doesn't auto-append :24000
-  proxyReq.setHeader('Host', ontIp + (targetPort === 80 ? '' : ':' + targetPort));
+  // Explicitly force Host header to 192.168.1.1 to satisfy Boa webserver
+  proxyReq.setHeader('Host', '192.168.1.1');
 
   proxyReq.on('error', (err) => {
     console.error('[ONT-Proxy:' + listenPort + '] Error forwarding to ' + mikrotikVpnIp + ':' + listenPort + ' (' + ontIp + '):', err.message);
@@ -323,7 +334,7 @@ server.on('error', (err) => {
 });
 
 server.listen(listenPort, '0.0.0.0', () => {
-  console.log('[ONT-Proxy] Active on 0.0.0.0:' + listenPort + ' -> ' + mikrotikVpnIp + ':' + listenPort + ' (Host: ' + ontIp + ')');
+  console.log('[ONT-Proxy] Active on 0.0.0.0:' + listenPort + ' -> ' + mikrotikVpnIp + ':' + listenPort + ' (Host: 192.168.1.1)');
 });
 `
         const scriptPath = `/tmp/ont-proxy-${proxyPort}.js`
@@ -331,7 +342,7 @@ server.listen(listenPort, '0.0.0.0', () => {
         await exec(`nohup node ${scriptPath} >/var/log/ont-remote-${proxyPort}.log 2>&1 &`)
 
         await new Promise((r) => setTimeout(r, 400))
-        console.log(`[ont-remote] HTTP Reverse Proxy aktif: VPS:${proxyPort} -> ${mikrotikVpnIp}:${proxyPort} (Host: ${ontIp}) -> (MikroTik NAT) -> ${ontIp}:${targetPort}`)
+        console.log(`[ont-remote] HTTP Reverse Proxy aktif: VPS:${proxyPort} -> ${mikrotikVpnIp}:${proxyPort} (Host: 192.168.1.1) -> (MikroTik NAT) -> ${ontIp}:${targetPort}`)
       } catch (err: any) {
         console.error('[ont-remote] VPS proxy warning:', err?.message || err)
       }
