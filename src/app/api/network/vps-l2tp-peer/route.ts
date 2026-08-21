@@ -206,7 +206,13 @@ export async function POST(req: NextRequest) {
     })
 
     // Simpan VPN client ke DB
-    let nasSecretForResponse: string | undefined
+    let nasSecretForResponse = process.env.RADIUS_SECRET || 'secret123'
+    try {
+      const r = await prisma.router.findFirst({ where: { isActive: true }, select: { secret: true } })
+      if (r?.secret) nasSecretForResponse = r.secret
+    } catch {
+      // use default
+    }
 
     try {
       // Auto-create vpnServer built-in jika belum ada

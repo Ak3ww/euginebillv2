@@ -451,6 +451,14 @@ export async function POST(req: NextRequest) {
     const effectiveVpnSubnet = `${poolBase}.0/24`
     const effectiveGatewayIp = info.gatewayIp || `${poolBase}.1`
 
+    let effectiveRadiusSecret = process.env.RADIUS_SECRET || 'secret123'
+    try {
+      const r = await prisma.router.findFirst({ where: { isActive: true }, select: { secret: true } })
+      if (r?.secret) effectiveRadiusSecret = r.secret
+    } catch {
+      // use default
+    }
+
     return NextResponse.json({
       success: true,
       vpnIp,
@@ -465,6 +473,7 @@ export async function POST(req: NextRequest) {
       localNetworks: localNetworks || null,
       apiUsername: apiUsernameForResponse,
       apiPassword: apiPasswordForResponse,
+      radiusSecret: effectiveRadiusSecret,
       publicPorts: publicPorts || null,
       vpsPublicIp: info.publicIp || '',
     })

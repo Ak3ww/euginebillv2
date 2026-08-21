@@ -1,747 +1,860 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Activity, Filter, Power, RefreshCw, Wifi, WifiOff, Search, Download } from 'lucide-react';
-import { useToast } from '@/components/cyberpunk/CyberToast';
-import { useTranslation } from '@/hooks/useTranslation';
-import { formatWIB, nowWIB, todayWIBStr } from '@/lib/timezone';
+import { useEffect, useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import {
+  Activity,
+  Filter,
+  Power,
+  RefreshCw,
+  Wifi,
+  Search,
+  Download,
+  Globe,
+  Clock,
+  ArrowDown,
+  ArrowUp,
+  Server,
+  Calendar,
+  CheckSquare,
+  Square,
+  AlertCircle,
+  Copy,
+  Check,
+} from 'lucide-react'
+import { useToast } from '@/components/cyberpunk/CyberToast'
+import { useTranslation } from '@/hooks/useTranslation'
+import { formatWIB, nowWIB, todayWIBStr } from '@/lib/timezone'
+import OntRemoteModal from '@/components/admin/OntRemoteModal'
 
 interface Session {
-  id: string;
-  username: string;
-  sessionId: string;
-  type: 'pppoe' | 'hotspot';
-  nasIpAddress: string;
-  framedIpAddress: string;
-  macAddress: string;
-  startTime: string;
-  lastUpdate: string | null;
-  duration: number;
-  durationFormatted: string;
-  uploadFormatted: string;
-  downloadFormatted: string;
-  totalFormatted: string;
-  router: { id: string; name: string } | null;
-  user: { id: string; name: string; phone: string; profile: string } | null;
-  voucher: { 
-    id: string; 
-    status: string; 
-    profile: string;
-    batchCode?: string;
-    agent?: { id: string; name: string } | null;
-  } | null;
+  id: string
+  username: string
+  sessionId: string
+  type: 'pppoe' | 'hotspot'
+  nasIpAddress: string
+  framedIpAddress: string
+  macAddress: string
+  startTime: string
+  lastUpdate: string | null
+  duration: number
+  durationFormatted: string
+  uploadFormatted: string
+  downloadFormatted: string
+  totalFormatted: string
+  router: { id: string; name: string } | null
+  user: { id: string; name: string; phone: string; profile: string } | null
 }
 
 interface Pagination {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }
 
 interface Stats {
-  total: number;
-  pppoe: number;
-  hotspot: number;
-  totalBandwidthFormatted: string;
+  total: number
+  pppoe: number
+  hotspot: number
+  totalBandwidthFormatted: string
 }
 
 interface AllTimeStats {
-  totalSessions: number;
-  totalBandwidthFormatted: string;
-  totalDurationFormatted: string;
+  totalSessions: number
+  totalBandwidthFormatted: string
+  totalDurationFormatted: string
 }
 
 interface Router {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 export default function SessionsPage() {
-  const { t } = useTranslation();
-  const { addToast, confirm } = useToast();
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [allTimeStats, setAllTimeStats] = useState<AllTimeStats | null>(null);
-  const [routers, setRouters] = useState<Router[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
-  const [disconnecting, setDisconnecting] = useState(false);
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [routerFilter, setRouterFilter] = useState<string>('');
-  const [searchFilter, setSearchFilter] = useState<string>('');
-  const [pagination, setPagination] = useState<Pagination>({ total: 0, page: 1, limit: 25, totalPages: 1 });
-  const [pageSize, setPageSize] = useState<number>(25);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [showDateRangeModal, setShowDateRangeModal] = useState(false);
-  const [exportStartDate, setExportStartDate] = useState(formatWIB(new Date(nowWIB().getTime() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'));
-  const [exportEndDate, setExportEndDate] = useState(todayWIBStr());
-  const [now, setNow] = useState(() => nowWIB().getTime());
+  const { t } = useTranslation()
+  const { addToast, confirm } = useToast()
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [allTimeStats, setAllTimeStats] = useState<AllTimeStats | null>(null)
+  const [routers, setRouters] = useState<Router[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set())
+  const [disconnecting, setDisconnecting] = useState(false)
+  const [routerFilter, setRouterFilter] = useState<string>('')
+  const [searchFilter, setSearchFilter] = useState<string>('')
+  const [pagination, setPagination] = useState<Pagination>({ total: 0, page: 1, limit: 25, totalPages: 1 })
+  const [pageSize, setPageSize] = useState<number>(25)
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [showDateRangeModal, setShowDateRangeModal] = useState(false)
+  const [exportStartDate, setExportStartDate] = useState(formatWIB(new Date(nowWIB().getTime() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'))
+  const [exportEndDate, setExportEndDate] = useState(todayWIBStr())
+  const [now, setNow] = useState(() => nowWIB().getTime())
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [copiedIp, setCopiedIp] = useState<string | null>(null)
+
+  // ONT Remote Modal state
+  const [ontModalOpen, setOntModalOpen] = useState(false)
+  const [ontTarget, setOntTarget] = useState<{
+    customerName: string
+    username: string
+    targetIp: string
+    routerName: string
+  }>({
+    customerName: '',
+    username: '',
+    targetIp: '',
+    routerName: '',
+  })
 
   // 1-second ticker for live duration counter
   useEffect(() => {
-    const ticker = setInterval(() => setNow(nowWIB().getTime()), 1000);
-    return () => clearInterval(ticker);
-  }, []);
+    const ticker = setInterval(() => setNow(nowWIB().getTime()), 1000)
+    return () => clearInterval(ticker)
+  }, [])
 
   const formatDuration = (seconds: number) => {
-    if (!seconds || seconds < 0) return '0s';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    if (h > 0) return `${h}h ${m}m ${s}s`;
-    if (m > 0) return `${m}m ${s}s`;
-    return `${s}s`;
-  };
+    if (!seconds || seconds < 0) return '0d'
+    const d = Math.floor(seconds / 86400)
+    const h = Math.floor((seconds % 86400) / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    const s = seconds % 60
+    if (d > 0) return `${d}h ${h}j ${m}m`
+    if (h > 0) return `${h}j ${m}m ${s}d`
+    if (m > 0) return `${m}m ${s}d`
+    return `${s}d`
+  }
 
   const liveDuration = (startTimeStr: string | null) => {
-    if (!startTimeStr) return 0;
-    const startMs = new Date(startTimeStr).getTime();
-    return Math.max(0, Math.floor((now - startMs) / 1000));
-  };
+    if (!startTimeStr) return 0
+    const startMs = new Date(startTimeStr).getTime()
+    return Math.max(0, Math.floor((now - startMs) / 1000))
+  }
 
   const fetchSessions = async (page: number = 1, silent = false, isLive = false) => {
     try {
-      // Pastikan page adalah number
-      const pageNum = typeof page === 'number' ? page : 1;
-      if (!silent) setLoading(true);
-      const params = new URLSearchParams();
-      // Full RADIUS mode dengan pagination
-      params.set('page', pageNum.toString());
-      params.set('limit', pageSize.toString());
-      if (isLive) params.set('live', 'true');
-      if (typeFilter) params.set('type', typeFilter);
-      if (routerFilter) params.set('routerId', routerFilter);
-      if (searchFilter) params.set('search', searchFilter);
+      const pageNum = typeof page === 'number' ? page : 1
+      if (!silent) setLoading(true)
+      const params = new URLSearchParams()
+      params.set('page', pageNum.toString())
+      params.set('limit', pageSize.toString())
+      params.set('type', 'pppoe') // Focus on PPPoE sessions
+      if (isLive) params.set('live', 'true')
+      if (routerFilter) params.set('routerId', routerFilter)
+      if (searchFilter) params.set('search', searchFilter)
 
-      const res = await fetch(`/api/sessions?${params}`);
-      const data = await res.json();
-      setSessions(data.sessions || []);
-      setStats(data.stats);
-      setAllTimeStats(data.allTimeStats);
+      const res = await fetch(`/api/sessions?${params}`)
+      const data = await res.json()
+      setSessions(data.sessions || [])
+      setStats(data.stats)
+      setAllTimeStats(data.allTimeStats)
       if (data.pagination) {
-        setPagination(data.pagination);
-        setCurrentPage(data.pagination.page);
+        setPagination(data.pagination)
+        setCurrentPage(data.pagination.page)
       }
     } catch (error) {
-      console.error('Failed to fetch sessions:', error);
+      console.error('Failed to fetch sessions:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  // Format date helper — uses formatWIB for consistent WIB display
   const formatDateTime = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    return formatWIB(dateStr, 'dd/MM/yyyy HH:mm');
-  };
+    if (!dateStr) return '-'
+    return formatWIB(dateStr, 'dd/MM/yyyy HH:mm')
+  }
 
   const fetchRouters = async () => {
     try {
-      const res = await fetch('/api/network/routers');
-      const data = await res.json();
-      setRouters(data.routers || []);
+      const res = await fetch('/api/network/routers')
+      const data = await res.json()
+      setRouters(data.routers || [])
     } catch (error) {
-      console.error('Failed to fetch routers:', error);
+      console.error('Failed to fetch routers:', error)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchRouters();
-  }, []);
+    fetchRouters()
+  }, [])
 
   useEffect(() => {
-    fetchSessions(1);
-    // Auto-refresh setiap 10 detik — silent refresh to prevent full-page spinner
+    fetchSessions(1)
+    if (!autoRefresh) return
     const interval = setInterval(() => {
-      fetchSessions(currentPage, true);
-    }, 10000);
-    // Refresh immediately when tab becomes visible (browser throttles background timers)
-    const onVisible = () => {
-      if (!document.hidden) fetchSessions(currentPage, true);
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeFilter, routerFilter, searchFilter, pageSize, currentPage]);
+      fetchSessions(currentPage, true)
+    }, 10000)
 
-  // Export functions
+    const onVisible = () => {
+      if (!document.hidden) fetchSessions(currentPage, true)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routerFilter, searchFilter, pageSize, currentPage, autoRefresh])
+
+  // Exports
   const handleExportExcel = async () => {
     try {
-      const params = new URLSearchParams();
-      params.set('format', 'excel');
-      params.set('mode', 'active');
-      if (typeFilter) params.set('type', typeFilter);
-      if (routerFilter) params.set('routerId', routerFilter);
-      if (searchFilter) params.set('username', searchFilter);
-      const res = await fetch(`/api/sessions/export?${params}`);
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `Sessions-Active-${new Date().toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
-    } catch (error) { console.error('Export error:', error); addToast({ type: 'error', title: 'Error', description: t('sessions.exportFailed') }); }
-  };
+      const params = new URLSearchParams()
+      params.set('format', 'excel')
+      params.set('mode', 'active')
+      params.set('type', 'pppoe')
+      if (routerFilter) params.set('routerId', routerFilter)
+      if (searchFilter) params.set('username', searchFilter)
+      const res = await fetch(`/api/sessions/export?${params}`)
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Sesi-PPPoE-Aktif-${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Export error:', error)
+      addToast({ type: 'error', title: 'Error', description: 'Gagal mengekspor file Excel' })
+    }
+  }
 
   const handleExportHistoryExcel = () => {
-    setShowDateRangeModal(true);
-  };
+    setShowDateRangeModal(true)
+  }
 
   const handlePerformHistoryExport = async () => {
-    setShowDateRangeModal(false);
+    setShowDateRangeModal(false)
     try {
-      const params = new URLSearchParams();
-      params.set('format', 'excel');
-      params.set('mode', 'history');
-      params.set('startDate', exportStartDate);
-      params.set('endDate', exportEndDate);
-      if (typeFilter) params.set('type', typeFilter);
-      if (routerFilter) params.set('routerId', routerFilter);
-      const res = await fetch(`/api/sessions/export?${params}`);
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `Sessions-History-${exportStartDate}-${exportEndDate}.xlsx`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
-    } catch (error) { console.error('Export error:', error); addToast({ type: 'error', title: 'Error', description: t('sessions.exportFailed') }); }
-  };
+      const params = new URLSearchParams()
+      params.set('format', 'excel')
+      params.set('mode', 'history')
+      params.set('type', 'pppoe')
+      params.set('startDate', exportStartDate)
+      params.set('endDate', exportEndDate)
+      if (routerFilter) params.set('routerId', routerFilter)
+      const res = await fetch(`/api/sessions/export?${params}`)
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Riwayat-Sesi-PPPoE-${exportStartDate}-${exportEndDate}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Export error:', error)
+      addToast({ type: 'error', title: 'Error', description: 'Gagal mengekspor riwayat' })
+    }
+  }
 
   const handleExportPDF = async () => {
     try {
-      const params = new URLSearchParams();
-      params.set('format', 'pdf');
-      params.set('mode', 'active');
-      if (typeFilter) params.set('type', typeFilter);
-      if (routerFilter) params.set('routerId', routerFilter);
-      const res = await fetch(`/api/sessions/export?${params}`);
-      const data = await res.json();
+      const params = new URLSearchParams()
+      params.set('format', 'pdf')
+      params.set('mode', 'active')
+      params.set('type', 'pppoe')
+      if (routerFilter) params.set('routerId', routerFilter)
+      const res = await fetch(`/api/sessions/export?${params}`)
+      const data = await res.json()
       if (data.pdfData) {
-        const jsPDF = (await import('jspdf')).default;
-        const autoTable = (await import('jspdf-autotable')).default;
-        const doc = new jsPDF({ orientation: 'landscape' });
-        doc.setFontSize(14); doc.text(data.pdfData.title, 14, 15);
-        doc.setFontSize(8); doc.text(`Generated: ${data.pdfData.generatedAt}`, 14, 21);
-        autoTable(doc, { head: [data.pdfData.headers], body: data.pdfData.rows, startY: 26, styles: { fontSize: 7 }, headStyles: { fillColor: [13, 148, 136] } });
+        const jsPDF = (await import('jspdf')).default
+        const autoTable = (await import('jspdf-autotable')).default
+        const doc = new jsPDF({ orientation: 'landscape' })
+        doc.setFontSize(14)
+        doc.text(data.pdfData.title, 14, 15)
+        doc.setFontSize(8)
+        doc.text(`Dicetak: ${data.pdfData.generatedAt}`, 14, 21)
+        autoTable(doc, {
+          head: [data.pdfData.headers],
+          body: data.pdfData.rows,
+          startY: 26,
+          styles: { fontSize: 7 },
+          headStyles: { fillColor: [0, 44, 96] },
+        })
         if (data.pdfData.summary) {
-          const finalY = (doc as any).lastAutoTable.finalY + 8;
-          doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-          data.pdfData.summary.forEach((s: any, i: number) => { doc.text(`${s.label}: ${s.value}`, 14, finalY + (i * 5)); });
+          const finalY = (doc as any).lastAutoTable.finalY + 8
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'bold')
+          data.pdfData.summary.forEach((s: any, i: number) => {
+            doc.text(`${s.label}: ${s.value}`, 14, finalY + i * 5)
+          })
         }
-        doc.save(`Sessions-Active-${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.save(`Sesi-PPPoE-Aktif-${new Date().toISOString().split('T')[0]}.pdf`)
       }
-    } catch (error) { console.error('PDF error:', error); addToast({ type: 'error', title: 'Error', description: t('sessions.pdfExportFailed') }); }
-  };
+    } catch (error) {
+      console.error('PDF error:', error)
+      addToast({ type: 'error', title: 'Error', description: 'Gagal mengekspor PDF' })
+    }
+  }
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedSessions(new Set(sessions.map(s => s.sessionId)));
+      setSelectedSessions(new Set(sessions.map((s) => s.sessionId)))
     } else {
-      setSelectedSessions(new Set());
+      setSelectedSessions(new Set())
     }
-  };
+  }
 
   const handleSelectSession = (sessionId: string, checked: boolean) => {
-    const newSelected = new Set(selectedSessions);
+    const newSelected = new Set(selectedSessions)
     if (checked) {
-      newSelected.add(sessionId);
+      newSelected.add(sessionId)
     } else {
-      newSelected.delete(sessionId);
+      newSelected.delete(sessionId)
     }
-    setSelectedSessions(newSelected);
-  };
+    setSelectedSessions(newSelected)
+  }
 
   const handleDisconnect = async (sessionIds: string[]) => {
-    if (!await confirm({
-      title: t('sessions.disconnect') + '?',
-      message: `${t('sessions.disconnect')} ${sessionIds.length} ${t('sessions.title').toLowerCase()}?`,
-      confirmText: t('sessions.disconnect'),
-      cancelText: t('common.cancel'),
-      variant: 'danger',
-    })) return;
+    if (
+      !(await confirm({
+        title: 'Putuskan Sesi PPPoE?',
+        message: `Yakin ingin memutuskan koneksi ${sessionIds.length} sesi pelanggan terpilih?`,
+        confirmText: 'Putuskan Sesi',
+        cancelText: 'Batal',
+        variant: 'danger',
+      }))
+    )
+      return
 
-    setDisconnecting(true);
+    setDisconnecting(true)
     try {
       const res = await fetch('/api/sessions/disconnect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionIds }),
-      });
+      })
 
-      const data = await res.json();
-      
+      const data = await res.json()
       if (data.success) {
-        addToast({ type: 'success', title: t('notifications.success'), description: `${t('sessions.disconnect')}: ${data.summary.successful}` });
-        setSelectedSessions(new Set());
-        await fetchSessions();
+        addToast({
+          type: 'success',
+          title: 'Berhasil',
+          description: `Berhasil memutuskan ${data.summary?.successful || sessionIds.length} sesi.`,
+        })
+        setSelectedSessions(new Set())
+        await fetchSessions(currentPage, false, true)
       } else {
-        addToast({ type: 'error', title: t('notifications.error'), description: t('notifications.failed') });
+        addToast({ type: 'error', title: 'Gagal', description: data.error || 'Gagal memutuskan sesi' })
       }
     } catch (error) {
-      addToast({ type: 'error', title: t('notifications.error'), description: t('notifications.failed') });
+      addToast({ type: 'error', title: 'Gagal', description: 'Terjadi kesalahan sistem' })
     } finally {
-      setDisconnecting(false);
+      setDisconnecting(false)
     }
-  };
+  }
 
   const handleBulkDisconnect = () => {
-    const sessionIds = Array.from(selectedSessions);
-    handleDisconnect(sessionIds);
-  };
+    const sessionIds = Array.from(selectedSessions)
+    handleDisconnect(sessionIds)
+  }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#bc13fe]/20 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#00f7ff]/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        </div>
-        <RefreshCw className="w-12 h-12 animate-spin text-brand-500 dark:text-[#00f7ff] dark:drop-shadow-[0_0_20px_rgba(0,247,255,0.6)] relative z-10" />
-      </div>
-    );
+  const handleCopyIp = (ip: string) => {
+    navigator.clipboard.writeText(ip)
+    setCopiedIp(ip)
+    setTimeout(() => setCopiedIp(null), 2000)
+    addToast({ type: 'info', title: 'Tersalin', description: `IP ${ip} berhasil disalin.` })
+  }
+
+  const openOntModalForSession = (session: Session) => {
+    setOntTarget({
+      customerName: session.user?.name || session.username,
+      username: session.username,
+      targetIp: session.framedIpAddress || '',
+      routerName: session.router?.name || 'Router',
+    })
+    setOntModalOpen(true)
   }
 
   return (
     <>
-    {showDateRangeModal && createPortal(
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowDateRangeModal(false)}>
-        <div className="bg-[#1e1b2e] border border-[#bc13fe]/30 rounded-lg w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between p-4 border-b border-[#bc13fe]/20">
-            <h2 className="text-base font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc]">{t('sessions.exportHistory')}</h2>
-            <button onClick={() => setShowDateRangeModal(false)} className="text-muted-foreground hover:text-foreground text-xl">&times;</button>
-          </div>
-          <div className="p-4 space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">{t('time.from')}</label>
-              <input type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} className="w-full px-3 py-2 border border-[#bc13fe]/30 rounded bg-[#1a0f35] text-gray-200 text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">{t('time.to')}</label>
-              <input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} className="w-full px-3 py-2 border border-[#bc13fe]/30 rounded bg-[#1a0f35] text-gray-200 text-sm" />
-            </div>
-          </div>
-          <div className="flex gap-2 p-4 border-t border-[#bc13fe]/20">
-            <button onClick={() => setShowDateRangeModal(false)} className="flex-1 px-4 py-2 text-sm border border-gray-600 rounded text-muted-foreground hover:text-foreground">{t('common.cancel')}</button>
-            <button onClick={handlePerformHistoryExport} className="flex-1 px-4 py-2 text-sm font-bold bg-[#00f7ff] text-[#1a0f35] rounded">{t('common.export')}</button>
-          </div>
-        </div>
-      </div>,
-      document.body
-    )}
-    <div className="bg-background relative">
-      {/* Neon Cyberpunk Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#bc13fe]/20 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#00f7ff]/20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-[#ff44cc]/20 rounded-full blur-3xl"></div>
-        <div className="hidden dark:block absolute inset-0 bg-[linear-gradient(rgba(188,19,254,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(188,19,254,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
-      </div>
-      
-      <div className="relative z-10 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc] dark:drop-shadow-[0_0_30px_rgba(0,247,255,0.5)] flex items-center gap-2">
-            <Activity className="w-6 h-6 text-[#00f7ff]" />
-            {t('sessions.title')}
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('sessions.subtitle')}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-success text-white rounded-md hover:bg-success/90"
+      {/* Date Range Modal for History Export */}
+      {showDateRangeModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in"
+            onClick={() => setShowDateRangeModal(false)}
           >
-            <Download className="w-3.5 h-3.5" />
-            Excel
-          </button>
-          <button
-            onClick={handleExportPDF}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90"
-          >
-            <Download className="w-3.5 h-3.5" />
-            PDF
-          </button>
-          <button
-            onClick={handleExportHistoryExcel}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-          >
-            <Download className="w-3.5 h-3.5" />
-            {t('sessions.history')}
-          </button>
-          <button
-            onClick={() => fetchSessions(currentPage, false, true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-card border border-border rounded-md hover:bg-muted/50"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            {t('common.refresh')}
-          </button>
-        </div>
-      </div>
-
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-2.5 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
-            <div className="text-xs text-[#00f7ff] uppercase tracking-wide">{t('sessions.active')}</div>
-            <div className="text-lg sm:text-2xl font-bold text-foreground mt-1">{stats.total}</div>
-          </div>
-          <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-2.5 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
-            <div className="text-xs text-[#00f7ff] uppercase tracking-wide flex items-center gap-1">
-              <Wifi className="w-4 h-4" /> PPPoE
-            </div>
-            <div className="text-lg sm:text-2xl font-bold text-foreground mt-1">{stats.pppoe}</div>
-          </div>
-          <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-2.5 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
-            <div className="text-xs text-[#00f7ff] uppercase tracking-wide flex items-center gap-1">
-              <WifiOff className="w-4 h-4" /> Hotspot
-            </div>
-            <div className="text-lg sm:text-2xl font-bold text-foreground mt-1">{stats.hotspot}</div>
-          </div>
-          <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-2.5 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
-            <div className="text-xs text-[#00f7ff] uppercase tracking-wide">{t('dashboard.bandwidth')}</div>
-            <div className="text-lg sm:text-2xl font-bold text-foreground mt-1">{stats.totalBandwidthFormatted}</div>
-          </div>
-        </div>
-      )}
-
-      {/* All-Time Stats */}
-      {allTimeStats && (
-        <div className="bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 p-3 rounded-lg border border-teal-200 dark:border-teal-800">
-          <h2 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-            <Activity className="w-3.5 h-3.5 text-primary" />
-            {t('sessions.allTimeStatistics')}
-          </h2>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <div className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('sessions.totalSessionsLabel')}</div>
-              <div className="text-base font-bold text-foreground">{allTimeStats.totalSessions.toLocaleString()}</div>
-            </div>
-            <div>
-              <div className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('sessions.bandwidthUsed')}</div>
-              <div className="text-base font-bold text-primary">{allTimeStats.totalBandwidthFormatted}</div>
-            </div>
-            <div>
-              <div className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('sessions.totalDuration')}</div>
-              <div className="text-base font-bold text-cyan-600">{allTimeStats.totalDurationFormatted}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="bg-card p-3 rounded-lg border border-border">
-        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center justify-between">
-          <div className="flex flex-wrap gap-2 items-center">
-            <div className="flex items-center gap-1.5">
-              <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-foreground">{t('common.filter')}:</span>
-            </div>
-            
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-2 py-1.5 border border-border bg-muted rounded-md text-xs"
+            <div
+              className="bg-card border border-border rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl space-y-0"
+              onClick={(e) => e.stopPropagation()}
             >
-              <option value="">{t('common.all')} {t('common.type')}</option>
-              <option value="pppoe">PPPoE</option>
-              <option value="hotspot">Hotspot</option>
-            </select>
+              <div className="p-4 border-b border-border flex items-center justify-between bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Ekspor Riwayat Sesi PPPoE
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowDateRangeModal(false)}
+                  className="text-muted-foreground hover:text-foreground text-lg leading-none"
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="p-4 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
+                    Dari Tanggal
+                  </label>
+                  <input
+                    type="date"
+                    value={exportStartDate}
+                    onChange={(e) => setExportStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded-xl bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
+                    Sampai Tanggal
+                  </label>
+                  <input
+                    type="date"
+                    value={exportEndDate}
+                    onChange={(e) => setExportEndDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded-xl bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 p-4 border-t border-border bg-muted/20">
+                <button
+                  onClick={() => setShowDateRangeModal(false)}
+                  className="flex-1 px-3 py-2 text-xs border border-border rounded-xl text-muted-foreground hover:bg-muted font-medium"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handlePerformHistoryExport}
+                  className="flex-1 px-3 py-2 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-sm"
+                >
+                  Unduh Excel
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
-            <select
-              value={routerFilter}
-              onChange={(e) => setRouterFilter(e.target.value)}
-              className="px-2 py-1.5 border border-border bg-muted rounded-md text-xs"
+      {/* ONT Remote Modal */}
+      <OntRemoteModal
+        isOpen={ontModalOpen}
+        onClose={() => setOntModalOpen(false)}
+        customerName={ontTarget.customerName}
+        username={ontTarget.username}
+        targetIp={ontTarget.targetIp}
+        routerName={ontTarget.routerName}
+      />
+
+      <div className="space-y-6 pb-12">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-primary/10 rounded-xl text-primary">
+                <Wifi className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+                  Monitoring Sesi PPPoE
+                </h1>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Pantau pelanggan online, traffic realtime, dan remote modem ONT langsung
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Toolbar */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border transition-all ${
+                autoRefresh
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  : 'border-border bg-card text-muted-foreground hover:bg-muted'
+              }`}
+              title="Toggle auto-refresh 10 detik"
             >
-              <option value="">{t('common.all')} Router</option>
-              {routers.map(router => (
-                <option key={router.id} value={router.id}>{router.name}</option>
-              ))}
-            </select>
+              <span className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground'}`}></span>
+              <span>{autoRefresh ? 'Live (10s)' : 'Pause'}</span>
+            </button>
 
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <button
+              onClick={() => fetchSessions(currentPage, false, true)}
+              disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-card border border-border rounded-xl hover:bg-muted/70 text-foreground transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+
+            <div className="h-4 w-px bg-border hidden sm:block"></div>
+
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition-all"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Excel</span>
+            </button>
+
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-sm transition-all"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>PDF</span>
+            </button>
+
+            <button
+              onClick={handleExportHistoryExcel}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-card border border-border hover:bg-muted text-foreground rounded-xl transition-all"
+            >
+              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Riwayat</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Summary Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {/* Card 1: Active PPPoE Sessions */}
+          <div
+            onClick={() => setRouterFilter('')}
+            className={`p-4 bg-card border rounded-2xl cursor-pointer transition-all hover:shadow-sm ${
+              routerFilter === '' ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/5' : 'border-border'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+              <span className="font-semibold uppercase tracking-wider">Total Online</span>
+              <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-[10px] font-bold">LIVE</span>
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-foreground">
+              {stats ? stats.pppoe || stats.total : 0}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">Sesi PPPoE aktif saat ini</p>
+          </div>
+
+          {/* Card 2: Bandwidth Usage */}
+          <div className="p-4 bg-card border border-border rounded-2xl">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+              <span className="font-semibold uppercase tracking-wider">Total Bandwidth</span>
+              <Activity className="w-4 h-4 text-primary" />
+            </div>
+            <div className="text-2xl font-bold text-foreground">
+              {stats?.totalBandwidthFormatted || '0 B'}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">Akumulasi sesi berjalan</p>
+          </div>
+
+          {/* Card 3 & 4: Router Filter Badges */}
+          {routers.slice(0, 2).map((router) => {
+            const isSelected = routerFilter === router.id
+            return (
+              <div
+                key={router.id}
+                onClick={() => setRouterFilter(isSelected ? '' : router.id)}
+                className={`p-4 bg-card border rounded-2xl cursor-pointer transition-all hover:shadow-sm ${
+                  isSelected ? 'border-primary ring-1 ring-primary bg-primary/5' : 'border-border'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                  <span className="font-semibold truncate uppercase tracking-wider">{router.name}</span>
+                  <Server className="w-4 h-4 text-muted-foreground shrink-0" />
+                </div>
+                <div className="text-2xl font-bold text-foreground">
+                  {isSelected ? sessions.length : '-'}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {isSelected ? 'Filter aktif (klik lepas)' : 'Klik untuk filter router'}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Filters Toolbar */}
+        <div className="p-3 bg-card border border-border rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <input
                 type="text"
-                placeholder={t('common.search')}
+                placeholder="Cari username, nama, IP, MAC..."
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
-                className="pl-7 pr-3 py-1.5 border border-border bg-muted rounded-md text-xs w-40"
+                className="w-full pl-9 pr-3 py-1.5 bg-background border border-border rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary"
               />
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5 text-muted-foreground ml-1" />
+              <select
+                value={routerFilter}
+                onChange={(e) => setRouterFilter(e.target.value)}
+                className="px-2.5 py-1.5 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Semua Router ({routers.length})</option>
+                {routers.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
+          {/* Bulk Disconnect Action */}
           {selectedSessions.size > 0 && (
             <button
               onClick={handleBulkDisconnect}
               disabled={disconnecting}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 disabled:opacity-50 text-xs"
+              className="w-full md:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-destructive text-destructive-foreground text-xs font-semibold rounded-xl hover:bg-destructive/90 transition-all disabled:opacity-50"
             >
               <Power className="w-3.5 h-3.5" />
-              {t('sessions.disconnect')} ({selectedSessions.size})
+              <span>Putuskan {selectedSessions.size} Sesi Terpilih</span>
             </button>
           )}
         </div>
-      </div>
 
-      {/* Sessions Table */}
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
-        {/* Pagination Header */}
-        <div className="px-3 py-2 border-b border-border flex flex-wrap items-center justify-between gap-2 bg-muted/50">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground dark:text-muted-foreground">
-            <span>{t('sessions.show')}</span>
-            <select 
-              value={pageSize} 
-              onChange={(e) => { setPageSize(Number(e.target.value)); }}
-              className="px-2 py-1 border border-border rounded text-xs bg-card"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-            <span>{t('sessions.entries')}</span>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {t('sessions.showing')} {((pagination.page - 1) * pageSize) + 1} {t('sessions.to')} {Math.min(pagination.page * pageSize, pagination.total)} {t('sessions.of')} {pagination.total} {t('sessions.entries')}
-          </div>
-        </div>
-
-        {/* Mobile Card View */}
-        <div className="block md:hidden divide-y divide-gray-100 dark:divide-gray-800">
-          {sessions.length === 0 ? (
-            <div className="px-3 py-8 text-center text-muted-foreground text-xs">
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : t('common.noData')}
+        {/* Sessions Data Table */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+          {/* Table Header Bar */}
+          <div className="px-4 py-3 border-b border-border bg-muted/20 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <span>Tampilkan</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="px-2 py-1 bg-background border border-border rounded-lg text-xs"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span>baris per halaman</span>
             </div>
-          ) : (
-            sessions.map((session) => (
-              <div key={session.id} className="p-3 hover:bg-muted/50/50">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
+            <div>
+              Menampilkan {pagination.total === 0 ? 0 : (pagination.page - 1) * pageSize + 1} -{' '}
+              {Math.min(pagination.page * pageSize, pagination.total)} dari {pagination.total} sesi
+            </div>
+          </div>
+
+          {/* Desktop & Tablet Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <th className="p-3 w-10 text-center">
                     <input
                       type="checkbox"
-                      checked={selectedSessions.has(session.sessionId)}
-                      onChange={(e) => handleSelectSession(session.sessionId, e.target.checked)}
-                      className="rounded border-gray-300 w-3.5 h-3.5"
+                      checked={selectedSessions.size === sessions.length && sessions.length > 0}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded border-border"
                     />
-                    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                      session.type === 'pppoe' 
-                        ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
-                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                    }`}>
-                      {session.type === 'pppoe' ? <Wifi className="w-2.5 h-2.5" /> : <WifiOff className="w-2.5 h-2.5" />}
-                      {session.type.toUpperCase()}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleDisconnect([session.sessionId])}
-                    disabled={disconnecting}
-                    className="p-1.5 text-destructive hover:bg-destructive/10 rounded disabled:opacity-50"
-                    title={t('sessions.disconnect')}
-                  >
-                    <Power className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="space-y-1.5 text-[11px]">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.username')}:</span>
-                    <span className="font-mono font-medium text-foreground">{session.username}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.profile')}:</span>
-                    <span className="text-foreground">{session.user?.profile || session.voucher?.profile || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.startTime')}:</span>
-                    <span className="text-muted-foreground dark:text-muted-foreground">{formatDateTime(session.startTime)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.duration')}:</span>
-                    <span className="font-medium text-primary dark:text-primary">{formatDuration(liveDuration(session.startTime))}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.uploadDownload')}:</span>
-                    <span>
-                      <span className="text-success">↑{session.uploadFormatted}</span>
-                      {' / '}
-                      <span className="text-accent">↓{session.downloadFormatted}</span>
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.router')}:</span>
-                    <span className="text-muted-foreground dark:text-muted-foreground">{session.router?.name || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.ipAddress')}:</span>
-                    <span className="font-mono text-muted-foreground dark:text-muted-foreground">{session.framedIpAddress || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('sessions.macAddress')}:</span>
-                    <span className="font-mono text-[10px] text-muted-foreground">{session.macAddress || '-'}</span>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Desktop Table View */}
-        <div className="overflow-x-auto hidden md:block">
-          <table className="w-full">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="px-2 py-2 text-left">
-                  <input
-                    type="checkbox"
-                    checked={selectedSessions.size === sessions.length && sessions.length > 0}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="rounded border-gray-300 w-3.5 h-3.5"
-                  />
-                </th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">{t('common.type')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">{t('sessions.username')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden md:table-cell">{t('sessions.profile')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden xl:table-cell">{t('sessions.startTime')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden xl:table-cell">{t('sessions.lastUpdate')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">{t('sessions.duration')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden lg:table-cell">↑ {t('sessions.upload')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden lg:table-cell">↓ {t('sessions.download')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden sm:table-cell">{t('sessions.router')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden sm:table-cell">{t('sessions.ipAddress')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden 2xl:table-cell">{t('sessions.macAddress')}</th>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {sessions.length === 0 ? (
-                <tr>
-                  <td colSpan={13} className="px-3 py-8 text-center text-muted-foreground text-xs">
-                    {loading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : t('common.noData')}
-                  </td>
+                  </th>
+                  <th className="p-3">Pelanggan / Username</th>
+                  <th className="p-3">Paket</th>
+                  <th className="p-3">Router NAS</th>
+                  <th className="p-3">IP Address (ONT)</th>
+                  <th className="p-3">MAC Address</th>
+                  <th className="p-3">Durasi Online</th>
+                  <th className="p-3 text-right">Traffic (Up / Down)</th>
+                  <th className="p-3 text-center">Aksi</th>
                 </tr>
-              ) : (
-                sessions.map((session) => (
-                  <tr key={session.id} className="hover:bg-muted/50/50">
-                    <td className="px-2 py-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedSessions.has(session.sessionId)}
-                        onChange={(e) => handleSelectSession(session.sessionId, e.target.checked)}
-                        className="rounded border-gray-300 w-3.5 h-3.5"
-                      />
-                    </td>
-                    <td className="px-2 py-2">
-                      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                        session.type === 'pppoe' 
-                          ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
-                          : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                      }`}>
-                        {session.type === 'pppoe' ? <Wifi className="w-2.5 h-2.5" /> : <WifiOff className="w-2.5 h-2.5" />}
-                        {session.type.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-2 py-2 font-mono text-[10px] text-foreground">{session.username}</td>
-                    <td className="px-2 py-2 text-[10px] hidden md:table-cell">
-                      {session.user?.profile || session.voucher?.profile || '-'}
-                    </td>
-                    <td className="px-2 py-2 text-[10px] text-muted-foreground hidden xl:table-cell whitespace-nowrap">
-                      {formatDateTime(session.startTime)}
-                    </td>
-                    <td className="px-2 py-2 text-[10px] text-muted-foreground hidden xl:table-cell whitespace-nowrap">
-                      {formatDateTime(session.lastUpdate)}
-                    </td>
-                    <td className="px-2 py-2 text-[10px] font-medium text-primary dark:text-primary">
-                      {formatDuration(liveDuration(session.startTime))}
-                    </td>
-                    <td className="px-2 py-2 text-[10px] text-success hidden lg:table-cell">{session.uploadFormatted}</td>
-                    <td className="px-2 py-2 text-[10px] text-accent hidden lg:table-cell">{session.downloadFormatted}</td>
-                    <td className="px-2 py-2 text-[10px] text-muted-foreground dark:text-muted-foreground hidden sm:table-cell">
-                      {session.router?.name || '-'}
-                    </td>
-                    <td className="px-2 py-2 font-mono text-[10px] text-muted-foreground dark:text-muted-foreground hidden sm:table-cell">
-                      {session.framedIpAddress || '-'}
-                    </td>
-                    <td className="px-2 py-2 font-mono text-[9px] text-muted-foreground hidden 2xl:table-cell">
-                      {session.macAddress || '-'}
-                    </td>
-                    <td className="px-2 py-2">
-                      <button
-                        onClick={() => handleDisconnect([session.sessionId])}
-                        disabled={disconnecting}
-                        className="p-1 text-destructive hover:bg-destructive/10 rounded disabled:opacity-50"
-                        title={t('sessions.disconnect')}
-                      >
-                        <Power className="w-3.5 h-3.5" />
-                      </button>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {sessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="p-12 text-center text-muted-foreground">
+                      {loading ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+                          <span>Memuat sesi PPPoE...</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1.5">
+                          <Wifi className="w-8 h-8 text-muted-foreground/50 mb-1" />
+                          <p className="font-semibold text-foreground">Tidak Ada Sesi PPPoE Aktif</p>
+                          <p className="text-[11px]">Tidak ada koneksi yang cocok dengan filter saat ini.</p>
+                        </div>
+                      )}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  sessions.map((session) => {
+                    const isSelected = selectedSessions.has(session.sessionId)
+                    const durationSec = liveDuration(session.startTime)
+                    return (
+                      <tr
+                        key={session.id || session.sessionId}
+                        className={`hover:bg-muted/40 transition-colors ${isSelected ? 'bg-primary/5' : ''}`}
+                      >
+                        {/* Checkbox */}
+                        <td className="p-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => handleSelectSession(session.sessionId, e.target.checked)}
+                            className="rounded border-border"
+                          />
+                        </td>
 
-        {/* Pagination Footer */}
-        {pagination.totalPages > 1 && (
-          <div className="px-3 py-2 border-t border-border flex items-center justify-between bg-muted/50">
-            <div className="text-xs text-muted-foreground">
-              {t('common.page')} {pagination.page} {t('sessions.of')} {pagination.totalPages}
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => fetchSessions(1)}
-                disabled={pagination.page === 1}
-                className="px-2 py-1 text-xs border rounded disabled:opacity-50 hover:bg-muted"
-              >
-                {t('common.first')}
-              </button>
-              <button
-                onClick={() => fetchSessions(pagination.page - 1)}
-                disabled={pagination.page === 1}
-                className="px-2 py-1 text-xs border rounded disabled:opacity-50 hover:bg-muted"
-              >
-                {t('common.prev')}
-              </button>
-              {/* Page numbers */}
-              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                let pageNum = pagination.page - 2 + i;
-                if (pageNum < 1) pageNum = i + 1;
-                if (pageNum > pagination.totalPages) return null;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => fetchSessions(pageNum)}
-                    className={`px-2.5 py-1 text-xs border rounded ${
-                      pageNum === pagination.page 
-                        ? 'bg-teal-600 text-white border-teal-600' 
-                        : 'hover:bg-muted'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              <button
-                onClick={() => fetchSessions(pagination.page + 1)}
-                disabled={pagination.page === pagination.totalPages}
-                className="px-2 py-1 text-xs border rounded disabled:opacity-50 hover:bg-muted"
-              >
-                {t('common.next')}
-              </button>
-              <button
-                onClick={() => fetchSessions(pagination.totalPages)}
-                disabled={pagination.page === pagination.totalPages}
-                className="px-2 py-1 text-xs border rounded disabled:opacity-50 hover:bg-muted"
-              >
-                {t('common.last')}
-              </button>
-            </div>
+                        {/* Customer & Username */}
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                            <div>
+                              <div className="font-mono font-bold text-foreground">
+                                {session.username}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+                                {session.user?.name || '-'}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Profile */}
+                        <td className="p-3">
+                          <span className="px-2 py-0.5 bg-muted border border-border rounded-lg text-[11px] font-medium text-foreground">
+                            {session.user?.profile || 'PPPoE'}
+                          </span>
+                        </td>
+
+                        {/* Router */}
+                        <td className="p-3 text-muted-foreground">
+                          {session.router?.name || '-'}
+                        </td>
+
+                        {/* Framed IP & ONT Remote Action */}
+                        <td className="p-3">
+                          <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                            <span className="font-semibold text-foreground">
+                              {session.framedIpAddress || '-'}
+                            </span>
+                            {session.framedIpAddress && (
+                              <button
+                                onClick={() => handleCopyIp(session.framedIpAddress)}
+                                className="p-0.5 text-muted-foreground hover:text-foreground"
+                                title="Salin IP"
+                              >
+                                {copiedIp === session.framedIpAddress ? (
+                                  <Check className="w-3 h-3 text-emerald-500" />
+                                ) : (
+                                  <Copy className="w-3 h-3" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* MAC Address */}
+                        <td className="p-3 font-mono text-[11px] text-muted-foreground">
+                          {session.macAddress || '-'}
+                        </td>
+
+                        {/* Duration */}
+                        <td className="p-3">
+                          <div className="flex items-center gap-1 text-primary font-medium">
+                            <Clock className="w-3 h-3 shrink-0" />
+                            <span>{formatDuration(durationSec)}</span>
+                          </div>
+                        </td>
+
+                        {/* Traffic */}
+                        <td className="p-3 text-right">
+                          <div className="text-[11px] space-y-0.5">
+                            <div className="text-emerald-600 dark:text-emerald-400 font-medium">
+                              ↑ {session.uploadFormatted || '0 B'}
+                            </div>
+                            <div className="text-primary font-medium">
+                              ↓ {session.downloadFormatted || '0 B'}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Actions: ONT Remote & Disconnect */}
+                        <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => openOntModalForSession(session)}
+                              className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors"
+                              title="Buka Web GUI Modem ONT"
+                            >
+                              <Globe className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              onClick={() => handleDisconnect([session.sessionId])}
+                              disabled={disconnecting}
+                              className="p-1.5 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg transition-colors disabled:opacity-50"
+                              title="Putuskan Sesi"
+                            >
+                              <Power className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
+
+          {/* Pagination Footer */}
+          {pagination.totalPages > 1 && (
+            <div className="px-4 py-3 border-t border-border bg-muted/20 flex items-center justify-between text-xs">
+              <div className="text-muted-foreground">
+                Halaman {pagination.page} dari {pagination.totalPages}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => fetchSessions(1)}
+                  disabled={pagination.page === 1}
+                  className="px-2.5 py-1 border border-border rounded-lg text-foreground hover:bg-muted disabled:opacity-40"
+                >
+                  Awal
+                </button>
+                <button
+                  onClick={() => fetchSessions(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className="px-2.5 py-1 border border-border rounded-lg text-foreground hover:bg-muted disabled:opacity-40"
+                >
+                  Sebelumnya
+                </button>
+                <span className="px-2.5 py-1 bg-primary text-primary-foreground font-semibold rounded-lg">
+                  {pagination.page}
+                </span>
+                <button
+                  onClick={() => fetchSessions(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className="px-2.5 py-1 border border-border rounded-lg text-foreground hover:bg-muted disabled:opacity-40"
+                >
+                  Selanjutnya
+                </button>
+                <button
+                  onClick={() => fetchSessions(pagination.totalPages)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className="px-2.5 py-1 border border-border rounded-lg text-foreground hover:bg-muted disabled:opacity-40"
+                >
+                  Akhir
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-      </div>
-    </div>
     </>
-  );
+  )
 }

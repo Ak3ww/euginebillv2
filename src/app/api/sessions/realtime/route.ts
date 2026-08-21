@@ -289,8 +289,8 @@ export async function GET(request: NextRequest) {
           const fetchPPPoE = !typeFilter || typeFilter === 'pppoe'
 
           const [hotspotRes, pppoeRes] = await Promise.all([
-            fetchHotspot ? getHotspotSessionsFromMikrotik(router) : Promise.resolve({ sessions: [] }),
-            fetchPPPoE ? getPPPoESessionsFromMikrotik(router) : Promise.resolve({ sessions: [] }),
+            fetchHotspot ? getHotspotSessionsFromMikrotik(router) : Promise.resolve<{ sessions: any[]; error?: string }>({ sessions: [] }),
+            fetchPPPoE ? getPPPoESessionsFromMikrotik(router) : Promise.resolve<{ sessions: any[]; error?: string }>({ sessions: [] }),
           ])
 
           const isOnline = !hotspotRes.error && !pppoeRes.error

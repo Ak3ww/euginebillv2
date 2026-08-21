@@ -265,7 +265,7 @@ export default function VpnClientPage() {
 # 5. RADIUS via WireGuard (server = VPS gateway IP di subnet VPN)
 /radius/remove [find where comment~"EugineBill"]
 /radius/add address=${data.gatewayIp || data.allowedIps?.split('/')[0]} \\
-  secret=<RADIUS_SECRET> \\
+  secret="${data.radiusSecret || 'radius123'}" \\
   service=ppp,hotspot \\
   src-address=${data.vpnIp} \\
   authentication-port=1812 \\

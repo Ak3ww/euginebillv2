@@ -244,6 +244,9 @@ export class OntRemoteService {
           await exec('apt-get install -y socat 2>/dev/null || true')
         }
 
+        // Open UFW port for this session (idempotent)
+        await exec(`ufw allow ${proxyPort}/tcp 2>/dev/null || true`)
+
         // Kill any existing socat on this port
         await exec(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`)
         await exec(`pkill -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || true`)
@@ -362,12 +365,14 @@ export class OntRemoteService {
   }): Promise<void> {
     const { sessionId, routerId, proxyPort, ontIp, targetPort } = params
 
-    // 1. Kill VPS socat
+    // 1. Kill VPS socat + close UFW port
     if (process.platform === 'linux' && proxyPort) {
       try {
         await exec(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`)
         await exec(`pkill -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || true`)
         await exec(`rm -f /var/log/ont-remote-${proxyPort}.log 2>/dev/null || true`)
+        // Close UFW port after session ends
+        await exec(`ufw delete allow ${proxyPort}/tcp 2>/dev/null || true`)
       } catch { /* ignore */ }
     }
 

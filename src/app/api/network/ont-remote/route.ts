@@ -222,3 +222,35 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: error.message || 'Gagal menutup sesi' }, { status: 500 })
   }
 }
+
+// ── PATCH: Extend session ──────────────────────────────────────────────────────
+export async function PATCH(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  try {
+    const body = await request.json()
+    const { sessionId, extendMinutes = DEFAULT_EXPIRY_MINUTES } = body
+    if (!sessionId) return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
+
+    const ontSession = await prisma.ontRemoteSession.findUnique({ where: { id: sessionId } })
+    if (!ontSession) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+    if (ontSession.status !== 'ACTIVE') return NextResponse.json({ error: 'Session is not active' }, { status: 400 })
+
+    const newExpiresAt = new Date(Date.now() + extendMinutes * 60 * 1000)
+    const updated = await prisma.ontRemoteSession.update({
+      where: { id: sessionId },
+      data: { expiresAt: newExpiresAt },
+    })
+
+    const remainingSeconds = Math.max(0, Math.floor((newExpiresAt.getTime() - Date.now()) / 1000))
+
+    return NextResponse.json({
+      success: true,
+      session: { ...updated, remainingSeconds },
+      message: `Sesi berhasil diperpanjang ${extendMinutes} menit`,
+    })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Gagal memperpanjang sesi' }, { status: 500 })
+  }
+}
