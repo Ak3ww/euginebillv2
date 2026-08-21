@@ -59,11 +59,11 @@ export async function activateAndBillUser(userId: string) {
   if (companyInfo?.enableProrate) {
     const currentDay = now.getDate();
     if (currentDay > 5) {
-      const daysMissed = currentDay - 5;
       const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const remainingDays = Math.max(1, daysInMonth - currentDay + 1);
       const pricePerDay = user.profile.proratePricePerDay || Math.ceil(user.profile.price / daysInMonth);
-      const totalDiscount = daysMissed * pricePerDay;
-      prorateSubscriptionFee = Math.max(pricePerDay, user.profile.price - totalDiscount);
+      const calculatedProrate = remainingDays * pricePerDay;
+      prorateSubscriptionFee = Math.min(user.profile.price, Math.max(pricePerDay, calculatedProrate));
     }
   }
 

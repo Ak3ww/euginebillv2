@@ -17,6 +17,33 @@ const TABS = [
   { id: 'pengaturan', label: 'Pengaturan', icon: '⚙️' },
 ];
 
+interface UserFormData {
+  username: string;
+  password: string;
+  portalPassword: string;
+  profileId: string;
+  routerId: string;
+  areaId: string;
+  ipAddress: string;
+  subscriptionType: 'POSTPAID' | 'PREPAID';
+  billingDay: string;
+  expiredAt: string;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  latitude: string;
+  longitude: string;
+  macAddress: string;
+  idCardNumber: string;
+  idCardPhoto: string;
+  installationPhotos: string[];
+  followRoad: boolean;
+  comment: string;
+  registeredAt: string;
+  autoIsolationEnabled: boolean;
+}
+
 export default function NewPppoeUserPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -32,7 +59,7 @@ export default function NewPppoeUserPage() {
   const [firstInvoice, setFirstInvoice] = useState<'none' | 'prorate' | 'full'>('prorate');
   const [installationDueDateDays, setInstallationDueDateDays] = useState<string>('3');
 
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<UserFormData>({
     username: '',
     password: 'eugine0909',
     portalPassword: '123',
@@ -40,7 +67,7 @@ export default function NewPppoeUserPage() {
     routerId: '',
     areaId: '',
     ipAddress: '',
-    subscriptionType: 'POSTPAID' as 'POSTPAID' | 'PREPAID',
+    subscriptionType: 'POSTPAID',
     billingDay: '1',
     expiredAt: '',
     name: '',
@@ -52,7 +79,7 @@ export default function NewPppoeUserPage() {
     macAddress: '',
     idCardNumber: '',
     idCardPhoto: '',
-    installationPhotos: [] as string[],
+    installationPhotos: [],
     followRoad: false,
     comment: '',
     registeredAt: new Date().toISOString().slice(0, 10),
@@ -179,15 +206,13 @@ export default function NewPppoeUserPage() {
       daysActive = daysInMonth;
       prorateAmount = profile.price;
     } else {
-      const daysMissed = currentDay - 5;
+      const remainingDays = Math.max(1, daysInMonth - currentDay + 1);
       const rawProrate = profile.proratePricePerDay;
       const proratePrice = rawProrate ? Number(rawProrate) : Math.ceil(profile.price / daysInMonth);
       const pricePerDay = proratePrice > 0 ? proratePrice : Math.ceil(profile.price / daysInMonth);
-      const totalDiscount = daysMissed * pricePerDay;
-      prorateAmount = Math.max(pricePerDay, profile.price - totalDiscount);
-      const nextMonthFirst = new Date(year, month + 1, 1);
-      const msPerDay = 1000 * 60 * 60 * 24;
-      daysActive = Math.max(1, Math.ceil((nextMonthFirst.getTime() - today.getTime()) / msPerDay));
+      const calculatedProrate = remainingDays * pricePerDay;
+      prorateAmount = Math.min(Number(profile.price), Math.max(pricePerDay, calculatedProrate));
+      daysActive = remainingDays;
     }
 
     return {

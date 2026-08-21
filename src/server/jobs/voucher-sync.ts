@@ -862,6 +862,7 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
       console.log(`[Invoice Reminder] Checking H${reminderDay}: Looking for invoices due on ${formatWIB(targetDateWIB, 'yyyy-MM-dd')} (Range: ${targetDateUTC.toISOString()} - ${nextDayUTC.toISOString()})`)
 
       // Find unpaid invoices (PENDING or OVERDUE) with dueDate matching target (database stores UTC/WIB)
+      // Exclude INSTALLATION invoices for users still in PENDING_INSTALLATION (must wait for completion)
       const invoices = await prisma.invoice.findMany({
         where: {
           status: {
@@ -870,6 +871,12 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           dueDate: {
             gte: targetDateUTC,
             lte: nextDayUTC
+          },
+          NOT: {
+            AND: [
+              { invoiceType: 'INSTALLATION' },
+              { user: { status: 'PENDING_INSTALLATION' } }
+            ]
           }
         },
         include: {

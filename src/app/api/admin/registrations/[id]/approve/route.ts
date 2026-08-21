@@ -101,14 +101,14 @@ export async function POST(
     const now = new Date();
     
     if (companyInfo?.enableProrate) {
-      // Discount-based Prorate Logic starting after Day 5
+      // Prorate Logic: Full for Day 1-5, remaining days from Day 6+
       const currentDay = now.getDate();
       const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
       const pricePerDay = registration.profile.proratePricePerDay || Math.ceil(registration.profile.price / daysInMonth);
       if (currentDay > 5) {
-        const daysMissed = currentDay - 5;
-        const totalDiscount = daysMissed * pricePerDay;
-        prorateSubscriptionFee = Math.max(pricePerDay, registration.profile.price - totalDiscount);
+        const remainingDays = Math.max(1, daysInMonth - currentDay + 1);
+        const calculatedProrate = remainingDays * pricePerDay;
+        prorateSubscriptionFee = Math.min(registration.profile.price, Math.max(pricePerDay, calculatedProrate));
       } else {
         prorateSubscriptionFee = registration.profile.price;
       }
