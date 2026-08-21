@@ -124,9 +124,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Filter by Mikrotik/Router — via user.routerId
+    // Filter by Mikrotik/Router — via user.routerId OR matching customerUsername
     if (routerId && routerId !== 'all') {
-      where.user = { ...where.user, routerId };
+      const routerUsers = await prisma.pppoeUser.findMany({
+        where: { routerId },
+        select: { id: true, username: true },
+      });
+      const rUserIds = routerUsers.map(u => u.id);
+      const rUsernames = routerUsers.map(u => u.username);
+
+      where.OR = [
+        { userId: { in: rUserIds } },
+        { customerUsername: { in: rUsernames } },
+        { user: { routerId } },
+      ];
     }
 
     // Filter by Wilayah/Area — via user.area.id

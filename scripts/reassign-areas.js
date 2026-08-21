@@ -1,9 +1,9 @@
 /**
- * Standalone Script: Reassign Areas & PPPoE Users
+ * Standalone Script: Reassign Areas, PPPoE Users, & Invoices
  *
- * Mengalokasikan ulang wilayah dan pelanggan PPPoE:
+ * Mengalokasikan ulang wilayah, pelanggan PPPoE, dan tagihan:
  * - Area/Wilayah dengan nama "Tegal" / "Kampung Tegal" -> Router Citeureup
- * - Seluruh Wilayah & Pelanggan sisanya -> Router Cibinong
+ * - Seluruh Wilayah, Pelanggan, dan Tagihan sisanya -> Router Cibinong
  *
  * Jalankan langsung di VPS via:
  *   node scripts/reassign-areas.js
@@ -13,7 +13,7 @@ const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('=== MEMULAI REASSIGN AREA & PELANGGAN PPPOE ===\n')
+  console.log('=== MEMULAI REASSIGN AREA, PELANGGAN, & TAGIHAN PPPOE ===\n')
 
   const routers = await prisma.router.findMany({
     orderBy: { createdAt: 'asc' },
@@ -109,15 +109,84 @@ async function main() {
     data: { routerId: cibinongRouter.id },
   })
 
+  // 3. Auto-link unlinked invoices (userId = null) to pppoeUser by customerUsername or customerPhone
+  const unlinkedInvoices = await prisma.invoice.findMany({
+    where: { userId: null },
+    select: { id: true, customerUsername: true, customerPhone: true },
+  })
+
+  let linkedInvoicesCount = 0
+  if (unlinkedInvoices.length > 0) {
+    const allUsers = await prisma.pppoeUser.findMany({
+      select: { id: true, username: true, phone: true },
+    })
+    const userByUsername = new Map(allUsers.filter(u => u.username).map(u => [u.username, u.id]))
+    const userByPhone = new Map(allUsers.filter(u => u.phone).map(u => [u.phone, u.id]))
+
+    for (const inv of unlinkedInvoices) {
+      let matchedUserId = null
+      if (inv.customerUsername && userByUsername.has(inv.customerUsername)) {
+        matchedUserId = userByUsername.get(inv.customerUsername)
+      } else if (inv.customerPhone && userByPhone.has(inv.customerPhone)) {
+        matchedUserId = userByPhone.get(inv.customerPhone)
+      }
+
+      if (matchedUserId) {
+        await prisma.invoice.update({
+          where: { id: inv.id },
+          data: { userId: matchedUserId },
+        })
+        linkedInvoicesCount++
+      }
+    }
+  }
+
+  // Hitung jumlah tagihan per router sekarang
+  const citeureupUsers = await prisma.pppoeUser.findMany({
+    where: { routerId: citeureupRouter.id },
+    select: { id: true, username: true },
+  })
+  const citeureupUserIds = citeureupUsers.map(u => u.id)
+  const citeureupUsernames = citeureupUsers.map(u => u.username)
+
+  const cibinongUsers = await prisma.pppoeUser.findMany({
+    where: { routerId: cibinongRouter.id },
+    select: { id: true, username: true },
+  })
+  const cibinongUserIds = cibinongUsers.map(u => u.id)
+  const cibinongUsernames = cibinongUsers.map(u => u.username)
+
+  const citeureupInvoicesCount = await prisma.invoice.count({
+    where: {
+      OR: [
+        { userId: { in: citeureupUserIds } },
+        { customerUsername: { in: citeureupUsernames } },
+      ],
+    },
+  })
+
+  const cibinongInvoicesCount = await prisma.invoice.count({
+    where: {
+      OR: [
+        { userId: { in: cibinongUserIds } },
+        { customerUsername: { in: cibinongUsernames } },
+      ],
+    },
+  })
+
   console.log('=== HASIL EKSEKUSI PEMISAHAN ===')
   console.log(`📍 Citeureup:`)
   console.log(`   - Area assigned : ${citeureupAreaNames.join(', ') || '(tanpa area spesifik)'}`)
   console.log(`   - Pelanggan     : ${usersInTegalArea.count} user`)
+  console.log(`   - Tagihan       : ${citeureupInvoicesCount} tagihan`)
   console.log(`📍 Cibinong:`)
   console.log(`   - Area assigned : ${cibinongAreaNames.join(', ') || '(seluruh area lainnya)'}`)
-  console.log(`   - Pelanggan     : ${usersInCibinong.count} user\n`)
-
-  console.log('✅ PROSES SELESAI DENGAN SUKSES!')
+  console.log(`   - Pelanggan     : ${usersInCibinong.count} user`)
+  console.log(`   - Tagihan       : ${cibinongInvoicesCount} tagihan`)
+  if (linkedInvoicesCount > 0) {
+    console.log(`🔗 Auto-linked ${linkedInvoicesCount} tagihan tanpa userId ke akun pelanggan`)
+  }
+  console.log('\n✅ PROSES SELESAI DENGAN SUKSES!')
 }
 
 main()
