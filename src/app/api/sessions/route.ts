@@ -8,6 +8,13 @@ import { fetchLiveHotspotTrafficMap } from '@/server/services/radius/live-hotspo
 let cachedAllTimeStats: any = null;
 let cachedAllTimeStatsTime = 0;
 
+interface LiveMikrotikCache {
+  timestamp: number;
+  sessions: any[];
+}
+const liveMikrotikCache = new Map<string, LiveMikrotikCache>();
+const LIVE_CACHE_TTL_MS = 8000; // 8 seconds cache to prevent MikroTik API log flooding and reduce CPU
+
 // ─── Formatting helpers ─────────────────────────────────────────────────────
 
 function formatBytes(bytes: number): string {
@@ -238,95 +245,106 @@ export async function GET(request: NextRequest) {
     if (!radiusEnabled || activeSessions.length === 0) {
       const targetRouters = selectedRouter ? [selectedRouter] : allRouters;
       const liveSessionsList: any[] = [];
+      const cacheKey = selectedRouter ? selectedRouter.id : 'all';
+      const nowMs = Date.now();
+      const cached = liveMikrotikCache.get(cacheKey);
 
-      await Promise.allSettled(
-        targetRouters.map(async (r) => {
-          const host = r.ipAddress || r.nasname;
-          if (!host || !r.username || !r.password) return;
-          try {
-            const { RouterOSAPI } = await import('node-routeros');
-            const api = new RouterOSAPI({
-              host,
-              port: r.port || 8728,
-              user: r.username,
-              password: r.password,
-              timeout: 3,
-            });
+      if (cached && nowMs - cached.timestamp < LIVE_CACHE_TTL_MS && !useLiveTraffic) {
+        liveSessionsList.push(...cached.sessions);
+      } else {
+        await Promise.allSettled(
+          targetRouters.map(async (r) => {
+            const host = r.ipAddress || r.nasname;
+            if (!host || !r.username || !r.password) return;
+            try {
+              const { RouterOSAPI } = await import('node-routeros');
+              const api = new RouterOSAPI({
+                host,
+                port: r.port || 8728,
+                user: r.username,
+                password: r.password,
+                timeout: 3,
+              });
 
-            const connectPromise = api.connect();
-            const timeoutPromise = new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('timeout')), 3000)
-            );
-            await Promise.race([connectPromise, timeoutPromise]);
+              const connectPromise = api.connect();
+              const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('timeout')), 3000)
+              );
+              await Promise.race([connectPromise, timeoutPromise]);
 
-            // 1. Fetch live PPPoE active sessions
-            if (type !== 'hotspot') {
-              const activePPP = await api.write('/ppp/active/print').catch(() => []);
-              for (const ppp of activePPP) {
-                const username = ppp.name || ppp.user || '';
-                const ip = ppp.address || '';
-                const mac = ppp['caller-id'] || '';
-                const uptimeStr = ppp.uptime || '0s';
-                const uptimeSecs = parseUptime(uptimeStr);
-                const startTime = new Date(Date.now() - uptimeSecs * 1000);
+              // 1. Fetch live PPPoE active sessions
+              if (type !== 'hotspot') {
+                const activePPP = await api.write('/ppp/active/print').catch(() => []);
+                for (const ppp of activePPP) {
+                  const username = ppp.name || ppp.user || '';
+                  const ip = ppp.address || '';
+                  const mac = ppp['caller-id'] || '';
+                  const uptimeStr = ppp.uptime || '0s';
+                  const uptimeSecs = parseUptime(uptimeStr);
+                  const startTime = new Date(Date.now() - uptimeSecs * 1000);
 
-                liveSessionsList.push({
-                  radacctid: BigInt(0),
-                  acctsessionid: ppp['.id'] || ppp['session-id'] || `live-${r.id}-${username}`,
-                  username,
-                  nasipaddress: r.nasname || r.ipAddress || '',
-                  framedipaddress: ip,
-                  callingstationid: mac,
-                  acctstarttime: startTime,
-                  acctupdatetime: new Date(),
-                  acctstoptime: null,
-                  acctsessiontime: uptimeSecs,
-                  acctinputoctets: BigInt(ppp['bytes-in'] || ppp['rx-byte'] || 0),
-                  acctoutputoctets: BigInt(ppp['bytes-out'] || ppp['tx-byte'] || 0),
-                  acctterminatecause: '',
-                  routerId: r.id,
-                  service: 'pppoe',
-                });
+                  liveSessionsList.push({
+                    radacctid: BigInt(0),
+                    acctsessionid: ppp['.id'] || ppp['session-id'] || `live-${r.id}-${username}`,
+                    username,
+                    nasipaddress: r.nasname || r.ipAddress || '',
+                    framedipaddress: ip,
+                    callingstationid: mac,
+                    acctstarttime: startTime,
+                    acctupdatetime: new Date(),
+                    acctstoptime: null,
+                    acctsessiontime: uptimeSecs,
+                    acctinputoctets: BigInt(ppp['bytes-in'] || ppp['rx-byte'] || 0),
+                    acctoutputoctets: BigInt(ppp['bytes-out'] || ppp['tx-byte'] || 0),
+                    acctterminatecause: '',
+                    routerId: r.id,
+                    service: 'pppoe',
+                  });
+                }
               }
-            }
 
-            // 2. Fetch live Hotspot active sessions
-            if (type !== 'pppoe') {
-              const activeHotspot = await api.write('/ip/hotspot/active/print').catch(() => []);
-              for (const hs of activeHotspot) {
-                const username = hs.user || hs.username || '';
-                const ip = hs.address || '';
-                const mac = hs['mac-address'] || '';
-                const uptimeStr = hs.uptime || '0s';
-                const uptimeSecs = parseUptime(uptimeStr);
-                const startTime = new Date(Date.now() - uptimeSecs * 1000);
+              // 2. Fetch live Hotspot active sessions
+              if (type !== 'pppoe') {
+                const activeHotspot = await api.write('/ip/hotspot/active/print').catch(() => []);
+                for (const hs of activeHotspot) {
+                  const username = hs.user || hs.username || '';
+                  const ip = hs.address || '';
+                  const mac = hs['mac-address'] || '';
+                  const uptimeStr = hs.uptime || '0s';
+                  const uptimeSecs = parseUptime(uptimeStr);
+                  const startTime = new Date(Date.now() - uptimeSecs * 1000);
 
-                liveSessionsList.push({
-                  radacctid: BigInt(0),
-                  acctsessionid: hs['.id'] || hs['session-id'] || `live-hs-${r.id}-${username}`,
-                  username,
-                  nasipaddress: r.nasname || r.ipAddress || '',
-                  framedipaddress: ip,
-                  callingstationid: mac,
-                  acctstarttime: startTime,
-                  acctupdatetime: new Date(),
-                  acctstoptime: null,
-                  acctsessiontime: uptimeSecs,
-                  acctinputoctets: BigInt(hs['bytes-in'] || 0),
-                  acctoutputoctets: BigInt(hs['bytes-out'] || 0),
-                  acctterminatecause: '',
-                  routerId: r.id,
-                  service: 'hotspot',
-                });
+                  liveSessionsList.push({
+                    radacctid: BigInt(0),
+                    acctsessionid: hs['.id'] || hs['session-id'] || `live-hs-${r.id}-${username}`,
+                    username,
+                    nasipaddress: r.nasname || r.ipAddress || '',
+                    framedipaddress: ip,
+                    callingstationid: mac,
+                    acctstarttime: startTime,
+                    acctupdatetime: new Date(),
+                    acctstoptime: null,
+                    acctsessiontime: uptimeSecs,
+                    acctinputoctets: BigInt(hs['bytes-in'] || 0),
+                    acctoutputoctets: BigInt(hs['bytes-out'] || 0),
+                    acctterminatecause: '',
+                    routerId: r.id,
+                    service: 'hotspot',
+                  });
+                }
               }
-            }
 
-            await api.close().catch(() => {});
-          } catch (err) {
-            console.error(`[Sessions] Live MikroTik query failed for router ${r.name}:`, err);
-          }
-        })
-      );
+              await api.close().catch(() => {});
+            } catch (err) {
+              console.error(`[Sessions] Live MikroTik query failed for router ${r.name}:`, err);
+            }
+          })
+        );
+
+        if (liveSessionsList.length > 0) {
+          liveMikrotikCache.set(cacheKey, { timestamp: nowMs, sessions: liveSessionsList });
+        }
+      }
 
       if (liveSessionsList.length > 0) {
         activeSessions = liveSessionsList;

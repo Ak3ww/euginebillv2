@@ -109,12 +109,26 @@ export async function POST(request: NextRequest) {
     // 2. Allocate free port
     const proxyPort = await getNextAvailableProxyPort()
 
-    // 3. Build proxy URL (VPS public IP + proxyPort)
+    // 3. Build proxy URL (Always use VPS raw Public IP to bypass Cloudflare and prevent browser HSTS/SSL error)
     const hostHeader = request.headers.get('host') || ''
     const currentDomain = hostHeader.split(':')[0]
     const isPublicIp = /^\d+\.\d+\.\d+\.\d+$/.test(currentDomain)
-    const vpsHost = isPublicIp ? currentDomain : VPS_HOST
-    const proxyUrl = `http://${vpsHost}:${proxyPort}`
+
+    let resolvedPublicIp = isPublicIp ? currentDomain : ''
+    if (!resolvedPublicIp) {
+      const vpnServer = await prisma.vpnServer.findFirst({
+        where: { isActive: true },
+        select: { host: true },
+      })
+      if (vpnServer?.host && /^\d+\.\d+\.\d+\.\d+$/.test(vpnServer.host)) {
+        resolvedPublicIp = vpnServer.host
+      }
+    }
+    if (!resolvedPublicIp) {
+      resolvedPublicIp = process.env.VPS_PUBLIC_IP || process.env.VPS_HOST || '43.173.14.236'
+    }
+
+    const proxyUrl = `http://${resolvedPublicIp}:${proxyPort}`
 
     const expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_MINUTES * 60 * 1000)
 
