@@ -205,6 +205,25 @@ export async function DELETE(request: NextRequest) {
     const sessionId = searchParams.get('id')
     if (!sessionId) return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
 
+    if (sessionId === 'all') {
+      const active = await prisma.ontRemoteSession.findMany({
+        where: { status: 'ACTIVE' },
+      })
+      for (const s of active) {
+        await OntRemoteService.removeOntRemoteRules({
+          sessionId: s.id,
+          proxyPort: s.proxyPort,
+          ontIp: s.targetIp,
+          targetPort: s.targetPort,
+        })
+      }
+      await prisma.ontRemoteSession.updateMany({
+        where: { status: 'ACTIVE' },
+        data: { status: 'CLOSED' },
+      })
+      return NextResponse.json({ success: true, message: `Berhasil menutup ${active.length} sesi remote ONT` })
+    }
+
     const ontSession = await prisma.ontRemoteSession.findUnique({ where: { id: sessionId } })
     if (!ontSession) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 

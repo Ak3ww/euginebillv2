@@ -185,7 +185,7 @@ const menuGroups: MenuGroup[] = [
         children: [
           { titleKey: 'nav.pppoeSessions', href: '/admin/sessions/pppoe', requiredPermission: 'sessions.view' },
           { titleKey: 'nav.hotspotSessions', href: '/admin/sessions/hotspot', requiredPermission: 'sessions.view' },
-          { titleKey: 'nav.ontRemote', href: '/admin/sessions/pppoe', requiredPermission: 'sessions.view' },
+          { titleKey: 'nav.ontRemote', href: '/admin/monitoring/ont-remote', requiredPermission: 'sessions.view' },
         ],
       },
       {

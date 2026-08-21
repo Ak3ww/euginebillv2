@@ -255,8 +255,8 @@ export class OntRemoteService {
         await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}"`)
         await new Promise((r) => setTimeout(r, 200))
 
-        // Create standalone HTTP reverse proxy script that rewrites Host header
-        // This solves "400 Bad Request: Your request has bad syntax" on ZTE/Huawei ONTs (Boa webserver)
+        // Create standalone HTTP reverse proxy script with header sanitization
+        // This solves "400 Bad Request: Your request has bad syntax" on ZTE/Huawei ONTs (Boa webserver 1KB header buffer limit)
         const proxyScriptContent = `
 const http = require('http');
 const listenPort = ${proxyPort};
@@ -265,16 +265,25 @@ const ontIp = '${ontIp}';
 const targetPort = ${targetPort};
 
 const server = http.createServer((req, res) => {
-  const headers = { ...req.headers };
-  headers['host'] = ontIp + (targetPort === 80 ? '' : ':' + targetPort);
-  delete headers['connection'];
+  // Strip modern browser bloat headers (sec-ch-ua, sec-fetch, etc.) that exceed Boa webserver's 1024-byte buffer
+  const cleanHeaders = {};
+  cleanHeaders['host'] = ontIp + (targetPort === 80 ? '' : ':' + targetPort);
+
+  if (req.headers['user-agent']) cleanHeaders['user-agent'] = req.headers['user-agent'];
+  if (req.headers['accept']) cleanHeaders['accept'] = req.headers['accept'];
+  if (req.headers['accept-language']) cleanHeaders['accept-language'] = req.headers['accept-language'];
+  if (req.headers['cookie']) cleanHeaders['cookie'] = req.headers['cookie'];
+  if (req.headers['content-type']) cleanHeaders['content-type'] = req.headers['content-type'];
+  if (req.headers['content-length']) cleanHeaders['content-length'] = req.headers['content-length'];
+  if (req.headers['authorization']) cleanHeaders['authorization'] = req.headers['authorization'];
+  if (req.headers['referer']) cleanHeaders['referer'] = 'http://' + ontIp + '/';
 
   const options = {
     hostname: mikrotikVpnIp,
     port: listenPort,
     path: req.url,
     method: req.method,
-    headers: headers,
+    headers: cleanHeaders,
     timeout: 15000,
   };
 
@@ -289,6 +298,9 @@ const server = http.createServer((req, res) => {
     res.writeHead(proxyRes.statusCode || 200, resHeaders);
     proxyRes.pipe(res, { end: true });
   });
+
+  // Explicitly force Host header on the request object so Node doesn't auto-append :24000
+  proxyReq.setHeader('Host', ontIp + (targetPort === 80 ? '' : ':' + targetPort));
 
   proxyReq.on('error', (err) => {
     console.error('[ONT-Proxy:' + listenPort + '] Error forwarding to ' + mikrotikVpnIp + ':' + listenPort + ' (' + ontIp + '):', err.message);
