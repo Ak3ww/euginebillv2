@@ -246,58 +246,79 @@ export class OntRemoteService {
       try {
         await runCmd('sysctl -w net.ipv4.ip_forward=1')
 
-        // Open UFW port for this session (idempotent)
+        // Ensure ufw allows this port
         await runCmd(`ufw allow ${proxyPort}/tcp`)
 
-        // Kill any existing proxy on this port safely
-        await runCmd(`fuser -k ${proxyPort}/tcp`)
-        await runCmd(`pkill -9 -f "ont-proxy-${proxyPort}.js"`)
-        await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}"`)
-        await new Promise((r) => setTimeout(r, 200))
+        // Kill any existing proxy or socat on this port safely
+        await runCmd(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`)
+        await runCmd(`kill -9 $(lsof -t -i:${proxyPort} 2>/dev/null) 2>/dev/null || true`)
+        await runCmd(`pkill -9 -f "ont-proxy-${proxyPort}.js" 2>/dev/null || true`)
+        await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || true`)
+        await new Promise((r) => setTimeout(r, 400))
 
-        // Create standalone HTTP reverse proxy script with header sanitization and ServerName rewriting
-        // ZTE F609/F670/F660 and Huawei modems run Boa Webserver with hardcoded "ServerName 192.168.1.1".
-        // Requests with WAN IP in Host header trigger "400 Bad Request: Your request has bad syntax".
-        // Rewriting Host to "192.168.1.1" solves this completely!
+        // Create standalone HTTP reverse proxy script with header sanitization, ServerName rewriting,
+        // and smart automatic root-path fallback for ZTE F609/F670 (/getpage.gch) and Huawei (/login.asp)
         const proxyScriptContent = `
 const http = require('http');
+const https = require('https');
 const listenPort = ${proxyPort};
 const mikrotikVpnIp = '${mikrotikVpnIp}';
 const ontIp = '${ontIp}';
 const targetPort = ${targetPort};
+const isHttpsTarget = targetPort === 443;
 
-const server = http.createServer((req, res) => {
+// Known ONT modem login entrypoints when root path / returns 400 (ZTE Boa missing index.html)
+const ENTRY_PATHS = [
+  '/',
+  '/getpage.gch?pid=1002',
+  '/login.gch',
+  '/index.gch',
+  '/login.asp',
+  '/index.asp',
+  '/login.html',
+  '/index.html',
+];
+
+function forwardRequest(req, res, targetPath, tryIdx = 0) {
   // Strip modern browser bloat headers (sec-ch-ua, sec-fetch, etc.) that exceed Boa webserver's 1024-byte buffer
-  const cleanHeaders = {};
-  cleanHeaders['host'] = '192.168.1.1';
-  cleanHeaders['user-agent'] = req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)';
-  cleanHeaders['accept'] = req.headers['accept'] || '*/*';
-  cleanHeaders['accept-language'] = req.headers['accept-language'] || 'id,en;q=0.9';
+  const cleanHeaders = {
+    'host': '192.168.1.1',
+    'user-agent': req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'accept': req.headers['accept'] || '*/*',
+    'accept-language': req.headers['accept-language'] || 'id,en;q=0.9',
+    'referer': 'http://192.168.1.1/',
+  };
   if (req.headers['cookie']) cleanHeaders['cookie'] = req.headers['cookie'];
   if (req.headers['content-type']) cleanHeaders['content-type'] = req.headers['content-type'];
   if (req.headers['content-length']) cleanHeaders['content-length'] = req.headers['content-length'];
   if (req.headers['authorization']) cleanHeaders['authorization'] = req.headers['authorization'];
-  cleanHeaders['referer'] = 'http://192.168.1.1/';
 
   const options = {
     hostname: mikrotikVpnIp,
     port: listenPort,
-    path: req.url,
+    path: targetPath,
     method: req.method,
     headers: cleanHeaders,
     timeout: 15000,
+    rejectUnauthorized: false,
   };
 
-  const proxyReq = http.request(options, (proxyRes) => {
+  const client = isHttpsTarget ? https : http;
+  const proxyReq = client.request(options, (proxyRes) => {
+    // If request was for root and ONT returned 400 Bad Request or 404, automatically try next known ONT login path
+    if (req.method === 'GET' && (req.url === '/' || req.url === '') && (proxyRes.statusCode === 400 || proxyRes.statusCode === 404) && tryIdx + 1 < ENTRY_PATHS.length) {
+      console.log('[ONT-Proxy] ' + targetPath + ' -> ' + proxyRes.statusCode + ', retrying fallback: ' + ENTRY_PATHS[tryIdx + 1]);
+      proxyRes.resume();
+      return forwardRequest(req, res, ENTRY_PATHS[tryIdx + 1], tryIdx + 1);
+    }
+
     const resHeaders = { ...proxyRes.headers };
-    // Handle redirect locations (prevent browser redirecting to private 192.168.1.1 or WAN IP)
     if (resHeaders['location']) {
       resHeaders['location'] = resHeaders['location'].replace(
         /https?:\\/\\/(192\\.168\\.\\d+\\.\\d+|10\\.\\d+\\.\\d+\\.\\d+)(:\\d+)?/gi,
         ''
       );
     }
-    // Strip domain attribute from Set-Cookie so session cookies work on VPS proxy port
     if (resHeaders['set-cookie']) {
       if (Array.isArray(resHeaders['set-cookie'])) {
         resHeaders['set-cookie'] = resHeaders['set-cookie'].map(c => c.replace(/domain=[^;]+;?/gi, ''));
@@ -310,11 +331,10 @@ const server = http.createServer((req, res) => {
     proxyRes.pipe(res, { end: true });
   });
 
-  // Explicitly force Host header to 192.168.1.1 to satisfy Boa webserver
   proxyReq.setHeader('Host', '192.168.1.1');
 
   proxyReq.on('error', (err) => {
-    console.error('[ONT-Proxy:' + listenPort + '] Error forwarding to ' + mikrotikVpnIp + ':' + listenPort + ' (' + ontIp + '):', err.message);
+    console.error('[ONT-Proxy:' + listenPort + '] Forward error:', err.message);
     if (!res.headersSent) {
       res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end('<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px;background:#0f172a;color:#f8fafc;text-align:center;"><div style="max-width:500px;margin:0 auto;background:#1e293b;padding:30px;border-radius:16px;"><h2 style="color:#ef4444;">502 Bad Gateway</h2><p>Gagal menghubungi modem ONT di IP <b>' + ontIp + '</b> via MikroTik <b>' + mikrotikVpnIp + '</b>.</p><p style="color:#94a3b8;font-size:13px;">' + err.message + '</p></div></body></html>');
@@ -325,7 +345,15 @@ const server = http.createServer((req, res) => {
     proxyReq.destroy(new Error('Gateway Timeout (ONT tidak merespons dalam 15 detik)'));
   });
 
-  req.pipe(proxyReq, { end: true });
+  if (tryIdx === 0) {
+    req.pipe(proxyReq, { end: true });
+  } else {
+    proxyReq.end();
+  }
+}
+
+const server = http.createServer((req, res) => {
+  forwardRequest(req, res, req.url, 0);
 });
 
 server.on('error', (err) => {
@@ -427,7 +455,7 @@ server.listen(listenPort, '0.0.0.0', () => {
     } catch (err: any) {
       if (process.platform === 'linux') {
         await exec(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`).catch(() => {})
-        await exec(`pkill -f "ont-proxy-${proxyPort}.js" 2>/dev/null || true`).catch(() => {})
+        await exec(`pkill -9 -f "ont-proxy-${proxyPort}.js" 2>/dev/null || true`).catch(() => {})
       }
       return { success: false, error: `MikroTik API error: ${err?.message || err}` }
     }
@@ -450,11 +478,12 @@ server.listen(listenPort, '0.0.0.0', () => {
     // 1. Kill VPS proxy process + close UFW port + remove tmp script
     if (process.platform === 'linux' && proxyPort) {
       try {
-        await runCmd(`fuser -k ${proxyPort}/tcp`)
-        await runCmd(`pkill -9 -f "ont-proxy-${proxyPort}.js"`)
-        await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}"`)
+        await runCmd(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`)
+        await runCmd(`kill -9 $(lsof -t -i:${proxyPort} 2>/dev/null) 2>/dev/null || true`)
+        await runCmd(`pkill -9 -f "ont-proxy-${proxyPort}.js" 2>/dev/null || true`)
+        await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || true`)
         await runCmd(`rm -f /tmp/ont-proxy-${proxyPort}.js /var/log/ont-remote-${proxyPort}.log`)
-        await runCmd(`ufw delete allow ${proxyPort}/tcp`)
+        await runCmd(`ufw delete allow ${proxyPort}/tcp 2>/dev/null || true`)
       } catch { /* ignore */ }
     }
 
