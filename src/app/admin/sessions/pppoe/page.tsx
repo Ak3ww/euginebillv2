@@ -22,6 +22,8 @@ import {
   Copy,
   Check,
   AlertCircle,
+  Trash2,
+  ExternalLink,
 } from 'lucide-react'
 import { useToast } from '@/components/cyberpunk/CyberToast'
 import { useTranslation } from '@/hooks/useTranslation'
@@ -95,6 +97,88 @@ export default function PPPoESessionsPage() {
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [copiedIp, setCopiedIp] = useState<string | null>(null)
 
+  // ONT Remote sessions state
+  const [ontSessions, setOntSessions] = useState<any[]>([])
+  const [copiedOntId, setCopiedOntId] = useState<string | null>(null)
+  const [closingOntId, setClosingOntId] = useState<string | null>(null)
+  const [closingAllOnt, setClosingAllOnt] = useState(false)
+
+  const fetchOntSessions = async () => {
+    try {
+      const res = await fetch('/api/network/ont-remote')
+      const data = await res.json()
+      if (res.ok && data.sessions) {
+        setOntSessions(data.sessions)
+      }
+    } catch (e) {
+      console.error('Failed to fetch ONT sessions:', e)
+    }
+  }
+
+  const handleCopyOntUrl = (id: string, url: string) => {
+    navigator.clipboard.writeText(url)
+    setCopiedOntId(id)
+    addToast({ type: 'info', title: 'Tersalin', description: 'Link remote Web ONT disalin ke clipboard.' })
+    setTimeout(() => setCopiedOntId(null), 2500)
+  }
+
+  const handleCloseOntSession = async (sess: any) => {
+    const confirmed = await confirm({
+      title: 'Tutup Sesi Remote ONT?',
+      message: `Sesi remote untuk ${sess.customerName} (Port ${sess.proxyPort}) akan dinonaktifkan dan aturan NAT MikroTik akan dihapus.`,
+      confirmText: 'Ya, Tutup Sesi',
+      cancelText: 'Batal',
+      variant: 'danger',
+    })
+    if (!confirmed) return
+
+    setClosingOntId(sess.id)
+    try {
+      const res = await fetch(`/api/network/ont-remote?id=${sess.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        addToast({ type: 'success', title: 'Sukses', description: 'Sesi remote ONT berhasil ditutup & aturan NAT dihapus' })
+        fetchOntSessions()
+      } else {
+        addToast({ type: 'error', title: 'Gagal', description: data.error || 'Gagal menutup sesi remote ONT' })
+      }
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal', description: e?.message || 'Terjadi kesalahan sistem' })
+    } finally {
+      setClosingOntId(null)
+    }
+  }
+
+  const handleCloseAllOntSessions = async () => {
+    const activeCount = ontSessions.filter((s: any) => s.status === 'ACTIVE' && s.remainingSeconds > 0).length
+    if (activeCount === 0) return
+
+    const confirmed = await confirm({
+      title: 'Tutup Semua Sesi Remote ONT?',
+      message: `Tindakan ini akan menutup ${activeCount} sesi aktif dan membersihkan seluruh aturan NAT di MikroTik sekaligus.`,
+      confirmText: 'Ya, Tutup Semua',
+      cancelText: 'Batal',
+      variant: 'danger',
+    })
+    if (!confirmed) return
+
+    setClosingAllOnt(true)
+    try {
+      const res = await fetch('/api/network/ont-remote?id=all', { method: 'DELETE' })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        addToast({ type: 'success', title: 'Sukses', description: data.message || 'Semua sesi remote ONT berhasil ditutup' })
+        fetchOntSessions()
+      } else {
+        addToast({ type: 'error', title: 'Gagal', description: data.error || 'Gagal menutup semua sesi' })
+      }
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal', description: e?.message || 'Terjadi kesalahan sistem' })
+    } finally {
+      setClosingAllOnt(false)
+    }
+  }
+
   // ONT Remote Modal state
   const [ontModalOpen, setOntModalOpen] = useState(false)
   const [ontTarget, setOntTarget] = useState<{
@@ -109,9 +193,18 @@ export default function PPPoESessionsPage() {
     routerName: '',
   })
 
-  // 1-second ticker for live duration counter
+  // 1-second ticker for live duration counter & ONT countdown
   useEffect(() => {
-    const ticker = setInterval(() => setNow(nowWIB().getTime()), 1000)
+    const ticker = setInterval(() => {
+      setNow(nowWIB().getTime())
+      setOntSessions((prev) =>
+        prev.map((s) => {
+          if (s.status !== 'ACTIVE' || s.remainingSeconds <= 0) return s
+          const next = s.remainingSeconds - 1
+          return { ...s, remainingSeconds: Math.max(0, next), status: next <= 0 ? 'EXPIRED' : s.status }
+        })
+      )
+    }, 1000)
     return () => clearInterval(ticker)
   }, [])
 
@@ -174,17 +267,23 @@ export default function PPPoESessionsPage() {
 
   useEffect(() => {
     fetchRouters()
+    fetchOntSessions()
   }, [])
 
   useEffect(() => {
     fetchSessions(1)
+    fetchOntSessions()
     if (!autoRefresh) return
     const interval = setInterval(() => {
       fetchSessions(currentPage, true)
+      fetchOntSessions()
     }, 10000)
 
     const onVisible = () => {
-      if (!document.hidden) fetchSessions(currentPage, true)
+      if (!document.hidden) {
+        fetchSessions(currentPage, true)
+        fetchOntSessions()
+      }
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => {
@@ -618,6 +717,114 @@ export default function PPPoESessionsPage() {
               <p className="text-xs text-muted-foreground mt-0.5">
                 {routerStatus.error || 'Koneksi ke port API MikroTik gagal. Pastikan Router menyala dan VPN Client terhubung.'}
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Active ONT Remote Sessions Widget */}
+        {ontSessions.filter((s: any) => s.status === 'ACTIVE' && s.remainingSeconds > 0).length > 0 && (
+          <div className="p-4 bg-primary/5 dark:bg-primary/10 border border-primary/30 rounded-2xl space-y-3 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-primary/20 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-primary/20 text-primary rounded-lg">
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    Sesi Remote Web GUI ONT Aktif
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-full border border-emerald-500/30">
+                      {ontSessions.filter((s: any) => s.status === 'ACTIVE' && s.remainingSeconds > 0).length} Aktif
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    Tunnel proxy VPS dan aturan NAT MikroTik sedang aktif untuk akses modem pelanggan di bawah ini.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCloseAllOntSessions}
+                  disabled={closingAllOnt}
+                  className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-destructive bg-destructive/10 hover:bg-destructive/20 border border-destructive/30 rounded-xl transition-all disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{closingAllOnt ? 'Menutup...' : 'Tutup Semua Sesi'}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {ontSessions
+                .filter((s: any) => s.status === 'ACTIVE' && s.remainingSeconds > 0)
+                .map((s: any) => {
+                  const m = Math.floor(s.remainingSeconds / 60);
+                  const sec = s.remainingSeconds % 60;
+                  const timeFormatted = `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+                  const isClosingThis = closingOntId === s.id;
+
+                  return (
+                    <div
+                      key={s.id}
+                      className="p-3 bg-card border border-border rounded-xl flex flex-col justify-between gap-2.5 hover:border-primary/40 transition-all shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-semibold text-xs text-foreground truncate">{s.customerName}</div>
+                          <div className="text-[11px] font-mono text-muted-foreground truncate">{s.username}</div>
+                        </div>
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-[11px] font-bold border border-emerald-500/20 shrink-0">
+                          <Clock className="w-3 h-3 animate-pulse" />
+                          {timeFormatted}
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] space-y-1 bg-muted/40 p-2 rounded-lg font-mono">
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span>Target ONT:</span>
+                          <span className="font-semibold text-foreground">{s.targetIp}:{s.targetPort}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span>URL Akses:</span>
+                          <span className="font-semibold text-primary underline truncate max-w-[170px]">{s.proxyUrl}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-border/50">
+                        <button
+                          onClick={() => handleCopyOntUrl(s.id, s.proxyUrl)}
+                          className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-all"
+                          title="Salin URL"
+                        >
+                          {copiedOntId === s.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedOntId === s.id ? 'Tersalin' : 'Salin'}</span>
+                        </button>
+
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={s.proxyUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-sm transition-all"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Buka</span>
+                          </a>
+
+                          <button
+                            onClick={() => handleCloseOntSession(s)}
+                            disabled={isClosingThis}
+                            className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-all disabled:opacity-50"
+                            title="Tutup Sesi & Hapus NAT"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>{isClosingThis ? '...' : 'Tutup'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}
