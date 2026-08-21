@@ -119,12 +119,17 @@ AllowedIPs = ${allowedIps}
 `
   await writeFile(WG_CONF, conf + peerBlock, 'utf8')
 
-  // Apply without restarting tunnel (zero-downtime)
+  // Apply directly to running WireGuard interface (instant kernel addition)
   try {
-    await exec(`wg syncconf ${WG_IFACE} <(wg-quick strip ${WG_IFACE})`, { shell: '/bin/bash' })
-  } catch {
-    // Fallback if syncconf unavailable
-    try { await exec(`wg addpeer ${WG_IFACE} ${pubKey} allowed-ips ${allowedIps.replace(/\s/g, '')}`) } catch { /* ignore */ }
+    await exec(`wg set ${WG_IFACE} peer "${pubKey}" allowed-ips "${allowedIps.replace(/\s/g, '')}"`)
+    console.log(`[vps-wg-peer] wg set peer success: ${pubKey} -> ${allowedIps}`)
+  } catch (wgSetErr) {
+    console.error('[vps-wg-peer] wg set peer error:', wgSetErr)
+    try {
+      await exec(`wg syncconf ${WG_IFACE} <(wg-quick strip ${WG_IFACE})`, { shell: '/bin/bash' })
+    } catch (syncErr) {
+      console.error('[vps-wg-peer] wg syncconf fallback error:', syncErr)
+    }
   }
 
   // Add ip routes on VPS so local networks behind the peer are reachable via the tunnel
@@ -148,14 +153,14 @@ AllowedIPs = ${allowedIps}
           // Insert just before the first [Peer] block (i.e. end of [Interface] section)
           const peerIdx = updatedConf.indexOf('\n[Peer]')
           if (peerIdx !== -1) {
-            updatedConf = updatedConf.slice(0, peerIdx) + '\n' + postUpLine + '\n' + postDownLine + updatedConf.slice(peerIdx)
+            updatedConf = updatedConf.slice(0, peerIdx) + `\n${postUpLine}\n${postDownLine}` + updatedConf.slice(peerIdx)
           } else {
-            updatedConf = updatedConf.trimEnd() + '\n' + postUpLine + '\n' + postDownLine + '\n'
+            updatedConf += `\n${postUpLine}\n${postDownLine}`
           }
         }
       }
       await writeFile(WG_CONF, updatedConf, 'utf8')
-    } catch { /* non-fatal — ephemeral routes still added above */ }
+    } catch { /* ignore conf write errors */ }
   }
 
   // Ensure iptables rules allow WG peer traffic to reach RADIUS and ping gateway (idempotent check-then-insert)
@@ -190,9 +195,13 @@ async function removePeerFromConf(pubKey: string): Promise<void> {
   await writeFile(WG_CONF, cleaned, 'utf8')
 
   try {
-    await exec(`wg syncconf ${WG_IFACE} <(wg-quick strip ${WG_IFACE})`, { shell: '/bin/bash' })
-  } catch {
-    try { await exec(`wg set ${WG_IFACE} peer ${pubKey} remove`) } catch { /* ignore */ }
+    await exec(`wg set ${WG_IFACE} peer "${pubKey}" remove`)
+    console.log(`[vps-wg-peer] wg set peer remove success: ${pubKey}`)
+  } catch (wgRemErr) {
+    console.error('[vps-wg-peer] wg set peer remove error:', wgRemErr)
+    try {
+      await exec(`wg syncconf ${WG_IFACE} <(wg-quick strip ${WG_IFACE})`, { shell: '/bin/bash' })
+    } catch { /* ignore */ }
   }
 }
 
