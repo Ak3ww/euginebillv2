@@ -268,28 +268,23 @@ const targetPort = ${targetPort};
 const isHttpsTarget = targetPort === 443;
 
 function forwardRequest(req, res, targetPath) {
-  // Use strictly compact, standardized headers matching the ONT's WAN IP to pass Boa webserver validation
+  // Use strictly the 4 verified headers that passed the ZTE diagnostic test with HTTP 200 OK
   const cleanHeaders = {
     'Host': targetPort === 80 ? ontIp : ontIp + ':' + targetPort,
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    'Accept': req.headers['accept'] || '*/*',
-    'Accept-Language': 'id,en;q=0.9',
+    'User-Agent': 'Mozilla/5.0',
+    'Accept': '*/*',
     'Connection': 'close',
-    'Referer': (isHttpsTarget ? 'https://' : 'http://') + ontIp + '/',
   };
-  if (req.headers['cookie']) cleanHeaders['Cookie'] = req.headers['cookie'];
   if (req.headers['content-type']) cleanHeaders['Content-Type'] = req.headers['content-type'];
   if (req.headers['content-length']) cleanHeaders['Content-Length'] = req.headers['content-length'];
-  if (req.headers['authorization']) cleanHeaders['Authorization'] = req.headers['authorization'];
+  if (req.headers['cookie']) cleanHeaders['Cookie'] = req.headers['cookie'];
 
   const options = {
-    hostname: mikrotikVpnIp,
     host: mikrotikVpnIp,
     port: listenPort,
     path: targetPath,
     method: req.method,
     headers: cleanHeaders,
-    setHost: false, // Prevents Node from automatically appending Host: mikrotikVpnIp:port
     timeout: 15000,
     rejectUnauthorized: false,
   };
