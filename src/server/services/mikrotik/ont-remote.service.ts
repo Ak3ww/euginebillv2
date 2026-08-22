@@ -265,6 +265,7 @@ const listenPort = ${proxyPort};
 const mikrotikVpnIp = '${mikrotikVpnIp}';
 const ontIp = '${ontIp}';
 const targetPort = ${targetPort};
+const isHttpsTarget = targetPort === 443;
 const ontAgent = new (isHttpsTarget ? https : http).Agent({ maxSockets: 2, keepAlive: false });
 
 function forwardRequest(req, res, targetPath, bodyBuffer) {

@@ -565,6 +565,7 @@ export default function PPPoESessionsPage() {
         username={ontTarget.username}
         targetIp={ontTarget.targetIp}
         routerName={ontTarget.routerName}
+        onSuccess={fetchOntSessions}
       />
 
       <div className="space-y-6 pb-12">

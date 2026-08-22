@@ -24,6 +24,7 @@ interface OntRemoteModalProps {
   username?: string
   targetIp?: string
   routerName?: string
+  onSuccess?: () => void
 }
 
 export default function OntRemoteModal({
@@ -33,6 +34,7 @@ export default function OntRemoteModal({
   username = '',
   targetIp = '',
   routerName = 'Router',
+  onSuccess,
 }: OntRemoteModalProps) {
   const [targetPort, setTargetPort] = useState<'80' | '443' | 'custom'>('80')
   const [customPort, setCustomPort] = useState<string>('')
@@ -55,10 +57,11 @@ export default function OntRemoteModal({
         setProxyUrl(null)
         setSessionId(null)
         setExpiresAt(null)
+        if (onSuccess) onSuccess()
       }
     }, 1000)
     return () => clearInterval(interval)
-  }, [expiresAt])
+  }, [expiresAt, onSuccess])
 
   if (!isOpen) return null
 
@@ -94,6 +97,7 @@ export default function OntRemoteModal({
         setExpiresAt(exp)
         setRemainingSeconds(Math.max(0, Math.floor((exp.getTime() - Date.now()) / 1000)))
         showSuccess('Akses Remote Web ONT Berhasil Dibuat!')
+        if (onSuccess) onSuccess()
       } else {
         showError(data.error || 'Gagal menyiapkan remote ONT')
       }
@@ -119,6 +123,7 @@ export default function OntRemoteModal({
         setExpiresAt(exp)
         setRemainingSeconds(Math.max(0, Math.floor((exp.getTime() - Date.now()) / 1000)))
         showSuccess('Sesi berhasil diperpanjang 15 menit!')
+        if (onSuccess) onSuccess()
       } else {
         showError(data.error || 'Gagal memperpanjang sesi')
       }
@@ -142,6 +147,7 @@ export default function OntRemoteModal({
       setExpiresAt(null)
       setRemainingSeconds(0)
       showSuccess('Sesi remote ONT telah ditutup')
+      if (onSuccess) onSuccess()
       onClose()
     } catch (err: any) {
       onClose()
