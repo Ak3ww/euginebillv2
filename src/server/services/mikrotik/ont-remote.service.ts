@@ -367,9 +367,12 @@ server.listen(listenPort, '0.0.0.0', () => {
 `
         const scriptPath = `/tmp/ont-proxy-${proxyPort}.js`
         await writeFile(scriptPath, proxyScriptContent.trim(), 'utf8')
-        await exec(`nohup node ${scriptPath} >/var/log/ont-remote-${proxyPort}.log 2>&1 &`)
 
-        await new Promise((r) => setTimeout(r, 400))
+        const nodeBin = process.execPath || '/usr/bin/node'
+        await runCmd(`iptables -I INPUT -p tcp --dport ${proxyPort} -j ACCEPT 2>/dev/null || true`)
+        await exec(`nohup ${nodeBin} ${scriptPath} >/var/log/ont-remote-${proxyPort}.log 2>&1 &`)
+
+        await new Promise((r) => setTimeout(r, 500))
         console.log(`[ont-remote] HTTP Reverse Proxy aktif: VPS:${proxyPort} -> ${mikrotikVpnIp}:${proxyPort} (Host: 192.168.1.1) -> (MikroTik NAT) -> ${ontIp}:${targetPort}`)
       } catch (err: any) {
         console.error('[ont-remote] VPS proxy warning:', err?.message || err)
