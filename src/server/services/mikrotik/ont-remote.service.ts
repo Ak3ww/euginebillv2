@@ -309,6 +309,7 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
 
   const client = isHttpsTarget ? https : http;
   const proxyReq = client.request(options, (proxyRes) => {
+    proxyReq.setTimeout(0); // Disarm timeout timer once response starts
     log('[ONT-Proxy:' + listenPort + '] ' + req.method + ' ' + targetPath + ' -> ONT HTTP ' + proxyRes.statusCode);
 
     const resHeaders = { ...proxyRes.headers };
