@@ -265,7 +265,7 @@ const listenPort = ${proxyPort};
 const mikrotikVpnIp = '${mikrotikVpnIp}';
 const ontIp = '${ontIp}';
 const targetPort = ${targetPort};
-const isHttpsTarget = targetPort === 443;
+const ontAgent = new (isHttpsTarget ? https : http).Agent({ maxSockets: 1, keepAlive: false });
 
 function forwardRequest(req, res, targetPath) {
   // Use strictly the 4 verified headers that passed the ZTE diagnostic test with HTTP 200 OK
@@ -285,6 +285,7 @@ function forwardRequest(req, res, targetPath) {
     path: targetPath,
     method: req.method,
     headers: cleanHeaders,
+    agent: ontAgent,
     timeout: 15000,
     rejectUnauthorized: false,
   };
@@ -333,8 +334,8 @@ function forwardRequest(req, res, targetPath) {
 
 const server = http.createServer((req, res) => {
   console.log('[ONT-Proxy:' + listenPort + '] INCOMING ' + req.method + ' ' + req.url + ' from ' + req.socket.remoteAddress);
-  // Return empty 204 for favicon so browser doesn't trigger Boa 400 Bad Request on missing favicon
-  if (req.url === '/favicon.ico') {
+  // Return empty 204 for all favicon requests to never trigger Boa 400 Bad Request on missing icons
+  if (req.url && (req.url.includes('favicon') || req.url.includes('.ico'))) {
     res.writeHead(204);
     return res.end();
   }
@@ -347,7 +348,7 @@ server.on('error', (err) => {
 });
 
 server.listen(listenPort, '0.0.0.0', () => {
-  console.log('[ONT-Proxy] Active on 0.0.0.0:' + listenPort + ' -> ' + mikrotikVpnIp + ':' + listenPort + ' (Host: 192.168.1.1)');
+  console.log('[ONT-Proxy] Active on 0.0.0.0:' + listenPort + ' -> ' + mikrotikVpnIp + ':' + listenPort + ' (Host: ' + ontIp + ')');
 });
 `
         const scriptPath = `/tmp/ont-proxy-${proxyPort}.js`
