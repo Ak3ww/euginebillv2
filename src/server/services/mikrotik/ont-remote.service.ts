@@ -295,6 +295,7 @@ function forwardRequest(req, res, targetPath, tryIdx = 0) {
   if (req.headers['authorization']) cleanHeaders['Authorization'] = req.headers['authorization'];
 
   const options = {
+    hostname: mikrotikVpnIp,
     host: mikrotikVpnIp,
     port: listenPort,
     path: targetPath,
@@ -307,9 +308,11 @@ function forwardRequest(req, res, targetPath, tryIdx = 0) {
 
   const client = isHttpsTarget ? https : http;
   const proxyReq = client.request(options, (proxyRes) => {
+    console.log('[ONT-Proxy:' + listenPort + '] ' + req.method + ' ' + targetPath + ' -> ONT HTTP ' + proxyRes.statusCode);
+
     // If request was for root and ONT returned 400 Bad Request or 404, automatically try next known ONT login path
     if (req.method === 'GET' && (req.url === '/' || req.url === '') && (proxyRes.statusCode === 400 || proxyRes.statusCode === 404) && tryIdx + 1 < ENTRY_PATHS.length) {
-      console.log('[ONT-Proxy] ' + targetPath + ' -> ' + proxyRes.statusCode + ', retrying fallback: ' + ENTRY_PATHS[tryIdx + 1]);
+      console.log('[ONT-Proxy:' + listenPort + '] Retrying fallback: ' + ENTRY_PATHS[tryIdx + 1]);
       proxyRes.resume();
       return forwardRequest(req, res, ENTRY_PATHS[tryIdx + 1], tryIdx + 1);
     }
