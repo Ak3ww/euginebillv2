@@ -267,24 +267,12 @@ const ontIp = '${ontIp}';
 const targetPort = ${targetPort};
 const isHttpsTarget = targetPort === 443;
 
-// Known ONT modem login entrypoints when root path / returns 400 (ZTE Boa missing index.html)
-const ENTRY_PATHS = [
-  '/',
-  '/getpage.gch?pid=1002',
-  '/login.gch',
-  '/index.gch',
-  '/login.asp',
-  '/index.asp',
-  '/login.html',
-  '/index.html',
-];
-
-function forwardRequest(req, res, targetPath, tryIdx = 0) {
+function forwardRequest(req, res, targetPath) {
   // Use strictly compact, standardized headers matching the ONT's WAN IP to pass Boa webserver validation
   const cleanHeaders = {
     'Host': targetPort === 80 ? ontIp : ontIp + ':' + targetPort,
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    'Accept': '*/*',
+    'Accept': req.headers['accept'] || '*/*',
     'Accept-Language': 'id,en;q=0.9',
     'Connection': 'close',
     'Referer': (isHttpsTarget ? 'https://' : 'http://') + ontIp + '/',
@@ -309,13 +297,6 @@ function forwardRequest(req, res, targetPath, tryIdx = 0) {
   const client = isHttpsTarget ? https : http;
   const proxyReq = client.request(options, (proxyRes) => {
     console.log('[ONT-Proxy:' + listenPort + '] ' + req.method + ' ' + targetPath + ' -> ONT HTTP ' + proxyRes.statusCode);
-
-    // If request was for root and ONT returned 400 Bad Request or 404, automatically try next known ONT login path
-    if (req.method === 'GET' && (req.url === '/' || req.url === '') && (proxyRes.statusCode === 400 || proxyRes.statusCode === 404) && tryIdx + 1 < ENTRY_PATHS.length) {
-      console.log('[ONT-Proxy:' + listenPort + '] Retrying fallback: ' + ENTRY_PATHS[tryIdx + 1]);
-      proxyRes.resume();
-      return forwardRequest(req, res, ENTRY_PATHS[tryIdx + 1], tryIdx + 1);
-    }
 
     const resHeaders = { ...proxyRes.headers };
     if (resHeaders['location']) {
@@ -362,7 +343,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(204);
     return res.end();
   }
-  forwardRequest(req, res, req.url, 0);
+  forwardRequest(req, res, req.url);
 });
 
 server.on('error', (err) => {
