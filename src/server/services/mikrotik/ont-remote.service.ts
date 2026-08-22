@@ -261,20 +261,30 @@ export class OntRemoteService {
         const proxyScriptContent = `
 const http = require('http');
 const https = require('https');
+const fs = require('fs');
 const listenPort = ${proxyPort};
 const mikrotikVpnIp = '${mikrotikVpnIp}';
 const ontIp = '${ontIp}';
 const targetPort = ${targetPort};
 const isHttpsTarget = targetPort === 443;
 const ontAgent = new (isHttpsTarget ? https : http).Agent({ maxSockets: 2, keepAlive: false });
+const logFile = '/var/log/ont-remote-' + listenPort + '.log';
+
+function log(msg) {
+  const line = '[' + new Date().toISOString().substring(11, 19) + '] ' + msg;
+  console.log(line);
+  try { fs.appendFileSync(logFile, line + '\\n'); } catch (e) {}
+}
 
 function forwardRequest(req, res, targetPath, bodyBuffer) {
-  // Use strictly compact, standardized headers matching the ONT's WAN IP to pass Boa webserver validation
+  // Pass strictly matching Host, Referer, and Origin headers so Boa Web Server and CGI scripts accept AJAX requests
   const cleanHeaders = {
     'Host': targetPort === 80 ? ontIp : ontIp + ':' + targetPort,
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     'Accept': req.headers['accept'] || '*/*',
     'Connection': 'close',
+    'Referer': (isHttpsTarget ? 'https://' : 'http://') + ontIp + '/',
+    'Origin': (isHttpsTarget ? 'https://' : 'http://') + ontIp,
   };
   if (req.headers['content-type']) cleanHeaders['Content-Type'] = req.headers['content-type'];
   if (bodyBuffer && bodyBuffer.length > 0) {
@@ -299,7 +309,7 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
 
   const client = isHttpsTarget ? https : http;
   const proxyReq = client.request(options, (proxyRes) => {
-    console.log('[ONT-Proxy:' + listenPort + '] ' + req.method + ' ' + targetPath + ' -> ONT HTTP ' + proxyRes.statusCode);
+    log('[ONT-Proxy:' + listenPort + '] ' + req.method + ' ' + targetPath + ' -> ONT HTTP ' + proxyRes.statusCode);
 
     const resHeaders = { ...proxyRes.headers };
     if (resHeaders['location']) {
@@ -309,10 +319,14 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
       );
     }
     if (resHeaders['set-cookie']) {
+      const rewriteCookie = (c) =>
+        c.replace(/domain=[^;]+;?/gi, '')
+         .replace(/SameSite=Strict/gi, 'SameSite=Lax')
+         .replace(/SameSite=None/gi, 'SameSite=Lax');
       if (Array.isArray(resHeaders['set-cookie'])) {
-        resHeaders['set-cookie'] = resHeaders['set-cookie'].map(c => c.replace(/domain=[^;]+;?/gi, ''));
+        resHeaders['set-cookie'] = resHeaders['set-cookie'].map(rewriteCookie);
       } else if (typeof resHeaders['set-cookie'] === 'string') {
-        resHeaders['set-cookie'] = resHeaders['set-cookie'].replace(/domain=[^;]+;?/gi, '');
+        resHeaders['set-cookie'] = rewriteCookie(resHeaders['set-cookie']);
       }
     }
 
@@ -321,7 +335,7 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
   });
 
   proxyReq.on('error', (err) => {
-    console.error('[ONT-Proxy:' + listenPort + '] Forward error:', err.message);
+    log('[ONT-Proxy:' + listenPort + '] Forward error: ' + err.message);
     if (!res.headersSent) {
       res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end('<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px;background:#0f172a;color:#f8fafc;text-align:center;"><div style="max-width:500px;margin:0 auto;background:#1e293b;padding:30px;border-radius:16px;"><h2 style="color:#ef4444;">502 Bad Gateway</h2><p>Gagal menghubungi modem ONT di IP <b>' + ontIp + '</b> via MikroTik <b>' + mikrotikVpnIp + '</b>.</p><p style="color:#94a3b8;font-size:13px;">' + err.message + '</p></div></body></html>');
@@ -339,7 +353,7 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
 }
 
 const server = http.createServer((req, res) => {
-  console.log('[ONT-Proxy:' + listenPort + '] INCOMING ' + req.method + ' ' + req.url + ' from ' + req.socket.remoteAddress);
+  log('[ONT-Proxy:' + listenPort + '] INCOMING ' + req.method + ' ' + req.url + ' from ' + req.socket.remoteAddress);
   // Return empty 204 for all favicon requests to never trigger Boa 400 Bad Request on missing icons
   if (req.url && (req.url.includes('favicon') || req.url.includes('.ico'))) {
     res.writeHead(204);
@@ -360,12 +374,12 @@ const server = http.createServer((req, res) => {
 });
 
 server.on('error', (err) => {
-  console.error('[ONT-Proxy:' + listenPort + '] Server error:', err);
+  log('[ONT-Proxy:' + listenPort + '] Server error: ' + err.message);
   process.exit(1);
 });
 
 server.listen(listenPort, '0.0.0.0', () => {
-  console.log('[ONT-Proxy] Active on 0.0.0.0:' + listenPort + ' -> ' + mikrotikVpnIp + ':' + listenPort + ' (Host: ' + ontIp + ')');
+  log('[ONT-Proxy] Active on 0.0.0.0:' + listenPort + ' -> ' + mikrotikVpnIp + ':' + listenPort + ' (Host: ' + ontIp + ')');
 });
 `
         const scriptPath = `/tmp/ont-proxy-${proxyPort}.js`
