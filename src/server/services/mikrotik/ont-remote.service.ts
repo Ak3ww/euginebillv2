@@ -265,19 +265,25 @@ const listenPort = ${proxyPort};
 const mikrotikVpnIp = '${mikrotikVpnIp}';
 const ontIp = '${ontIp}';
 const targetPort = ${targetPort};
-const ontAgent = new (isHttpsTarget ? https : http).Agent({ maxSockets: 1, keepAlive: false });
+const ontAgent = new (isHttpsTarget ? https : http).Agent({ maxSockets: 2, keepAlive: false });
 
-function forwardRequest(req, res, targetPath) {
-  // Use strictly the 4 verified headers that passed the ZTE diagnostic test with HTTP 200 OK
+function forwardRequest(req, res, targetPath, bodyBuffer) {
+  // Use strictly compact, standardized headers matching the ONT's WAN IP to pass Boa webserver validation
   const cleanHeaders = {
     'Host': targetPort === 80 ? ontIp : ontIp + ':' + targetPort,
-    'User-Agent': 'Mozilla/5.0',
-    'Accept': '*/*',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Accept': req.headers['accept'] || '*/*',
     'Connection': 'close',
   };
   if (req.headers['content-type']) cleanHeaders['Content-Type'] = req.headers['content-type'];
-  if (req.headers['content-length']) cleanHeaders['Content-Length'] = req.headers['content-length'];
+  if (bodyBuffer && bodyBuffer.length > 0) {
+    cleanHeaders['Content-Length'] = bodyBuffer.length.toString();
+  } else if (req.headers['content-length']) {
+    cleanHeaders['Content-Length'] = req.headers['content-length'];
+  }
   if (req.headers['cookie']) cleanHeaders['Cookie'] = req.headers['cookie'];
+  if (req.headers['x-requested-with']) cleanHeaders['X-Requested-With'] = req.headers['x-requested-with'];
+  if (req.headers['authorization']) cleanHeaders['Authorization'] = req.headers['authorization'];
 
   const options = {
     host: mikrotikVpnIp,
@@ -325,11 +331,10 @@ function forwardRequest(req, res, targetPath) {
     proxyReq.destroy(new Error('Gateway Timeout (ONT tidak merespons dalam 15 detik)'));
   });
 
-  if (req.method === 'POST' || req.method === 'PUT') {
-    req.pipe(proxyReq, { end: true });
-  } else {
-    proxyReq.end();
+  if (bodyBuffer && bodyBuffer.length > 0) {
+    proxyReq.write(bodyBuffer);
   }
+  proxyReq.end();
 }
 
 const server = http.createServer((req, res) => {
@@ -339,7 +344,13 @@ const server = http.createServer((req, res) => {
     res.writeHead(204);
     return res.end();
   }
-  forwardRequest(req, res, req.url);
+
+  const chunks = [];
+  req.on('data', (c) => chunks.push(c));
+  req.on('end', () => {
+    const bodyBuffer = Buffer.concat(chunks);
+    forwardRequest(req, res, req.url, bodyBuffer);
+  });
 });
 
 server.on('error', (err) => {
