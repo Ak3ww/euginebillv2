@@ -47,6 +47,18 @@ export default function OntRemoteModal({
   const [remainingSeconds, setRemainingSeconds] = useState<number>(0)
   const [copied, setCopied] = useState(false)
 
+  // Reset modal state when opening for a new customer
+  useEffect(() => {
+    if (isOpen) {
+      setProxyUrl(null)
+      setSessionId(null)
+      setExpiresAt(null)
+      setRemainingSeconds(0)
+      setTargetPort('80')
+      setCustomPort('')
+    }
+  }, [isOpen, username, targetIp])
+
   // Countdown timer ticker
   useEffect(() => {
     if (!expiresAt) return

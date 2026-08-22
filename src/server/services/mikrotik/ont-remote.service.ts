@@ -346,6 +346,11 @@ const server = http.createServer((req, res) => {
     return res.end();
   }
 
+  // GET and HEAD requests have no body; forward immediately without waiting for body stream
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    return forwardRequest(req, res, req.url, null);
+  }
+
   const chunks = [];
   req.on('data', (c) => chunks.push(c));
   req.on('end', () => {
@@ -364,6 +369,8 @@ server.listen(listenPort, '0.0.0.0', () => {
 });
 `
         const scriptPath = `/tmp/ont-proxy-${proxyPort}.js`
+        await runCmd(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`)
+        await runCmd(`pkill -f 'ont-proxy-${proxyPort}.js' 2>/dev/null || true`)
         await writeFile(scriptPath, proxyScriptContent.trim(), 'utf8')
 
         const nodeBin = process.execPath || '/usr/bin/node'
