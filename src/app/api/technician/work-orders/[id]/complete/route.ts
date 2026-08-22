@@ -160,6 +160,26 @@ export async function POST(
       }
     }
 
+    // Installation / Active User Auto-Activation
+    if (!isDismantle && wo.linkedUserId) {
+      try {
+        await prisma.pppoeUser.update({
+          where: { id: wo.linkedUserId },
+          data: {
+            status: 'ACTIVE',
+          },
+        });
+
+        // Sync enabled secret to MikroTik so customer can immediately connect
+        const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+        await PPPSecretService.syncSecret(wo.linkedUserId).catch((syncErr: any) => {
+          console.error('[WorkOrder Complete] Failed to sync secret to MikroTik:', syncErr);
+        });
+      } catch (userActivateErr) {
+        console.error('[WorkOrder Complete] Failed to activate pppoeUser:', userActivateErr);
+      }
+    }
+
     // Auto-Billing Trigger & Admin Alert
     let invoice = null;
     if (wo.linkedUserId) {
@@ -229,7 +249,8 @@ export async function POST(
       const profileName = wo.customer?.profile?.name || invoice.user?.profile?.name || '-';
       const areaName = wo.customer?.area?.name || invoice.user?.area?.name || '-';
 
-      if (targetPhone) {
+      // Only send if not already notified to prevent duplicate invoices
+      if (targetPhone && (!invoice.waNotifiedAt || (invoice.waRetryCount || 0) === 0)) {
         try {
           await sendInvoiceReminder({
             phone: targetPhone,

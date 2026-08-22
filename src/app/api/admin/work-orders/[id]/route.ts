@@ -110,8 +110,27 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
       },
     });
 
-    // If status changed to COMPLETED, trigger auto-billing WhatsApp notification
+    // If status changed to COMPLETED, auto-activate user & sync secret, and trigger auto-billing WhatsApp notification
     if (status === 'COMPLETED' && existing.status !== 'COMPLETED') {
+      const isDismantle = updated.issueType?.toUpperCase().includes('DISMANTLE') || updated.issueType?.toUpperCase().includes('CABUT');
+      if (!isDismantle && updated.linkedUserId) {
+        try {
+          await prisma.pppoeUser.update({
+            where: { id: updated.linkedUserId },
+            data: {
+              status: 'ACTIVE',
+            },
+          });
+
+          const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+          await PPPSecretService.syncSecret(updated.linkedUserId).catch((e: any) => {
+            console.error('[Admin WorkOrder Complete] Failed to sync secret to MikroTik:', e);
+          });
+        } catch (actErr) {
+          console.error('[Admin WorkOrder Complete] Failed to activate user:', actErr);
+        }
+      }
+
       let invoice = null;
       if (updated.linkedUserId) {
         invoice = await prisma.invoice.findFirst({
@@ -159,7 +178,8 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
         const profileName = invoice.user?.profile?.name || '-';
         const areaName = invoice.user?.area?.name || '-';
 
-        if (targetPhone) {
+        // Only send if not already notified to prevent duplicate invoices
+        if (targetPhone && (!invoice.waNotifiedAt || (invoice.waRetryCount || 0) === 0)) {
           try {
             const { sendInvoiceReminder } = await import('@/server/services/notifications/whatsapp-templates.service');
             await sendInvoiceReminder({

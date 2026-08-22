@@ -56,7 +56,7 @@ export async function POST(
       );
     }
 
-    // Step 2 Execution: Update user status to ACTIVE
+    // Step 2 Execution: Update user status to ACTIVE and sync secret
     const updatedUser = await prisma.pppoeUser.update({
       where: { id: user.id },
       data: {
@@ -64,6 +64,18 @@ export async function POST(
         updatedAt: new Date(),
       },
     });
+
+    // Sync enabled secret to MikroTik so customer can immediately connect
+    const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+    await PPPSecretService.syncSecret(user.id).catch((syncErr: any) => {
+      console.error('[CompleteInstallation] Failed to sync secret to MikroTik:', syncErr);
+    });
+
+    // Auto-complete any open work orders linked to this customer
+    await prisma.workOrder.updateMany({
+      where: { linkedUserId: user.id, status: { in: ['OPEN', 'ASSIGNED', 'IN_PROGRESS'] } },
+      data: { status: 'COMPLETED', completedAt: new Date() },
+    }).catch(() => {});
 
     // Construct payment link
     const company = await prisma.company.findFirst();
@@ -75,32 +87,36 @@ export async function POST(
     // Official 8-digit Customer ID or user.customerId (Never PPPoE username)
     const officialCustomerId = user.customerId || (user as any).pppoeCustomer?.customerId || undefined;
 
-    // Send WhatsApp Installation Invoice notification to customer
+    // Send WhatsApp Installation Invoice notification to customer only if not already notified
     let waSent = false;
-    try {
-      await sendInstallationInvoice({
-        customerName: user.name,
-        customerPhone: user.phone,
-        customerId: officialCustomerId,
-        username: user.username,
-        invoiceNumber: latestInvoice.invoiceNumber,
-        amount: latestInvoice.amount,
-        paymentLink,
-        dueDate: latestInvoice.dueDate,
-        profileName: user.profile?.name || '-',
-      });
-      waSent = true;
+    if (!latestInvoice.waNotifiedAt || (latestInvoice.waRetryCount || 0) === 0) {
+      try {
+        await sendInstallationInvoice({
+          customerName: user.name,
+          customerPhone: user.phone,
+          customerId: officialCustomerId,
+          username: user.username,
+          invoiceNumber: latestInvoice.invoiceNumber,
+          amount: latestInvoice.amount,
+          paymentLink,
+          dueDate: latestInvoice.dueDate,
+          profileName: user.profile?.name || '-',
+        });
+        waSent = true;
 
-      // Update invoice in DB to record waNotifiedAt timestamp
-      await prisma.invoice.update({
-        where: { id: latestInvoice.id },
-        data: {
-          waNotifiedAt: new Date(),
-          waRetryCount: { increment: 1 },
-        },
-      }).catch((e) => console.error('[CompleteInstallation] DB update waNotifiedAt error:', e));
-    } catch (waError) {
-      console.error('[CompleteInstallation] Failed to send WA notification:', waError);
+        // Update invoice in DB to record waNotifiedAt timestamp
+        await prisma.invoice.update({
+          where: { id: latestInvoice.id },
+          data: {
+            waNotifiedAt: new Date(),
+            waRetryCount: { increment: 1 },
+          },
+        }).catch((e) => console.error('[CompleteInstallation] DB update waNotifiedAt error:', e));
+      } catch (waError) {
+        console.error('[CompleteInstallation] Failed to send WA notification:', waError);
+      }
+    } else {
+      console.log(`[CompleteInstallation] WA Tagihan sudah pernah dikirim sebelumnya untuk Invoice ${latestInvoice.invoiceNumber}, skip kirim ulang.`);
     }
 
     await logActivity({

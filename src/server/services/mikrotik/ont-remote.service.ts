@@ -356,6 +356,7 @@ function forwardRequest(req, res, targetPath, tryIdx = 0) {
 }
 
 const server = http.createServer((req, res) => {
+  console.log('[ONT-Proxy:' + listenPort + '] INCOMING ' + req.method + ' ' + req.url + ' from ' + req.socket.remoteAddress);
   // Return empty 204 for favicon so browser doesn't trigger Boa 400 Bad Request on missing favicon
   if (req.url === '/favicon.ico') {
     res.writeHead(204);

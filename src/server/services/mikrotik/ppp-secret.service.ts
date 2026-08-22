@@ -30,6 +30,8 @@ export class PPPSecretService {
       await conn.connect()
       
       const profileName = user.profile.mikrotikProfileName || user.profile.name
+      const statusUpper = String(user.status || '').toUpperCase()
+      const isSecretEnabled = ['ACTIVE', 'PENDING_INSTALLATION'].includes(statusUpper)
 
       // Check if secret exists
       const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`])
@@ -42,7 +44,7 @@ export class PPPSecretService {
           `=profile=${profileName}`,
           `=service=pppoe`,
           `=comment=${user.name} - ${user.customerId || ''}`,
-          `=disabled=${['active', 'PENDING_INSTALLATION'].includes(user.status) ? 'no' : 'yes'}`
+          `=disabled=${isSecretEnabled ? 'no' : 'yes'}`
         ])
       } else {
         // Add new secret
@@ -52,7 +54,7 @@ export class PPPSecretService {
           `=profile=${profileName}`,
           `=service=pppoe`,
           `=comment=${user.name} - ${user.customerId || ''}`,
-          `=disabled=${['active', 'PENDING_INSTALLATION'].includes(user.status) ? 'no' : 'yes'}`
+          `=disabled=${isSecretEnabled ? 'no' : 'yes'}`
         ])
       }
       
