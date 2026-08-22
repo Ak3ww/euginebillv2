@@ -353,6 +353,16 @@ function forwardRequest(req, res, targetPath, tryIdx = 0) {
 }
 
 const server = http.createServer((req, res) => {
+  // Return empty 204 for favicon so browser doesn't trigger Boa 400 Bad Request on missing favicon
+  if (req.url === '/favicon.ico') {
+    res.writeHead(204);
+    return res.end();
+  }
+  // If browser opens root /, immediately redirect to /getpage.gch?pid=1002 so all relative paths and ZTE scripts execute correctly
+  if (req.method === 'GET' && (req.url === '/' || req.url === '')) {
+    res.writeHead(302, { 'Location': '/getpage.gch?pid=1002' });
+    return res.end();
+  }
   forwardRequest(req, res, req.url, 0);
 });
 
