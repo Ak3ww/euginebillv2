@@ -280,25 +280,27 @@ const ENTRY_PATHS = [
 ];
 
 function forwardRequest(req, res, targetPath, tryIdx = 0) {
-  // Strip modern browser bloat headers (sec-ch-ua, sec-fetch, etc.) that exceed Boa webserver's 1024-byte buffer
+  // Use strictly compact, standardized headers under 120 bytes to never overflow Boa webserver's 1024-byte buffer
   const cleanHeaders = {
-    'host': '192.168.1.1',
-    'user-agent': req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    'accept': req.headers['accept'] || '*/*',
-    'accept-language': req.headers['accept-language'] || 'id,en;q=0.9',
-    'referer': 'http://192.168.1.1/',
+    'Host': '192.168.1.1',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Accept': '*/*',
+    'Accept-Language': 'id,en;q=0.9',
+    'Connection': 'close',
+    'Referer': 'http://192.168.1.1/',
   };
-  if (req.headers['cookie']) cleanHeaders['cookie'] = req.headers['cookie'];
-  if (req.headers['content-type']) cleanHeaders['content-type'] = req.headers['content-type'];
-  if (req.headers['content-length']) cleanHeaders['content-length'] = req.headers['content-length'];
-  if (req.headers['authorization']) cleanHeaders['authorization'] = req.headers['authorization'];
+  if (req.headers['cookie']) cleanHeaders['Cookie'] = req.headers['cookie'];
+  if (req.headers['content-type']) cleanHeaders['Content-Type'] = req.headers['content-type'];
+  if (req.headers['content-length']) cleanHeaders['Content-Length'] = req.headers['content-length'];
+  if (req.headers['authorization']) cleanHeaders['Authorization'] = req.headers['authorization'];
 
   const options = {
-    hostname: mikrotikVpnIp,
+    host: mikrotikVpnIp,
     port: listenPort,
     path: targetPath,
     method: req.method,
     headers: cleanHeaders,
+    setHost: false, // Prevents Node from automatically appending Host: mikrotikVpnIp:port
     timeout: 15000,
     rejectUnauthorized: false,
   };
@@ -331,8 +333,6 @@ function forwardRequest(req, res, targetPath, tryIdx = 0) {
     proxyRes.pipe(res, { end: true });
   });
 
-  proxyReq.setHeader('Host', '192.168.1.1');
-
   proxyReq.on('error', (err) => {
     console.error('[ONT-Proxy:' + listenPort + '] Forward error:', err.message);
     if (!res.headersSent) {
@@ -345,7 +345,7 @@ function forwardRequest(req, res, targetPath, tryIdx = 0) {
     proxyReq.destroy(new Error('Gateway Timeout (ONT tidak merespons dalam 15 detik)'));
   });
 
-  if (tryIdx === 0) {
+  if (req.method === 'POST' || req.method === 'PUT') {
     req.pipe(proxyReq, { end: true });
   } else {
     proxyReq.end();
