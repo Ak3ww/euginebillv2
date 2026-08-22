@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       resolvedPublicIp = process.env.VPS_PUBLIC_IP || process.env.VPS_HOST || '43.173.14.236'
     }
 
-    const proxyUrl = `http://${resolvedPublicIp}:${proxyPort}/getpage.gch?pid=1002`
+    const proxyUrl = `http://${resolvedPublicIp}:${proxyPort}`
 
     const expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_MINUTES * 60 * 1000)
 

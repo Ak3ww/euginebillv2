@@ -361,11 +361,6 @@ const server = http.createServer((req, res) => {
     res.writeHead(204);
     return res.end();
   }
-  // If browser opens root /, immediately redirect to /getpage.gch?pid=1002 so all relative paths and ZTE scripts execute correctly
-  if (req.method === 'GET' && (req.url === '/' || req.url === '')) {
-    res.writeHead(302, { 'Location': '/getpage.gch?pid=1002' });
-    return res.end();
-  }
   forwardRequest(req, res, req.url, 0);
 });
 
