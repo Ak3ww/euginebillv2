@@ -280,14 +280,14 @@ const ENTRY_PATHS = [
 ];
 
 function forwardRequest(req, res, targetPath, tryIdx = 0) {
-  // Use strictly compact, standardized headers under 120 bytes to never overflow Boa webserver's 1024-byte buffer
+  // Use strictly compact, standardized headers matching the ONT's WAN IP to pass Boa webserver validation
   const cleanHeaders = {
-    'Host': '192.168.1.1',
+    'Host': targetPort === 80 ? ontIp : ontIp + ':' + targetPort,
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     'Accept': '*/*',
     'Accept-Language': 'id,en;q=0.9',
     'Connection': 'close',
-    'Referer': 'http://192.168.1.1/',
+    'Referer': (isHttpsTarget ? 'https://' : 'http://') + ontIp + '/',
   };
   if (req.headers['cookie']) cleanHeaders['Cookie'] = req.headers['cookie'];
   if (req.headers['content-type']) cleanHeaders['Content-Type'] = req.headers['content-type'];
