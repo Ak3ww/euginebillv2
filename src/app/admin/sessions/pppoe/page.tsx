@@ -794,7 +794,9 @@ export default function PPPoESessionsPage() {
                       <div className="text-[11px] space-y-1 bg-muted/40 p-2 rounded-lg font-mono">
                         <div className="flex items-center justify-between text-muted-foreground">
                           <span>Target ONT:</span>
-                          <span className="font-semibold text-foreground">{s.targetIp}:{s.targetPort}</span>
+                          <span className="font-semibold text-foreground">
+                            {s.targetIp}{s.targetPort && s.targetPort !== 80 && s.targetPort !== 443 ? `:${s.targetPort}` : ''}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between text-muted-foreground">
                           <span>URL Akses:</span>
