@@ -1,4 +1,4 @@
-﻿const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
@@ -28,8 +28,8 @@ async function main() {
 
   console.log('Daftar Router di Database:');
   routers.forEach((r, idx) => {
-    console.log(  [] ID:  | Nama: "" | IP: );
-    console.log(      Pelanggan:  | Wilayah:  | Voucher: );
+    console.log('  [' + (idx + 1) + '] ID: ' + r.id + ' | Nama: "' + r.name + '" | IP: ' + r.ipAddress);
+    console.log('      Pelanggan: ' + r._count.users + ' | Wilayah: ' + r._count.areas + ' | Voucher: ' + r._count.vouchers);
   });
   console.log('');
 
@@ -48,9 +48,9 @@ async function main() {
     if (withUsers.length === 1 && emptyOnes.length === 1) {
       sourceRouter = withUsers[0];
       targetRouter = emptyOnes[0];
-      console.log(💡 Otomatis mendeteksi:);
-      console.log(   Source (Lama): "" ( pelanggan));
-      console.log(   Target (Baru): "" (0 pelanggan));
+      console.log('💡 Otomatis mendeteksi:');
+      console.log('   Source (Lama): "' + sourceRouter.name + '" (' + sourceRouter._count.users + ' pelanggan)');
+      console.log('   Target (Baru): "' + targetRouter.name + '" (0 pelanggan)');
     }
   }
 
@@ -67,42 +67,42 @@ async function main() {
     return;
   }
 
-  console.log(\n🚀 Memulai pemindahan data:);
-  console.log(   DARI : [] );
-  console.log(   KE   : [] \n);
+  console.log('\n🚀 Memulai pemindahan data:');
+  console.log('   DARI : [' + sourceRouter.id + '] ' + sourceRouter.name);
+  console.log('   KE   : [' + targetRouter.id + '] ' + targetRouter.name + '\n');
 
   const userResult = await prisma.pppoeUser.updateMany({
     where: { routerId: sourceRouter.id },
     data: { routerId: targetRouter.id }
   });
-  console.log(   ✅ Pelanggan PPPoE dipindahkan : );
+  console.log('   ✅ Pelanggan PPPoE dipindahkan : ' + userResult.count);
 
   const areaResult = await prisma.pppoeArea.updateMany({
     where: { routerId: sourceRouter.id },
     data: { routerId: targetRouter.id }
   });
-  console.log(   ✅ Wilayah PPPoE dipindahkan   : );
+  console.log('   ✅ Wilayah PPPoE dipindahkan   : ' + areaResult.count);
 
   const voucherResult = await prisma.hotspotVoucher.updateMany({
     where: { routerId: sourceRouter.id },
     data: { routerId: targetRouter.id }
   });
-  console.log(   ✅ Voucher Hotspot dipindahkan : );
+  console.log('   ✅ Voucher Hotspot dipindahkan : ' + voucherResult.count);
 
   const agentResult = await prisma.agent.updateMany({
     where: { routerId: sourceRouter.id },
     data: { routerId: targetRouter.id }
   });
-  console.log(   ✅ Agen dipindahkan            : );
+  console.log('   ✅ Agen dipindahkan            : ' + agentResult.count);
 
   const oltResult = await prisma.networkOLTRouter.updateMany({
     where: { routerId: sourceRouter.id },
     data: { routerId: targetRouter.id }
   });
-  console.log(   ✅ Relasi OLT dipindahkan      : );
+  console.log('   ✅ Relasi OLT dipindahkan      : ' + oltResult.count);
 
   console.log('\n🎉 MIGRASI SELESAI DENGAN SUKSES!');
-  console.log(Semua pelanggan sekarang telah terhubung ke Router "".);
+  console.log('Semua pelanggan sekarang telah terhubung ke Router "' + targetRouter.name + '".');
   console.log('======================================================\n');
 }
 
@@ -112,5 +112,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.();
+    await prisma.$disconnect();
   });
