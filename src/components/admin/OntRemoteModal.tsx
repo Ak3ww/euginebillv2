@@ -334,13 +334,13 @@ export default function OntRemoteModal({
 
               <div className="flex flex-col sm:flex-row gap-2">
                 <a
-                  href={proxyUrl}
+                  href={`/admin/ont-viewer/${sessionId}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-xl shadow-sm transition-all"
                 >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>Buka di Tab Baru</span>
+                  <Globe className="w-4 h-4" />
+                  <span>Buka Web GUI (Viewer)</span>
                 </a>
 
                 <button

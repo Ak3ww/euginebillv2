@@ -29,6 +29,7 @@ import { useToast } from '@/components/cyberpunk/CyberToast'
 import { useTranslation } from '@/hooks/useTranslation'
 import { formatWIB, nowWIB, todayWIBStr } from '@/lib/timezone'
 import OntRemoteModal from '@/components/admin/OntRemoteModal'
+import OntRemoteViewerModal from '@/components/admin/OntRemoteViewerModal'
 
 interface Session {
   id: string
@@ -181,6 +182,7 @@ export default function PPPoESessionsPage() {
 
   // ONT Remote Modal state
   const [ontModalOpen, setOntModalOpen] = useState(false)
+  const [viewerModalSession, setViewerModalSession] = useState<any | null>(null)
   const [ontTarget, setOntTarget] = useState<{
     customerName: string
     username: string
@@ -568,6 +570,15 @@ export default function PPPoESessionsPage() {
         onSuccess={fetchOntSessions}
       />
 
+      {/* ONT Remote Embedded Viewer Modal */}
+      <OntRemoteViewerModal
+        isOpen={!!viewerModalSession}
+        session={viewerModalSession}
+        onClose={() => setViewerModalSession(null)}
+        onSessionClosed={fetchOntSessions}
+        onSessionExtended={fetchOntSessions}
+      />
+
       <div className="space-y-6 pb-12">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -802,14 +813,24 @@ export default function PPPoESessionsPage() {
                         </button>
 
                         <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setViewerModalSession(s)}
+                            className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-all"
+                            title="Tampilkan di Jendela Modal"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Modal</span>
+                          </button>
+
                           <a
-                            href={s.proxyUrl}
+                            href={`/admin/ont-viewer/${s.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-sm transition-all"
+                            title="Buka Web GUI Modem di Tab Penuh"
                           >
-                            <ExternalLink className="w-3 h-3" />
-                            <span>Buka</span>
+                            <Globe className="w-3 h-3" />
+                            <span>Buka Web GUI</span>
                           </a>
 
                           <button
