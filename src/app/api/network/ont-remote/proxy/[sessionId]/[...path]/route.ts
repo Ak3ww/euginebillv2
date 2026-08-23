@@ -5,8 +5,8 @@ import { prisma } from '@/server/db/client'
 
 export const dynamic = 'force-dynamic'
 
-const httpAgent = new http.Agent({ maxSockets: 4, keepAlive: false, timeout: 20000 })
-const httpsAgent = new https.Agent({ maxSockets: 4, keepAlive: false, timeout: 20000, rejectUnauthorized: false })
+const httpAgent = new http.Agent({ maxSockets: 20, keepAlive: true, keepAliveMsecs: 15000, timeout: 20000 })
+const httpsAgent = new https.Agent({ maxSockets: 20, keepAlive: true, keepAliveMsecs: 15000, timeout: 20000, rejectUnauthorized: false })
 
 function rewriteOntContent(body: string, sessionId: string, contentType: string): string {
   const proxyBasePath = `/api/network/ont-remote/proxy/${sessionId}/`

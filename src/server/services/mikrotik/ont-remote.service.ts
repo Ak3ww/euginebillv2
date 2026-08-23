@@ -267,7 +267,7 @@ const mikrotikVpnIp = '${mikrotikVpnIp}';
 const ontIp = '${ontIp}';
 const targetPort = ${targetPort};
 const isHttpsTarget = targetPort === 443;
-const ontAgent = new (isHttpsTarget ? https : http).Agent({ maxSockets: 2, keepAlive: false });
+const ontAgent = new (isHttpsTarget ? https : http).Agent({ maxSockets: 10, keepAlive: true, keepAliveMsecs: 15000 });
 const logFile = '/var/log/ont-remote-' + listenPort + '.log';
 
 function log(msg) {
