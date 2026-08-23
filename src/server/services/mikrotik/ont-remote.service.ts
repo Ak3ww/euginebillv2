@@ -299,9 +299,10 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
   if (req.headers['authorization']) cleanHeaders['Authorization'] = req.headers['authorization'];
 
   log('[ONT-Proxy:' + listenPort + '] ' + req.method + ' ' + targetPath + ' -> Headers: ' + JSON.stringify(cleanHeaders));
+  const mikrotikNatPort = proxyPort + 10000;
   const options = {
     host: mikrotikVpnIp,
-    port: listenPort,
+    port: mikrotikNatPort,
     path: targetPath,
     method: req.method,
     headers: cleanHeaders,
@@ -446,11 +447,13 @@ server.listen(listenPort, '0.0.0.0', () => {
         }
       } catch { /* ignore cleanup errors */ }
 
-      // Rule 1: DST-NAT — redirect incoming proxyPort traffic to ONT IP
+      const mikrotikNatPort = proxyPort + 10000
+
+      // Rule 1: DST-NAT — redirect incoming mikrotikNatPort traffic from VPS proxy to ONT IP
       await api.write('/ip/firewall/nat/add', [
         '=chain=dstnat',
         '=protocol=tcp',
-        `=dst-port=${proxyPort}`,
+        `=dst-port=${mikrotikNatPort}`,
         '=action=dst-nat',
         `=to-addresses=${ontIp}`,
         `=to-ports=${targetPort}`,
@@ -534,11 +537,11 @@ server.listen(listenPort, '0.0.0.0', () => {
           })
           await api.connect()
 
-          // Remove all NAT rules matching this session ID or proxy port
+          // Remove all NAT rules matching this session ID or proxy port / nat port
           const natRules = await api.write('/ip/firewall/nat/print').catch(() => [])
           for (const r of natRules) {
             const matchComment = r.comment && (r.comment.includes(sessionId) || r.comment.includes(`ont-remote sess=${sessionId}`))
-            const matchPort = proxyPort && String(r['dst-port']) === String(proxyPort)
+            const matchPort = proxyPort && (String(r['dst-port']) === String(proxyPort) || String(r['dst-port']) === String(proxyPort + 10000))
             if (matchComment || matchPort) {
               if (r['.id']) await api.write('/ip/firewall/nat/remove', [`=.id=${r['.id']}`]).catch(() => {})
             }
@@ -548,7 +551,7 @@ server.listen(listenPort, '0.0.0.0', () => {
           const filterRules = await api.write('/ip/firewall/filter/print').catch(() => [])
           for (const r of filterRules) {
             const matchComment = r.comment && (r.comment.includes(sessionId) || r.comment.includes(`ont-remote sess=${sessionId}`))
-            const matchPort = proxyPort && String(r['dst-port']) === String(proxyPort)
+            const matchPort = proxyPort && (String(r['dst-port']) === String(proxyPort) || String(r['dst-port']) === String(proxyPort + 10000))
             if (matchComment || matchPort) {
               if (r['.id']) await api.write('/ip/firewall/filter/remove', [`=.id=${r['.id']}`]).catch(() => {})
             }
