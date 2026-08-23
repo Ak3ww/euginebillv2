@@ -393,6 +393,7 @@ server.listen(listenPort, '0.0.0.0', () => {
 
         const nodeBin = process.execPath || '/usr/bin/node'
         await runCmd(`iptables -I INPUT -p tcp --dport ${proxyPort} -j ACCEPT 2>/dev/null || true`)
+        await runCmd(`iptables -t nat -I PREROUTING -p tcp --dport ${proxyPort} -j REDIRECT --to-ports ${proxyPort} 2>/dev/null || true`)
         await exec(`nohup ${nodeBin} ${scriptPath} >/var/log/ont-remote-${proxyPort}.log 2>&1 &`)
 
         await new Promise((r) => setTimeout(r, 500))
@@ -509,6 +510,7 @@ server.listen(listenPort, '0.0.0.0', () => {
         await runCmd(`pkill -9 -f "ont-proxy-${proxyPort}.js" 2>/dev/null || true`)
         await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || true`)
         await runCmd(`rm -f /tmp/ont-proxy-${proxyPort}.js /var/log/ont-remote-${proxyPort}.log`)
+        await runCmd(`iptables -t nat -D PREROUTING -p tcp --dport ${proxyPort} -j REDIRECT --to-ports ${proxyPort} 2>/dev/null || true`)
         await runCmd(`ufw delete allow ${proxyPort}/tcp 2>/dev/null || true`)
       } catch { /* ignore */ }
     }
