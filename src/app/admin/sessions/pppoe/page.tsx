@@ -95,7 +95,7 @@ export default function PPPoESessionsPage() {
   const [exportStartDate, setExportStartDate] = useState(formatWIB(new Date(nowWIB().getTime() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'))
   const [exportEndDate, setExportEndDate] = useState(todayWIBStr())
   const [now, setNow] = useState(() => nowWIB().getTime())
-  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [autoRefresh, setAutoRefresh] = useState(false)
   const [copiedIp, setCopiedIp] = useState<string | null>(null)
 
   // ONT Remote sessions state
