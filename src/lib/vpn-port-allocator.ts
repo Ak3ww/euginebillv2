@@ -152,6 +152,12 @@ export async function addIptablesRules(
         ` || iptables -A FORWARD -p tcp -d ${vpnIp} --dport ${targetPort} -j ACCEPT`,
         { shell: '/bin/bash' }
       )
+      // Cek POSTROUTING SNAT/MASQUERADE rule (Wajib agar return traffic kembali lewat tunnel VPN ke VPS)
+      await exec(
+        `iptables -t nat -C POSTROUTING -p tcp -d ${vpnIp} --dport ${targetPort} -j MASQUERADE 2>/dev/null` +
+        ` || iptables -t nat -A POSTROUTING -p tcp -d ${vpnIp} --dport ${targetPort} -j MASQUERADE`,
+        { shell: '/bin/bash' }
+      )
       // Buka port publik di ufw jika tersedia
       await exec(`ufw allow ${publicPort}/tcp 2>/dev/null || true`, { shell: '/bin/bash' })
     } catch {
@@ -184,6 +190,10 @@ export async function removeIptablesRules(
       )
       await exec(
         `iptables -D FORWARD -p tcp -d ${vpnIp} --dport ${targetPort} -j ACCEPT 2>/dev/null || true`,
+        { shell: '/bin/bash' }
+      )
+      await exec(
+        `iptables -t nat -D POSTROUTING -p tcp -d ${vpnIp} --dport ${targetPort} -j MASQUERADE 2>/dev/null || true`,
         { shell: '/bin/bash' }
       )
       await exec(`ufw delete allow ${publicPort}/tcp 2>/dev/null || true`, { shell: '/bin/bash' })
