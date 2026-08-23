@@ -5,11 +5,6 @@ import { prisma } from '@/server/db/client';
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const company = await prisma.company.findFirst();
     
     if (!company) {
@@ -48,6 +43,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const data = await request.json();
     
     // Check if company already exists

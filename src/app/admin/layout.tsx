@@ -5,11 +5,18 @@ import { prisma } from '@/server/db/client';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const company = await prisma.company.findFirst({ select: { name: true } });
-  return {
-    title: `Admin Panel - ${company?.name || 'EugineBill RADIUS'}`,
-    manifest: '/manifest-admin.json',
-  };
+  try {
+    const company = await prisma.company.findFirst({ select: { name: true } });
+    return {
+      title: `Admin Panel - ${company?.name || 'EugineBill RADIUS'}`,
+      manifest: '/manifest-admin.json',
+    };
+  } catch {
+    return {
+      title: 'Admin Panel - EugineBill RADIUS',
+      manifest: '/manifest-admin.json',
+    };
+  }
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

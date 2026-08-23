@@ -14,10 +14,16 @@ const jetbrainsMono = { variable: "font-mono" };
 const hankenGrotesk = { variable: "font-hanken" };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const company = await prisma.company.findFirst({ select: { name: true, logo: true } });
-  let rawName = company?.name || 'Eugine Media Group';
-  const name = rawName.replace(/^PT\.?\s*/i, '').trim();
-  const logoUrl = company?.logo ? company.logo : '/api/pwa/icon?size=192';
+  let name = 'Eugine Media Group';
+  let logoUrl = '/api/pwa/icon?size=192';
+  try {
+    const company = await prisma.company.findFirst({ select: { name: true, logo: true } });
+    const rawName = company?.name || 'Eugine Media Group';
+    name = rawName.replace(/^PT\.?\s*/i, '').trim();
+    if (company?.logo) logoUrl = company.logo;
+  } catch {
+    // Database connection fallback
+  }
   const description = `${name} | Integrated IT, Network, and Hardware Solutions for ISP/RTRW.NET and Enterprise.`;
   return {
     title: name,
