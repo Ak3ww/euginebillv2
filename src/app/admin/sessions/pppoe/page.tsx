@@ -813,33 +813,24 @@ export default function PPPoESessionsPage() {
                         </button>
 
                         <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => setViewerModalSession(s)}
-                            className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-all"
-                            title="Tampilkan di Jendela Modal"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                            <span>Modal</span>
-                          </button>
-
                           <a
-                            href={`/admin/ont-viewer/${s.id}`}
+                            href={s.proxyUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-sm transition-all"
-                            title="Buka Web GUI Modem di Tab Penuh"
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-sm transition-all"
+                            title="Buka Web GUI Modem langsung di Tab Baru Chrome"
                           >
-                            <Globe className="w-3 h-3" />
-                            <span>Buka Web GUI</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Buka di Tab Baru</span>
                           </a>
 
                           <button
                             onClick={() => handleCloseOntSession(s)}
                             disabled={isClosingThis}
-                            className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-all disabled:opacity-50"
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-all disabled:opacity-50"
                             title="Tutup Sesi & Hapus NAT"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-3.5 h-3.5" />
                             <span>{isClosingThis ? '...' : 'Tutup'}</span>
                           </button>
                         </div>
