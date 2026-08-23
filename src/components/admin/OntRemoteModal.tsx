@@ -78,11 +78,8 @@ export default function OntRemoteModal({
   if (!isOpen) return null
 
   const getEffectivePort = (): number => {
-    if (targetPort === 'custom') {
-      const p = parseInt(customPort)
-      return p > 0 && p <= 65535 ? p : 80
-    }
-    return parseInt(targetPort)
+    const p = parseInt(customPort)
+    return p > 0 && p <= 65535 ? p : 80
   }
 
   const handleLaunch = async () => {
@@ -224,61 +221,16 @@ export default function OntRemoteModal({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-2">
-                  Pilih Port Web GUI Modem (ONT)
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                  Custom Port Modem (Opsional, Kosongkan jika IP Murni)
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setTargetPort('80')}
-                    className={`p-2.5 rounded-xl border text-xs font-medium flex flex-col items-center gap-1 transition-all ${
-                      targetPort === '80'
-                        ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary'
-                        : 'border-border bg-background text-muted-foreground hover:bg-muted/60'
-                    }`}
-                  >
-                    <span className="font-semibold">HTTP (80)</span>
-                    <span className="text-[10px] opacity-75">ZTE / FiberHome</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTargetPort('443')}
-                    className={`p-2.5 rounded-xl border text-xs font-medium flex flex-col items-center gap-1 transition-all ${
-                      targetPort === '443'
-                        ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary'
-                        : 'border-border bg-background text-muted-foreground hover:bg-muted/60'
-                    }`}
-                  >
-                    <span className="font-semibold">HTTPS (443)</span>
-                    <span className="text-[10px] opacity-75">Huawei</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTargetPort('custom')}
-                    className={`p-2.5 rounded-xl border text-xs font-medium flex flex-col items-center gap-1 transition-all ${
-                      targetPort === 'custom'
-                        ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary'
-                        : 'border-border bg-background text-muted-foreground hover:bg-muted/60'
-                    }`}
-                  >
-                    <span className="font-semibold">Custom Port</span>
-                    <span className="text-[10px] opacity-75">8080, dll</span>
-                  </button>
-                </div>
-
-                {targetPort === 'custom' && (
-                  <div className="mt-2">
-                    <input
-                      type="number"
-                      placeholder="Masukkan nomor port (misal: 8080)"
-                      value={customPort}
-                      onChange={(e) => setCustomPort(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                )}
+                <input
+                  type="text"
+                  placeholder="Opsional: 8080 (untuk modem SK / FiberHome)"
+                  value={customPort}
+                  onChange={(e) => setCustomPort(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary"
+                />
               </div>
 
               <button
