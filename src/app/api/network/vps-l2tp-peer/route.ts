@@ -427,9 +427,10 @@ function generateL2tpScript({ serverIp, username, password, ipsecPsk, vpnIp, lab
 # Interface  : ${ifaceName}
 # ═══════════════════════════════════════════════════════
 
-# [0] Hapus setup lama jika ada (mencegah error duplicate)
-:do { /interface l2tp-client remove [find name="${ifaceName}"] } on-error={}
-:do { /user remove [find name="${safeApiUser}"] } on-error={}
+# [0] Hapus setup lama jika ada (mencegah error duplicate / sisa config)
+:do { /interface l2tp-client remove [find where comment~"EugineBill" or name="${ifaceName}" or connect-to="${serverIp}"] } on-error={}
+:do { /ip route remove [find where comment~"EugineBill"] } on-error={}
+:do { /user remove [find where comment~"EugineBill" or name="${safeApiUser}"] } on-error={}
 
 # [1] Tambah interface L2TP Client ke VPS
 /interface l2tp-client add name=${ifaceName} connect-to=${serverIp} user="${username}" password="${password}" use-ipsec=yes ipsec-secret="${ipsecPsk}" profile=default-encryption add-default-route=no disabled=no comment="EugineBill VPN"

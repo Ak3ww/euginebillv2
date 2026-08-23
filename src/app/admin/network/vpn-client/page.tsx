@@ -265,12 +265,12 @@ export default function VpnClientPage() {
 # API & Winbox Password: ${safeApiPassword}
 # ============================================================
 
-# 0. Hapus setup WireGuard terdahulu (mencegah bentrok interface / peer)
+# 0. Hapus setup WireGuard & User terdahulu (mencegah bentrok / sisa config)
 :do { /interface/wireguard/peers/remove [find where endpoint-address="${serverHost}" or interface~"wg-"] } on-error={}
 :do { /interface/wireguard/remove [find where name="${ifaceName}" or name~"wg-"] } on-error={}
 :do { /ip/address/remove [find where address~"${data.vpnIp}" or interface~"wg-"] } on-error={}
-:do { /ip/route/remove [find where comment="EugineBill-VPN" or gateway~"wg-"] } on-error={}
-:do { /user/remove [find where name="${safeApiUsername}"] } on-error={}
+:do { /ip/route/remove [find where comment="EugineBill-VPN" or comment~"EugineBill" or gateway~"wg-"] } on-error={}
+:do { /user/remove [find where name="${safeApiUsername}" or comment~"EugineBill"] } on-error={}
 
 # 1. Buat WireGuard interface dengan private key NAS
 /interface/wireguard/add name=${ifaceName} private-key="${data.clientPrivateKey || '<PRIVATE_KEY>'}"
