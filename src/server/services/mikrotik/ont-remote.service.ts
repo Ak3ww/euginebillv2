@@ -298,6 +298,7 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
   if (req.headers['x-requested-with']) cleanHeaders['X-Requested-With'] = req.headers['x-requested-with'];
   if (req.headers['authorization']) cleanHeaders['Authorization'] = req.headers['authorization'];
 
+  log('[ONT-Proxy:' + listenPort + '] ' + req.method + ' ' + targetPath + ' -> Headers: ' + JSON.stringify(cleanHeaders));
   const options = {
     host: mikrotikVpnIp,
     port: listenPort,
