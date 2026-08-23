@@ -434,14 +434,14 @@ function generateL2tpScript({ serverIp, username, password, ipsecPsk, vpnIp, lab
 # [1] Tambah interface L2TP Client ke VPS
 /interface l2tp-client add name=${ifaceName} connect-to=${serverIp} user="${username}" password="${password}" use-ipsec=yes ipsec-secret="${ipsecPsk}" profile=default-encryption add-default-route=no disabled=no comment="EugineBill VPN"
 
-# [2] Buat API User untuk remote management
-:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api comment="EugineBill API Group" } on-error={}
-/user add name=${safeApiUser} group=api-users password="${safeApiPass}" comment="API User EugineBill"
+# [2] Buat API & Winbox User untuk remote management
+:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="EugineBill API & Winbox Group" } on-error={}
+/user add name=${safeApiUser} group=api-users password="${safeApiPass}" comment="API & Winbox User EugineBill"
 
 # ═══════════════════════════════════════════════════════
 # INFO AKSES REMOTE (dari luar jaringan):
-# API Username: ${safeApiUser}
-# API Password: ${safeApiPass}${portInfo}
+# API & Winbox Username: ${safeApiUser}
+# API & Winbox Password: ${safeApiPass}${portInfo}
 #
 # LANGKAH SELANJUTNYA:
 # 1. Pergi ke menu Routers/NAS di dashboard

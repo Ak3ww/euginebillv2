@@ -237,7 +237,11 @@ export default function VpnClientPage() {
       const apiSslPort = ports.apiSsl?.public || 10003
       const wwwPort = ports.www?.public || 10004
       const sshPort = ports.ssh?.public || 10006
-      const safeApiUsername = data.apiUsername || `api-${toSafeIfaceName('wg', wgNewPeerName.trim())}`
+      const winboxTargetPort = ports.winbox?.target || 8291
+      const apiTargetPort = ports.api?.target || 8728
+      const wwwTargetPort = ports.www?.target || 80
+      const sshTargetPort = ports.ssh?.target || 22
+      const safeApiUsername = data.apiUsername || `api-${ifaceName}`
       const safeApiPassword = data.apiPassword || 'EugineBillApi123!'
 
       const script = `# ============================================================
@@ -250,15 +254,15 @@ export default function VpnClientPage() {
 # ────────────────────────────────────────────────────────────
 # ALOKASI REMOTE AKSES PUBLIK (Akses dari Internet / Luar):
 # Host VPS    : ${vpsIp}
-# Winbox Port : ${vpsIp}:${winboxPort} -> MikroTik:8291
-# WebGUI Port : http://${vpsIp}:${wwwPort} -> MikroTik:80
-# API Port    : ${vpsIp}:${apiPort} -> MikroTik:8728
-# API SSL Port: ${vpsIp}:${apiSslPort} -> MikroTik:8729
-# SSH Port    : ${vpsIp}:${sshPort} -> MikroTik:22
+# Winbox Port : ${vpsIp}:${winboxPort} -> MikroTik:${winboxTargetPort}
+# WebGUI Port : http://${vpsIp}:${wwwPort} -> MikroTik:${wwwTargetPort}
+# API Port    : ${vpsIp}:${apiPort} -> MikroTik:${apiTargetPort}
+# API SSL Port: ${vpsIp}:${apiSslPort} -> MikroTik:${ports.apiSsl?.target || 8729}
+# SSH Port    : ${vpsIp}:${sshPort} -> MikroTik:${sshTargetPort}
 #
-# KREDENSIAL API MIKROTIK (Khusus Sistem EugineBill):
-# API Username: ${safeApiUsername}
-# API Password: ${safeApiPassword}
+# KREDENSIAL REMOTE MIKROTIK (Khusus Sistem EugineBill & Winbox):
+# API & Winbox Username: ${safeApiUsername}
+# API & Winbox Password: ${safeApiPassword}
 # ============================================================
 
 # 0. Hapus setup WireGuard terdahulu (mencegah bentrok interface / peer)
@@ -283,9 +287,9 @@ export default function VpnClientPage() {
 /ip/route/remove [find where comment="EugineBill-VPN"]
 /ip/route/add dst-address=${data.vpnSubnet || '10.200.0.0/24'} gateway=${ifaceName} comment="EugineBill-VPN"
 
-# 5. Buat API User (untuk remote management MikroTik)
-:do { /user/group/add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group" } on-error={}
-/user/add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API User EugineBill"
+# 5. Buat API & Winbox User (akses remote management MikroTik)
+:do { /user/group/add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="Limited API & Winbox Access Group" } on-error={}
+/user/add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
 
 # 6. Pastikan IP Services Aktif di MikroTik
 :do { /ip/service/enable winbox } on-error={}
@@ -295,11 +299,11 @@ export default function VpnClientPage() {
 
 # ============================================================
 # PANDUAN PENGGUNAAN:
-# 1. Remote Winbox  : Buka Winbox -> Connect To: ${vpsIp}:${winboxPort}
+# 1. Remote Winbox  : Buka Winbox -> Connect To: ${vpsIp}:${winboxPort} (Login: ${safeApiUsername} / Pass: ${safeApiPassword} atau Admin Anda)
 # 2. Remote WebFig  : Buka Browser -> http://${vpsIp}:${wwwPort}
 # 3. Pengaturan NAS di EugineBill:
 #    - Host IP : ${data.vpnIp} (atau ${vpsIp})
-#    - API Port: 8728 (atau ${apiPort})
+#    - API Port: ${apiTargetPort} (atau ${apiPort})
 #    - Username: ${safeApiUsername}
 #    - Password: ${safeApiPassword}
 # ============================================================`.trim();
@@ -1530,238 +1534,187 @@ ${vpnCmd}
         {/* Add Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2.5 sm:p-4">
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-[#bc13fe]/50 rounded-2xl max-w-lg w-full p-6 shadow-[0_0_50px_rgba(188,19,254,0.3)]">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-gradient-to-br from-[#00f7ff] to-[#bc13fe] rounded-lg flex items-center justify-center">
-                  <Plus className="w-5 h-5 text-white" />
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-[#bc13fe]/50 rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(188,19,254,0.3)] overflow-hidden">
+              <div className="flex items-center justify-between p-6 pb-4 border-b border-border/60 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-br from-[#00f7ff] to-[#bc13fe] rounded-lg flex items-center justify-center">
+                    <Plus className="w-5 h-5 text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-foreground">{t('network.addVpnClient')}</h2>
                 </div>
-                <h2 className="text-xl font-bold text-foreground">{t('network.addVpnClient')}</h2>
+                <button onClick={() => setShowModal(false)} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+                  <XCircle className="w-6 h-6" />
+                </button>
               </div>
 
-              <form onSubmit={handleCreate} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-[#00f7ff] mb-2">
-                    {t('network.vpnServer')} <span className="text-red-400">*</span>
-                  </label>
-                  <select
-                    value={formData.vpnServerId}
-                    onChange={(e) => setFormData({ ...formData, vpnServerId: e.target.value })}
-                    className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
-                    required
-                  >
-                    <option value="" className="bg-slate-800">{t('network.selectVpnClient')}</option>
-                    {/* VPS WireGuard option */}
-                    {formData.vpnType === 'wireguard' && wgServerInfoLoading && (
-                      <option disabled className="bg-slate-800">⏳ Memeriksa VPS WireGuard...</option>
-                    )}
-                    {formData.vpnType === 'wireguard' && wgServerInfo?.installed && (
-                      <option value="__vps_wg__" className="bg-slate-800">
-                        🖥️ VPS WireGuard Server ({wgServerInfo.publicIp || 'VPS'} :{wgServerInfo.listenPort || 51820})
-                      </option>
-                    )}
-                    {/* VPS L2TP option */}
-                    {formData.vpnType === 'l2tp' && l2tpServerInfoLoading && (
-                      <option disabled className="bg-slate-800">⏳ Memeriksa VPS L2TP...</option>
-                    )}
-                    {formData.vpnType === 'l2tp' && l2tpServerInfo?.installed && (
-                      <option value="__vps_l2tp__" className="bg-slate-800">
-                        🖥️ VPS L2TP/IPsec Server ({l2tpServerInfo.publicIp || 'VPS'})
-                      </option>
-                    )}
-                    {/* CHR servers */}
-                    {vpnServers
-                      .filter(server => {
-                        if (formData.vpnType === 'wireguard') return server.wgEnabled === true
-                        if (formData.vpnType === 'l2tp') return server.l2tpEnabled === true
-                        if (formData.vpnType === 'sstp') return server.sstpEnabled === true
-                        if (formData.vpnType === 'pptp') return server.pptpEnabled === true
-                        return true
-                      })
-                      .map((server) => (
-                        <option key={server.id} value={server.id} className="bg-slate-800">
-                          🔷 CHR: {server.name} ({server.host})
-                        </option>
-                      ))}
-                  </select>
-                  {formData.vpnType === 'wireguard' && !wgServerInfoLoading && wgServerInfo && !wgServerInfo.installed && vpnServers.filter(s => s.wgEnabled).length === 0 && (
-                    <p className="text-xs text-amber-400 mt-1.5">
-                      ⚠️ WireGuard belum terinstall di VPS dan tidak ada CHR dengan WireGuard aktif.
-                      <a href="/admin/network/vpn-server" className="text-[#00f7ff] underline ml-1">Setup di menu VPN Server</a>.
-                    </p>
-                  )}
-                  {formData.vpnType === 'l2tp' && !l2tpServerInfoLoading && l2tpServerInfo && !l2tpServerInfo.installed && vpnServers.filter(s => s.l2tpEnabled).length === 0 && (
-                    <p className="text-xs text-amber-400 mt-1.5">
-                      ⚠️ L2TP belum terinstall di VPS dan tidak ada CHR dengan L2TP aktif.
-                      <a href="/admin/network/vpn-server" className="text-[#00f7ff] underline ml-1">Setup di menu VPN Server</a>.
-                    </p>
-                  )}
-                  {formData.vpnType && (formData.vpnType === 'sstp' || formData.vpnType === 'pptp') && vpnServers.filter(server => {
-                    if (formData.vpnType === 'sstp') return server.sstpEnabled === true
-                    if (formData.vpnType === 'pptp') return server.pptpEnabled === true
-                    return true
-                  }).length === 0 && (
-                    <p className="text-xs text-amber-400 mt-1.5 flex items-center gap-1">
-                      ⚠️ Tidak ada CHR yang mengaktifkan protokol <strong>{formData.vpnType.toUpperCase()}</strong>.
-                      <span> Setup di</span><a href="/admin/network/vpn-server" className="text-[#00f7ff] underline ml-1">menu VPN Server</a>.
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[#00f7ff] mb-2">
-                    VPN Protocol <span className="text-red-400">*</span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(['wireguard', 'l2tp', 'pptp', 'sstp'] as const).map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => { setFormData({ ...formData, vpnType: type, vpnServerId: '' }); if (type === 'wireguard') loadWgServerInfo(); if (type === 'l2tp') loadL2tpServerInfo(); }}
-                        className={`px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${formData.vpnType === type
-                          ? 'bg-gradient-to-r from-[#00f7ff] to-[#00d4e6] text-black shadow-[0_0_15px_rgba(0,247,255,0.4)]'
-                          : 'bg-muted/60 dark:bg-slate-800/60 border border-[#bc13fe]/30 text-foreground hover:bg-[#bc13fe]/20'
-                        }`}
-                      >
-                        {type === 'l2tp' ? 'L2TP/IPSec' : type === 'wireguard' ? 'WireGuard' : type.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                  {formData.vpnType === 'wireguard' && (
-                    <p className="text-xs text-[#00f7ff]/80 mt-2 flex items-center gap-1"><Wifi className="w-3 h-3" /> WireGuard memerlukan RouterOS 7+ di NAS. Sistem akan menambah peer ke CHR secara otomatis.</p>
-                  )}
-                  {formData.vpnType === 'pptp' && (
-                    <p className="text-xs text-amber-400/80 mt-2">⚠️ PPTP sudah deprecated dan kurang aman. Gunakan WireGuard atau L2TP jika memungkinkan.</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[#00f7ff] mb-2">
-                    {t('network.clientName')} <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
-                    placeholder="e.g., Branch Office A"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[#00f7ff] mb-2">
-                    {t('network.descriptionOptional')}
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all resize-none"
-                    placeholder={t('network.additionalNotes')}
-                    rows={3}
-                  />
-                </div>
-
-                {/* Local Networks — for any WireGuard peer (VPS routes to local subnets behind NAS) */}
-                {formData.vpnType === 'wireguard' && (
+              <form onSubmit={handleCreate} className="flex flex-col flex-1 overflow-hidden">
+                <div className="p-6 space-y-5 overflow-y-auto flex-1">
                   <div>
                     <label className="block text-sm font-medium text-[#00f7ff] mb-2">
-                      IP Lokal / Subnet di Balik NAS <span className="text-muted-foreground font-normal">(opsional)</span>
+                      {t('network.vpnServer')} <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      value={formData.vpnServerId}
+                      onChange={(e) => setFormData({ ...formData, vpnServerId: e.target.value })}
+                      className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
+                      required
+                    >
+                      <option value="" className="bg-slate-800">{t('network.selectVpnClient')}</option>
+                      {/* VPS WireGuard option */}
+                      {formData.vpnType === 'wireguard' && wgServerInfoLoading && (
+                        <option disabled className="bg-slate-800">⏳ Memeriksa VPS WireGuard...</option>
+                      )}
+                      {formData.vpnType === 'wireguard' && wgServerInfo?.installed && (
+                        <option value="__vps_wg__" className="bg-slate-800">
+                          🖥️ VPS WireGuard Server ({wgServerInfo.publicIp || 'VPS'} :{wgServerInfo.listenPort || 51820})
+                        </option>
+                      )}
+                      {/* VPS L2TP option */}
+                      {formData.vpnType === 'l2tp' && l2tpServerInfoLoading && (
+                        <option disabled className="bg-slate-800">⏳ Memeriksa VPS L2TP...</option>
+                      )}
+                      {formData.vpnType === 'l2tp' && l2tpServerInfo?.installed && (
+                        <option value="__vps_l2tp__" className="bg-slate-800">
+                          🖥️ VPS L2TP/IPsec Server ({l2tpServerInfo.publicIp || 'VPS'})
+                        </option>
+                      )}
+                      {/* CHR servers */}
+                      {vpnServers
+                        .filter(server => {
+                          if (formData.vpnType === 'wireguard') return server.wgEnabled === true
+                          if (formData.vpnType === 'l2tp') return server.l2tpEnabled === true
+                          if (formData.vpnType === 'sstp') return server.sstpEnabled === true
+                          if (formData.vpnType === 'pptp') return server.pptpEnabled === true
+                          return true
+                        })
+                        .map((server) => (
+                          <option key={server.id} value={server.id} className="bg-slate-800">
+                            🔷 CHR: {server.name} ({server.host})
+                          </option>
+                        ))}
+                    </select>
+                    {formData.vpnType === 'wireguard' && !wgServerInfoLoading && wgServerInfo && !wgServerInfo.installed && vpnServers.filter(s => s.wgEnabled).length === 0 && (
+                      <p className="text-xs text-amber-400 mt-1.5">
+                        ⚠️ WireGuard belum terinstall di VPS dan tidak ada CHR dengan WireGuard aktif.
+                        <a href="/admin/network/vpn-server" className="text-[#00f7ff] underline ml-1">Setup di menu VPN Server</a>.
+                      </p>
+                    )}
+                    {formData.vpnType === 'l2tp' && !l2tpServerInfoLoading && l2tpServerInfo && !l2tpServerInfo.installed && vpnServers.filter(s => s.l2tpEnabled).length === 0 && (
+                      <p className="text-xs text-amber-400 mt-1.5">
+                        ⚠️ L2TP belum terinstall di VPS dan tidak ada CHR dengan L2TP aktif.
+                        <a href="/admin/network/vpn-server" className="text-[#00f7ff] underline ml-1">Setup di menu VPN Server</a>.
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-[#00f7ff] mb-2">
+                      VPN Protocol <span className="text-red-400">*</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['wireguard', 'l2tp', 'pptp', 'sstp'] as const).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => { setFormData({ ...formData, vpnType: type, vpnServerId: '' }); if (type === 'wireguard') loadWgServerInfo(); if (type === 'l2tp') loadL2tpServerInfo(); }}
+                          className={`px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${formData.vpnType === type
+                            ? 'bg-gradient-to-r from-[#00f7ff] to-[#00d4e6] text-black shadow-[0_0_15px_rgba(0,247,255,0.4)]'
+                            : 'bg-muted/60 dark:bg-slate-800/60 border border-[#bc13fe]/30 text-foreground hover:bg-[#bc13fe]/20'
+                          }`}
+                        >
+                          {type === 'l2tp' ? 'L2TP/IPSec' : type === 'wireguard' ? 'WireGuard' : type.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-[#00f7ff] mb-2">
+                      {t('network.clientName')} <span className="text-red-400">*</span>
                     </label>
                     <input
                       type="text"
-                      value={formData.localNetworks}
-                      onChange={(e) => setFormData({ ...formData, localNetworks: e.target.value })}
-                      className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 font-mono focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
-                      placeholder="cth: 192.168.75.0/24,136.1.1.100/32"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
+                      placeholder="e.g., MIKROTIK SITE CIBINONG"
+                      required
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Pisahkan dengan koma. IP/subnet ini akan ditambahkan ke <span className="text-[#00f7ff] font-mono">AllowedIPs</span> peer WireGuard di VPS sehingga VPS bisa menjangkau jaringan lokal di balik NAS (Mikrotik).
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-[#00f7ff] mb-2">
+                      {t('network.descriptionOptional')}
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all resize-none"
+                      placeholder={t('network.additionalNotes')}
+                      rows={2}
+                    />
+                  </div>
+
+                  {/* Target Service Ports di MikroTik */}
+                  <div className="p-4 bg-[#bc13fe]/10 border border-[#bc13fe]/30 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-[#00f7ff] uppercase tracking-wider">
+                        Port Layanan MikroTik <span className="text-muted-foreground font-normal">(Target Port MikroTik)</span>
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2.5">
+                      <div>
+                        <span className="text-[11px] text-muted-foreground block mb-1">Winbox Port</span>
+                        <input
+                          type="text"
+                          value={formData.targetWinboxPort}
+                          onChange={(e) => setFormData({ ...formData, targetWinboxPort: e.target.value })}
+                          className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-xs focus:border-[#00f7ff]"
+                          placeholder="8291 (cth: 8228)"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-muted-foreground block mb-1">API Port</span>
+                        <input
+                          type="text"
+                          value={formData.targetApiPort}
+                          onChange={(e) => setFormData({ ...formData, targetApiPort: e.target.value })}
+                          className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-xs focus:border-[#00f7ff]"
+                          placeholder="8728 (cth: 8520)"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-muted-foreground block mb-1">WWW Port</span>
+                        <input
+                          type="text"
+                          value={formData.targetWwwPort}
+                          onChange={(e) => setFormData({ ...formData, targetWwwPort: e.target.value })}
+                          className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-xs focus:border-[#00f7ff]"
+                          placeholder="80"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      💡 Isi jika MikroTik Anda memakai port kustom (cth: Winbox 8228, API 8520). Port publik VPS akan otomatis di-forward (DNAT) ke port ini.
                     </p>
                   </div>
-                )}
-
-                {/* Target Service Ports di MikroTik */}
-                <div className="p-4 bg-[#bc13fe]/10 border border-[#bc13fe]/30 rounded-xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-[#00f7ff] uppercase tracking-wider">
-                      Port Layanan MikroTik <span className="text-muted-foreground font-normal">(Target Port)</span>
-                    </label>
-                    <span className="text-[11px] text-muted-foreground">Default: Winbox 8291, API 8728</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <span className="text-[11px] text-muted-foreground block mb-1">Winbox Port</span>
-                      <input
-                        type="text"
-                        value={formData.targetWinboxPort}
-                        onChange={(e) => setFormData({ ...formData, targetWinboxPort: e.target.value })}
-                        className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-xs focus:border-[#00f7ff]"
-                        placeholder="8291"
-                      />
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-muted-foreground block mb-1">API Port</span>
-                      <input
-                        type="text"
-                        value={formData.targetApiPort}
-                        onChange={(e) => setFormData({ ...formData, targetApiPort: e.target.value })}
-                        className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-xs focus:border-[#00f7ff]"
-                        placeholder="8728"
-                      />
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-muted-foreground block mb-1">WWW Port</span>
-                      <input
-                        type="text"
-                        value={formData.targetWwwPort}
-                        onChange={(e) => setFormData({ ...formData, targetWwwPort: e.target.value })}
-                        className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-xs focus:border-[#00f7ff]"
-                        placeholder="80"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    💡 Jika MikroTik Anda menggunakan port kustom (misal Winbox di port 8520), ubah angka di atas. Port publik VPS akan otomatis di-forward (DNAT) ke port ini.
-                  </p>
                 </div>
 
-                {/* Custom VPN IP — only for non-VPS WG (VPS WG assigns IPs automatically) */}
-                {formData.vpnServerId && formData.vpnServerId !== '__vps_wg__' && (
-                  <div>
-                    <label className="block text-sm font-medium text-[#00f7ff] mb-1">
-                      IP VPN Client <span className="text-muted-foreground font-normal">(opsional — kosongkan untuk auto)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.customVpnIp}
-                      onChange={(e) => setFormData({ ...formData, customVpnIp: e.target.value })}
-                      className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 font-mono focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
-                      placeholder="cth: 10.20.30.15 (kosong = auto-assign)"
-                    />
-                    {(() => {
-                      const srv = vpnServers.find(s => s.id === formData.vpnServerId);
-                      const sub = srv?.subnet;
-                      if (!sub) return null;
-                      const base = sub.split('/')[0].split('.').slice(0, 3).join('.');
-                      return <p className="text-xs text-muted-foreground mt-1">Subnet server: <span className="text-[#00f7ff] font-mono">{sub}</span> — IP harus dalam range <span className="font-mono">{base}.10</span> – <span className="font-mono">{base}.254</span></p>;
-                    })()}
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-4">
+                {/* Sticky Footer */}
+                <div className="p-4 sm:p-6 border-t border-border bg-slate-900/95 shrink-0 flex gap-3">
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="flex-1 px-4 py-3 bg-muted border border-border text-foreground rounded-xl hover:bg-accent transition-all font-medium"
+                    className="flex-1 px-6 py-3 bg-slate-800 border border-slate-700 text-foreground font-semibold rounded-xl hover:bg-slate-700 transition-all"
                   >
                     {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={creating}
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-[#00f7ff] to-[#00d4e6] text-black font-bold rounded-xl hover:shadow-[0_0_20px_rgba(0,247,255,0.4)] transition-all disabled:opacity-50"
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-[#00f7ff] to-[#00d4e6] text-black font-bold rounded-xl hover:shadow-[0_0_30px_rgba(0,247,255,0.5)] transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:transform-none"
                   >
-                    {creating ? t('common.creating') : t('network.createClient')}
+                    {creating ? t('network.creating') : t('network.createVpnClient')}
                   </button>
                 </div>
               </form>
@@ -1772,15 +1725,20 @@ ${vpnCmd}
         {/* Credentials Modal */}
         {showCredentials && credentials && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2.5 sm:p-4">
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-[#bc13fe]/50 rounded-2xl max-w-4xl w-full p-6 shadow-[0_0_50px_rgba(188,19,254,0.3)] max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-gradient-to-br from-[#00f7ff] to-[#bc13fe] rounded-lg flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-white" />
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-[#bc13fe]/50 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(188,19,254,0.3)] overflow-hidden">
+              <div className="flex items-center justify-between p-6 pb-4 border-b border-border/60 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-br from-[#00f7ff] to-[#bc13fe] rounded-lg flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-foreground">{t('network.vpnClientCredentials')}</h2>
                 </div>
-                <h2 className="text-xl font-bold text-foreground">{t('network.vpnClientCredentials')}</h2>
+                <button onClick={() => { setShowCredentials(false); loadClients(); }} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+                  <XCircle className="w-6 h-6" />
+                </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="p-6 space-y-6 overflow-y-auto flex-1">
                 {/* Credentials Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-gradient-to-br from-[#bc13fe]/10 to-[#00f7ff]/10 border border-[#bc13fe]/30 rounded-xl">
                   <div>
@@ -1807,29 +1765,14 @@ ${vpnCmd}
                   )}
                   {credentials.apiUsername && (
                     <div>
-                      <p className="text-[#00f7ff] text-xs uppercase tracking-wider mb-1">{t('network.apiUsername')}</p>
+                      <p className="text-[#00f7ff] text-xs uppercase tracking-wider mb-1">API & Winbox User</p>
                       <p className="font-mono text-sm text-green-400">{credentials.apiUsername}</p>
                     </div>
                   )}
                   {credentials.apiPassword && (
                     <div>
-                      <p className="text-[#00f7ff] text-xs uppercase tracking-wider mb-1">{t('network.apiPassword')}</p>
+                      <p className="text-[#00f7ff] text-xs uppercase tracking-wider mb-1">API & Winbox Pass</p>
                       <p className="font-mono text-sm text-green-400">{credentials.apiPassword}</p>
-                    </div>
-                  )}
-                  {credentials.radiusServerIp && (
-                    <div className="col-span-2 mt-1 p-3 bg-[#bc13fe]/10 border border-[#bc13fe]/30 rounded-lg">
-                      <p className="text-[#bc13fe] text-xs uppercase tracking-wider mb-2 font-bold">RADIUS Configuration</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-[#bc13fe] text-xs uppercase tracking-wider mb-1">RADIUS Server IP</p>
-                          <p className="font-mono text-sm text-amber-300">{credentials.radiusServerIp}</p>
-                        </div>
-                        <div>
-                          <p className="text-[#bc13fe] text-xs uppercase tracking-wider mb-1">NAS Secret</p>
-                          <p className="font-mono text-sm text-amber-300">{credentials.nasSecret}</p>
-                        </div>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1839,10 +1782,13 @@ ${vpnCmd}
                   const vpsIp = credentials.vpsPublicIp || credentials.serverHost || credentials.server || 'VPS_IP'
                   const ports = credentials.publicPorts?.services || {}
                   const winboxPort = ports.winbox?.public || credentials.winboxPort || (credentials.vpnType === 'wireguard' ? 10001 : 8291)
+                  const winboxTarget = ports.winbox?.target || 8291
                   const apiPort = ports.api?.public || (credentials.vpnType === 'wireguard' ? 10002 : 8728)
-                  const apiSslPort = ports.apiSsl?.public || (credentials.vpnType === 'wireguard' ? 10003 : 8729)
+                  const apiTarget = ports.api?.target || 8728
                   const wwwPort = ports.www?.public || (credentials.vpnType === 'wireguard' ? 10004 : 80)
+                  const wwwTarget = ports.www?.target || 80
                   const sshPort = ports.ssh?.public || (credentials.vpnType === 'wireguard' ? 10006 : 22)
+                  const sshTarget = ports.ssh?.target || 22
 
                   return (
                     <div className="p-5 bg-gradient-to-br from-emerald-500/10 to-[#00f7ff]/10 border border-emerald-500/30 rounded-xl space-y-3">
@@ -1855,17 +1801,17 @@ ${vpnCmd}
 
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         <div className="p-2.5 bg-background/60 border border-border rounded-lg">
-                          <p className="text-[10px] text-muted-foreground font-semibold uppercase">Winbox Remote</p>
+                          <p className="text-[10px] text-muted-foreground font-semibold uppercase">Winbox Remote (→ {winboxTarget})</p>
                           <div className="flex items-center justify-between mt-1">
                             <span className="font-mono text-xs font-bold text-[#00f7ff] truncate">{vpsIp}:{winboxPort}</span>
-                            <button onClick={() => copyToClipboard(`${vpsIp}:${winboxPort}`)} className="text-muted-foreground hover:text-foreground shrink-0 ml-1">
+                            <button onClick={() => copyToClipboard(`${vpsIp}:${winboxPort}`)} className="text-muted-foreground hover:text-foreground shrink-0 ml-1" title="Salin Winbox Remote">
                               <Copy className="w-3 h-3" />
                             </button>
                           </div>
                         </div>
 
                         <div className="p-2.5 bg-background/60 border border-border rounded-lg">
-                          <p className="text-[10px] text-muted-foreground font-semibold uppercase">WebFig / Web</p>
+                          <p className="text-[10px] text-muted-foreground font-semibold uppercase">WebFig / Web (→ {wwwTarget})</p>
                           <div className="flex items-center justify-between mt-1">
                             <span className="font-mono text-xs font-bold text-amber-400">Port {wwwPort}</span>
                             <a href={`http://${vpsIp}:${wwwPort}`} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline shrink-0 ml-1">
@@ -1875,7 +1821,7 @@ ${vpnCmd}
                         </div>
 
                         <div className="p-2.5 bg-background/60 border border-border rounded-lg">
-                          <p className="text-[10px] text-muted-foreground font-semibold uppercase">MikroTik API Port</p>
+                          <p className="text-[10px] text-muted-foreground font-semibold uppercase">API Port (→ {apiTarget})</p>
                           <div className="flex items-center justify-between mt-1">
                             <span className="font-mono text-xs font-bold text-green-400">Port {apiPort}</span>
                             <button onClick={() => copyToClipboard(String(apiPort))} className="text-muted-foreground hover:text-foreground shrink-0 ml-1">
@@ -1885,7 +1831,7 @@ ${vpnCmd}
                         </div>
 
                         <div className="p-2.5 bg-background/60 border border-border rounded-lg">
-                          <p className="text-[10px] text-muted-foreground font-semibold uppercase">SSH Port</p>
+                          <p className="text-[10px] text-muted-foreground font-semibold uppercase">SSH Port (→ {sshTarget})</p>
                           <div className="flex items-center justify-between mt-1">
                             <span className="font-mono text-xs font-bold text-violet-400">Port {sshPort}</span>
                             <button onClick={() => copyToClipboard(`${vpsIp} -p ${sshPort}`)} className="text-muted-foreground hover:text-foreground shrink-0 ml-1">
@@ -1898,105 +1844,37 @@ ${vpnCmd}
                   )
                 })()}
 
-                {/* VPN Type Selector */}
-                <div className="p-5 bg-[#00f7ff]/10 border border-[#00f7ff]/30 rounded-xl">
-                  <p className="text-sm font-medium text-[#00f7ff] mb-3 uppercase tracking-wider">
-                    {t('network.selectVpnType')}
-                  </p>
-                  <div className="flex gap-2 flex-wrap">
-                    {(['wireguard', 'l2tp', 'pptp', 'sstp'] as const).map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => setSelectedVpnType(type)}
-                        className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedVpnType === type
-                          ? 'bg-gradient-to-r from-[#00f7ff] to-[#00d4e6] text-black shadow-[0_0_20px_rgba(0,247,255,0.4)]'
-                          : 'bg-muted/60 dark:bg-slate-800/60 border border-[#bc13fe]/30 text-foreground hover:bg-[#bc13fe]/20'
-                          }`}
-                      >
-                        {type === 'l2tp' ? 'L2TP/IPSec' : type === 'wireguard' ? 'WireGuard' : type.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                  {selectedVpnType === 'wireguard' && (
-                    <div className="mt-3 p-3 bg-[#bc13fe]/10 border border-[#bc13fe]/30 rounded-xl">
-                      <div className="flex items-start gap-2">
-                        <Key className="w-4 h-4 text-[#bc13fe] mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-xs font-bold text-[#bc13fe] mb-1">WireGuard Keys</p>
-                          {credentials.clientPrivateKey ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground w-20 shrink-0">Private Key:</span>
-                                <code className="text-xs font-mono text-green-400 truncate">{credentials.clientPrivateKey.substring(0, 20)}...</code>
-                                <button onClick={() => copyToClipboard(credentials.clientPrivateKey!)} className="text-xs text-[#00f7ff] hover:underline shrink-0"><Copy className="w-3 h-3" /></button>
-                              </div>
-                              {credentials.serverPublicKey && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-muted-foreground w-20 shrink-0">Server PubKey:</span>
-                                  <code className="text-xs font-mono text-amber-400 truncate">{credentials.serverPublicKey.substring(0, 20)}...</code>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">Key dihasilkan otomatis saat membuat client. Gunakan tombol "Lihat" pada client WireGuard.</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 {/* MikroTik Script */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm font-medium text-[#00f7ff] uppercase tracking-wider">
                       {t('network.mikrotikConfigScript')}
                     </p>
-                    <button
-                      onClick={() => copyToClipboard(generateMikroTikScript())}
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#bc13fe] to-[#ff44cc] text-white font-bold rounded-lg hover:shadow-[0_0_20px_rgba(188,19,254,0.4)] transition-all text-sm"
-                    >
-                      <Copy className="w-4 h-4" />
-                      {t('network.copyScript')}
-                    </button>
                   </div>
                   <pre className="p-5 bg-gray-100 dark:bg-slate-950 text-green-700 dark:text-green-400 border border-[#bc13fe]/30 rounded-xl text-xs overflow-auto max-h-80 whitespace-pre font-mono">
                     {generateMikroTikScript()}
                   </pre>
                 </div>
-
-                {/* Important Notes */}
-                <div className="p-5 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-                  <h4 className="text-sm font-bold text-amber-400 mb-3 uppercase tracking-wider flex items-center gap-2">
-                    <span>⚠️</span> {t('network.importantNotes')}
-                  </h4>
-                  <ul className="text-xs sm:text-sm text-foreground space-y-2">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                      <span><strong className="text-amber-300">{t('network.apiUserGroup')}:</strong> {t('network.limitedPermissions')}</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                      <span><strong className="text-amber-300">{t('network.vpnConnection')}:</strong> {t('network.noDefaultRoute')}</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-              <span><strong className="text-amber-300 dark:text-amber-300 text-amber-600">{t('network.remoteAccess')}:</strong> {t('network.useWinboxVia')} <code className="px-1.5 py-0.5 bg-muted dark:bg-slate-800 border border-[#00f7ff]/30 rounded text-[#00f7ff]">{credentials.winboxRemote}</code></span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                      <span><strong className="text-amber-300">{t('network.apiCredentials')}:</strong> {t('network.forRemoteManagement')}</span>
-                    </li>
-                  </ul>
-                </div>
               </div>
 
-              <button
-                onClick={() => { setShowCredentials(false); loadClients(); }}
-                className="w-full mt-6 px-4 py-4 bg-gradient-to-r from-[#bc13fe] to-[#ff44cc] hover:from-[#bc13fe]/90 hover:to-[#ff44cc]/90 rounded-xl transition-all font-bold text-white shadow-[0_0_20px_rgba(188,19,254,0.4)]"
-              >
-                {t('common.close')}
-              </button>
+              {/* Sticky Footer */}
+              <div className="p-4 sm:p-6 border-t border-border/60 bg-slate-900/95 shrink-0 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(generateMikroTikScript())}
+                  className="flex-1 py-3 bg-slate-800 border border-slate-700 text-foreground font-semibold rounded-xl hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-sm"
+                >
+                  <Copy className="w-4 h-4 text-[#00f7ff]" />
+                  <span>Salin Script RouterOS</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowCredentials(false); loadClients(); }}
+                  className="flex-1 py-3 bg-gradient-to-r from-[#bc13fe] to-[#ff44cc] hover:from-[#bc13fe]/90 hover:to-[#ff44cc]/90 rounded-xl transition-all font-bold text-white text-sm shadow-[0_0_20px_rgba(188,19,254,0.4)]"
+                >
+                  {t('common.close')}
+                </button>
+              </div>
             </div>
           </div>
         )}
