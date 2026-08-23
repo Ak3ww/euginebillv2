@@ -816,11 +816,11 @@ export default function PPPoESessionsPage() {
 
                         <div className="flex items-center gap-1.5">
                           <a
-                            href={`http://${s.targetIp}${s.targetPort && s.targetPort !== 80 ? `:${s.targetPort}` : ''}`}
+                            href={s.proxyUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-sm transition-all"
-                            title="Buka Langsung IP Active Connection Modem ONT"
+                            title="Buka Web ONT via IP Publik VPS (Akses Publik)"
                           >
                             <Globe className="w-3.5 h-3.5" />
                             <span>Buka Web ONT</span>
