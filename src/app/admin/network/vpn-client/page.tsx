@@ -287,8 +287,10 @@ export default function VpnClientPage() {
 /ip/route/remove [find where comment="EugineBill-VPN"]
 /ip/route/add dst-address=${data.vpnSubnet || '10.200.0.0/24'} gateway=${ifaceName} comment="EugineBill-VPN"
 
-# 5. Buat API & Winbox User (akses remote management MikroTik)
-:do { /user/group/add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="Limited API & Winbox Access Group" } on-error={}
+# 5. Buat atau Update Group & User API + Winbox (Akses Winbox & API)
+:do { /user/group/add name=api-users } on-error={}
+/user/group/set [find name=api-users] policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh comment="EugineBill Remote Group"
+:do { /user/remove [find where name="${safeApiUsername}"] } on-error={}
 /user/add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
 
 # 6. Pastikan IP Services Aktif di MikroTik
@@ -950,8 +952,10 @@ ${vpnCmd}
 /ip/route/remove [find where comment="EugineBill-VPN"]
 /ip/route/add dst-address=${wgSubnet} gateway=${ifaceName} comment="EugineBill-VPN"
 
-# 5. Buat API & Winbox User (akses remote management MikroTik)
-:do { /user/group/add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="API & Winbox Access Group" } on-error={}
+# 5. Buat atau Update Group & User API + Winbox (Akses Winbox & API)
+:do { /user/group/add name=api-users } on-error={}
+/user/group/set [find name=api-users] policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh comment="EugineBill Remote Group"
+:do { /user/remove [find where name="${safeApiUsername}"] } on-error={}
 /user/add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
 
 # 6. Pastikan IP Services Aktif di MikroTik
