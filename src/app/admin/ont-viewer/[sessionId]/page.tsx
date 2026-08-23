@@ -288,7 +288,6 @@ export default function OntViewerPage({ params }: { params: Promise<{ sessionId:
           onLoad={() => setIframeLoading(false)}
           className="w-full h-full border-0 bg-white"
           title={`ONT Remote - ${session.customerName}`}
-          sandbox="allow-forms allow-modals allow-popups allow-same-origin allow-scripts"
         />
       </main>
     </div>

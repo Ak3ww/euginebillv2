@@ -8,6 +8,42 @@ export const dynamic = 'force-dynamic'
 const httpAgent = new http.Agent({ maxSockets: 4, keepAlive: false, timeout: 20000 })
 const httpsAgent = new https.Agent({ maxSockets: 4, keepAlive: false, timeout: 20000, rejectUnauthorized: false })
 
+function rewriteOntContent(body: string, sessionId: string, contentType: string): string {
+  const proxyBasePath = `/api/network/ont-remote/proxy/${sessionId}/`
+
+  let content = body.replace(/https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?\//gi, proxyBasePath)
+
+  content = content.replace(/\btop\.location\b/g, 'window.location')
+  content = content.replace(/\bwindow\.top\b/g, 'window.self')
+  content = content.replace(/\bparent\.location\b/g, 'window.location')
+
+  if (contentType.toLowerCase().includes('text/html')) {
+    if (content.includes('<head>') || content.includes('<HEAD>')) {
+      content = content.replace(/(<head[^>]*>)/i, `$1\n<base href="${proxyBasePath}">\n`)
+    } else {
+      content = `<base href="${proxyBasePath}">\n` + content
+    }
+
+    content = content.replace(/(href|src|action)=["']\/(?!\/|api\/)/gi, `$1="${proxyBasePath}`)
+    content = content.replace(
+      /(['"])\/(css|jquery|js|img|images|image|template|theme|cgi-bin|\?_type|getpage\.gch|login\.cgi|login\.asp|default\.html)/gi,
+      `$1${proxyBasePath}$2`
+    )
+  } else if (
+    contentType.toLowerCase().includes('javascript') ||
+    contentType.toLowerCase().includes('application/x-javascript')
+  ) {
+    content = content.replace(
+      /(['"])\/(css|jquery|js|img|images|image|template|theme|cgi-bin|\?_type|getpage\.gch|login\.cgi|login\.asp|default\.html)/gi,
+      `$1${proxyBasePath}$2`
+    )
+  } else if (contentType.toLowerCase().includes('text/css')) {
+    content = content.replace(/url\(\s*['"]?\/(?!\/|api\/)/gi, `url('${proxyBasePath}`)
+  }
+
+  return content
+}
+
 async function handleProxy(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string; path?: string[] }> }
@@ -112,8 +148,17 @@ async function handleProxy(
 
       proxyRes.on('end', () => {
         const rawBody = Buffer.concat(chunks)
-        const contentType = proxyRes.headers['content-type'] || 'text/html'
+        let contentType = proxyRes.headers['content-type'] || 'text/html'
         const statusCode = proxyRes.statusCode || 200
+
+        // Auto-fix Content-Type based on requested file extension
+        if (fullTargetPath.endsWith('.css')) contentType = 'text/css; charset=utf-8'
+        else if (fullTargetPath.endsWith('.js')) contentType = 'application/javascript; charset=utf-8'
+        else if (fullTargetPath.endsWith('.png')) contentType = 'image/png'
+        else if (fullTargetPath.endsWith('.gif')) contentType = 'image/gif'
+        else if (fullTargetPath.endsWith('.jpg') || fullTargetPath.endsWith('.jpeg')) contentType = 'image/jpeg'
+        else if (fullTargetPath.endsWith('.svg')) contentType = 'image/svg+xml'
+        else if (fullTargetPath.endsWith('.ico')) contentType = 'image/x-icon'
 
         const responseHeaders = new Headers()
         responseHeaders.set('Content-Type', contentType)
@@ -144,23 +189,18 @@ async function handleProxy(
           }
         }
 
-        // HTML Processing: Inject Base tag and rewrite absolute IPs
-        if (contentType.toLowerCase().includes('text/html')) {
-          let html = rawBody.toString('utf-8')
-          const proxyBasePath = `/api/network/ont-remote/proxy/${sessionId}/`
-
-          if (html.includes('<head>') || html.includes('<HEAD>')) {
-            html = html.replace(/(<head[^>]*>)/i, `$1\n<base href="${proxyBasePath}">\n`)
-          } else {
-            html = `<base href="${proxyBasePath}">\n` + html
-          }
-
-          html = html.replace(/https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?\//gi, proxyBasePath)
-
-          return resolve(new NextResponse(html, { status: statusCode, headers: responseHeaders }))
+        const lowerType = contentType.toLowerCase()
+        if (
+          lowerType.includes('text/html') ||
+          lowerType.includes('javascript') ||
+          lowerType.includes('text/css') ||
+          lowerType.includes('text/xml')
+        ) {
+          const stringBody = rawBody.toString('utf-8')
+          const rewritten = rewriteOntContent(stringBody, sessionId, contentType)
+          return resolve(new NextResponse(rewritten, { status: statusCode, headers: responseHeaders }))
         }
 
-        // Binary / CSS / JS / Images / AJAX
         return resolve(new NextResponse(rawBody, { status: statusCode, headers: responseHeaders }))
       })
     })

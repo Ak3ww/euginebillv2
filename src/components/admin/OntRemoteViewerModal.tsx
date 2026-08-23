@@ -232,7 +232,6 @@ export default function OntRemoteViewerModal({
             onLoad={() => setIframeLoading(false)}
             className="w-full h-full border-0 bg-white"
             title={`ONT Remote Modal - ${session.customerName}`}
-            sandbox="allow-forms allow-modals allow-popups allow-same-origin allow-scripts"
           />
         </div>
       </div>
