@@ -302,7 +302,7 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
     path: targetPath,
     method: req.method,
     headers: cleanHeaders,
-    agent: ontAgent,
+    agent: false,
     timeout: 15000,
     rejectUnauthorized: false,
   };
