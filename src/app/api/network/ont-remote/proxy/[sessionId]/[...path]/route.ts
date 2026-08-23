@@ -135,8 +135,8 @@ async function handleProxy(
       path: fullTargetPath,
       method: request.method,
       headers: outgoingHeaders,
-      agent: agent,
-      timeout: 15000,
+      agent: false,
+      timeout: 10000,
       rejectUnauthorized: false,
     }
 

@@ -817,22 +817,11 @@ export default function PPPoESessionsPage() {
                             href={`/admin/ont-viewer/${s.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-sm transition-all"
-                            title="Buka Web GUI Modem via HTTPS Domain"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-sm transition-all"
+                            title="Buka Web GUI Modem ONT"
                           >
                             <Globe className="w-3.5 h-3.5" />
-                            <span>Buka Web GUI</span>
-                          </a>
-
-                          <a
-                            href={s.proxyUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-all"
-                            title="Buka via Port Langsung IP:24000"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                            <span>Port 24000</span>
+                            <span>Buka Web ONT</span>
                           </a>
 
                           <button

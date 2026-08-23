@@ -337,21 +337,10 @@ export default function OntRemoteModal({
                   href={`/admin/ont-viewer/${sessionId}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold rounded-xl shadow-md transition-all"
+                  className="flex-1 inline-flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-xl shadow-md transition-all"
                 >
                   <Globe className="w-4 h-4" />
-                  <span>Buka Web GUI Modem (HTTPS Domain)</span>
-                </a>
-
-                <a
-                  href={proxyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-3 bg-muted hover:bg-muted/80 border border-border text-foreground text-xs font-semibold rounded-xl transition-all"
-                  title="Buka via Direct IP:Port (Port 24000)"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>Port 24000</span>
+                  <span>Buka Web ONT</span>
                 </a>
 
                 <button
