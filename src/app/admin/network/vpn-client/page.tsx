@@ -1655,6 +1655,37 @@ ${vpnCmd}
                     />
                   </div>
 
+                  {/* Local Networks / AllowedIPs di Balik NAS */}
+                  <div>
+                    <label className="block text-sm font-medium text-[#00f7ff] mb-1">
+                      IP Lokal / Subnet di Balik NAS (AllowedIPs) <span className="text-muted-foreground font-normal">(opsional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.localNetworks}
+                      onChange={(e) => setFormData({ ...formData, localNetworks: e.target.value })}
+                      className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 font-mono text-sm focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
+                      placeholder="cth: 192.168.21.0/24, 192.168.1.0/24"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Pisahkan dengan koma. IP/subnet ini akan ditambahkan ke <span className="text-[#00f7ff] font-mono">AllowedIPs</span> peer di VPS agar VPS bisa menjangkau jaringan lokal / remote ONT di balik MikroTik.
+                    </p>
+                  </div>
+
+                  {/* Custom VPN IP — opsional jika admin ingin tentukan IP sendiri */}
+                  <div>
+                    <label className="block text-sm font-medium text-[#00f7ff] mb-1">
+                      IP VPN Client <span className="text-muted-foreground font-normal">(opsional — kosongkan untuk auto-assign)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.customVpnIp}
+                      onChange={(e) => setFormData({ ...formData, customVpnIp: e.target.value })}
+                      className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 font-mono text-sm focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
+                      placeholder="cth: 10.200.0.2 (kosong = otomatis)"
+                    />
+                  </div>
+
                   {/* Target Service Ports di MikroTik */}
                   <div className="p-4 bg-[#bc13fe]/10 border border-[#bc13fe]/30 rounded-xl space-y-3">
                     <div className="flex items-center justify-between">
