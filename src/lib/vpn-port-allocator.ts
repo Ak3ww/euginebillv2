@@ -133,6 +133,14 @@ export async function addIptablesRules(
   ports: PublicPorts,
   services: ServiceName[] = Object.keys(SERVICE_OFFSET) as ServiceName[]
 ): Promise<void> {
+  try {
+    // Pastikan IP Forwarding kernel aktif & policy FORWARD ACCEPT
+    await exec('sysctl -w net.ipv4.ip_forward=1 2>/dev/null || true', { shell: '/bin/bash' })
+    await exec('iptables -P FORWARD ACCEPT 2>/dev/null || true', { shell: '/bin/bash' })
+  } catch {
+    // ignore
+  }
+
   for (const svc of services) {
     const entry = ports.services[svc]
     if (!entry) continue
