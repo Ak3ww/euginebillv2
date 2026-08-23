@@ -286,7 +286,7 @@ export default function OntRemoteModal({
 
               <div className="flex flex-col sm:flex-row gap-2">
                 <a
-                  href={proxyUrl}
+                  href={`http://${targetIp}${customPort ? `:${customPort}` : ''}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 inline-flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-xl shadow-md transition-all"
