@@ -11,9 +11,7 @@ const httpsAgent = new https.Agent({ maxSockets: 20, keepAlive: true, keepAliveM
 function rewriteOntContent(body: string, sessionId: string, contentType: string): string {
   const proxyBasePath = `/api/network/ont-remote/proxy/${sessionId}/`
 
-  let content = body.replace(/https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?\//gi, proxyBasePath)
-
-  content = content.replace(/\btop\.location\b/g, 'window.location')
+  let content = body.replace(/\btop\.location\b/g, 'window.location')
   content = content.replace(/\bwindow\.top\b/g, 'window.self')
   content = content.replace(/\bparent\.location\b/g, 'window.location')
 
@@ -25,20 +23,6 @@ function rewriteOntContent(body: string, sessionId: string, contentType: string)
     }
 
     content = content.replace(/(href|src|action)=["']\/(?!\/|api\/)/gi, `$1="${proxyBasePath}`)
-    content = content.replace(
-      /(['"])\/(css|jquery|js|img|images|image|template|theme|cgi-bin|\?_type|getpage\.gch|login\.cgi|login\.asp|default\.html)/gi,
-      `$1${proxyBasePath}$2`
-    )
-  } else if (
-    contentType.toLowerCase().includes('javascript') ||
-    contentType.toLowerCase().includes('application/x-javascript')
-  ) {
-    content = content.replace(
-      /(['"])\/(css|jquery|js|img|images|image|template|theme|cgi-bin|\?_type|getpage\.gch|login\.cgi|login\.asp|default\.html)/gi,
-      `$1${proxyBasePath}$2`
-    )
-  } else if (contentType.toLowerCase().includes('text/css')) {
-    content = content.replace(/url\(\s*['"]?\/(?!\/|api\/)/gi, `url('${proxyBasePath}`)
   }
 
   return content

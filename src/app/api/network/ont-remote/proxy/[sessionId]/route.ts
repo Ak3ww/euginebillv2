@@ -11,16 +11,13 @@ const httpsAgent = new https.Agent({ maxSockets: 20, keepAlive: true, keepAliveM
 function rewriteOntContent(body: string, sessionId: string, contentType: string): string {
   const proxyBasePath = `/api/network/ont-remote/proxy/${sessionId}/`
 
-  // 1. Rewrite any absolute internal IP links
-  let content = body.replace(/https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?\//gi, proxyBasePath)
-
-  // 2. Prevent frame-busting / top-navigation hijack
-  content = content.replace(/\btop\.location\b/g, 'window.location')
+  // Prevent frame-busting / top-navigation hijack
+  let content = body.replace(/\btop\.location\b/g, 'window.location')
   content = content.replace(/\bwindow\.top\b/g, 'window.self')
   content = content.replace(/\bparent\.location\b/g, 'window.location')
 
   if (contentType.toLowerCase().includes('text/html')) {
-    // Inject <base> tag to auto-route all relative assets and AJAX
+    // Inject <base> tag to auto-route all relative assets and AJAX calls cleanly
     if (content.includes('<head>') || content.includes('<HEAD>')) {
       content = content.replace(/(<head[^>]*>)/i, `$1\n<base href="${proxyBasePath}">\n`)
     } else {
@@ -29,22 +26,6 @@ function rewriteOntContent(body: string, sessionId: string, contentType: string)
 
     // Rewrite root-relative HTML attributes: href="/..." -> href="/api/network/ont-remote/proxy/{sessionId}/..."
     content = content.replace(/(href|src|action)=["']\/(?!\/|api\/)/gi, `$1="${proxyBasePath}`)
-
-    // Rewrite inline script AJAX & asset paths
-    content = content.replace(
-      /(['"])\/(css|jquery|js|img|images|image|template|theme|cgi-bin|\?_type|getpage\.gch|login\.cgi|login\.asp|default\.html)/gi,
-      `$1${proxyBasePath}$2`
-    )
-  } else if (
-    contentType.toLowerCase().includes('javascript') ||
-    contentType.toLowerCase().includes('application/x-javascript')
-  ) {
-    content = content.replace(
-      /(['"])\/(css|jquery|js|img|images|image|template|theme|cgi-bin|\?_type|getpage\.gch|login\.cgi|login\.asp|default\.html)/gi,
-      `$1${proxyBasePath}$2`
-    )
-  } else if (contentType.toLowerCase().includes('text/css')) {
-    content = content.replace(/url\(\s*['"]?\/(?!\/|api\/)/gi, `url('${proxyBasePath}`)
   }
 
   return content
