@@ -277,24 +277,24 @@ function log(msg) {
 }
 
 function forwardRequest(req, res, targetPath, bodyBuffer) {
-  // Pass strictly matching Host, Referer, and Origin headers so Boa Web Server and CGI scripts accept AJAX requests
+  const isRootPage = targetPath === '/' || targetPath === '' || targetPath.includes('index') || targetPath.includes('login') || targetPath.includes('getpage.gch');
   const cleanHeaders = {
     'Host': targetPort === 80 ? ontIp : ontIp + ':' + targetPort,
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     'Accept': req.headers['accept'] || '*/*',
     'Connection': 'close',
-    'Referer': (isHttpsTarget ? 'https://' : 'http://') + ontIp + '/',
-    'Origin': (isHttpsTarget ? 'https://' : 'http://') + ontIp,
   };
+  if (!isRootPage) {
+    cleanHeaders['Referer'] = (isHttpsTarget ? 'https://' : 'http://') + ontIp + '/';
+    cleanHeaders['Origin'] = (isHttpsTarget ? 'https://' : 'http://') + ontIp;
+    if (req.headers['cookie']) cleanHeaders['Cookie'] = req.headers['cookie'];
+  }
   if (req.headers['content-type']) cleanHeaders['Content-Type'] = req.headers['content-type'];
   if (bodyBuffer && bodyBuffer.length > 0) {
     cleanHeaders['Content-Length'] = bodyBuffer.length.toString();
   } else if (req.headers['content-length']) {
     cleanHeaders['Content-Length'] = req.headers['content-length'];
   }
-  // Strip stale cookies on initial root page request so ONT always issues a fresh SID
-  const isRootPage = targetPath === '/' || targetPath === '' || targetPath.includes('index') || targetPath.includes('login') || targetPath.includes('getpage.gch');
-  if (req.headers['cookie'] && !isRootPage) cleanHeaders['Cookie'] = req.headers['cookie'];
   if (req.headers['x-requested-with']) cleanHeaders['X-Requested-With'] = req.headers['x-requested-with'];
   if (req.headers['authorization']) cleanHeaders['Authorization'] = req.headers['authorization'];
 
