@@ -459,11 +459,11 @@ ${radiusSection}
 # Generated: ${new Date().toISOString()}
 # ============================================
 
-# --- STEP 1: Create API User Group ---
-/user group add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group"
+# --- STEP 1: Create API & Winbox User Group ---
+/user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="API & Winbox Access Group"
 
-# --- STEP 2: Create API User ---
-/user add name=${apiUsername} group=api-users password=${apiPassword} comment="API User for Remote Access"
+# --- STEP 2: Create API & Winbox User ---
+/user add name=${apiUsername} group=api-users password=${apiPassword} comment="API & Winbox User EugineBill"
 
 # --- STEP 3: Setup ${vpnTypeUpper} Client ---
 /interface ${interfaceType} add name=${interfaceType}-EugineBill connect-to=${vpnServer.host} user=${username} password=${password}${ipsecLine}${portLine} disabled=no${authLine} add-default-route=no comment="EugineBill VPN"

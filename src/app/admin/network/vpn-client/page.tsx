@@ -809,8 +809,13 @@ export default function VpnClientPage() {
       const vpsIp = credentials.vpsPublicIp || credentials.serverHost || credentials.server || 'VPS_IP'
       const ports = credentials.publicPorts?.services || {}
       const winboxPort = ports.winbox?.public || credentials.winboxPort || 10001
+      const winboxTarget = ports.winbox?.target || 8291
       const apiPort = ports.api?.public || 10002
+      const apiTarget = ports.api?.target || 8728
       const wwwPort = ports.www?.public || 10004
+      const wwwTarget = ports.www?.target || 80
+      const sshPort = ports.ssh?.public || 10006
+      const sshTarget = ports.ssh?.target || 22
       const nasDisplayName = credentials.nasName || credentials.username
       const ifaceName = toSafeIfaceName(iface.replace('-client', ''), nasDisplayName)
       return `# ============================================================
@@ -822,24 +827,25 @@ export default function VpnClientPage() {
 # ────────────────────────────────────────────────────────────
 # ALOKASI REMOTE AKSES PUBLIK (Akses dari Internet / Luar):
 # Host VPS    : ${vpsIp}
-# Winbox Port : ${vpsIp}:${winboxPort} -> MikroTik:8291
-# WebGUI Port : http://${vpsIp}:${wwwPort} -> MikroTik:80
-# API Port    : ${vpsIp}:${apiPort} -> MikroTik:8728
+# Winbox Port : ${vpsIp}:${winboxPort} -> MikroTik:${winboxTarget}
+# WebGUI Port : http://${vpsIp}:${wwwPort} -> MikroTik:${wwwTarget}
+# API Port    : ${vpsIp}:${apiPort} -> MikroTik:${apiTarget}
+# SSH Port    : ${vpsIp}:${sshPort} -> MikroTik:${sshTarget}
 #
-# KREDENSIAL API MIKROTIK (Khusus Sistem EugineBill):
-# API Username: ${safeApiUsername}
-# API Password: ${safeApiPassword}
+# KREDENSIAL REMOTE MIKROTIK (Khusus Sistem EugineBill & Winbox):
+# API & Winbox Username: ${safeApiUsername}
+# API & Winbox Password: ${safeApiPassword}
 # ============================================================
 
-# 0. Hapus setup terdahulu jika sudah ada (mencegah error duplicate)
+# 0. Hapus setup terdahulu jika sudah ada (mencegah error duplicate / sisa config)
 :do { /interface ${iface} remove [find where name="${ifaceName}" or comment~"EugineBill"] } on-error={}
-:do { /user remove [find name="${safeApiUsername}"] } on-error={}
+:do { /user remove [find where name="${safeApiUsername}" or comment~"EugineBill"] } on-error={}
 
-# 1. Create API User Group
-:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group" } on-error={}
+# 1. Create API & Winbox User Group
+:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="API & Winbox Access Group" } on-error={}
 
-# 2. Create API User
-/user add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API User for Remote Access"
+# 2. Create API & Winbox User
+/user add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
 
 # 3. Setup ${(selectedVpnType as string).toUpperCase()} Client
 /interface ${iface}
@@ -849,14 +855,15 @@ ${vpnCmd}
 :do { /ip/service/enable winbox } on-error={}
 :do { /ip/service/enable api } on-error={}
 :do { /ip/service/enable www } on-error={}
+:do { /ip/service/enable ssh } on-error={}
 
 # ============================================================
 # PANDUAN PENGGUNAAN:
-# 1. Remote Winbox  : Buka Winbox -> Connect To: ${vpsIp}:${winboxPort}
+# 1. Remote Winbox  : Buka Winbox -> Connect To: ${vpsIp}:${winboxPort} (Login: ${safeApiUsername} / Pass: ${safeApiPassword} atau Admin Anda)
 # 2. Remote WebFig  : Buka Browser -> http://${vpsIp}:${wwwPort}
 # 3. Pengaturan NAS di EugineBill:
 #    - Host IP : ${credentials.vpnIp} (atau ${vpsIp})
-#    - API Port: 8728 (atau ${apiPort})
+#    - API Port: ${apiTarget} (atau ${apiPort})
 #    - Username: ${safeApiUsername}
 #    - Password: ${safeApiPassword}
 # ============================================================`.trim()
@@ -890,10 +897,15 @@ ${vpnCmd}
       // Alokasi port publik untuk akses dari internet
       const ports = credentials.publicPorts?.services || {}
       const winboxPort = ports.winbox?.public || credentials.winboxPort || 10001
+      const winboxTarget = ports.winbox?.target || 8291
       const apiPort = ports.api?.public || 10002
+      const apiTarget = ports.api?.target || 8728
       const apiSslPort = ports.apiSsl?.public || 10003
+      const apiSslTarget = ports.apiSsl?.target || 8729
       const wwwPort = ports.www?.public || 10004
+      const wwwTarget = ports.www?.target || 80
       const sshPort = ports.ssh?.public || 10006
+      const sshTarget = ports.ssh?.target || 22
 
       return `# ============================================================
 # MikroTik WireGuard Client Setup Script (RouterOS 7+)
@@ -905,23 +917,23 @@ ${vpnCmd}
 # ────────────────────────────────────────────────────────────
 # ALOKASI REMOTE AKSES PUBLIK (Akses dari Internet / Luar):
 # Host VPS    : ${vpsIp}
-# Winbox Port : ${vpsIp}:${winboxPort} -> MikroTik:8291
-# WebGUI Port : http://${vpsIp}:${wwwPort} -> MikroTik:80
-# API Port    : ${vpsIp}:${apiPort} -> MikroTik:8728
-# API SSL Port: ${vpsIp}:${apiSslPort} -> MikroTik:8729
-# SSH Port    : ${vpsIp}:${sshPort} -> MikroTik:22
+# Winbox Port : ${vpsIp}:${winboxPort} -> MikroTik:${winboxTarget}
+# WebGUI Port : http://${vpsIp}:${wwwPort} -> MikroTik:${wwwTarget}
+# API Port    : ${vpsIp}:${apiPort} -> MikroTik:${apiTarget}
+# API SSL Port: ${vpsIp}:${apiSslPort} -> MikroTik:${apiSslTarget}
+# SSH Port    : ${vpsIp}:${sshPort} -> MikroTik:${sshTarget}
 #
-# KREDENSIAL API MIKROTIK (Khusus Sistem EugineBill):
-# API Username: ${safeApiUsername}
-# API Password: ${safeApiPassword}
+# KREDENSIAL REMOTE MIKROTIK (Khusus Sistem EugineBill & Winbox):
+# API & Winbox Username: ${safeApiUsername}
+# API & Winbox Password: ${safeApiPassword}
 # ============================================================
 
-# 0. Hapus setup WireGuard terdahulu (mencegah bentrok interface / peer)
+# 0. Hapus setup WireGuard & User terdahulu (mencegah bentrok / sisa config)
 :do { /interface/wireguard/peers/remove [find where endpoint-address="${serverHost}" or interface~"wg-"] } on-error={}
 :do { /interface/wireguard/remove [find where name="${ifaceName}" or name~"wg-"] } on-error={}
 :do { /ip/address/remove [find where address~"${credentials.vpnIp}" or interface~"wg-"] } on-error={}
-:do { /ip/route/remove [find where comment="EugineBill-VPN" or gateway~"wg-"] } on-error={}
-:do { /user/remove [find where name="${safeApiUsername}"] } on-error={}
+:do { /ip/route/remove [find where comment="EugineBill-VPN" or comment~"EugineBill" or gateway~"wg-"] } on-error={}
+:do { /user/remove [find where name="${safeApiUsername}" or comment~"EugineBill"] } on-error={}
 
 # 1. Buat WireGuard interface dengan private key NAS
 /interface/wireguard/add name=${ifaceName} private-key="${clientPk}"
@@ -938,9 +950,9 @@ ${vpnCmd}
 /ip/route/remove [find where comment="EugineBill-VPN"]
 /ip/route/add dst-address=${wgSubnet} gateway=${ifaceName} comment="EugineBill-VPN"
 
-# 5. Buat API User (untuk remote management MikroTik)
-:do { /user/group/add name=api-users policy=read,write,policy,test,sensitive,api comment="Limited API Access Group" } on-error={}
-/user/add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API User EugineBill"
+# 5. Buat API & Winbox User (akses remote management MikroTik)
+:do { /user/group/add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="API & Winbox Access Group" } on-error={}
+/user/add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
 
 # 6. Pastikan IP Services Aktif di MikroTik
 :do { /ip/service/enable winbox } on-error={}
@@ -950,11 +962,11 @@ ${vpnCmd}
 
 # ============================================================
 # PANDUAN PENGGUNAAN:
-# 1. Remote Winbox  : Buka Winbox -> Connect To: ${vpsIp}:${winboxPort}
+# 1. Remote Winbox  : Buka Winbox -> Connect To: ${vpsIp}:${winboxPort} (Login: ${safeApiUsername} / Pass: ${safeApiPassword} atau Admin Anda)
 # 2. Remote WebFig  : Buka Browser -> http://${vpsIp}:${wwwPort}
 # 3. Pengaturan NAS di EugineBill:
 #    - Host IP : ${credentials.vpnIp} (atau ${vpsIp})
-#    - API Port: 8728 (atau ${apiPort})
+#    - API Port: ${apiTarget} (atau ${apiPort})
 #    - Username: ${safeApiUsername}
 #    - Password: ${safeApiPassword}
 # ============================================================`.trim()
