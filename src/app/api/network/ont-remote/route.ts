@@ -12,8 +12,8 @@ const VPS_HOST =
   (process.env.NEXTAUTH_URL || '').replace(/^https?:\/\//, '').split(':')[0].split('/')[0] ||
   '127.0.0.1'
 
-const MIN_PROXY_PORT = 10010
-const MAX_PROXY_PORT = 10090
+const MIN_PROXY_PORT = 24000
+const MAX_PROXY_PORT = 24999
 const DEFAULT_EXPIRY_MINUTES = 15
 
 // Get next free port
