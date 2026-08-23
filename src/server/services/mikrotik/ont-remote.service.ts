@@ -292,7 +292,9 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
   } else if (req.headers['content-length']) {
     cleanHeaders['Content-Length'] = req.headers['content-length'];
   }
-  if (req.headers['cookie']) cleanHeaders['Cookie'] = req.headers['cookie'];
+  // Strip stale cookies on initial root page request so ONT always issues a fresh SID
+  const isRootPage = targetPath === '/' || targetPath === '' || targetPath.includes('index') || targetPath.includes('login') || targetPath.includes('getpage.gch');
+  if (req.headers['cookie'] && !isRootPage) cleanHeaders['Cookie'] = req.headers['cookie'];
   if (req.headers['x-requested-with']) cleanHeaders['X-Requested-With'] = req.headers['x-requested-with'];
   if (req.headers['authorization']) cleanHeaders['Authorization'] = req.headers['authorization'];
 
