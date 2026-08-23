@@ -293,11 +293,14 @@ export default function VpnClientPage() {
 :do { /user/remove [find where name="${safeApiUsername}"] } on-error={}
 /user/add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
 
-# 6. Pastikan IP Services Aktif di MikroTik
-:do { /ip/service/enable winbox } on-error={}
-:do { /ip/service/enable api } on-error={}
-:do { /ip/service/enable www } on-error={}
-:do { /ip/service/enable ssh } on-error={}
+# 6. Pastikan Port Layanan MikroTik Aktif & Bebas Restriksi IP
+:do { /ip/service/set winbox port=${winboxTargetPort} address="" disabled=no } on-error={}
+:do { /ip/service/set api port=${apiTargetPort} address="" disabled=no } on-error={}
+:do { /ip/service/set www port=${wwwTargetPort} address="" disabled=no } on-error={}
+:do { /ip/service/set ssh address="" disabled=no } on-error={}
+
+# 7. Izinkan Akses Masuk WireGuard di Baris Teratas Firewall Filter MikroTik
+:do { /ip/firewall/filter/add chain=input action=accept in-interface=${ifaceName} place-before=0 comment="Allow EugineBill VPN Remote Access" } on-error={}
 
 # ============================================================
 # PANDUAN PENGGUNAAN:
@@ -853,11 +856,14 @@ export default function VpnClientPage() {
 /interface ${iface}
 ${vpnCmd}
 
-# 4. Pastikan IP Services Aktif
-:do { /ip/service/enable winbox } on-error={}
-:do { /ip/service/enable api } on-error={}
-:do { /ip/service/enable www } on-error={}
-:do { /ip/service/enable ssh } on-error={}
+# 4. Pastikan Port Layanan MikroTik Aktif & Bebas Restriksi IP
+:do { /ip/service/set winbox port=${winboxTarget} address="" disabled=no } on-error={}
+:do { /ip/service/set api port=${apiTarget} address="" disabled=no } on-error={}
+:do { /ip/service/set www port=${wwwTarget} address="" disabled=no } on-error={}
+:do { /ip/service/set ssh address="" disabled=no } on-error={}
+
+# 5. Izinkan Akses Masuk VPN di Baris Teratas Firewall Filter MikroTik
+:do { /ip/firewall/filter/add chain=input action=accept in-interface=${ifaceName} place-before=0 comment="Allow EugineBill VPN Remote Access" } on-error={}
 
 # ============================================================
 # PANDUAN PENGGUNAAN:
@@ -958,11 +964,14 @@ ${vpnCmd}
 :do { /user/remove [find where name="${safeApiUsername}"] } on-error={}
 /user/add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
 
-# 6. Pastikan IP Services Aktif di MikroTik
-:do { /ip/service/enable winbox } on-error={}
-:do { /ip/service/enable api } on-error={}
-:do { /ip/service/enable www } on-error={}
-:do { /ip/service/enable ssh } on-error={}
+# 6. Pastikan Port Layanan MikroTik Aktif & Bebas Restriksi IP
+:do { /ip/service/set winbox port=${winboxTarget} address="" disabled=no } on-error={}
+:do { /ip/service/set api port=${apiTarget} address="" disabled=no } on-error={}
+:do { /ip/service/set www port=${wwwTarget} address="" disabled=no } on-error={}
+:do { /ip/service/set ssh address="" disabled=no } on-error={}
+
+# 7. Izinkan Akses Masuk WireGuard di Baris Teratas Firewall Filter MikroTik
+:do { /ip/firewall/filter/add chain=input action=accept in-interface=${ifaceName} place-before=0 comment="Allow EugineBill VPN Remote Access" } on-error={}
 
 # ============================================================
 # PANDUAN PENGGUNAAN:
