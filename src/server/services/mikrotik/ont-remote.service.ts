@@ -293,15 +293,17 @@ function log(msg) {
 
 function forwardRequest(req, res, targetPath, bodyBuffer) {
   const isRootPage = targetPath === '/' || targetPath === '' || targetPath.includes('index') || targetPath.includes('login') || targetPath.includes('getpage.gch');
+  const pureHost = ontIp.replace(/:\d+$/, '');
   const cleanHeaders = {
-    'Host': targetPort === 80 ? ontIp : ontIp + ':' + targetPort,
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Host': targetPort === 80 ? pureHost : pureHost + ':' + targetPort,
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': req.headers['accept'] || '*/*',
+    'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
     'Connection': 'close',
   };
   if (!isRootPage) {
-    cleanHeaders['Referer'] = (isHttpsTarget ? 'https://' : 'http://') + ontIp + '/';
-    cleanHeaders['Origin'] = (isHttpsTarget ? 'https://' : 'http://') + ontIp;
+    cleanHeaders['Referer'] = (isHttpsTarget ? 'https://' : 'http://') + pureHost + '/';
+    cleanHeaders['Origin'] = (isHttpsTarget ? 'https://' : 'http://') + pureHost;
     if (req.headers['cookie']) cleanHeaders['Cookie'] = req.headers['cookie'];
   }
   if (req.headers['content-type']) cleanHeaders['Content-Type'] = req.headers['content-type'];
@@ -320,6 +322,7 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
     path: targetPath,
     method: req.method,
     headers: cleanHeaders,
+    setHost: false, // Critical: prevent Node.js http client from appending :listenPort to Host header!
     agent: false,
     timeout: 15000,
     rejectUnauthorized: false,
@@ -329,6 +332,12 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
   const proxyReq = client.request(options, (proxyRes) => {
     proxyReq.setTimeout(0);
     log('[ONT-Proxy:' + listenPort + '] ' + req.method + ' ' + targetPath + ' -> ONT HTTP ' + proxyRes.statusCode);
+
+    // If ZTE returns 400 Bad Request on root path /, retry with ZTE CGI login page /getpage.gch?pid=1002
+    if ((proxyRes.statusCode === 400 || proxyRes.statusCode === 404) && (targetPath === '/' || targetPath === '')) {
+      log('[ONT-Proxy:' + listenPort + '] ZTE 400 on root path / -> Auto retrying /getpage.gch?pid=1002');
+      return forwardRequest(req, res, '/getpage.gch?pid=1002', bodyBuffer);
+    }
 
     const resHeaders = { ...proxyRes.headers };
     if (resHeaders['location']) {
