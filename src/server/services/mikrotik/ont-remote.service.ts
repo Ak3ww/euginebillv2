@@ -394,7 +394,6 @@ server.listen(listenPort, '0.0.0.0', () => {
 
         const nodeBin = process.execPath || '/usr/bin/node'
         await runCmd(`iptables -I INPUT -p tcp --dport ${proxyPort} -j ACCEPT 2>/dev/null || true`)
-        await runCmd(`iptables -t nat -I PREROUTING -p tcp --dport ${proxyPort} -j REDIRECT --to-ports ${proxyPort} 2>/dev/null || true`)
         await exec(`nohup ${nodeBin} ${scriptPath} >/var/log/ont-remote-${proxyPort}.log 2>&1 &`)
 
         await new Promise((r) => setTimeout(r, 500))
@@ -470,13 +469,14 @@ server.listen(listenPort, '0.0.0.0', () => {
         `=comment=${comment} srcnat`,
       ])
 
-      // Rule 3: Forward accept — allow forwarded traffic to ONT
+      // Rule 3: Forward accept — allow forwarded traffic to ONT at top of filter
       await api.write('/ip/firewall/filter/add', [
         '=chain=forward',
         '=protocol=tcp',
         `=dst-address=${ontIp}`,
         `=dst-port=${targetPort}`,
         '=action=accept',
+        '=place-before=0',
         `=comment=${comment}`,
       ])
 

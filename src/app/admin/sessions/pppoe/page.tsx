@@ -29,7 +29,6 @@ import { useToast } from '@/components/cyberpunk/CyberToast'
 import { useTranslation } from '@/hooks/useTranslation'
 import { formatWIB, nowWIB, todayWIBStr } from '@/lib/timezone'
 import OntRemoteModal from '@/components/admin/OntRemoteModal'
-import OntRemoteViewerModal from '@/components/admin/OntRemoteViewerModal'
 
 interface Session {
   id: string
@@ -568,15 +567,6 @@ export default function PPPoESessionsPage() {
         targetIp={ontTarget.targetIp}
         routerName={ontTarget.routerName}
         onSuccess={fetchOntSessions}
-      />
-
-      {/* ONT Remote Embedded Viewer Modal */}
-      <OntRemoteViewerModal
-        isOpen={!!viewerModalSession}
-        session={viewerModalSession}
-        onClose={() => setViewerModalSession(null)}
-        onSessionClosed={fetchOntSessions}
-        onSessionExtended={fetchOntSessions}
       />
 
       <div className="space-y-6 pb-12">
