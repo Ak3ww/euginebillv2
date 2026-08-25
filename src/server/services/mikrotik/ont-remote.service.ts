@@ -1,5 +1,5 @@
 import { prisma } from '@/server/db/client'
-import { exec as execCb } from 'child_process'
+import { exec as execCb, spawn } from 'child_process'
 import { promisify } from 'util'
 import { writeFile, unlink } from 'fs/promises'
 import { RouterOSAPI } from 'node-routeros'
@@ -394,7 +394,13 @@ server.listen(listenPort, '0.0.0.0', () => {
 
         const nodeBin = process.execPath || '/usr/bin/node'
         await runCmd(`iptables -I INPUT -p tcp --dport ${proxyPort} -j ACCEPT 2>/dev/null || true`)
-        await exec(`nohup ${nodeBin} ${scriptPath} >/tmp/ont-remote-${proxyPort}.log 2>&1 &`)
+
+        // Spawn detached process unreferenced from parent Node event loop so it stays running as a background daemon
+        const childProcess = spawn(nodeBin, [scriptPath], {
+          detached: true,
+          stdio: 'ignore',
+        })
+        childProcess.unref()
 
         await new Promise((r) => setTimeout(r, 500))
         console.log(`[ont-remote] HTTP Reverse Proxy aktif: VPS:${proxyPort} -> ${mikrotikVpnIp}:${proxyPort} (Host: 192.168.1.1) -> (MikroTik NAT) -> ${ontIp}:${targetPort}`)
