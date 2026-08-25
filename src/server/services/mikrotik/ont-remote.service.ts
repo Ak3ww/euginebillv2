@@ -268,7 +268,7 @@ const ontIp = '${ontIp}';
 const targetPort = ${targetPort};
 const isHttpsTarget = targetPort === 443;
 const ontAgent = new (isHttpsTarget ? https : http).Agent({ maxSockets: 10, keepAlive: true, keepAliveMsecs: 15000 });
-const logFile = '/var/log/ont-remote-' + listenPort + '.log';
+const logFile = '/tmp/ont-remote-' + listenPort + '.log';
 
 function log(msg) {
   const line = '[' + new Date().toISOString().substring(11, 19) + '] ' + msg;
@@ -394,7 +394,7 @@ server.listen(listenPort, '0.0.0.0', () => {
 
         const nodeBin = process.execPath || '/usr/bin/node'
         await runCmd(`iptables -I INPUT -p tcp --dport ${proxyPort} -j ACCEPT 2>/dev/null || true`)
-        await exec(`nohup ${nodeBin} ${scriptPath} >/var/log/ont-remote-${proxyPort}.log 2>&1 &`)
+        await exec(`nohup ${nodeBin} ${scriptPath} >/tmp/ont-remote-${proxyPort}.log 2>&1 &`)
 
         await new Promise((r) => setTimeout(r, 500))
         console.log(`[ont-remote] HTTP Reverse Proxy aktif: VPS:${proxyPort} -> ${mikrotikVpnIp}:${proxyPort} (Host: 192.168.1.1) -> (MikroTik NAT) -> ${ontIp}:${targetPort}`)
