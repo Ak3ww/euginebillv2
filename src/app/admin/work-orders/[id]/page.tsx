@@ -287,6 +287,7 @@ export default function AdminWorkOrderDetailPage() {
     'Foto Rumah',
     'Foto Box ODP',
     'Foto Port ODP',
+    'Foto OPM / Redaman',
     'Foto ONT Depan',
     'Foto ONT Belakang',
     'Foto Speedtest',

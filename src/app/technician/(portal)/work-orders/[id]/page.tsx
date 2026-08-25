@@ -798,6 +798,10 @@ export default function TechnicianWorkOrderWizardPage() {
           equipmentChecklist: isDismantle ? dismantleChecklist : checklist,
           reportData: {
             ...reportData,
+            port: reportData.portNumber || (reportData as any).port,
+            portNumber: reportData.portNumber || (reportData as any).port,
+            dwRoll: reportData.dwRoll,
+            mac: reportData.mac,
             deviceCondition,
             customerLat: lockedCustomerGps?.lat,
             customerLng: lockedCustomerGps?.lng,
@@ -1336,6 +1340,7 @@ export default function TechnicianWorkOrderWizardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {([
                 ['Foto Rumah', 'Foto Depan Rumah'],
+                ['Foto OPM / Redaman', 'Foto OPM / Redaman (RX Signal)'],
                 ['Foto ONT Depan', 'Foto ONT Depan (SN terlihat)'],
                 ['Foto ONT Belakang', 'Foto ONT Belakang'],
                 ['Foto Speedtest', 'Foto Speedtest'],

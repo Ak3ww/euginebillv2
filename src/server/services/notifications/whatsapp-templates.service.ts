@@ -841,8 +841,19 @@ export async function sendPSBReportToGroup({
   const BULAN = ['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'][now.getMonth()];
   const tanggal = `${HARI}, ${now.getDate()} ${BULAN} ${now.getFullYear()}`;
 
-  const portFormatted = reportData?.port
-    ? String(reportData.port).replace('Port ', '').padStart(2, '0') + '/' + String(reportData?.portCount || 16).padStart(2, '0')
+  const rawPort = reportData?.port ?? reportData?.portNumber ?? reportData?.port_number;
+  const portFormatted = (rawPort !== undefined && rawPort !== null && String(rawPort).trim() !== '' && String(rawPort) !== '-')
+    ? String(rawPort).replace(/^Port\s*/i, '').padStart(2, '0') + '/' + String(reportData?.portCount || 16).padStart(2, '0')
+    : '-';
+
+  const rawDwRoll = reportData?.dwRoll ?? reportData?.dw_roll ?? reportData?.kabelDw;
+  const dwRollFormatted = (rawDwRoll !== undefined && rawDwRoll !== null && String(rawDwRoll).trim() !== '' && String(rawDwRoll) !== '-')
+    ? `${String(rawDwRoll).trim()} M`
+    : '- M';
+
+  const rawMac = reportData?.mac ?? reportData?.macAddress ?? reportData?.mac_address;
+  const macFormatted = (rawMac !== undefined && rawMac !== null && String(rawMac).trim() !== '' && String(rawMac) !== '-')
+    ? String(rawMac).trim()
     : '-';
 
   const ledStatus = (val: boolean | string | undefined) => (val === true || val === 'true' || val === 'ON') ? '✅ ON' : '❌ OFF';
@@ -859,7 +870,7 @@ export async function sendPSBReportToGroup({
     `*TIKORTIS CST* : ${reportData?.customerLat || '-'}, ${reportData?.customerLng || '-'}`,
     `*TIKORTIS ODP* : ${reportData?.odpLat || '-'}, ${reportData?.odpLng || '-'}`,
     ``,
-    `*DW ROLL* : ${reportData?.dwRoll || '-'} M`,
+    `*DW ROLL* : ${dwRollFormatted}`,
     `*PAKU KLEM* : ${reportData?.pakuKlem || 'Secukupnya'}`,
     `*SOLASI*  : ${reportData?.solasi || 'Secukupnya'}`,
     `*RX SIGNAL* : ${reportData?.rxSignal || '-'} dBm`,
@@ -867,7 +878,7 @@ export async function sendPSBReportToGroup({
     ``,
     `*TYPE*    : ${reportData?.modemType || '-'}`,
     `*SN*      : ${reportData?.sn || '-'}`,
-    `*MAC*     : ${reportData?.mac || '-'}`,
+    `*MAC*     : ${macFormatted}`,
     ``,
     `*Indikator Power* : ${ledStatus(reportData?.powerIndicator)}`,
     `*Indikator Link*  : ${ledStatus(reportData?.linkIndicator)}`,
@@ -889,6 +900,8 @@ export async function sendPSBReportToGroup({
   const photoOrder = [
     { key: 'Foto Box ODP', caption: '📦 Foto Box ODP' },
     { key: 'Foto Port ODP', caption: '🔌 Foto Port ODP' },
+    { key: 'Foto OPM / Redaman', caption: '⚡ Foto OPM / Redaman' },
+    { key: 'Foto Redaman OPM', caption: '⚡ Foto OPM / Redaman' },
     { key: 'Foto Rumah', caption: '🏠 Foto Depan Rumah' },
     { key: 'Foto ONT Depan', caption: '📱 Foto ONT/Modem Depan' },
     { key: 'Foto ONT Belakang', caption: '📱 Foto ONT/Modem Belakang' },
