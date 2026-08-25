@@ -257,22 +257,24 @@ export class OntRemoteService {
         await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || true`)
         await new Promise((r) => setTimeout(r, 300))
 
-        // Method A: Try socat (ultra-fast, transparent TCP relay)
-        let socatLaunched = false
-        try {
-          const socatProc = spawn('socat', [
-            `TCP-LISTEN:${proxyPort},reuseaddr,fork`,
-            `TCP:${mikrotikVpnIp}:${proxyPort}`
-          ], { detached: true, stdio: 'ignore' })
-          socatProc.on('error', () => {})
-          socatProc.unref()
-          socatLaunched = true
-        } catch {
-          socatLaunched = false
+        // Method A: Use socat for custom ports (e.g. SK Modem 8080) where raw TCP relay works perfectly
+        let useSocat = targetPort !== 80
+        if (useSocat) {
+          try {
+            const socatProc = spawn('socat', [
+              `TCP-LISTEN:${proxyPort},reuseaddr,fork`,
+              `TCP:${mikrotikVpnIp}:${proxyPort}`
+            ], { detached: true, stdio: 'ignore' })
+            socatProc.on('error', () => {})
+            socatProc.unref()
+          } catch {
+            useSocat = false
+          }
         }
 
-        // Method B: Node.js HTTP proxy fallback if socat is unavailable
-        const proxyScriptContent = `
+        // Method B: Use Node.js HTTP Reverse Proxy with Host Header rewriting for Port 80 (ZTE / Huawei)
+        if (!useSocat) {
+          const proxyScriptContent = `
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
@@ -409,6 +411,7 @@ server.listen(listenPort, '0.0.0.0', () => {
 
         await new Promise((r) => setTimeout(r, 300))
         console.log(`[ont-remote] Proxy aktif: VPS:${proxyPort} -> ${mikrotikVpnIp}:${proxyPort} -> ${ontIp}:${targetPort}`)
+        }
       } catch (err: any) {
         console.error('[ont-remote] VPS proxy warning:', err?.message || err)
       }
