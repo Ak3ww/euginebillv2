@@ -241,23 +241,37 @@ export class OntRemoteService {
   }): Promise<{ success: boolean; error?: string }> {
     const { sessionId, routerId, ontIp, mikrotikVpnIp, targetPort, proxyPort } = params
 
-    // ── Step 1: VPS Node HTTP Reverse Proxy (Linux only) ────────────────────────
+    // ── Step 1: VPS Socat / Node Proxy (Linux only) ────────────────────────────
     if (process.platform === 'linux') {
       try {
         await runCmd('sysctl -w net.ipv4.ip_forward=1')
 
-        // Ensure ufw allows this port
+        // Ensure ufw & iptables allow this port
         await runCmd(`ufw allow ${proxyPort}/tcp`)
+        await runCmd(`iptables -I INPUT -p tcp --dport ${proxyPort} -j ACCEPT 2>/dev/null || true`)
 
         // Kill any existing proxy or socat on this port safely
         await runCmd(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`)
         await runCmd(`kill -9 $(lsof -t -i:${proxyPort} 2>/dev/null) 2>/dev/null || true`)
         await runCmd(`pkill -9 -f "ont-proxy-${proxyPort}.js" 2>/dev/null || true`)
         await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || true`)
-        await new Promise((r) => setTimeout(r, 400))
+        await new Promise((r) => setTimeout(r, 300))
 
-        // Create standalone HTTP reverse proxy script with header sanitization, ServerName rewriting,
-        // and smart automatic root-path fallback for ZTE F609/F670 (/getpage.gch) and Huawei (/login.asp)
+        // Method A: Try socat (ultra-fast, transparent TCP relay)
+        let socatLaunched = false
+        try {
+          const socatProc = spawn('socat', [
+            `TCP-LISTEN:${proxyPort},reuseaddr,fork`,
+            `TCP:${mikrotikVpnIp}:${proxyPort}`
+          ], { detached: true, stdio: 'ignore' })
+          socatProc.on('error', () => {})
+          socatProc.unref()
+          socatLaunched = true
+        } catch {
+          socatLaunched = false
+        }
+
+        // Method B: Node.js HTTP proxy fallback if socat is unavailable
         const proxyScriptContent = `
 const http = require('http');
 const https = require('https');
@@ -267,7 +281,6 @@ const mikrotikVpnIp = '${mikrotikVpnIp}';
 const ontIp = '${ontIp}';
 const targetPort = ${targetPort};
 const isHttpsTarget = targetPort === 443;
-const ontAgent = new (isHttpsTarget ? https : http).Agent({ maxSockets: 10, keepAlive: true, keepAliveMsecs: 15000 });
 const logFile = '/tmp/ont-remote-' + listenPort + '.log';
 
 function log(msg) {
@@ -299,10 +312,9 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
   if (req.headers['authorization']) cleanHeaders['Authorization'] = req.headers['authorization'];
 
   log('[ONT-Proxy:' + listenPort + '] ' + req.method + ' ' + targetPath + ' -> Headers: ' + JSON.stringify(cleanHeaders));
-  const mikrotikNatPort = proxyPort + 10000;
   const options = {
     host: mikrotikVpnIp,
-    port: mikrotikNatPort,
+    port: listenPort,
     path: targetPath,
     method: req.method,
     headers: cleanHeaders,
@@ -313,7 +325,7 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
 
   const client = isHttpsTarget ? https : http;
   const proxyReq = client.request(options, (proxyRes) => {
-    proxyReq.setTimeout(0); // Disarm timeout timer once response starts
+    proxyReq.setTimeout(0);
     log('[ONT-Proxy:' + listenPort + '] ' + req.method + ' ' + targetPath + ' -> ONT HTTP ' + proxyRes.statusCode);
 
     const resHeaders = { ...proxyRes.headers };
@@ -359,13 +371,11 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
 
 const server = http.createServer((req, res) => {
   log('[ONT-Proxy:' + listenPort + '] INCOMING ' + req.method + ' ' + req.url + ' from ' + req.socket.remoteAddress);
-  // Return empty 204 for all favicon requests to never trigger Boa 400 Bad Request on missing icons
   if (req.url && (req.url.includes('favicon') || req.url.includes('.ico'))) {
     res.writeHead(204);
     return res.end();
   }
 
-  // GET and HEAD requests have no body; forward immediately without waiting for body stream
   if (req.method === 'GET' || req.method === 'HEAD') {
     return forwardRequest(req, res, req.url, null);
   }
@@ -388,22 +398,17 @@ server.listen(listenPort, '0.0.0.0', () => {
 });
 `
         const scriptPath = `/tmp/ont-proxy-${proxyPort}.js`
-        await runCmd(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`)
-        await runCmd(`pkill -f 'ont-proxy-${proxyPort}.js' 2>/dev/null || true`)
         await writeFile(scriptPath, proxyScriptContent.trim(), 'utf8')
 
         const nodeBin = process.execPath || '/usr/bin/node'
-        await runCmd(`iptables -I INPUT -p tcp --dport ${proxyPort} -j ACCEPT 2>/dev/null || true`)
-
-        // Spawn detached process unreferenced from parent Node event loop so it stays running as a background daemon
         const childProcess = spawn(nodeBin, [scriptPath], {
           detached: true,
           stdio: 'ignore',
         })
         childProcess.unref()
 
-        await new Promise((r) => setTimeout(r, 500))
-        console.log(`[ont-remote] HTTP Reverse Proxy aktif: VPS:${proxyPort} -> ${mikrotikVpnIp}:${proxyPort} (Host: 192.168.1.1) -> (MikroTik NAT) -> ${ontIp}:${targetPort}`)
+        await new Promise((r) => setTimeout(r, 300))
+        console.log(`[ont-remote] Proxy aktif: VPS:${proxyPort} -> ${mikrotikVpnIp}:${proxyPort} -> ${ontIp}:${targetPort}`)
       } catch (err: any) {
         console.error('[ont-remote] VPS proxy warning:', err?.message || err)
       }
@@ -452,13 +457,11 @@ server.listen(listenPort, '0.0.0.0', () => {
         }
       } catch { /* ignore cleanup errors */ }
 
-      const mikrotikNatPort = proxyPort + 10000
-
-      // Rule 1: DST-NAT — redirect incoming mikrotikNatPort traffic from VPS proxy to ONT IP
+      // Rule 1: DST-NAT — redirect incoming proxyPort traffic from VPS proxy to ONT IP
       await api.write('/ip/firewall/nat/add', [
         '=chain=dstnat',
         '=protocol=tcp',
-        `=dst-port=${mikrotikNatPort}`,
+        `=dst-port=${proxyPort}`,
         '=action=dst-nat',
         `=to-addresses=${ontIp}`,
         `=to-ports=${targetPort}`,
