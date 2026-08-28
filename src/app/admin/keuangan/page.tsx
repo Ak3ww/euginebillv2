@@ -103,9 +103,17 @@ export default function KeuanganPage() {
   const [filterRouterId, setFilterRouterId] = useState("all");
   const [routerOptions, setRouterOptions] = useState<{ id: string; name: string }[]>([]);
   
-  // Default: show all transactions (no date filter)
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  // Default: show current month transactions (matching Dashboard & Tagihan)
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+  });
   
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -398,8 +406,11 @@ export default function KeuanganPage() {
     setFilterType("all");
     setFilterCategory("all");
     setFilterRouterId("all");
-    setStartDate("");
-    setEndDate("");
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    setStartDate(formatDateLocal(start));
+    setEndDate(formatDateLocal(end));
     setSearchQuery("");
   };
 

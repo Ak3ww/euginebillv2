@@ -322,6 +322,35 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    // Also compute summary for invoices with no assigned router / user without router (for 100% accounting match)
+    const unassignedWhere = {
+      ...baseFilterWhere,
+      OR: [
+        { user: { routerId: null } },
+        { user: null },
+      ],
+    };
+    const [unassignedTotal, unassignedUnpaid, unassignedPaid, unassignedUnpaidSum, unassignedPaidSum] = await Promise.all([
+      prisma.invoice.count({ where: unassignedWhere }),
+      prisma.invoice.count({ where: { ...unassignedWhere, status: { in: ['PENDING', 'OVERDUE'] } } }),
+      prisma.invoice.count({ where: { ...unassignedWhere, status: 'PAID' } }),
+      prisma.invoice.aggregate({ where: { ...unassignedWhere, status: { in: ['PENDING', 'OVERDUE'] } }, _sum: { amount: true } }),
+      prisma.invoice.aggregate({ where: { ...unassignedWhere, status: 'PAID' }, _sum: { amount: true } }),
+    ]);
+
+    if (unassignedTotal > 0) {
+      routerSummaries.push({
+        id: 'unassigned',
+        name: 'Tanpa MikroTik',
+        nasname: '-',
+        totalCount: unassignedTotal,
+        unpaidCount: unassignedUnpaid,
+        paidCount: unassignedPaid,
+        unpaidAmount: unassignedUnpaidSum._sum.amount || 0,
+        paidAmount: unassignedPaidSum._sum.amount || 0,
+      });
+    }
+
     return ok({
       invoices,
       stats: {
