@@ -262,13 +262,12 @@ export class OntRemoteService {
 
         const proxyScriptContent = `
 'use strict';
-const net = require('net');
-const fs  = require('fs');
+const http = require('http');
+const fs   = require('fs');
 
 const listenPort    = ${proxyPort};
 const mikrotikVpnIp = '${mikrotikVpnIp}';
 const ontIp         = '${pureOntIp}';
-const correctHost   = '${correctHostHeader}';
 const targetPort    = ${targetPort};
 const logFile       = '/tmp/ont-remote-' + listenPort + '.log';
 
@@ -278,130 +277,85 @@ function log(msg) {
   try { fs.appendFileSync(logFile, line + '\\n'); } catch (_) {}
 }
 
-const server = net.createServer((client) => {
-  client.setNoDelay(true);
+const server = http.createServer((req, res) => {
+  const clientIp = req.socket.remoteAddress;
+  log('[' + req.method + '] ' + req.url + ' from ' + clientIp);
 
-  // Connect to MikroTik upstream
-  const upstream = net.connect(listenPort, mikrotikVpnIp);
-  upstream.setNoDelay(true);
+  // Auto-redirect root / to /getpage.gch?pid=1002 for ZTE compatibility
+  if (req.url === '/' || req.url === '') {
+    log('  -> Auto-redirecting root / to /getpage.gch?pid=1002');
+    res.writeHead(302, {
+      'Location': '/getpage.gch?pid=1002',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    });
+    res.end();
+    return;
+  }
 
-  let upstreamReady = false;
-  const pendingToUpstream = [];
+  // Clean and prepare headers for ONT web server
+  const cleanHeaders = { ...req.headers };
+  cleanHeaders['host'] = ontIp;
+  cleanHeaders['connection'] = 'close';
+  if (cleanHeaders['referer']) {
+    cleanHeaders['referer'] = 'http://' + ontIp + '/';
+  }
+  if (cleanHeaders['origin']) {
+    cleanHeaders['origin'] = 'http://' + ontIp;
+  }
 
-  upstream.on('connect', () => {
-    upstreamReady = true;
-    log('Upstream connected → ' + mikrotikVpnIp + ':' + listenPort);
-    while (pendingToUpstream.length > 0) {
-      upstream.write(pendingToUpstream.shift());
+  // Strip modern browser headers that overflow thttpd / boa buffers
+  delete cleanHeaders['sec-fetch-mode'];
+  delete cleanHeaders['sec-fetch-site'];
+  delete cleanHeaders['sec-fetch-dest'];
+  delete cleanHeaders['sec-fetch-user'];
+  delete cleanHeaders['sec-ch-ua'];
+  delete cleanHeaders['sec-ch-ua-mobile'];
+  delete cleanHeaders['sec-ch-ua-platform'];
+  delete cleanHeaders['upgrade-insecure-requests'];
+
+  const options = {
+    hostname: mikrotikVpnIp,
+    port: listenPort,
+    path: req.url,
+    method: req.method,
+    headers: cleanHeaders,
+    timeout: 12000,
+  };
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    log('  <- ONT ' + proxyRes.statusCode + ' for ' + req.url);
+
+    const responseHeaders = { ...proxyRes.headers };
+
+    // Rewrite Location header in redirects from ONT so browser stays on proxy
+    if (responseHeaders['location']) {
+      const originalLoc = responseHeaders['location'];
+      responseHeaders['location'] = originalLoc.replace(/https?:\\/\\/[^\\/]+/i, '');
+      log('  -> Rewrote Location: ' + originalLoc + ' -> ' + responseHeaders['location']);
+    }
+
+    res.writeHead(proxyRes.statusCode || 200, responseHeaders);
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on('error', (err) => {
+    log('  [PROXY ERROR] ' + req.url + ': ' + err.message);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<html><body style="font-family:sans-serif;padding:40px;text-align:center;"><h2>Gagal Terhubung ke Modem ONT</h2><p>Pastikan modem ONT aktif dan respon di port ' + targetPort + '.</p><p><small>Error: ' + err.message + '</small></p></body></html>');
     }
   });
 
-  // Upstream (ONT response) -> Client (Browser) : 100% raw untouched passthrough (Original UI & CSS/JS/Cookies)
-  upstream.pipe(client);
-
-  upstream.on('error', (err) => {
-    log('Upstream error: ' + err.message);
-    client.destroy();
-  });
-  upstream.on('close', () => client.destroy());
-
-  // Client (Browser) -> Upstream (ONT) : Stateful header buffer & Host/Origin patcher
-  let clientBuf = Buffer.alloc(0);
-  let inHeaders = true;
-
-  client.on('data', (chunk) => {
-    // Check if a new HTTP request is starting on this socket (e.g. Keep-Alive connection reuse)
-    const chunkHead = chunk.slice(0, 16).toString('latin1');
-    if (/^(GET|POST|HEAD|PUT|DELETE|OPTIONS)\s/i.test(chunkHead)) {
-      inHeaders = true;
-    }
-
-    if (!inHeaders) {
-      // Body payload or subsequent binary chunks
-      if (upstreamReady && !upstream.destroyed) {
-        upstream.write(chunk);
-      } else {
-        pendingToUpstream.push(chunk);
-      }
-      return;
-    }
-
-    clientBuf = Buffer.concat([clientBuf, chunk]);
-
-    // Detect end of HTTP headers (\r\n\r\n or \n\n)
-    let headerEndIdx = clientBuf.indexOf(Buffer.from([0x0d, 0x0a, 0x0d, 0x0a]));
-    let delimLen = 4;
-    if (headerEndIdx === -1) {
-      headerEndIdx = clientBuf.indexOf(Buffer.from([0x0a, 0x0a]));
-      delimLen = 2;
-    }
-
-    if (headerEndIdx === -1) {
-      // Waiting for complete headers (safety limit 32KB)
-      if (clientBuf.length > 32768) {
-        inHeaders = false;
-        if (upstreamReady && !upstream.destroyed) {
-          upstream.write(clientBuf);
-        } else {
-          pendingToUpstream.push(clientBuf);
-        }
-        clientBuf = Buffer.alloc(0);
-      }
-      return;
-    }
-
-    // Complete HTTP header block received
-    const rawHeaderBytes = clientBuf.slice(0, headerEndIdx);
-    const bodyBytes = clientBuf.slice(headerEndIdx + delimLen);
-
-    // Use latin1 encoding to safely inspect & modify HTTP headers without binary distortion
-    let headerStr = rawHeaderBytes.toString('latin1');
-
-    // 1. Rewrite Host header to internal ONT IP (ZTE / thttpd virtual host check)
-    headerStr = headerStr.replace(/^Host:[^\\r\\n]*/im, 'Host: ' + correctHost);
-
-    // 2. Rewrite Origin & Referer (ZTE CSRF checks)
-    headerStr = headerStr.replace(/^Origin:\\s*https?:\\/\\/[^\\r\\n]*/im, 'Origin: http://' + correctHost);
-    headerStr = headerStr.replace(/^Referer:\\s*https?:\\/\\/[^\\r\\n\\/?#]+/im, 'Referer: http://' + correctHost);
-
-    // 3. Strip modern browser headers that overflow thttpd / boa header buffers (~1KB limit)
-    headerStr = headerStr.replace(/^Upgrade-Insecure-Requests:[^\\r\\n]*\\r?\\n?/im, '');
-    headerStr = headerStr.replace(/^Sec-Fetch-[^\\r\\n]*\\r?\\n?/gim, '');
-    headerStr = headerStr.replace(/^Sec-Ch-Ua[^\\r\\n]*\\r?\\n?/gim, '');
-
-    // 4. Force Connection: close so thttpd doesn't get confused with HTTP keep-alive pipelines
-    if (/^Connection:/im.test(headerStr)) {
-      headerStr = headerStr.replace(/^Connection:[^\\r\\n]*/im, 'Connection: close');
-    } else {
-      headerStr += '\\r\\nConnection: close';
-    }
-
-    // Clean trailing line breaks
-    headerStr = headerStr.replace(/[\\r\\n]+$/, '');
-
-    log('→ ' + headerStr.split('\\n')[0].trim() + ' [Host: ' + correctHost + ' | Headers: ' + headerStr.length + 'b]');
-
-    // Reconstruct clean HTTP packet: Header + \r\n\r\n + Body
-    const newPacket = Buffer.concat([
-      Buffer.from(headerStr + '\\r\\n\\r\\n', 'latin1'),
-      bodyBytes
-    ]);
-
-    inHeaders = false;
-    clientBuf = Buffer.alloc(0);
-
-    if (upstreamReady && !upstream.destroyed) {
-      upstream.write(newPacket);
-    } else {
-      pendingToUpstream.push(newPacket);
+  proxyReq.on('timeout', () => {
+    proxyReq.destroy();
+    log('  [PROXY TIMEOUT] ' + req.url);
+    if (!res.headersSent) {
+      res.writeHead(504, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<html><body style="font-family:sans-serif;padding:40px;text-align:center;"><h2>Gateway Timeout</h2><p>Modem ONT tidak merespon dalam 12 detik.</p></body></html>');
     }
   });
 
-  client.on('error', (err) => {
-    log('Client socket error: ' + err.message);
-    upstream.destroy();
-  });
-  client.on('close', () => upstream.destroy());
+  req.pipe(proxyReq);
 });
 
 server.on('error', (err) => {
@@ -410,7 +364,7 @@ server.on('error', (err) => {
 });
 
 server.listen(listenPort, '0.0.0.0', () => {
-  log('ONT-Proxy RAW TCP READY on 0.0.0.0:' + listenPort + ' → ' + mikrotikVpnIp + ':' + listenPort + ' (Host: ' + correctHost + ')');
+  log('ONT-Proxy HTTP READY on 0.0.0.0:' + listenPort + ' → ' + mikrotikVpnIp + ':' + listenPort + ' (Host: ' + ontIp + ')');
 });
 `
         const scriptPath = `/tmp/ont-proxy-${proxyPort}.js`
