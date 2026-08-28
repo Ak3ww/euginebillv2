@@ -355,16 +355,34 @@ export async function GET(request: NextRequest) {
 
       const [todayAgg, monthAgg, monthCount, unpaidCount, allTimeAgg] = await Promise.all([
         prisma.invoice.aggregate({
-          where: { status: 'PAID', paidAt: { gte: startOfToday } },
+          where: {
+            status: 'PAID',
+            OR: [
+              { paidAt: { gte: startOfToday } },
+              { paidAt: null, updatedAt: { gte: startOfToday } },
+            ],
+          },
           _sum: { amount: true },
           _count: { id: true },
         }),
         prisma.invoice.aggregate({
-          where: { status: 'PAID', paidAt: { gte: startOfMonth, lt: startOfNextMonth } },
+          where: {
+            status: 'PAID',
+            OR: [
+              { paidAt: { gte: startOfMonth, lt: startOfNextMonth } },
+              { dueDate: { gte: startOfMonth, lt: startOfNextMonth } },
+            ],
+          },
           _sum: { amount: true },
         }),
         prisma.invoice.count({
-          where: { status: 'PAID', paidAt: { gte: startOfMonth, lt: startOfNextMonth } },
+          where: {
+            status: 'PAID',
+            OR: [
+              { paidAt: { gte: startOfMonth, lt: startOfNextMonth } },
+              { dueDate: { gte: startOfMonth, lt: startOfNextMonth } },
+            ],
+          },
         }),
         prisma.invoice.count({
           where: { status: { in: ['PENDING', 'OVERDUE'] } },
