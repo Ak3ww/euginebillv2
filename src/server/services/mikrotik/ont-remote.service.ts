@@ -310,6 +310,12 @@ const server = net.createServer((client) => {
   let inHeaders = true;
 
   client.on('data', (chunk) => {
+    // Check if a new HTTP request is starting on this socket (e.g. Keep-Alive connection reuse)
+    const chunkHead = chunk.slice(0, 16).toString('latin1');
+    if (/^(GET|POST|HEAD|PUT|DELETE|OPTIONS)\s/i.test(chunkHead)) {
+      inHeaders = true;
+    }
+
     if (!inHeaders) {
       // Body payload or subsequent binary chunks
       if (upstreamReady && !upstream.destroyed) {
@@ -363,7 +369,14 @@ const server = net.createServer((client) => {
     headerStr = headerStr.replace(/^Sec-Fetch-[^\\r\\n]*\\r?\\n?/gim, '');
     headerStr = headerStr.replace(/^Sec-Ch-Ua[^\\r\\n]*\\r?\\n?/gim, '');
 
-    // 4. Clean trailing line breaks
+    // 4. Force Connection: close so thttpd doesn't get confused with HTTP keep-alive pipelines
+    if (/^Connection:/im.test(headerStr)) {
+      headerStr = headerStr.replace(/^Connection:[^\\r\\n]*/im, 'Connection: close');
+    } else {
+      headerStr += '\\r\\nConnection: close';
+    }
+
+    // Clean trailing line breaks
     headerStr = headerStr.replace(/[\\r\\n]+$/, '');
 
     log('→ ' + headerStr.split('\\n')[0].trim() + ' [Host: ' + correctHost + ' | Headers: ' + headerStr.length + 'b]');
