@@ -44,16 +44,71 @@ export async function GET(request: NextRequest) {
       where.categoryId = categoryId;
     }
 
-    if (routerId && routerId !== "all") {
-      where.routerId = routerId;
+    // Filter by Mikrotik/Router
+    let routerConditions: any[] = [];
+    if (routerId && routerId !== 'all') {
+      const usersInRouter = await prisma.pppoeUser.findMany({
+        where: { routerId },
+        select: { id: true, username: true, customerId: true, name: true },
+      });
+      const userIds = usersInRouter.map(u => u.id);
+
+      const invoicesInRouter = await prisma.invoice.findMany({
+        where: {
+          OR: [
+            { user: { routerId } },
+            ...(userIds.length > 0 ? [{ userId: { in: userIds } }] : []),
+          ],
+        },
+        select: { invoiceNumber: true },
+      });
+
+      const invoiceNumbers = invoicesInRouter.map(i => i.invoiceNumber).filter(Boolean);
+      const invoiceRefs = invoiceNumbers.map(n => `INV-${n}`).concat(invoiceNumbers);
+      const usernames = usersInRouter.map(u => u.username).filter(Boolean);
+      const customerIds = usersInRouter.map(u => u.customerId).filter(Boolean) as string[];
+      const names = usersInRouter.map(u => u.name).filter(Boolean);
+
+      if (invoiceRefs.length > 0) {
+        routerConditions.push({ reference: { in: invoiceRefs } });
+      }
+      if (usernames.length > 0) {
+        routerConditions.push({ reference: { in: usernames } });
+      }
+      for (const u of usernames) {
+        routerConditions.push({ description: { contains: u } });
+      }
+      for (const cid of customerIds) {
+        routerConditions.push({ description: { contains: cid } });
+      }
+      for (const nm of names) {
+        if (nm && nm.length >= 3) {
+          routerConditions.push({ description: { contains: nm } });
+        }
+      }
+
+      if (routerConditions.length > 0) {
+        where.OR = routerConditions;
+      } else {
+        where.id = 'no-match-empty-router';
+      }
     }
 
     if (search) {
-      where.OR = [
+      const searchConditions = [
         { description: { contains: search } },
         { notes: { contains: search } },
         { reference: { contains: search } },
       ];
+      if (where.OR) {
+        where.AND = [
+          { OR: where.OR },
+          { OR: searchConditions },
+        ];
+        delete where.OR;
+      } else {
+        where.OR = searchConditions;
+      }
     }
 
     // Get transactions with category info

@@ -243,6 +243,39 @@ export async function PATCH(
           },
         });
 
+        // Auto-create Transaction in Keuangan
+        try {
+          let pppoeCat = await tx.transactionCategory.findFirst({
+            where: { name: 'Pembayaran PPPoE', type: 'INCOME' },
+          });
+          if (!pppoeCat) {
+            pppoeCat = await tx.transactionCategory.findFirst({
+              where: { type: 'INCOME' },
+            });
+          }
+          if (pppoeCat) {
+            const existingTx = await tx.transaction.findFirst({
+              where: { reference: `INV-${manualPayment.invoice.invoiceNumber}` },
+            });
+            if (!existingTx) {
+              await tx.transaction.create({
+                data: {
+                  id: crypto.randomUUID(),
+                  categoryId: pppoeCat.id,
+                  type: 'INCOME',
+                  amount: manualPayment.invoice.amount,
+                  description: `Pembayaran ${manualPayment.user.profile?.name || 'PPPoE'} - ${manualPayment.user.name}`,
+                  reference: `INV-${manualPayment.invoice.invoiceNumber}`,
+                  notes: `Manual payment disetujui oleh ${approvedBy || 'Admin'}`,
+                  date: approvedAt,
+                },
+              });
+            }
+          }
+        } catch (tErr) {
+          console.error('Failed to create transaction for approved manual payment:', tErr);
+        }
+
         await tx.customerNotification.create({
           data: {
             userId: manualPayment.userId,

@@ -1257,6 +1257,8 @@
   "keuangan": {
     "title": "Transaksi",
     "transactions": "Daftar Transaksi",
+    "allCategories": "Semua Kategori",
+    "allRouters": "Semua MikroTik",
     "addTransaction": "Tambah Transaksi",
     "addCategory": "Tambah Kategori",
     "categoryDescription": "Buat kategori pemasukan atau pengeluaran",

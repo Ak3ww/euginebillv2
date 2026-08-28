@@ -26,13 +26,78 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Prepare date filters
-    // User input is in WIB (YYYY-MM-DD format), convert to UTC for DB query
     let startFilter: Date | undefined;
     let endFilter: Date | undefined;
     if (startDate && endDate) {
-      // Convert WIB date string to WIB-as-UTC Date for database query
       startFilter = startOfDayWIBtoUTC(startDate);
       endFilter = endOfDayWIBtoUTC(endDate);
+    }
+
+    // Auto-heal / Sync any paid invoices that were not recorded in transactions table
+    try {
+      let pppoeCategory = await prisma.transactionCategory.findFirst({
+        where: { name: "Pembayaran PPPoE", type: "INCOME" },
+      });
+      if (!pppoeCategory) {
+        pppoeCategory = await prisma.transactionCategory.findFirst({
+          where: { type: "INCOME" },
+        });
+      }
+
+      if (pppoeCategory) {
+        const paidInvoices = await prisma.invoice.findMany({
+          where: {
+            status: "PAID",
+            ...(startFilter && endFilter
+              ? {
+                  OR: [
+                    { paidAt: { gte: startFilter, lte: endFilter } },
+                    { dueDate: { gte: startFilter, lte: endFilter } },
+                  ],
+                }
+              : {}),
+          },
+          include: {
+            user: { select: { name: true, username: true, customerId: true, profile: { select: { name: true } } } },
+          },
+          take: 500,
+        });
+
+        if (paidInvoices.length > 0) {
+          const invNumbers = paidInvoices.map(i => i.invoiceNumber).filter(Boolean);
+          const allPossibleRefs = invNumbers.map(n => `INV-${n}`).concat(invNumbers);
+          const existingTxs = await prisma.transaction.findMany({
+            where: { reference: { in: allPossibleRefs } },
+            select: { reference: true },
+          });
+          const existingRefSet = new Set(existingTxs.map(t => t.reference).filter(Boolean));
+
+          for (const inv of paidInvoices) {
+            const ref1 = `INV-${inv.invoiceNumber}`;
+            const ref2 = inv.invoiceNumber;
+            if (!existingRefSet.has(ref1) && !existingRefSet.has(ref2)) {
+              const profileName = inv.user?.profile?.name || 'PPPoE';
+              const custIdentifier = inv.user?.name || inv.user?.username || 'Pelanggan';
+              const txDate = inv.paidAt || inv.dueDate || inv.createdAt || new Date();
+              await prisma.transaction.create({
+                data: {
+                  id: nanoid(),
+                  categoryId: pppoeCategory.id,
+                  type: "INCOME",
+                  amount: inv.amount,
+                  description: `Pembayaran ${profileName} - ${custIdentifier}`,
+                  date: txDate,
+                  reference: ref1,
+                  notes: 'Auto-sync dari tagihan lunas',
+                },
+              });
+              existingRefSet.add(ref1);
+            }
+          }
+        }
+      }
+    } catch (syncErr) {
+      console.warn('[Keuangan] Auto-sync paid invoices warning:', syncErr);
     }
 
     // Build where clause
@@ -40,7 +105,7 @@ export async function GET(request: NextRequest) {
     if (type && type !== "all") {
       where.type = type;
     }
-    if (categoryId) {
+    if (categoryId && categoryId !== "all") {
       where.categoryId = categoryId;
     }
     if (startFilter && endFilter) {
@@ -50,36 +115,66 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Filter by Mikrotik/Router — find usernames in that router,
-    // then filter transactions whose reference contains those usernames
+    // Filter by Mikrotik/Router
+    let routerConditions: any[] = [];
     if (routerId && routerId !== 'all') {
       const usersInRouter = await prisma.pppoeUser.findMany({
         where: { routerId },
-        select: { username: true },
+        select: { id: true, username: true, customerId: true, name: true },
       });
-      if (usersInRouter.length > 0) {
-        const usernames = usersInRouter.map(u => u.username);
-        // Build OR: reference contains any of the usernames
-        const refConditions = usernames.map(u => ({ reference: { contains: u } }));
-        where.OR = refConditions;
+      const userIds = usersInRouter.map(u => u.id);
+
+      const invoicesInRouter = await prisma.invoice.findMany({
+        where: {
+          OR: [
+            { user: { routerId } },
+            ...(userIds.length > 0 ? [{ userId: { in: userIds } }] : []),
+          ],
+        },
+        select: { invoiceNumber: true },
+      });
+
+      const invoiceNumbers = invoicesInRouter.map(i => i.invoiceNumber).filter(Boolean);
+      const invoiceRefs = invoiceNumbers.map(n => `INV-${n}`).concat(invoiceNumbers);
+      const usernames = usersInRouter.map(u => u.username).filter(Boolean);
+      const customerIds = usersInRouter.map(u => u.customerId).filter(Boolean) as string[];
+      const names = usersInRouter.map(u => u.name).filter(Boolean);
+
+      if (invoiceRefs.length > 0) {
+        routerConditions.push({ reference: { in: invoiceRefs } });
+      }
+      if (usernames.length > 0) {
+        routerConditions.push({ reference: { in: usernames } });
+      }
+      for (const u of usernames) {
+        routerConditions.push({ description: { contains: u } });
+      }
+      for (const cid of customerIds) {
+        routerConditions.push({ description: { contains: cid } });
+      }
+      for (const nm of names) {
+        if (nm && nm.length >= 3) {
+          routerConditions.push({ description: { contains: nm } });
+        }
+      }
+
+      if (routerConditions.length > 0) {
+        where.OR = routerConditions;
       } else {
-        // No users in this router → return empty
-        where.id = 'no-match-router-filter';
+        where.id = 'no-match-empty-router';
       }
     }
 
     if (search) {
-      // If routerId filter already set OR conditions, merge with search
       const searchConditions = [
         { description: { contains: search } },
         { reference: { contains: search } },
-        { notes: { contains: search } }
+        { notes: { contains: search } },
       ];
       if (where.OR) {
-        // Combine: (routerFilter OR) AND (search OR)
         where.AND = [
           { OR: where.OR },
-          { OR: searchConditions }
+          { OR: searchConditions },
         ];
         delete where.OR;
       } else {
@@ -102,120 +197,59 @@ export async function GET(request: NextRequest) {
 
     const total = await prisma.transaction.count({ where });
 
-    // Get stats - Total Income & Expense
-    const incomeTotal = await prisma.transaction.aggregate({
-      where: {
-        type: "INCOME",
-        ...(startFilter && endFilter
-          ? {
-              date: {
-                gte: startFilter,
-                lte: endFilter,
-              },
-            }
-          : {}),
-      },
-      _sum: {
-        amount: true,
-      },
-    });
+    // Scoped where filters for stats (respects date, category, routerId, and search)
+    const incomeStatsWhere: any = { ...where, type: "INCOME" };
+    const expenseStatsWhere: any = { ...where, type: "EXPENSE" };
 
-    const expenseTotal = await prisma.transaction.aggregate({
-      where: {
-        type: "EXPENSE",
-        ...(startFilter && endFilter
-          ? {
-              date: {
-                gte: startFilter,
-                lte: endFilter,
-              },
-            }
-          : {}),
-      },
-      _sum: {
-        amount: true,
-      },
-    });
+    const [incomeTotal, expenseTotal] = await Promise.all([
+      prisma.transaction.aggregate({
+        where: incomeStatsWhere,
+        _sum: { amount: true },
+        _count: true,
+      }),
+      prisma.transaction.aggregate({
+        where: expenseStatsWhere,
+        _sum: { amount: true },
+        _count: true,
+      }),
+    ]);
 
     const totalIncome = incomeTotal._sum.amount || 0;
     const totalExpense = expenseTotal._sum.amount || 0;
     const balance = Number(totalIncome) - Number(totalExpense);
+    const incomeCount = incomeTotal._count || 0;
+    const expenseCount = expenseTotal._count || 0;
 
-    // Get count by type — scoped to current date filter
-    const incomeCount = await prisma.transaction.count({
-      where: {
-        type: "INCOME",
-        ...(startFilter && endFilter ? { date: { gte: startFilter, lte: endFilter } } : {}),
-      },
-    });
-    const expenseCount = await prisma.transaction.count({
-      where: {
-        type: "EXPENSE",
-        ...(startFilter && endFilter ? { date: { gte: startFilter, lte: endFilter } } : {}),
-      },
-    });
+    // Get income breakdown by category (scoped to current filters)
+    const [pppoeCategory, hotspotCategory, installCategory] = await Promise.all([
+      prisma.transactionCategory.findFirst({ where: { name: "Pembayaran PPPoE", type: "INCOME" } }),
+      prisma.transactionCategory.findFirst({ where: { name: "Pembayaran Hotspot", type: "INCOME" } }),
+      prisma.transactionCategory.findFirst({ where: { name: "Biaya Instalasi", type: "INCOME" } }),
+    ]);
 
-    // Get income breakdown by category
-    const pppoeCategory = await prisma.transactionCategory.findFirst({
-      where: { name: "Pembayaran PPPoE", type: "INCOME" },
-    });
-    const hotspotCategory = await prisma.transactionCategory.findFirst({
-      where: { name: "Pembayaran Hotspot", type: "INCOME" },
-    });
-    const installCategory = await prisma.transactionCategory.findFirst({
-      where: { name: "Biaya Instalasi", type: "INCOME" },
-    });
-
-    const pppoeIncome = await prisma.transaction.aggregate({
-      where: {
-        type: "INCOME",
-        categoryId: pppoeCategory?.id,
-        ...(startFilter && endFilter
-          ? {
-              date: {
-                gte: startFilter,
-                lte: endFilter,
-              },
-            }
-          : {}),
-      },
-      _sum: { amount: true },
-      _count: true,
-    });
-
-    const hotspotIncome = await prisma.transaction.aggregate({
-      where: {
-        type: "INCOME",
-        categoryId: hotspotCategory?.id,
-        ...(startFilter && endFilter
-          ? {
-              date: {
-                gte: startFilter,
-                lte: endFilter,
-              },
-            }
-          : {}),
-      },
-      _sum: { amount: true },
-      _count: true,
-    });
-
-    const installIncome = await prisma.transaction.aggregate({
-      where: {
-        type: "INCOME",
-        categoryId: installCategory?.id,
-        ...(startFilter && endFilter
-          ? {
-              date: {
-                gte: startFilter,
-                lte: endFilter,
-              },
-            }
-          : {}),
-      },
-      _sum: { amount: true },
-      _count: true,
-    });
+    const [pppoeIncome, hotspotIncome, installIncome] = await Promise.all([
+      pppoeCategory
+        ? prisma.transaction.aggregate({
+            where: { ...incomeStatsWhere, categoryId: pppoeCategory.id },
+            _sum: { amount: true },
+            _count: true,
+          })
+        : { _sum: { amount: 0 }, _count: 0 },
+      hotspotCategory
+        ? prisma.transaction.aggregate({
+            where: { ...incomeStatsWhere, categoryId: hotspotCategory.id },
+            _sum: { amount: true },
+            _count: true,
+          })
+        : { _sum: { amount: 0 }, _count: 0 },
+      installCategory
+        ? prisma.transaction.aggregate({
+            where: { ...incomeStatsWhere, categoryId: installCategory.id },
+            _sum: { amount: true },
+            _count: true,
+          })
+        : { _sum: { amount: 0 }, _count: 0 },
+    ]);
 
     return NextResponse.json({
       success: true,

@@ -607,7 +607,7 @@ export default function KeuanganPage() {
             onChange={(e) => setFilterRouterId(e.target.value)}
             className="px-2 py-1.5 text-xs bg-muted border border-border rounded-md"
           >
-            <option value="all">Semua Mikrotik</option>
+            <option value="all">{t('keuangan.allRouters') || 'Semua MikroTik'}</option>
             {routerOptions.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
