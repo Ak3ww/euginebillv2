@@ -292,8 +292,8 @@ function log(msg) {
 }
 
 function forwardRequest(req, res, targetPath, bodyBuffer) {
-  const isRootPage = targetPath === '/' || targetPath === '';
-  const actualPath = isRootPage ? '/getpage.gch?pid=1002' : targetPath;
+  const isRootPage = targetPath === '/' || targetPath === '' || targetPath === '/getpage.gch?pid=1002';
+  const actualPath = targetPath || '/';
   const pureHost = ontIp.replace(/:\d+$/, '');
 
   // Minimal headers (< 70 bytes) to stay strictly under Boa 0.94 200-byte header limit
@@ -336,9 +336,9 @@ function forwardRequest(req, res, targetPath, bodyBuffer) {
     proxyReq.setTimeout(0);
     log('[ONT-Proxy:' + listenPort + '] ' + req.method + ' ' + actualPath + ' -> ONT HTTP ' + proxyRes.statusCode);
 
-    // If ZTE returns 400 Bad Request on root path /, retry with ZTE CGI login page /getpage.gch?pid=1002
-    if ((proxyRes.statusCode === 400 || proxyRes.statusCode === 404) && (targetPath === '/' || targetPath === '')) {
-      log('[ONT-Proxy:' + listenPort + '] ZTE 400 on root path / -> Auto retrying /getpage.gch?pid=1002');
+    // If modem returns 400 or 404 on root path /, retry with ZTE CGI login page /getpage.gch?pid=1002
+    if ((proxyRes.statusCode === 400 || proxyRes.statusCode === 404) && (actualPath === '/' || actualPath === '')) {
+      log('[ONT-Proxy:' + listenPort + '] Modem returned ' + proxyRes.statusCode + ' on root path / -> Auto retrying /getpage.gch?pid=1002');
       return forwardRequest(req, res, '/getpage.gch?pid=1002', bodyBuffer);
     }
 
