@@ -98,27 +98,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Month filter — for PAID invoices, filters by payment date (paidAt) matching Keuangan & Dashboard cashflow;
-    // for UNPAID invoices, filters by dueDate
+    // Month filter — applies to dueDate to accurately reflect the billing cycle / period
     if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
       const [y, m] = monthParam.split('-').map(Number);
       const start = startOfDayWIBtoUTC(new Date(Date.UTC(y, m - 1, 1)));
       const end = endOfDayWIBtoUTC(new Date(Date.UTC(y, m, 0))); // last day of month
-
-      if (status === 'PAID') {
-        where.OR = [
-          { paidAt: { gte: start, lte: end } },
-          { paidAt: null, updatedAt: { gte: start, lte: end } },
-        ];
-      } else if (status === 'UNPAID' || status === 'PENDING' || status === 'OVERDUE') {
-        where.dueDate = { gte: start, lte: end };
-      } else {
-        where.OR = [
-          { status: 'PAID', paidAt: { gte: start, lte: end } },
-          { status: 'PAID', paidAt: null, updatedAt: { gte: start, lte: end } },
-          { status: { in: ['PENDING', 'OVERDUE'] }, dueDate: { gte: start, lte: end } },
-        ];
-      }
+      where.dueDate = { gte: start, lte: end };
     }
 
     if (userId) {

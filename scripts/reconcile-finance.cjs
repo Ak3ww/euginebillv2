@@ -154,7 +154,8 @@ async function main() {
     const ref1 = `INV-${inv.invoiceNumber}`;
     const ref2 = inv.invoiceNumber;
     const existing = txMap.get(ref1) || txMap.get(ref2);
-    const pDate = inv.paidAt || inv.updatedAt || inv.dueDate || inv.createdAt;
+    // Align transaction date with invoice billing period (dueDate) so Keuangan matches Dashboard & Tagihan
+    const pDate = inv.dueDate || inv.paidAt || inv.createdAt;
 
     if (!existing) {
       const pName = inv.user?.profile?.name || 'PPPoE';

@@ -368,20 +368,14 @@ export async function GET(request: NextRequest) {
         prisma.invoice.aggregate({
           where: {
             status: 'PAID',
-            OR: [
-              { paidAt: { gte: startOfMonth, lt: startOfNextMonth } },
-              { paidAt: null, updatedAt: { gte: startOfMonth, lt: startOfNextMonth } },
-            ],
+            dueDate: { gte: startOfMonth, lt: startOfNextMonth },
           },
           _sum: { amount: true },
         }),
         prisma.invoice.count({
           where: {
             status: 'PAID',
-            OR: [
-              { paidAt: { gte: startOfMonth, lt: startOfNextMonth } },
-              { paidAt: null, updatedAt: { gte: startOfMonth, lt: startOfNextMonth } },
-            ],
+            dueDate: { gte: startOfMonth, lt: startOfNextMonth },
           },
         }),
         prisma.invoice.count({

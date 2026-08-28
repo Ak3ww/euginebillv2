@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
       const ref1 = `INV-${inv.invoiceNumber}`;
       const ref2 = inv.invoiceNumber;
       const existingTx = txMapByRef.get(ref1) || txMapByRef.get(ref2);
-      const paymentDate = inv.paidAt || inv.updatedAt || inv.dueDate || inv.createdAt;
+      const paymentDate = inv.dueDate || inv.paidAt || inv.createdAt;
 
       if (!existingTx) {
         // Insert missing transaction
