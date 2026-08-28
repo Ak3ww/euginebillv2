@@ -284,26 +284,15 @@ const server = http.createServer((req, res) => {
   const clientIp = req.socket.remoteAddress;
   log('[' + req.method + '] ' + req.url + ' from ' + clientIp);
 
-  // Auto-redirect root / to /getpage.gch?pid=1002 for ZTE compatibility
-  if (req.url === '/' || req.url === '') {
-    log('  -> Auto-redirecting root / to /getpage.gch?pid=1002');
-    res.writeHead(302, {
-      'Location': '/getpage.gch?pid=1002',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-    });
-    res.end();
-    return;
-  }
-
   // Clean and prepare headers for ONT web server
   const cleanHeaders = { ...req.headers };
-  cleanHeaders['host'] = ontIp;
+  cleanHeaders['host'] = targetPort === 80 ? ontIp : ontIp + ':' + targetPort;
   cleanHeaders['connection'] = 'close';
   if (cleanHeaders['referer']) {
-    cleanHeaders['referer'] = 'http://' + ontIp + '/';
+    cleanHeaders['referer'] = 'http://' + (targetPort === 80 ? ontIp : ontIp + ':' + targetPort) + '/';
   }
   if (cleanHeaders['origin']) {
-    cleanHeaders['origin'] = 'http://' + ontIp;
+    cleanHeaders['origin'] = 'http://' + (targetPort === 80 ? ontIp : ontIp + ':' + targetPort);
   }
 
   // Strip modern browser headers that overflow thttpd / boa buffers

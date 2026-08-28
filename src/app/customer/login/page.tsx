@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Shield, Lock, ArrowRight, Loader2, User, Sun, Moon, Wifi } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
-import TestimonialsSection from '@/components/TestimonialsSection';
 
 export default function CustomerLoginPage() {
   const router = useRouter();
@@ -282,9 +281,6 @@ export default function CustomerLoginPage() {
           </div>
         </div>
       </div>
-
-      {/* Testimonials Section */}
-      <TestimonialsSection />
     </div>
   );
 }
