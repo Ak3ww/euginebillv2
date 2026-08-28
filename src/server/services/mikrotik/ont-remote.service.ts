@@ -240,6 +240,8 @@ export class OntRemoteService {
     proxyPort: number     // Allocated port on VPS
   }): Promise<{ success: boolean; error?: string }> {
     const { sessionId, routerId, ontIp, mikrotikVpnIp, targetPort, proxyPort } = params
+    const pureOntIp = ontIp.replace(/:\d+$/, '')
+    const natPort = proxyPort + 1000
 
     // ── Step 1: VPS HTTP Reverse Proxy (Linux only) ──────────────────────────────────
     if (process.platform === 'linux') {
@@ -266,6 +268,7 @@ const http = require('http');
 const fs   = require('fs');
 
 const listenPort    = ${proxyPort};
+const natPort       = ${proxyPort + 1000};
 const mikrotikVpnIp = '${mikrotikVpnIp}';
 const ontIp         = '${pureOntIp}';
 const targetPort    = ${targetPort};
@@ -315,7 +318,7 @@ const server = http.createServer((req, res) => {
 
   const options = {
     hostname: mikrotikVpnIp,
-    port: listenPort,
+    port: natPort,
     path: req.url,
     method: req.method,
     headers: cleanHeaders,
@@ -412,7 +415,7 @@ server.listen(listenPort, '0.0.0.0', () => {
         const allNat = await api.write('/ip/firewall/nat/print').catch(() => [])
         for (const r of allNat) {
           const matchComment = r.comment && (r.comment.includes(sessionId) || r.comment.includes(`ont-remote sess=${sessionId}`))
-          const matchPort = proxyPort && String(r['dst-port']) === String(proxyPort)
+          const matchPort = (proxyPort && String(r['dst-port']) === String(proxyPort)) || String(r['dst-port']) === String(natPort)
           if (matchComment || matchPort) {
             if (r['.id']) await api.write('/ip/firewall/nat/remove', [`=.id=${r['.id']}`]).catch(() => {})
           }
@@ -420,20 +423,20 @@ server.listen(listenPort, '0.0.0.0', () => {
         const allFilter = await api.write('/ip/firewall/filter/print').catch(() => [])
         for (const r of allFilter) {
           const matchComment = r.comment && (r.comment.includes(sessionId) || r.comment.includes(`ont-remote sess=${sessionId}`))
-          const matchPort = proxyPort && String(r['dst-port']) === String(proxyPort)
+          const matchPort = (proxyPort && String(r['dst-port']) === String(proxyPort)) || String(r['dst-port']) === String(natPort)
           if (matchComment || matchPort) {
             if (r['.id']) await api.write('/ip/firewall/filter/remove', [`=.id=${r['.id']}`]).catch(() => {})
           }
         }
       } catch { /* ignore cleanup errors */ }
 
-      // Rule 1: DST-NAT — redirect incoming proxyPort traffic from VPS proxy to ONT IP (at top of NAT table)
+      // Rule 1: DST-NAT — redirect incoming natPort traffic from VPS proxy to ONT IP (at top of NAT table)
       await api.write('/ip/firewall/nat/add', [
         '=chain=dstnat',
         '=protocol=tcp',
-        `=dst-port=${proxyPort}`,
+        `=dst-port=${natPort}`,
         '=action=dst-nat',
-        `=to-addresses=${ontIp}`,
+        `=to-addresses=${pureOntIp}`,
         `=to-ports=${targetPort}`,
         '=place-before=0',
         `=comment=${comment}`,
@@ -443,7 +446,7 @@ server.listen(listenPort, '0.0.0.0', () => {
       await api.write('/ip/firewall/nat/add', [
         '=chain=srcnat',
         '=protocol=tcp',
-        `=dst-address=${ontIp}`,
+        `=dst-address=${pureOntIp}`,
         '=action=masquerade',
         '=place-before=0',
         `=comment=${comment} srcnat`,
@@ -453,7 +456,7 @@ server.listen(listenPort, '0.0.0.0', () => {
       await api.write('/ip/firewall/filter/add', [
         '=chain=forward',
         '=protocol=tcp',
-        `=dst-address=${ontIp}`,
+        `=dst-address=${pureOntIp}`,
         `=dst-port=${targetPort}`,
         '=action=accept',
         '=place-before=0',
@@ -461,7 +464,7 @@ server.listen(listenPort, '0.0.0.0', () => {
       ])
 
       await api.close()
-      console.log(`[ont-remote] MikroTik NAT rules created: port ${proxyPort} -> ${ontIp}:${targetPort}`)
+      console.log(`[ont-remote] MikroTik NAT rules created: natPort ${natPort} (proxy ${proxyPort}) -> ${pureOntIp}:${targetPort}`)
     } catch (err: any) {
       if (process.platform === 'linux') {
         await exec(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`).catch(() => {})
@@ -520,7 +523,7 @@ server.listen(listenPort, '0.0.0.0', () => {
           const natRules = await api.write('/ip/firewall/nat/print').catch(() => [])
           for (const r of natRules) {
             const matchComment = r.comment && (r.comment.includes(sessionId) || r.comment.includes(`ont-remote sess=${sessionId}`))
-            const matchPort = proxyPort && (String(r['dst-port']) === String(proxyPort) || String(r['dst-port']) === String(proxyPort + 10000))
+            const matchPort = proxyPort && (String(r['dst-port']) === String(proxyPort) || String(r['dst-port']) === String(proxyPort + 1000))
             if (matchComment || matchPort) {
               if (r['.id']) await api.write('/ip/firewall/nat/remove', [`=.id=${r['.id']}`]).catch(() => {})
             }
@@ -530,7 +533,7 @@ server.listen(listenPort, '0.0.0.0', () => {
           const filterRules = await api.write('/ip/firewall/filter/print').catch(() => [])
           for (const r of filterRules) {
             const matchComment = r.comment && (r.comment.includes(sessionId) || r.comment.includes(`ont-remote sess=${sessionId}`))
-            const matchPort = proxyPort && (String(r['dst-port']) === String(proxyPort) || String(r['dst-port']) === String(proxyPort + 10000))
+            const matchPort = proxyPort && (String(r['dst-port']) === String(proxyPort) || String(r['dst-port']) === String(proxyPort + 1000))
             if (matchComment || matchPort) {
               if (r['.id']) await api.write('/ip/firewall/filter/remove', [`=.id=${r['.id']}`]).catch(() => {})
             }
