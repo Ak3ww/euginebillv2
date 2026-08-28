@@ -241,7 +241,7 @@ export class OntRemoteService {
   }): Promise<{ success: boolean; error?: string }> {
     const { sessionId, routerId, ontIp, mikrotikVpnIp, targetPort, proxyPort } = params
 
-    // ── Step 1: VPS Proxy — Raw TCP server with Host-header patch (Linux only) ──────────────────────
+    // ── Step 1: VPS HTTP Reverse Proxy (Linux only) ──────────────────────────────────
     if (process.platform === 'linux') {
       try {
         await runCmd('sysctl -w net.ipv4.ip_forward=1')
@@ -250,176 +250,124 @@ export class OntRemoteService {
         await runCmd(`ufw allow ${proxyPort}/tcp`)
         await runCmd(`iptables -I INPUT -p tcp --dport ${proxyPort} -j ACCEPT 2>/dev/null || true`)
 
-        // Kill any existing proxy or socat on this port safely
-        await runCmd(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`)
-        await runCmd(`kill -9 $(lsof -t -i:${proxyPort} 2>/dev/null) 2>/dev/null || true`)
+        // Kill any existing proxy or socat on this port safely (multi-method cleanup)
+        await runCmd(`fuser -k -9 ${proxyPort}/tcp 2>/dev/null || true`)
         await runCmd(`pkill -9 -f "ont-proxy-${proxyPort}.js" 2>/dev/null || true`)
-        await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || true`)
-        await new Promise((r) => setTimeout(r, 400))
+        await runCmd(`pkill -9 -f "socat.*:${proxyPort}" 2>/dev/null || true`)
+        await runCmd(`pid=$(ss -lptn "sport = :${proxyPort}" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2); [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true`)
+        await new Promise((r) => setTimeout(r, 500))
 
-        // ── Raw TCP proxy with Host-header rewrite ─────────────────────────────────────────────
-        // Uses net.createServer (not http.request) to work at raw TCP level:
-        //   - No Node.js HTTP parser quirks that add extra headers (chunked, TE, etc.)
-        //   - No version-dependent setHost flag
-        //   - Patches ONLY the Host: header in the first HTTP request headers
-        //   - After header patch, all data (images, JS, CSS, POST login) flows as raw binary TCP
-        //   - Works identically to local access for ZTE Boa 0.94, Huawei, SK, Fiberhome
         const pureOntIp = ontIp.replace(/:\d+$/, '')
         const correctHostHeader = targetPort === 80 ? pureOntIp : `${pureOntIp}:${targetPort}`
 
         const proxyScriptContent = `
 'use strict';
-const net = require('net');
-const fs  = require('fs');
+const http = require('http');
+const fs   = require('fs');
 
-const listenPort      = ${proxyPort};
-const mikrotikVpnIp   = '${mikrotikVpnIp}';
-const ontIp           = '${pureOntIp}';
-const correctHost     = '${correctHostHeader}';
-const targetPort      = ${targetPort};
-const isPort80        = (targetPort === 80);   // ZTE Boa 0.94 strict mode
-const logFile         = '/tmp/ont-remote-' + listenPort + '.log';
+const listenPort    = ${proxyPort};
+const mikrotikVpnIp = '${mikrotikVpnIp}';
+const ontIp         = '${pureOntIp}';
+const correctHost   = '${correctHostHeader}';
+const targetPort    = ${targetPort};
+const logFile       = '/tmp/ont-remote-' + listenPort + '.log';
 
 function log(msg) {
   const line = '[' + new Date().toISOString().substring(11, 19) + '] ' + msg;
+  console.log(line);
   try { fs.appendFileSync(logFile, line + '\\n'); } catch (_) {}
 }
 
-// Replace the Host header value in the raw HTTP header block
-function patchHostHeader(rawHeaders) {
-  if (/^Host:/im.test(rawHeaders)) {
-    return rawHeaders.replace(/^(Host:).*$/im, '$1 ' + correctHost);
+const server = http.createServer((req, res) => {
+  log('INCOMING ' + req.method + ' ' + req.url + ' from ' + (req.socket.remoteAddress || ''));
+
+  // 1. Prepare forward headers
+  const fwdHeaders = Object.assign({}, req.headers);
+
+  // Host header MUST match the ONT internal IP (ZTE / thttpd rejects external hostnames)
+  fwdHeaders['host'] = correctHost;
+
+  // Rewrite Origin & Referer so ONT CSRF / Origin checks pass
+  if (fwdHeaders['origin']) {
+    fwdHeaders['origin'] = 'http://' + correctHost;
   }
-  return rawHeaders;
-}
-
-// Sanitize HTTP headers before forwarding to ONT modem.
-// Port 80 (ZTE Boa 0.94): ALLOW-LIST — keep ONLY Host, Connection: close, and Content-* for POST.
-//   Boa has a hard header-size limit (~200 bytes). Chrome sends ~400+ bytes of headers by default.
-//   Stripping just a few headers is not enough — must use allow-list.
-// Other ports (SK Modem 8080, etc.): DENY-LIST — strip known-problematic headers only.
-function sanitizeHeaders(rawHeaders) {
-  if (isPort80) {
-    // === ZTE Boa 0.94 strict mode ===
-    // Extract request line (first line: GET / HTTP/1.1)
-    const crlfIdx = rawHeaders.search(/\\r?\\n/);
-    if (crlfIdx === -1) return rawHeaders;
-    const requestLine = rawHeaders.substring(0, crlfIdx);
-
-    // Find Content-Type and Content-Length if present (needed for POST login form)
-    const ctMatch  = rawHeaders.match(/^Content-Type:[^\\r\\n]*/im);
-    const clMatch  = rawHeaders.match(/^Content-Length:[^\\r\\n]*/im);
-    const cookieMt = rawHeaders.match(/^Cookie:[^\\r\\n]*/im);
-
-    // Rebuild with absolute minimum: request line + Host + Connection: close
-    let minimal = requestLine + '\\r\\n'
-                + 'Host: ' + correctHost + '\\r\\n'
-                + 'Connection: close';
-    if (ctMatch)  minimal += '\\r\\n' + ctMatch[0];
-    if (clMatch)  minimal += '\\r\\n' + clMatch[0];
-    if (cookieMt) minimal += '\\r\\n' + cookieMt[0];
-    return minimal;
+  if (fwdHeaders['referer']) {
+    fwdHeaders['referer'] = fwdHeaders['referer'].replace(/^https?:\\/\\/[^\\/]+/i, 'http://' + correctHost);
   }
 
-  // === Lenient mode for custom ports (SK Modem, etc.) ===
-  let h = patchHostHeader(rawHeaders);
-  // Strip headers known to cause issues with some ONT web servers
-  const stripList = [
-    'Accept-Encoding', 'Upgrade-Insecure-Requests',
-    'Sec-Fetch-Site', 'Sec-Fetch-Mode', 'Sec-Fetch-User', 'Sec-Fetch-Dest',
-    'Sec-Ch-Ua', 'Sec-Ch-Ua-Mobile', 'Sec-Ch-Ua-Platform',
-  ];
-  for (const name of stripList) {
-    h = h.replace(new RegExp('^' + name + ':[^\\r\\n]*\\r?\\n', 'im'), '');
-  }
-  return h;
-}
+  // Strip modern browser security headers that confuse older embedded web servers
+  delete fwdHeaders['upgrade-insecure-requests'];
+  delete fwdHeaders['sec-fetch-site'];
+  delete fwdHeaders['sec-fetch-mode'];
+  delete fwdHeaders['sec-fetch-user'];
+  delete fwdHeaders['sec-fetch-dest'];
+  delete fwdHeaders['sec-ch-ua'];
+  delete fwdHeaders['sec-ch-ua-mobile'];
+  delete fwdHeaders['sec-ch-ua-platform'];
 
-const server = net.createServer((client) => {
-  client.setNoDelay(true);
+  // Keep connections clean per-request for embedded servers
+  fwdHeaders['connection'] = 'close';
 
-  let headersParsed = false;
-  let buf = Buffer.alloc(0);
-  let upstream = null;
-  let pendingChunks = [];   // chunks received before upstream is ready
+  const reqOptions = {
+    hostname: mikrotikVpnIp,
+    port: listenPort, // MikroTik DST-NAT redirects listenPort -> targetPort
+    path: req.url,
+    method: req.method,
+    headers: fwdHeaders,
+    setHost: false,   // Crucial: keep our custom Host header intact
+    agent: false,     // Disable keep-alive agent pooling
+    timeout: 15000,
+  };
 
-  function connectUpstream(firstPacket) {
-    upstream = net.connect(listenPort, mikrotikVpnIp);
-    upstream.setNoDelay(true);
+  const proxyReq = http.request(reqOptions, (proxyRes) => {
+    log('ONT RESPONSE: ' + proxyRes.statusCode + ' for ' + req.method + ' ' + req.url);
 
-    upstream.on('connect', () => {
-      log('Upstream connected → ' + mikrotikVpnIp + ':' + listenPort);
-      upstream.write(firstPacket);
-      // Drain any chunks that arrived while we were connecting
-      for (const c of pendingChunks) upstream.write(c);
-      pendingChunks = [];
-      // Pipe response from ONT back to browser as raw TCP
-      upstream.pipe(client);
-    });
+    const resHeaders = Object.assign({}, proxyRes.headers);
 
-    upstream.on('error', (e) => {
-      log('Upstream error: ' + e.message);
-      client.destroy();
-    });
-
-    upstream.on('end', () => client.end());
-    upstream.on('close', () => client.destroy());
-  }
-
-  client.on('data', (chunk) => {
-    if (headersParsed) {
-      // Headers already processed — raw passthrough
-      if (upstream && !upstream.destroyed) {
-        upstream.write(chunk);
-      } else {
-        pendingChunks.push(chunk);
+    // Rewrite Location header if ONT returns absolute redirect (e.g. http://192.168.20.113/login.html)
+    if (resHeaders['location']) {
+      const originalLoc = resHeaders['location'];
+      resHeaders['location'] = originalLoc.replace(/^https?:\\/\\/[^\\/]+/i, '');
+      if (!resHeaders['location'].startsWith('/')) {
+        resHeaders['location'] = '/' + resHeaders['location'];
       }
-      return;
+      log('Rewrote Location: ' + originalLoc + ' → ' + resHeaders['location']);
     }
 
-    buf = Buffer.concat([buf, chunk]);
-
-    // Find the end of HTTP headers (\\r\\n\\r\\n)
-    const sepIdx = buf.indexOf(Buffer.from('\\r\\n\\r\\n'));
-    if (sepIdx === -1) {
-      // Headers incomplete — wait for more data (max 16 KB safety)
-      if (buf.length > 16384) {
-        log('Headers too large, closing');
-        client.destroy();
+    // Rewrite Set-Cookie to work on VPS IP/hostname
+    if (resHeaders['set-cookie']) {
+      const fixCookie = (c) =>
+        c.replace(/domain=[^;]+;?/gi, '')
+         .replace(/SameSite=Strict/gi, 'SameSite=Lax');
+      if (Array.isArray(resHeaders['set-cookie'])) {
+        resHeaders['set-cookie'] = resHeaders['set-cookie'].map(fixCookie);
+      } else if (typeof resHeaders['set-cookie'] === 'string') {
+        resHeaders['set-cookie'] = fixCookie(resHeaders['set-cookie']);
       }
-      return;
     }
 
-    headersParsed = true;
-
-    const rawHeaderBlock = buf.slice(0, sepIdx).toString('utf8');
-    const body = buf.slice(sepIdx); // includes \\r\\n\\r\\n + any body bytes
-
-    // Patch headers then forward
-    const patchedHeaders = sanitizeHeaders(rawHeaderBlock);
-    const patchedPacket = Buffer.concat([Buffer.from(patchedHeaders, 'utf8'), body]);
-
-    log('→ ' + rawHeaderBlock.split('\\n')[0].trim() + ' | Host patched to: ' + correctHost);
-
-    connectUpstream(patchedPacket);
+    res.writeHead(proxyRes.statusCode || 200, resHeaders);
+    proxyRes.pipe(res, { end: true });
   });
 
-  client.on('error', (e) => {
-    log('Client error: ' + e.message);
-    if (upstream && !upstream.destroyed) upstream.destroy();
+  proxyReq.on('error', (err) => {
+    log('Proxy forward error: ' + err.message);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<!DOCTYPE html><html><head><title>502 Bad Gateway</title></head><body style="font-family:sans-serif;padding:30px;background:#0f172a;color:#f8fafc;text-align:center;"><div style="max-width:500px;margin:50px auto;background:#1e293b;padding:30px;border-radius:16px;"><h2>502 Bad Gateway</h2><p>Gagal menghubungi modem ONT di <b>' + ontIp + '</b> via MikroTik <b>' + mikrotikVpnIp + '</b>.</p><p style="color:#94a3b8;font-size:13px;">' + err.message + '</p></div></body></html>');
+    }
   });
 
-  client.on('end', () => {
-    if (upstream && !upstream.destroyed) upstream.end();
+  proxyReq.on('timeout', () => {
+    log('Proxy request timeout for ' + req.url);
+    proxyReq.destroy(new Error('Timeout'));
   });
 
-  client.on('close', () => {
-    if (upstream && !upstream.destroyed) upstream.destroy();
-  });
+  req.pipe(proxyReq, { end: true });
 });
 
 server.on('error', (err) => {
-  log('Server error: ' + err.message);
+  log('Server fatal error: ' + err.message);
   process.exit(1);
 });
 
@@ -438,7 +386,7 @@ server.listen(listenPort, '0.0.0.0', () => {
         childProcess.unref()
 
         await new Promise((r) => setTimeout(r, 500))
-        console.log(`[ont-remote] Raw TCP proxy active: VPS:${proxyPort} → ${mikrotikVpnIp}:${proxyPort} → ${ontIp}:${targetPort} (Host: ${correctHostHeader})`)
+        console.log(`[ont-remote] Reverse HTTP proxy active: VPS:${proxyPort} → ${mikrotikVpnIp}:${proxyPort} → ${ontIp}:${targetPort} (Host: ${correctHostHeader})`)
       } catch (err: any) {
         console.error('[ont-remote] VPS proxy warning:', err?.message || err)
       }
@@ -547,12 +495,11 @@ server.listen(listenPort, '0.0.0.0', () => {
     // 1. Kill VPS proxy process + close UFW port + remove tmp script
     if (process.platform === 'linux' && proxyPort) {
       try {
-        await runCmd(`fuser -k ${proxyPort}/tcp 2>/dev/null || true`)
-        await runCmd(`kill -9 $(lsof -t -i:${proxyPort} 2>/dev/null) 2>/dev/null || true`)
+        await runCmd(`fuser -k -9 ${proxyPort}/tcp 2>/dev/null || true`)
         await runCmd(`pkill -9 -f "ont-proxy-${proxyPort}.js" 2>/dev/null || true`)
-        await runCmd(`pkill -9 -f "socat TCP-LISTEN:${proxyPort}" 2>/dev/null || true`)
-        await runCmd(`rm -f /tmp/ont-proxy-${proxyPort}.js /var/log/ont-remote-${proxyPort}.log`)
-        await runCmd(`iptables -t nat -D PREROUTING -p tcp --dport ${proxyPort} -j REDIRECT --to-ports ${proxyPort} 2>/dev/null || true`)
+        await runCmd(`pkill -9 -f "socat.*:${proxyPort}" 2>/dev/null || true`)
+        await runCmd(`pid=$(ss -lptn "sport = :${proxyPort}" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2); [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true`)
+        await runCmd(`rm -f /tmp/ont-proxy-${proxyPort}.js /tmp/ont-remote-${proxyPort}.log`)
         await runCmd(`ufw delete allow ${proxyPort}/tcp 2>/dev/null || true`)
       } catch { /* ignore */ }
     }
