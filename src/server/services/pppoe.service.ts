@@ -870,6 +870,20 @@ export async function deletePppoeUser(
     }
   }
 
+  // Clean up any unpaid / pending / overdue invoices of this deleted user
+  try {
+    await prisma.invoice.deleteMany({
+      where: {
+        OR: [
+          { userId: id, status: { in: ['PENDING', 'OVERDUE'] } },
+          { customerUsername: user.username, status: { in: ['PENDING', 'OVERDUE'] } },
+        ],
+      },
+    });
+  } catch (invErr) {
+    console.error('Clean up user unpaid invoices error:', invErr);
+  }
+
   await prisma.pppoeUser.delete({ where: { id } });
 
   // Activity log
