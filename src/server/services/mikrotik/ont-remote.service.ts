@@ -276,41 +276,62 @@ const listenPort      = ${proxyPort};
 const mikrotikVpnIp   = '${mikrotikVpnIp}';
 const ontIp           = '${pureOntIp}';
 const correctHost     = '${correctHostHeader}';
+const targetPort      = ${targetPort};
+const isPort80        = (targetPort === 80);   // ZTE Boa 0.94 strict mode
 const logFile         = '/tmp/ont-remote-' + listenPort + '.log';
 
 function log(msg) {
   const line = '[' + new Date().toISOString().substring(11, 19) + '] ' + msg;
-  console.log(line);
   try { fs.appendFileSync(logFile, line + '\\n'); } catch (_) {}
-}
-
-// Strip one specific header line (case-insensitive) from raw header block string
-function stripHeader(headers, name) {
-  return headers.replace(new RegExp('^' + name + ':[^\\r\\n]*\\r?\\n', 'im'), '');
 }
 
 // Replace the Host header value in the raw HTTP header block
 function patchHostHeader(rawHeaders) {
-  // Replace existing Host line
   if (/^Host:/im.test(rawHeaders)) {
     return rawHeaders.replace(/^(Host:).*$/im, '$1 ' + correctHost);
   }
-  // Insert Host after the request line if somehow missing
-  return rawHeaders.replace(/\\r?\\n/, '\\r\\nHost: ' + correctHost);
+  return rawHeaders;
 }
 
-// Remove headers that confuse strict HTTP/1.0 servers like ZTE Boa 0.94
+// Sanitize HTTP headers before forwarding to ONT modem.
+// Port 80 (ZTE Boa 0.94): ALLOW-LIST — keep ONLY Host, Connection: close, and Content-* for POST.
+//   Boa has a hard header-size limit (~200 bytes). Chrome sends ~400+ bytes of headers by default.
+//   Stripping just a few headers is not enough — must use allow-list.
+// Other ports (SK Modem 8080, etc.): DENY-LIST — strip known-problematic headers only.
 function sanitizeHeaders(rawHeaders) {
+  if (isPort80) {
+    // === ZTE Boa 0.94 strict mode ===
+    // Extract request line (first line: GET / HTTP/1.1)
+    const crlfIdx = rawHeaders.search(/\\r?\\n/);
+    if (crlfIdx === -1) return rawHeaders;
+    const requestLine = rawHeaders.substring(0, crlfIdx);
+
+    // Find Content-Type and Content-Length if present (needed for POST login form)
+    const ctMatch  = rawHeaders.match(/^Content-Type:[^\\r\\n]*/im);
+    const clMatch  = rawHeaders.match(/^Content-Length:[^\\r\\n]*/im);
+    const cookieMt = rawHeaders.match(/^Cookie:[^\\r\\n]*/im);
+
+    // Rebuild with absolute minimum: request line + Host + Connection: close
+    let minimal = requestLine + '\\r\\n'
+                + 'Host: ' + correctHost + '\\r\\n'
+                + 'Connection: close';
+    if (ctMatch)  minimal += '\\r\\n' + ctMatch[0];
+    if (clMatch)  minimal += '\\r\\n' + clMatch[0];
+    if (cookieMt) minimal += '\\r\\n' + cookieMt[0];
+    return minimal;
+  }
+
+  // === Lenient mode for custom ports (SK Modem, etc.) ===
   let h = patchHostHeader(rawHeaders);
-  h = stripHeader(h, 'Accept-Encoding');        // Boa cannot handle gzip/deflate
-  h = stripHeader(h, 'Upgrade-Insecure-Requests');
-  h = stripHeader(h, 'Sec-Fetch-Site');
-  h = stripHeader(h, 'Sec-Fetch-Mode');
-  h = stripHeader(h, 'Sec-Fetch-User');
-  h = stripHeader(h, 'Sec-Fetch-Dest');
-  h = stripHeader(h, 'Sec-Ch-Ua');
-  h = stripHeader(h, 'Sec-Ch-Ua-Mobile');
-  h = stripHeader(h, 'Sec-Ch-Ua-Platform');
+  // Strip headers known to cause issues with some ONT web servers
+  const stripList = [
+    'Accept-Encoding', 'Upgrade-Insecure-Requests',
+    'Sec-Fetch-Site', 'Sec-Fetch-Mode', 'Sec-Fetch-User', 'Sec-Fetch-Dest',
+    'Sec-Ch-Ua', 'Sec-Ch-Ua-Mobile', 'Sec-Ch-Ua-Platform',
+  ];
+  for (const name of stripList) {
+    h = h.replace(new RegExp('^' + name + ':[^\\r\\n]*\\r?\\n', 'im'), '');
+  }
   return h;
 }
 
