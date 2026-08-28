@@ -305,25 +305,82 @@ const server = net.createServer((client) => {
   });
   upstream.on('close', () => client.destroy());
 
-  // Client (Browser) -> Upstream (ONT) : Patch Host header in every incoming HTTP packet
+  // Client (Browser) -> Upstream (ONT) : Stateful header buffer & Host/Origin patcher
+  let clientBuf = Buffer.alloc(0);
+  let inHeaders = true;
+
   client.on('data', (chunk) => {
-    let data = chunk;
-
-    // Use latin1 encoding to safely inspect and modify HTTP header text without corrupting any binary payloads
-    const str = chunk.toString('latin1');
-    if (/^(GET|POST|HEAD|PUT|DELETE|OPTIONS)\\s/m.test(str)) {
-      let patched = str.replace(/^Host:[^\\r\\n]*/im, 'Host: ' + correctHost);
-      patched = patched.replace(/^Origin:\\s*https?:\\/\\/[^\\r\\n]*/im, 'Origin: http://' + correctHost);
-      patched = patched.replace(/^Referer:\\s*https?:\\/\\/[^\\r\\n\\/?#]+/im, 'Referer: http://' + correctHost);
-
-      log('→ ' + str.split('\\n')[0].trim() + ' [Host: ' + correctHost + ']');
-      data = Buffer.from(patched, 'latin1');
+    if (!inHeaders) {
+      // Body payload or subsequent binary chunks
+      if (upstreamReady && !upstream.destroyed) {
+        upstream.write(chunk);
+      } else {
+        pendingToUpstream.push(chunk);
+      }
+      return;
     }
 
+    clientBuf = Buffer.concat([clientBuf, chunk]);
+
+    // Detect end of HTTP headers (\r\n\r\n or \n\n)
+    let headerEndIdx = clientBuf.indexOf(Buffer.from([0x0d, 0x0a, 0x0d, 0x0a]));
+    let delimLen = 4;
+    if (headerEndIdx === -1) {
+      headerEndIdx = clientBuf.indexOf(Buffer.from([0x0a, 0x0a]));
+      delimLen = 2;
+    }
+
+    if (headerEndIdx === -1) {
+      // Waiting for complete headers (safety limit 32KB)
+      if (clientBuf.length > 32768) {
+        inHeaders = false;
+        if (upstreamReady && !upstream.destroyed) {
+          upstream.write(clientBuf);
+        } else {
+          pendingToUpstream.push(clientBuf);
+        }
+        clientBuf = Buffer.alloc(0);
+      }
+      return;
+    }
+
+    // Complete HTTP header block received
+    const rawHeaderBytes = clientBuf.slice(0, headerEndIdx);
+    const bodyBytes = clientBuf.slice(headerEndIdx + delimLen);
+
+    // Use latin1 encoding to safely inspect & modify HTTP headers without binary distortion
+    let headerStr = rawHeaderBytes.toString('latin1');
+
+    // 1. Rewrite Host header to internal ONT IP (ZTE / thttpd virtual host check)
+    headerStr = headerStr.replace(/^Host:[^\\r\\n]*/im, 'Host: ' + correctHost);
+
+    // 2. Rewrite Origin & Referer (ZTE CSRF checks)
+    headerStr = headerStr.replace(/^Origin:\\s*https?:\\/\\/[^\\r\\n]*/im, 'Origin: http://' + correctHost);
+    headerStr = headerStr.replace(/^Referer:\\s*https?:\\/\\/[^\\r\\n\\/?#]+/im, 'Referer: http://' + correctHost);
+
+    // 3. Strip modern browser headers that overflow thttpd / boa header buffers (~1KB limit)
+    headerStr = headerStr.replace(/^Upgrade-Insecure-Requests:[^\\r\\n]*\\r?\\n?/im, '');
+    headerStr = headerStr.replace(/^Sec-Fetch-[^\\r\\n]*\\r?\\n?/gim, '');
+    headerStr = headerStr.replace(/^Sec-Ch-Ua[^\\r\\n]*\\r?\\n?/gim, '');
+
+    // 4. Clean trailing line breaks
+    headerStr = headerStr.replace(/[\\r\\n]+$/, '');
+
+    log('→ ' + headerStr.split('\\n')[0].trim() + ' [Host: ' + correctHost + ' | Headers: ' + headerStr.length + 'b]');
+
+    // Reconstruct clean HTTP packet: Header + \r\n\r\n + Body
+    const newPacket = Buffer.concat([
+      Buffer.from(headerStr + '\\r\\n\\r\\n', 'latin1'),
+      bodyBytes
+    ]);
+
+    inHeaders = false;
+    clientBuf = Buffer.alloc(0);
+
     if (upstreamReady && !upstream.destroyed) {
-      upstream.write(data);
+      upstream.write(newPacket);
     } else {
-      pendingToUpstream.push(data);
+      pendingToUpstream.push(newPacket);
     }
   });
 
