@@ -116,7 +116,8 @@ export default function PPPoESessionsPage() {
   }
 
   const handleCopyOntUrl = (id: string, url: string) => {
-    navigator.clipboard.writeText(url)
+    const fullUrl = url.startsWith('/') && typeof window !== 'undefined' ? `${window.location.origin}${url}` : url
+    navigator.clipboard.writeText(fullUrl)
     setCopiedOntId(id)
     addToast({ type: 'info', title: 'Tersalin', description: 'Link remote Web ONT disalin ke clipboard.' })
     setTimeout(() => setCopiedOntId(null), 2500)
@@ -790,7 +791,9 @@ export default function PPPoESessionsPage() {
                         </div>
                         <div className="flex items-center justify-between text-muted-foreground">
                           <span>URL Akses:</span>
-                          <span className="font-semibold text-primary underline truncate max-w-[170px]">{s.proxyUrl}</span>
+                          <span className="font-semibold text-primary underline truncate max-w-[170px]" title={s.proxyUrl.startsWith('/') && typeof window !== 'undefined' ? `${window.location.origin}${s.proxyUrl}` : s.proxyUrl}>
+                            {s.proxyUrl.startsWith('/') && typeof window !== 'undefined' ? `${window.location.origin}${s.proxyUrl}` : s.proxyUrl}
+                          </span>
                         </div>
                       </div>
 

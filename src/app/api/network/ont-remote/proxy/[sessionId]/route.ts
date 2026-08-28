@@ -85,12 +85,33 @@ async function handleProxy(
   const isHttps = targetPort === 443
   const ontIp = ontSession.targetIp
   const proxyPort = ontSession.proxyPort
+  const pureOntIp = ontIp.replace(/:\d+$/, '')
+  const correctHost = targetPort === 80 ? pureOntIp : `${pureOntIp}:${targetPort}`
 
   let routerVpnIp = '10.200.0.2'
   try {
-    const router = await prisma.router.findFirst({ where: { isActive: true } })
-    if (router?.ipAddress || router?.nasname) {
-      routerVpnIp = router.ipAddress || router.nasname
+    if (ontSession.customerId) {
+      const u = await prisma.pppoeUser.findUnique({
+        where: { id: ontSession.customerId },
+        select: { router: { select: { ipAddress: true, nasname: true } } },
+      })
+      if (u?.router?.ipAddress || u?.router?.nasname) {
+        routerVpnIp = u.router.ipAddress || u.router.nasname
+      }
+    } else if (ontSession.username) {
+      const u = await prisma.pppoeUser.findUnique({
+        where: { username: ontSession.username },
+        select: { router: { select: { ipAddress: true, nasname: true } } },
+      })
+      if (u?.router?.ipAddress || u?.router?.nasname) {
+        routerVpnIp = u.router.ipAddress || u.router.nasname
+      }
+    }
+    if (routerVpnIp === '10.200.0.2') {
+      const router = await prisma.router.findFirst({ where: { isActive: true } })
+      if (router?.ipAddress || router?.nasname) {
+        routerVpnIp = router.ipAddress || router.nasname
+      }
     }
   } catch {
     // default fallback
@@ -113,13 +134,13 @@ async function handleProxy(
 
   // 4. Build outgoing headers
   const outgoingHeaders: Record<string, string> = {
-    'Host': targetPort === 80 ? ontIp : `${ontIp}:${targetPort}`,
+    'Host': correctHost,
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
     'Accept': request.headers.get('accept') || '*/*',
-    'Accept-Language': 'id,en-US;q=0.9,en;q=0.8',
+    'Accept-Language': request.headers.get('accept-language') || 'id,en-US;q=0.9,en;q=0.8',
     'Connection': 'close',
-    'Referer': `${isHttps ? 'https://' : 'http://'}${ontIp}/`,
-    'Origin': `${isHttps ? 'https://' : 'http://'}${ontIp}`,
+    'Referer': `${isHttps ? 'https://' : 'http://'}${correctHost}/`,
+    'Origin': `${isHttps ? 'https://' : 'http://'}${correctHost}`,
   }
 
   if (request.headers.get('content-type')) {
@@ -140,7 +161,6 @@ async function handleProxy(
 
   // 5. Execute HTTP request
   const client = isHttps ? https : http
-  const agent = isHttps ? httpsAgent : httpAgent
 
   return new Promise<NextResponse>((resolve) => {
     const options: any = {
@@ -149,8 +169,9 @@ async function handleProxy(
       path: fullTargetPath,
       method: request.method,
       headers: outgoingHeaders,
+      setHost: false, // Prevents Node http from rewriting custom Host header
       agent: false,
-      timeout: 10000,
+      timeout: 15000,
       rejectUnauthorized: false,
     }
 

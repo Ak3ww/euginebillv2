@@ -109,27 +109,7 @@ export async function POST(request: NextRequest) {
     // 2. Allocate free port
     const proxyPort = await getNextAvailableProxyPort()
 
-    // 3. Build proxy URL (Always use VPS raw Public IP to bypass Cloudflare and prevent browser HSTS/SSL error)
-    const hostHeader = request.headers.get('host') || ''
-    const currentDomain = hostHeader.split(':')[0]
-    const isPublicIp = /^\d+\.\d+\.\d+\.\d+$/.test(currentDomain)
-
-    let resolvedPublicIp = isPublicIp ? currentDomain : ''
-    if (!resolvedPublicIp) {
-      const vpnServer = await prisma.vpnServer.findFirst({
-        where: { isActive: true },
-        select: { host: true },
-      })
-      if (vpnServer?.host && /^\d+\.\d+\.\d+\.\d+$/.test(vpnServer.host)) {
-        resolvedPublicIp = vpnServer.host
-      }
-    }
-    if (!resolvedPublicIp) {
-      resolvedPublicIp = process.env.VPS_PUBLIC_IP || process.env.VPS_HOST || '43.173.14.236'
-    }
-
-    const proxyUrl = `http://${resolvedPublicIp}:${proxyPort}`
-
+    // 3. Build proxy URL using dedicated Next.js HTTPS proxy route (Opens 100% original modem UI directly in new tab)
     const expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_MINUTES * 60 * 1000)
 
     // 4. Save session as PENDING
@@ -142,14 +122,22 @@ export async function POST(request: NextRequest) {
         targetIp: ontIp,         // ONT's actual PPPoE IP
         targetPort: parsedTargetPort,
         proxyPort,
-        proxyUrl,
+        proxyUrl: '',            // Will be set below with session ID
         status: 'PENDING',
         expiresAt,
       },
     })
     ontSessionId = ontSession.id
 
-    // 5. Setup socat on VPS + MikroTik NAT rules
+    const proxyUrl = `/api/network/ont-remote/proxy/${ontSession.id}/`
+
+    // Update with final proxyUrl
+    await prisma.ontRemoteSession.update({
+      where: { id: ontSession.id },
+      data: { proxyUrl },
+    })
+
+    // 5. Setup proxy on VPS + MikroTik NAT rules
     const setupResult = await OntRemoteService.setupOntRemoteRules({
       sessionId: ontSession.id,
       routerId: resolved.routerId,

@@ -167,7 +167,8 @@ export default function OntRemoteModal({
 
   const handleCopy = () => {
     if (!proxyUrl) return
-    navigator.clipboard.writeText(proxyUrl)
+    const fullUrl = proxyUrl.startsWith('/') ? `${window.location.origin}${proxyUrl}` : proxyUrl
+    navigator.clipboard.writeText(fullUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
     showSuccess('Link URL berhasil disalin!')
@@ -272,7 +273,11 @@ export default function OntRemoteModal({
                     URL Akses Langsung (Buka dari browser/jaringan apa saja tanpa VPN):
                   </p>
                   <div className="p-2.5 bg-background border border-border rounded-lg font-mono text-xs text-primary font-bold break-all flex items-center justify-between gap-2">
-                    <span className="truncate">{proxyUrl}</span>
+                    <span className="truncate">
+                      {typeof window !== 'undefined' && proxyUrl.startsWith('/')
+                        ? `${window.location.origin}${proxyUrl}`
+                        : proxyUrl}
+                    </span>
                     <button
                       onClick={handleCopy}
                       className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground shrink-0 transition-colors"
