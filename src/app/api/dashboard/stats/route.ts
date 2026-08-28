@@ -370,7 +370,7 @@ export async function GET(request: NextRequest) {
             status: 'PAID',
             OR: [
               { paidAt: { gte: startOfMonth, lt: startOfNextMonth } },
-              { dueDate: { gte: startOfMonth, lt: startOfNextMonth } },
+              { paidAt: null, updatedAt: { gte: startOfMonth, lt: startOfNextMonth } },
             ],
           },
           _sum: { amount: true },
@@ -380,7 +380,7 @@ export async function GET(request: NextRequest) {
             status: 'PAID',
             OR: [
               { paidAt: { gte: startOfMonth, lt: startOfNextMonth } },
-              { dueDate: { gte: startOfMonth, lt: startOfNextMonth } },
+              { paidAt: null, updatedAt: { gte: startOfMonth, lt: startOfNextMonth } },
             ],
           },
         }),

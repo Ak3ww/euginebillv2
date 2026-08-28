@@ -89,20 +89,35 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Month filter — applies to dueDate to accurately reflect billing period
-    if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
-      const [y, m] = monthParam.split('-').map(Number);
-      const start = startOfDayWIBtoUTC(new Date(Date.UTC(y, m - 1, 1)));
-      const end = endOfDayWIBtoUTC(new Date(Date.UTC(y, m, 0))); // last day of month
-      where.dueDate = { gte: start, lte: end };
-    }
-
+    // Status filter
     if (status && status !== 'all') {
-      // UNPAID atau PENDING mencakup PENDING dan OVERDUE
       if (status === 'UNPAID' || status === 'PENDING') {
         where.status = { in: ['PENDING', 'OVERDUE'] };
       } else {
         where.status = status;
+      }
+    }
+
+    // Month filter — for PAID invoices, filters by payment date (paidAt) matching Keuangan & Dashboard cashflow;
+    // for UNPAID invoices, filters by dueDate
+    if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+      const [y, m] = monthParam.split('-').map(Number);
+      const start = startOfDayWIBtoUTC(new Date(Date.UTC(y, m - 1, 1)));
+      const end = endOfDayWIBtoUTC(new Date(Date.UTC(y, m, 0))); // last day of month
+
+      if (status === 'PAID') {
+        where.OR = [
+          { paidAt: { gte: start, lte: end } },
+          { paidAt: null, updatedAt: { gte: start, lte: end } },
+        ];
+      } else if (status === 'UNPAID' || status === 'PENDING' || status === 'OVERDUE') {
+        where.dueDate = { gte: start, lte: end };
+      } else {
+        where.OR = [
+          { status: 'PAID', paidAt: { gte: start, lte: end } },
+          { status: 'PAID', paidAt: null, updatedAt: { gte: start, lte: end } },
+          { status: { in: ['PENDING', 'OVERDUE'] }, dueDate: { gte: start, lte: end } },
+        ];
       }
     }
 
@@ -133,11 +148,21 @@ export async function GET(request: NextRequest) {
       const rUserIds = routerUsers.map(u => u.id);
       const rUsernames = routerUsers.map(u => u.username);
 
-      where.OR = [
+      const routerFilterConditions = [
         { userId: { in: rUserIds } },
         { customerUsername: { in: rUsernames } },
         { user: { routerId } },
       ];
+
+      if (where.OR) {
+        where.AND = [
+          { OR: where.OR },
+          { OR: routerFilterConditions },
+        ];
+        delete where.OR;
+      } else {
+        where.OR = routerFilterConditions;
+      }
     }
 
     // Filter by Wilayah/Area — via user.area.id
@@ -297,10 +322,36 @@ export async function GET(request: NextRequest) {
     // Clean where condition for router summaries (excluding routerId filter)
     const baseFilterWhere = { ...where };
     delete baseFilterWhere.user;
+    delete baseFilterWhere.userId;
+    delete baseFilterWhere.customerUsername;
+    delete baseFilterWhere.AND;
 
     const routerSummaries = await Promise.all(
       allRouters.map(async (r) => {
-        const routerWhere = { ...baseFilterWhere, user: { routerId: r.id } };
+        const routerUsers = await prisma.pppoeUser.findMany({
+          where: { routerId: r.id },
+          select: { id: true, username: true },
+        });
+        const rUserIds = routerUsers.map(u => u.id);
+        const rUsernames = routerUsers.map(u => u.username);
+
+        const routerConditionList = [
+          { user: { routerId: r.id } },
+          ...(rUserIds.length > 0 ? [{ userId: { in: rUserIds } }] : []),
+          ...(rUsernames.length > 0 ? [{ customerUsername: { in: rUsernames } }] : []),
+        ];
+
+        let routerWhere: any = { ...baseFilterWhere };
+        if (baseFilterWhere.OR) {
+          routerWhere.AND = [
+            { OR: baseFilterWhere.OR },
+            { OR: routerConditionList },
+          ];
+          delete routerWhere.OR;
+        } else {
+          routerWhere.OR = routerConditionList;
+        }
+
         const [totalCount, unpaidCount, paidCount, unpaidSum, paidSum] = await Promise.all([
           prisma.invoice.count({ where: routerWhere }),
           prisma.invoice.count({ where: { ...routerWhere, status: { in: ['PENDING', 'OVERDUE'] } } }),
@@ -323,13 +374,37 @@ export async function GET(request: NextRequest) {
     );
 
     // Also compute summary for invoices with no assigned router / user without router (for 100% accounting match)
-    const unassignedWhere = {
-      ...baseFilterWhere,
-      OR: [
-        { user: { routerId: null } },
-        { user: null },
-      ],
-    };
+    const assignedUsers = await prisma.pppoeUser.findMany({
+      where: { routerId: { not: null } },
+      select: { id: true, username: true },
+    });
+    const assignedIdList = assignedUsers.map(u => u.id);
+    const assignedUsernameList = assignedUsers.map(u => u.username);
+
+    const unassignedConditionList: any[] = [
+      { user: { routerId: null } },
+      { user: null },
+    ];
+    const unassignedExclusions: any[] = [
+      ...(assignedIdList.length > 0 ? [{ userId: { notIn: assignedIdList } }] : []),
+      ...(assignedUsernameList.length > 0 ? [{ customerUsername: { notIn: assignedUsernameList } }] : []),
+    ];
+
+    let unassignedWhere: any = { ...baseFilterWhere };
+    if (baseFilterWhere.OR) {
+      unassignedWhere.AND = [
+        { OR: baseFilterWhere.OR },
+        { OR: unassignedConditionList },
+        ...unassignedExclusions,
+      ];
+      delete unassignedWhere.OR;
+    } else {
+      unassignedWhere.AND = [
+        { OR: unassignedConditionList },
+        ...unassignedExclusions,
+      ];
+    }
+
     const [unassignedTotal, unassignedUnpaid, unassignedPaid, unassignedUnpaidSum, unassignedPaidSum] = await Promise.all([
       prisma.invoice.count({ where: unassignedWhere }),
       prisma.invoice.count({ where: { ...unassignedWhere, status: { in: ['PENDING', 'OVERDUE'] } } }),
