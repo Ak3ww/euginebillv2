@@ -262,8 +262,8 @@ export class OntRemoteService {
 
         const proxyScriptContent = `
 'use strict';
-const http = require('http');
-const fs   = require('fs');
+const net = require('net');
+const fs  = require('fs');
 
 const listenPort    = ${proxyPort};
 const mikrotikVpnIp = '${mikrotikVpnIp}';
@@ -278,92 +278,60 @@ function log(msg) {
   try { fs.appendFileSync(logFile, line + '\\n'); } catch (_) {}
 }
 
-const server = http.createServer((req, res) => {
-  log('INCOMING ' + req.method + ' ' + req.url + ' from ' + (req.socket.remoteAddress || ''));
+const server = net.createServer((client) => {
+  client.setNoDelay(true);
 
-  // 1. Prepare forward headers
-  const fwdHeaders = Object.assign({}, req.headers);
+  // Connect to MikroTik upstream
+  const upstream = net.connect(listenPort, mikrotikVpnIp);
+  upstream.setNoDelay(true);
 
-  // Host header MUST match the ONT internal IP (ZTE / thttpd rejects external hostnames)
-  fwdHeaders['host'] = correctHost;
+  let upstreamReady = false;
+  const pendingToUpstream = [];
 
-  // Rewrite Origin & Referer so ONT CSRF / Origin checks pass
-  if (fwdHeaders['origin']) {
-    fwdHeaders['origin'] = 'http://' + correctHost;
-  }
-  if (fwdHeaders['referer']) {
-    fwdHeaders['referer'] = fwdHeaders['referer'].replace(/^https?:\\/\\/[^\\/]+/i, 'http://' + correctHost);
-  }
-
-  // Strip modern browser security headers that confuse older embedded web servers
-  delete fwdHeaders['upgrade-insecure-requests'];
-  delete fwdHeaders['sec-fetch-site'];
-  delete fwdHeaders['sec-fetch-mode'];
-  delete fwdHeaders['sec-fetch-user'];
-  delete fwdHeaders['sec-fetch-dest'];
-  delete fwdHeaders['sec-ch-ua'];
-  delete fwdHeaders['sec-ch-ua-mobile'];
-  delete fwdHeaders['sec-ch-ua-platform'];
-
-  // Keep connections clean per-request for embedded servers
-  fwdHeaders['connection'] = 'close';
-
-  const reqOptions = {
-    hostname: mikrotikVpnIp,
-    port: listenPort, // MikroTik DST-NAT redirects listenPort -> targetPort
-    path: req.url,
-    method: req.method,
-    headers: fwdHeaders,
-    setHost: false,   // Crucial: keep our custom Host header intact
-    agent: false,     // Disable keep-alive agent pooling
-    timeout: 15000,
-  };
-
-  const proxyReq = http.request(reqOptions, (proxyRes) => {
-    log('ONT RESPONSE: ' + proxyRes.statusCode + ' for ' + req.method + ' ' + req.url);
-
-    const resHeaders = Object.assign({}, proxyRes.headers);
-
-    // Rewrite Location header if ONT returns absolute redirect (e.g. http://192.168.20.113/login.html)
-    if (resHeaders['location']) {
-      const originalLoc = resHeaders['location'];
-      resHeaders['location'] = originalLoc.replace(/^https?:\\/\\/[^\\/]+/i, '');
-      if (!resHeaders['location'].startsWith('/')) {
-        resHeaders['location'] = '/' + resHeaders['location'];
-      }
-      log('Rewrote Location: ' + originalLoc + ' → ' + resHeaders['location']);
-    }
-
-    // Rewrite Set-Cookie to work on VPS IP/hostname
-    if (resHeaders['set-cookie']) {
-      const fixCookie = (c) =>
-        c.replace(/domain=[^;]+;?/gi, '')
-         .replace(/SameSite=Strict/gi, 'SameSite=Lax');
-      if (Array.isArray(resHeaders['set-cookie'])) {
-        resHeaders['set-cookie'] = resHeaders['set-cookie'].map(fixCookie);
-      } else if (typeof resHeaders['set-cookie'] === 'string') {
-        resHeaders['set-cookie'] = fixCookie(resHeaders['set-cookie']);
-      }
-    }
-
-    res.writeHead(proxyRes.statusCode || 200, resHeaders);
-    proxyRes.pipe(res, { end: true });
-  });
-
-  proxyReq.on('error', (err) => {
-    log('Proxy forward error: ' + err.message);
-    if (!res.headersSent) {
-      res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end('<!DOCTYPE html><html><head><title>502 Bad Gateway</title></head><body style="font-family:sans-serif;padding:30px;background:#0f172a;color:#f8fafc;text-align:center;"><div style="max-width:500px;margin:50px auto;background:#1e293b;padding:30px;border-radius:16px;"><h2>502 Bad Gateway</h2><p>Gagal menghubungi modem ONT di <b>' + ontIp + '</b> via MikroTik <b>' + mikrotikVpnIp + '</b>.</p><p style="color:#94a3b8;font-size:13px;">' + err.message + '</p></div></body></html>');
+  upstream.on('connect', () => {
+    upstreamReady = true;
+    log('Upstream connected → ' + mikrotikVpnIp + ':' + listenPort);
+    while (pendingToUpstream.length > 0) {
+      upstream.write(pendingToUpstream.shift());
     }
   });
 
-  proxyReq.on('timeout', () => {
-    log('Proxy request timeout for ' + req.url);
-    proxyReq.destroy(new Error('Timeout'));
+  // Upstream (ONT response) -> Client (Browser) : 100% raw untouched passthrough (Original UI & CSS/JS/Cookies)
+  upstream.pipe(client);
+
+  upstream.on('error', (err) => {
+    log('Upstream error: ' + err.message);
+    client.destroy();
+  });
+  upstream.on('close', () => client.destroy());
+
+  // Client (Browser) -> Upstream (ONT) : Patch Host header in every incoming HTTP packet
+  client.on('data', (chunk) => {
+    let data = chunk;
+
+    // Use latin1 encoding to safely inspect and modify HTTP header text without corrupting any binary payloads
+    const str = chunk.toString('latin1');
+    if (/^(GET|POST|HEAD|PUT|DELETE|OPTIONS)\\s/m.test(str)) {
+      let patched = str.replace(/^Host:[^\\r\\n]*/im, 'Host: ' + correctHost);
+      patched = patched.replace(/^Origin:\\s*https?:\\/\\/[^\\r\\n]*/im, 'Origin: http://' + correctHost);
+      patched = patched.replace(/^Referer:\\s*https?:\\/\\/[^\\r\\n\\/?#]+/im, 'Referer: http://' + correctHost);
+
+      log('→ ' + str.split('\\n')[0].trim() + ' [Host: ' + correctHost + ']');
+      data = Buffer.from(patched, 'latin1');
+    }
+
+    if (upstreamReady && !upstream.destroyed) {
+      upstream.write(data);
+    } else {
+      pendingToUpstream.push(data);
+    }
   });
 
-  req.pipe(proxyReq, { end: true });
+  client.on('error', (err) => {
+    log('Client socket error: ' + err.message);
+    upstream.destroy();
+  });
+  client.on('close', () => upstream.destroy());
 });
 
 server.on('error', (err) => {
@@ -372,7 +340,7 @@ server.on('error', (err) => {
 });
 
 server.listen(listenPort, '0.0.0.0', () => {
-  log('ONT-Proxy READY on 0.0.0.0:' + listenPort + ' → ' + mikrotikVpnIp + ':' + listenPort + ' (ONT: ' + ontIp + ', Host: ' + correctHost + ')');
+  log('ONT-Proxy RAW TCP READY on 0.0.0.0:' + listenPort + ' → ' + mikrotikVpnIp + ':' + listenPort + ' (Host: ' + correctHost + ')');
 });
 `
         const scriptPath = `/tmp/ont-proxy-${proxyPort}.js`
