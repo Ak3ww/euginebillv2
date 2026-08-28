@@ -427,7 +427,7 @@ server.listen(listenPort, '0.0.0.0', () => {
         }
       } catch { /* ignore cleanup errors */ }
 
-      // Rule 1: DST-NAT — redirect incoming proxyPort traffic from VPS proxy to ONT IP
+      // Rule 1: DST-NAT — redirect incoming proxyPort traffic from VPS proxy to ONT IP (at top of NAT table)
       await api.write('/ip/firewall/nat/add', [
         '=chain=dstnat',
         '=protocol=tcp',
@@ -435,16 +435,17 @@ server.listen(listenPort, '0.0.0.0', () => {
         '=action=dst-nat',
         `=to-addresses=${ontIp}`,
         `=to-ports=${targetPort}`,
+        '=place-before=0',
         `=comment=${comment}`,
       ])
 
-      // Rule 2: SRC-NAT masquerade — so ONT sees MikroTik as source (response returns correctly)
+      // Rule 2: SRC-NAT masquerade — so ONT sees MikroTik as source (at top of NAT table)
       await api.write('/ip/firewall/nat/add', [
         '=chain=srcnat',
         '=protocol=tcp',
         `=dst-address=${ontIp}`,
-        `=dst-port=${targetPort}`,
         '=action=masquerade',
+        '=place-before=0',
         `=comment=${comment} srcnat`,
       ])
 
