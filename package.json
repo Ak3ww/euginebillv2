@@ -106,6 +106,7 @@
     "react-is": "^19.2.4",
     "react-leaflet": "^5.0.0",
     "react-leaflet-cluster": "^4.0.0",
+    "react-notion-avatar": "^1.1.12",
     "recharts": "^3.3.0",
     "server-only": "^0.0.1",
     "ssh2": "^1.17.0",

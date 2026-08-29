@@ -11,7 +11,7 @@ interface Testimonial {
   location: string
   quote: string
   rating: number
-  avatarBg: string
+  avatarUrl: string
   badgeBg: string
 }
 
@@ -26,7 +26,7 @@ const testimonials: Testimonial[] = [
     quote:
       'Internet stabil banget, nonton YouTube dan streaming 4K tidak pernah buffering. Harganya juga sangat terjangkau untuk kualitas segini!',
     rating: 5,
-    avatarBg: 'bg-gradient-to-br from-[#002c60] to-[#1b437c] text-white',
+    avatarUrl: '/avatars/avatar_budi.svg',
     badgeBg: 'bg-[#002c60]/10 text-[#002c60]',
   },
   {
@@ -39,7 +39,7 @@ const testimonials: Testimonial[] = [
     quote:
       'Koneksi bisnis warung saya sekarang jadi lebih lancar. Bisa terima transfer, upload foto menu tanpa masalah. Tim teknisinya juga ramah dan cepat!',
     rating: 5,
-    avatarBg: 'bg-gradient-to-br from-rose-500 to-pink-600 text-white',
+    avatarUrl: '/avatars/avatar_siti.svg',
     badgeBg: 'bg-rose-50 text-rose-700 border border-rose-200/60',
   },
   {
@@ -52,7 +52,7 @@ const testimonials: Testimonial[] = [
     quote:
       'Gaming online makin seru! Ping rendah, koneksi stabil. Belajar online via Zoom juga tidak pernah putus. Recommended banget buat anak kos!',
     rating: 5,
-    avatarBg: 'bg-gradient-to-br from-[#0284c7] to-[#002c60] text-white',
+    avatarUrl: '/avatars/avatar_doni.svg',
     badgeBg: 'bg-sky-50 text-sky-700 border border-sky-200/60',
   },
   {
@@ -65,7 +65,7 @@ const testimonials: Testimonial[] = [
     quote:
       'Pasangnya gampang, teknisinya datang tepat waktu dan sangat sopan. Anak-anak sekarang bisa belajar online dengan lancar dari rumah. Terima kasih!',
     rating: 5,
-    avatarBg: 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white',
+    avatarUrl: '/avatars/avatar_rina.svg',
     badgeBg: 'bg-emerald-50 text-emerald-700 border border-emerald-200/60',
   },
   {
@@ -78,7 +78,7 @@ const testimonials: Testimonial[] = [
     quote:
       'Kerja dari rumah jadi tenang tanpa takut koneksi putus pas meeting penting. Response tim support WhatsApp-nya juga gercep banget saat ada kendala!',
     rating: 5,
-    avatarBg: 'bg-gradient-to-br from-indigo-600 to-[#002c60] text-white',
+    avatarUrl: '/avatars/avatar_hendra.svg',
     badgeBg: 'bg-indigo-50 text-indigo-700 border border-indigo-200/60',
   },
   {
@@ -91,7 +91,7 @@ const testimonials: Testimonial[] = [
     quote:
       'Sangat membantu usaha jualan online saya. Live streaming jualan di TikTok lancar jaya, pelanggan juga tidak pernah komplain soal koneksi!',
     rating: 5,
-    avatarBg: 'bg-gradient-to-br from-fuchsia-500 to-purple-600 text-white',
+    avatarUrl: '/avatars/avatar_dewi.svg',
     badgeBg: 'bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-200/60',
   },
 ]
@@ -117,12 +117,6 @@ export default function TestimonialsSection() {
         {/* Testimonials Grid (3 columns on large screens, 2 on medium) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {testimonials.map((item) => {
-            const initials = item.name
-              .split(' ')
-              .map((n) => n[0])
-              .join('')
-              .slice(0, 2)
-
             return (
               <div
                 key={item.id}
@@ -146,11 +140,9 @@ export default function TestimonialsSection() {
                 {/* User Info & Plan Badge */}
                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    {/* Clean Pure Notion-Style Avatar Initials without any icon overlays */}
-                    <div
-                      className={`w-10 h-10 rounded-full ${item.avatarBg} font-bold text-xs tracking-wider flex items-center justify-center shadow-sm flex-shrink-0`}
-                    >
-                      {initials}
+                    {/* Notion-Style Avatar SVG */}
+                    <div className="w-11 h-11 rounded-full overflow-hidden border border-slate-200/80 shadow-sm flex-shrink-0 bg-slate-50">
+                      <img src={item.avatarUrl} alt={item.name} className="w-full h-full object-cover" />
                     </div>
 
                     <div>
