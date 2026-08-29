@@ -49,7 +49,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Tagihan tidak ditemukan' }, { status: 404 });
     }
 
-    const phone = invoice.customerPhone || invoice.user?.phone;
+    // Prioritize active user's phone number over the snapshot invoice.customerPhone
+    const phone = (invoice.user?.phone || invoice.customerPhone || '').trim();
     if (!phone) {
       return NextResponse.json({ success: false, error: 'Nomor WhatsApp pelanggan tidak tersedia' }, { status: 400 });
     }
@@ -64,11 +65,22 @@ export async function POST(request: NextRequest) {
       (invoice as any).paymentChannel ||
       'MANUAL';
 
-    const customerName = invoice.customerName || invoice.user?.name || 'Pelanggan';
+    const customerName = invoice.user?.name || invoice.customerName || 'Pelanggan';
     const customerId = invoice.user?.customerId || invoice.user?.pppoeCustomerId || invoice.customerUsername || invoice.user?.username || '-';
-    const username = invoice.customerUsername || invoice.user?.username || '-';
+    const username = invoice.user?.username || invoice.customerUsername || '-';
     const profileName = invoice.user?.profile?.name || '-';
     const area = invoice.user?.area?.name || '-';
+
+    // Synchronize invoice.customerPhone and invoice.customerName if outdated
+    if (phone && (invoice.customerPhone !== phone || invoice.customerName !== customerName)) {
+      await prisma.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          customerPhone: phone,
+          customerName: customerName,
+        },
+      }).catch(() => {});
+    }
 
     // Resend payment receipt WhatsApp message
     await sendPaymentSuccess({
@@ -85,9 +97,18 @@ export async function POST(request: NextRequest) {
       newExpiredAt: invoice.paidAt || invoice.user?.expiredAt,
     });
 
+    // Record WA notification attempt in invoice
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        waNotifiedAt: new Date(),
+        waRetryCount: { increment: 1 },
+      },
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
-      message: `Struk lunas ${invoice.invoiceNumber} berhasil dikirim ulang ke ${phone}`,
+      message: `Struk lunas ${invoice.invoiceNumber} berhasil dikirim ulang ke nomor ${phone}`,
     });
   } catch (error: any) {
     console.error('[Resend Receipt Error]:', error);

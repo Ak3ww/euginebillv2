@@ -134,8 +134,53 @@ async function main() {
     }
   }
 
+  // 3. Sinkronisasi nomor HP & Nama pelanggan ke semua Invoice & Work Order yang tertaut
+  console.log('\n=== MENYINKRONKAN NOMOR HP PELANGGAN KE INVOICE & SPK ===');
+  const allUsers = await prisma.pppoeUser.findMany({
+    select: { id: true, name: true, phone: true, username: true },
+  });
+
+  let syncedInvoicesCount = 0;
+  for (const user of allUsers) {
+    if (user.phone) {
+      const updatedInv = await prisma.invoice.updateMany({
+        where: {
+          userId: user.id,
+          OR: [
+            { customerPhone: { not: user.phone } },
+            { customerPhone: null },
+            { customerName: { not: user.name } },
+          ],
+        },
+        data: {
+          customerPhone: user.phone,
+          customerName: user.name,
+        },
+      });
+
+      if (updatedInv.count > 0) {
+        console.log(`[SYNC HP] Pelanggan ${user.name} (${user.username}): Diperbarui ${updatedInv.count} invoice ke nomor ${user.phone}`);
+        syncedInvoicesCount += updatedInv.count;
+      }
+
+      await prisma.workOrder.updateMany({
+        where: {
+          linkedUserId: user.id,
+          OR: [
+            { customerPhone: { not: user.phone } },
+            { customerName: { not: user.name } },
+          ],
+        },
+        data: {
+          customerPhone: user.phone,
+          customerName: user.name,
+        },
+      }).catch(() => {});
+    }
+  }
+
   console.log(`\n========================================`);
-  console.log(`SELESAI: Berhasil memperbarui ${updatedCount} pelanggan menjadi status ACTIVE.`);
+  console.log(`SELESAI: Berhasil mengaktifkan ${updatedCount} pelanggan dan menyinkronkan ${syncedInvoicesCount} invoice.`);
   console.log(`========================================\n`);
 }
 

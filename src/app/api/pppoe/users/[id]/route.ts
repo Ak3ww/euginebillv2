@@ -57,6 +57,23 @@ export async function PATCH(
       where: { id: existing.id },
       data: updateData,
     });
+
+    if (phone !== undefined || name !== undefined) {
+      await prisma.invoice.updateMany({
+        where: { userId: existing.id },
+        data: {
+          ...(phone !== undefined && { customerPhone: phone }),
+          ...(name !== undefined && { customerName: name }),
+        },
+      }).catch(() => {});
+      await prisma.workOrder.updateMany({
+        where: { linkedUserId: existing.id },
+        data: {
+          ...(phone !== undefined && { customerPhone: phone }),
+          ...(name !== undefined && { customerName: name }),
+        },
+      }).catch(() => {});
+    }
     
     return ok({ success: true, user: updated });
   } catch (error) {

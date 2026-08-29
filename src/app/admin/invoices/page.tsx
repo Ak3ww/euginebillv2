@@ -281,7 +281,8 @@ export default function InvoicesPage() {
   };
 
   const handleResendReceipt = async (invoice: Invoice) => {
-    if (!invoice.customerPhone) {
+    const effectivePhone = invoice.customerPhone || (invoice as any).user?.phone;
+    if (!effectivePhone) {
       await showError('Nomor WhatsApp pelanggan tidak tersedia');
       return;
     }
@@ -293,10 +294,11 @@ export default function InvoicesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invoiceId: invoice.id }),
       });
-      if (res.ok) {
-        showToast('Struk lunas berhasil dikirim ulang', 'success');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(data.message || 'Struk lunas berhasil dikirim ulang', 'success');
+        loadInvoices();
       } else {
-        const data = await res.json();
         await showError(data.error || 'Gagal mengirim ulang struk');
       }
     } catch (error) {

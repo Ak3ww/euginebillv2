@@ -652,6 +652,28 @@ export async function updatePppoeUser(
     } as never,
   });
 
+  // If phone or name changed, sync across all related invoices and work orders
+  if (data.phone || data.name) {
+    try {
+      await prisma.invoice.updateMany({
+        where: { userId: user.id },
+        data: {
+          ...(data.phone && { customerPhone: data.phone }),
+          ...(data.name && { customerName: data.name }),
+        },
+      });
+      await prisma.workOrder.updateMany({
+        where: { linkedUserId: user.id },
+        data: {
+          ...(data.phone && { customerPhone: data.phone }),
+          ...(data.name && { customerName: data.name }),
+        },
+      });
+    } catch (syncRelErr) {
+      console.error('[updatePppoeUser] Failed syncing updated phone/name to invoices/workOrders:', syncRelErr);
+    }
+  }
+
   // RADIUS or MikroTik re-sync if critical fields changed (including status change)
   if (data.username || data.password || data.profileId || data.ipAddress !== undefined || data.routerId !== undefined || (data.status && data.status !== currentUser.status)) {
     const oldUsername = currentUser.username;
