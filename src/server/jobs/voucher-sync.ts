@@ -907,6 +907,12 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
         data: {
           invoice: typeof invoices[0]
           reminderDay: number
+          targetPhone: string
+          targetCustomerName: string
+          targetUsername?: string
+          targetCustomerId?: string
+          profileName: string
+          areaName: string
         }
       }> = []
 
@@ -945,117 +951,152 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           continue
         }
 
-        if (!invoice.customerPhone) {
-          console.log(`[Invoice Reminder] Skipped ${invoice.invoiceNumber}: No customer phone`)
-          skippedCount++
-          continue
+        // Resolve latest phone and customer name from active user model
+        const targetPhone = (invoice.user?.phone || invoice.customerPhone || '').trim();
+        const targetCustomerName = invoice.user?.name || invoice.customerName || invoice.user?.username || 'Pelanggan';
+        const targetUsername = invoice.user?.username || invoice.customerUsername || undefined;
+        const targetCustomerId = (invoice.user as any)?.customerId || undefined;
+        const profileName = (invoice.user as any)?.profile?.name || '-';
+        const areaName = (invoice.user as any)?.area?.name || '-';
+
+        if (!targetPhone) {
+          console.log(`[Invoice Reminder] Skipped ${invoice.invoiceNumber}: No customer phone`);
+          skippedCount++;
+          continue;
         }
 
-        // Add to batch queue (we'll build message later in sendFunction)
+        // Auto-sync invoice.customerPhone and invoice.customerName in DB if outdated
+        if (invoice.customerPhone !== targetPhone || invoice.customerName !== targetCustomerName) {
+          await prisma.invoice.update({
+            where: { id: invoice.id },
+            data: {
+              customerPhone: targetPhone,
+              customerName: targetCustomerName,
+            },
+          }).catch(() => {});
+        }
+
+        // Add to batch queue
         messagesToSend.push({
-          phone: invoice.customerPhone,
+          phone: targetPhone,
           message: '', // Will be built in sendFunction
-          data: { invoice, reminderDay }
-        })
+          data: {
+            invoice,
+            reminderDay,
+            targetPhone,
+            targetCustomerName,
+            targetUsername,
+            targetCustomerId,
+            profileName,
+            areaName,
+          },
+        });
       }
 
       // Send messages with rate limiting (5 msg per 10 seconds)
       if (messagesToSend.length > 0) {
-        console.log(`[Invoice Reminder] Sending ${messagesToSend.length} reminders with rate limiting...`)
+        console.log(`[Invoice Reminder] Sending ${messagesToSend.length} reminders with rate limiting...`);
 
-        const { sendWithRateLimit, estimateSendTime, formatEstimatedTime } = await import('@/lib/utils/rateLimiter')
-        const { sendInvoiceReminder } = await import('@/server/services/notifications/whatsapp-templates.service')
+        const { sendWithRateLimit, estimateSendTime, formatEstimatedTime } = await import('@/lib/utils/rateLimiter');
+        const { sendInvoiceReminder } = await import('@/server/services/notifications/whatsapp-templates.service');
 
-        const estimatedTime = estimateSendTime(messagesToSend.length)
-        console.log(`[Invoice Reminder] Estimated time: ${formatEstimatedTime(estimatedTime)}`)
+        const estimatedTime = estimateSendTime(messagesToSend.length);
+        console.log(`[Invoice Reminder] Estimated time: ${formatEstimatedTime(estimatedTime)}`);
 
         const result = await sendWithRateLimit(
           messagesToSend,
           async (msg) => {
             // 🛑 EMERGENCY KILL SWITCH CHECK: Immediately stop sending if admin triggered kill switch
             if (activeAbortedJobs.has('invoice_reminder') || activeAbortedJobs.has('all')) {
-              console.log(`[Invoice Reminder] 🛑 KILL SWITCH ACTIVATED: Stopping batch sending for ${msg.data.invoice.invoiceNumber}`)
-              skippedCount++
-              return
+              console.log(`[Invoice Reminder] 🛑 KILL SWITCH ACTIVATED: Stopping batch sending for ${msg.data.invoice.invoiceNumber}`);
+              skippedCount++;
+              return;
             }
 
-            const { invoice, reminderDay } = msg.data
+            const {
+              invoice,
+              reminderDay,
+              targetPhone,
+              targetCustomerName,
+              targetUsername,
+              targetCustomerId,
+              profileName,
+              areaName,
+            } = msg.data;
 
             // 🛡️ ATOMIC CONCURRENCY CHECK: Re-verify DB & Pre-mark sentReminders BEFORE sending WA message
             const freshInvoice = await prisma.invoice.findUnique({
               where: { id: invoice.id },
               select: { sentReminders: true, waNotifiedAt: true },
-            })
+            });
 
             const currentSent: number[] = freshInvoice?.sentReminders
               ? JSON.parse(freshInvoice.sentReminders)
-              : []
+              : [];
 
             if (currentSent.includes(reminderDay)) {
-              console.log(`[Invoice Reminder] 🛡️ Skipped ${invoice.invoiceNumber}: H${reminderDay} already sent (atomic concurrency check)`)
-              skippedCount++
-              return
+              console.log(`[Invoice Reminder] 🛡️ Skipped ${invoice.invoiceNumber}: H${reminderDay} already sent (atomic concurrency check)`);
+              skippedCount++;
+              return;
             }
 
             if (freshInvoice?.waNotifiedAt) {
-              const hoursSinceLast = (Date.now() - new Date(freshInvoice.waNotifiedAt).getTime()) / (1000 * 60 * 60)
+              const hoursSinceLast = (Date.now() - new Date(freshInvoice.waNotifiedAt).getTime()) / (1000 * 60 * 60);
               if (hoursSinceLast < 4) {
-                console.log(`[Invoice Reminder] 🛡️ Skipped ${invoice.invoiceNumber}: reminder sent ${hoursSinceLast.toFixed(1)}h ago`)
-                skippedCount++
-                return
+                console.log(`[Invoice Reminder] 🛡️ Skipped ${invoice.invoiceNumber}: reminder sent ${hoursSinceLast.toFixed(1)}h ago`);
+                skippedCount++;
+                return;
               }
             }
 
             // 🛡️ PRE-MARK DB ATOMICALLY BEFORE CALLING WA API:
             // Push reminderDay to sentReminders to prevent concurrent double-send
-            const newSentReminders = [...currentSent, reminderDay]
+            const newSentReminders = [...currentSent, reminderDay];
             await prisma.invoice.update({
               where: { id: invoice.id },
               data: {
                 sentReminders: JSON.stringify(newSentReminders),
                 waNotifiedAt: new Date(),   // Optimistically pre-set, will clear on failure
               },
-            })
+            });
 
             // Determine if overdue (reminderDay > 0 means days after due date)
-            const isOverdue = reminderDay > 0
-
-            // Get customer name with proper fallback
-            const customerName = invoice.customerName || invoice.user?.name || 'Pelanggan'
+            const isOverdue = reminderDay > 0;
 
             // Send WhatsApp reminder with appropriate template
-            let waSuccess = false
+            let waSuccess = false;
             try {
               await sendInvoiceReminder({
-                phone: invoice.customerPhone!,
-                customerName: customerName,
-                customerId: (invoice.user as any)?.customerId || undefined,
-                customerUsername: invoice.customerUsername || invoice.user?.username,
-                profileName: (invoice.user as any)?.profile?.name || (invoice.user as any)?.profile?.name || '-',
-                area: (invoice.user as any)?.area?.name || '-',
+                phone: targetPhone,
+                customerName: targetCustomerName,
+                customerId: targetCustomerId,
+                customerUsername: targetUsername,
+                profileName: profileName,
+                area: areaName,
                 invoiceNumber: invoice.invoiceNumber,
                 amount: invoice.amount,
                 dueDate: invoice.dueDate,
                 paymentLink: invoice.paymentLink || '',
                 companyName: company.name,
                 companyPhone: company.phone || '',
-                isOverdue: isOverdue
-              })
+                isOverdue: isOverdue,
+              });
               // sendInvoiceReminder internally handles updating waNotifiedAt (on success) 
               // and waRetryCount (on failure) accurately.
-              waSuccess = true
+              waSuccess = true;
             } catch (waErr: any) {
-              console.error(`[Invoice Reminder] ❌ WA failed for ${invoice.invoiceNumber}:`, waErr)
+              console.error(`[Invoice Reminder] ❌ WA failed for ${invoice.invoiceNumber}:`, waErr);
               // 🔄 ROLLBACK: WA gagal - kembalikan sentReminders ke sebelumnya, CLEAR waNotifiedAt
               await prisma.invoice.update({
                 where: { id: invoice.id },
                 data: {
                   sentReminders: JSON.stringify(currentSent), // rollback to before pre-mark
-                  waNotifiedAt: null,                          // clear - tidak terkirim
+                  waNotifiedAt: freshInvoice?.waNotifiedAt ?? null, // clear - tidak terkirim
+                  waRetryCount: { increment: 1 },
                 },
-              }).catch(rollbackErr => console.error(`[Invoice Reminder] Rollback failed for ${invoice.invoiceNumber}:`, rollbackErr))
-              skippedCount++
-              return // Don't increment sentCount
+              }).catch(rollbackErr => console.error(`[Invoice Reminder] Rollback failed for ${invoice.invoiceNumber}:`, rollbackErr));
+              skippedCount++;
+              return; // Don't increment sentCount
             }
 
             if (!waSuccess) {
@@ -1073,7 +1114,7 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
                   customerId: (invoice.user as any)?.customerId || undefined,
                   profileName: (invoice.user as any)?.profile?.name,
                   area: (invoice.user as any)?.area?.name,
-                  customerName: customerName,
+                  customerName: targetCustomerName,
                   customerUsername: invoice.customerUsername || invoice.user?.username,
                   invoiceNumber: invoice.invoiceNumber,
                   amount: invoice.amount,
@@ -1097,7 +1138,7 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
                   invoice.user.id,
                   isOverdue ? 'invoice-overdue' : 'invoice-reminder',
                   {
-                    customerName: customerName,
+                    customerName: targetCustomerName,
                     username: (invoice.user as any)?.username || '',
                     invoiceNumber: invoice.invoiceNumber,
                     amount: invoice.amount,
