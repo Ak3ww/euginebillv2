@@ -56,6 +56,19 @@ export async function POST(
       );
     }
 
+    // Safeguard: If user is already active and notification was already sent, return immediately without duplicate notification
+    if (user.status?.toUpperCase() === 'ACTIVE' && latestInvoice.waNotifiedAt && (latestInvoice.waRetryCount || 0) > 0) {
+      return NextResponse.json({
+        success: true,
+        hasInvoice: true,
+        user,
+        waSent: false,
+        alreadyActive: true,
+        invoiceNumber: latestInvoice.invoiceNumber,
+        message: `Pelanggan ${user.name} sudah berstatus AKTIF dan Notifikasi WA Tagihan sudah pernah dikirim sebelumnya.`,
+      });
+    }
+
     // Step 2 Execution: Update user status to ACTIVE and sync secret
     const updatedUser = await prisma.pppoeUser.update({
       where: { id: user.id },

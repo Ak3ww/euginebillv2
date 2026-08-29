@@ -3,7 +3,7 @@ import { jwtVerify } from 'jose';
 import { nanoid } from 'nanoid';
 import { prisma } from '@/server/db/client';
 import { TECH_JWT_SECRET } from '@/server/auth/technician-secret';
-import { sendInvoiceReminder, sendPSBReportToGroup } from '@/server/services/notifications/whatsapp-templates.service';
+import { sendInstallationInvoice, sendInvoiceReminder, sendPSBReportToGroup } from '@/server/services/notifications/whatsapp-templates.service';
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
@@ -50,11 +50,47 @@ export async function POST(
 
     if (!wo) return NextResponse.json({ error: 'Work order not found' }, { status: 404 });
 
-    // If customer coordinates provided and linkedUserId exists, update customer location
-    if (wo.linkedUserId && customerLat && customerLng) {
+    // 1. Robust customer resolution: resolve targetUserId if missing on the work order
+    let targetUserId = wo.linkedUserId;
+    let targetCustomer = wo.customer;
+
+    if (!targetUserId && (wo.customerPhone || wo.customerName)) {
+      const cleanPhone = (wo.customerPhone || '').replace(/\D/g, '');
+      const phoneVariations = cleanPhone ? [
+        cleanPhone,
+        '0' + cleanPhone.replace(/^62/, ''),
+        '62' + cleanPhone.replace(/^0/, ''),
+      ] : [];
+
+      const matchedUser = await prisma.pppoeUser.findFirst({
+        where: {
+          OR: [
+            ...(phoneVariations.length > 0 ? [{ phone: { in: phoneVariations } }] : []),
+            { name: { equals: wo.customerName.trim() } },
+          ],
+        },
+        include: {
+          profile: true,
+          area: true,
+        },
+      });
+
+      if (matchedUser) {
+        targetUserId = matchedUser.id;
+        targetCustomer = matchedUser as any;
+        // Auto-link workOrder to this customer in DB
+        await prisma.workOrder.update({
+          where: { id: wo.id },
+          data: { linkedUserId: targetUserId },
+        }).catch(() => {});
+      }
+    }
+
+    // If customer coordinates provided and targetUserId exists, update customer location
+    if (targetUserId && customerLat && customerLng) {
       try {
         await prisma.pppoeUser.update({
-          where: { id: wo.linkedUserId },
+          where: { id: targetUserId },
           data: {
             latitude: parseFloat(String(customerLat)),
             longitude: parseFloat(String(customerLng)),
@@ -69,7 +105,7 @@ export async function POST(
     if (reportData?.odpName && String(reportData.odpName).trim()) {
       try {
         const odpNameTrimmed = String(reportData.odpName).trim();
-        const odpPortNum = parseInt(String(reportData.port || '1').replace(/\D/g, '')) || 1;
+        const odpPortNum = parseInt(String(reportData.port || reportData.portNumber || '1').replace(/\D/g, '')) || 1;
         const odpLatNum = parseFloat(String(reportData.odpLat || customerLat || '0'));
         const odpLngNum = parseFloat(String(reportData.odpLng || customerLng || '0'));
 
@@ -105,13 +141,13 @@ export async function POST(
           }).catch(e => console.error('Failed to update ODP coordinates:', e));
         }
 
-        // Link customer to ODP assignment if linkedUserId exists
-        if (wo.linkedUserId && targetOdp) {
+        // Link customer to ODP assignment if targetUserId exists
+        if (targetUserId && targetOdp) {
           await prisma.odpCustomerAssignment.upsert({
-            where: { customerId: wo.linkedUserId },
+            where: { customerId: targetUserId },
             create: {
               id: nanoid(),
-              customerId: wo.linkedUserId,
+              customerId: targetUserId,
               odpId: targetOdp.id,
               portNumber: odpPortNum,
             },
@@ -141,10 +177,10 @@ export async function POST(
 
     // Dismantle Logic
     const isDismantle = wo.issueType?.toUpperCase().includes('DISMANTLE') || wo.issueType?.toUpperCase().includes('CABUT');
-    if (isDismantle && wo.linkedUserId) {
+    if (isDismantle && targetUserId) {
       try {
         await prisma.pppoeUser.update({
-          where: { id: wo.linkedUserId },
+          where: { id: targetUserId },
           data: {
             isDismantled: true,
             dismantledAt: new Date(),
@@ -153,7 +189,7 @@ export async function POST(
         });
         // Free ODP port
         await prisma.odpCustomerAssignment.deleteMany({
-          where: { customerId: wo.linkedUserId },
+          where: { customerId: targetUserId },
         }).catch(() => {});
       } catch (dismantleErr) {
         console.error('Failed to update dismantle status:', dismantleErr);
@@ -161,20 +197,28 @@ export async function POST(
     }
 
     // Installation / Active User Auto-Activation
-    if (!isDismantle && wo.linkedUserId) {
+    if (!isDismantle && targetUserId) {
       try {
         await prisma.pppoeUser.update({
-          where: { id: wo.linkedUserId },
+          where: { id: targetUserId },
           data: {
             status: 'ACTIVE',
           },
         });
 
+        // Also update registrationRequest if linked
+        await prisma.registrationRequest.updateMany({
+          where: { pppoeUserId: targetUserId, status: { in: ['PENDING', 'APPROVED'] } },
+          data: { status: 'INSTALLED' },
+        }).catch(() => {});
+
         // Sync enabled secret to MikroTik so customer can immediately connect
         const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
-        await PPPSecretService.syncSecret(wo.linkedUserId).catch((syncErr: any) => {
+        await PPPSecretService.syncSecret(targetUserId).catch((syncErr: any) => {
           console.error('[WorkOrder Complete] Failed to sync secret to MikroTik:', syncErr);
         });
+
+        console.log(`[WorkOrder Complete] Successfully activated pppoeUser ${targetUserId} to ACTIVE`);
       } catch (userActivateErr) {
         console.error('[WorkOrder Complete] Failed to activate pppoeUser:', userActivateErr);
       }
@@ -182,10 +226,10 @@ export async function POST(
 
     // Auto-Billing Trigger & Admin Alert
     let invoice = null;
-    if (wo.linkedUserId) {
+    if (targetUserId) {
       invoice = await prisma.invoice.findFirst({
         where: {
-          userId: wo.linkedUserId,
+          userId: targetUserId,
           status: { in: ['PENDING', 'OVERDUE'] },
         },
         include: {
@@ -202,12 +246,20 @@ export async function POST(
       });
     }
 
-    if (!invoice && wo.customerPhone) {
+    if (!invoice && (wo.customerPhone || wo.customerName)) {
+      const cleanPhone = (wo.customerPhone || '').replace(/\D/g, '');
+      const phoneVariations = cleanPhone ? [
+        cleanPhone,
+        '0' + cleanPhone.replace(/^62/, ''),
+        '62' + cleanPhone.replace(/^0/, ''),
+      ] : [];
+
       invoice = await prisma.invoice.findFirst({
         where: {
           OR: [
-            { customerPhone: wo.customerPhone },
-            { user: { phone: wo.customerPhone } },
+            ...(phoneVariations.length > 0 ? [{ customerPhone: { in: phoneVariations } }] : []),
+            ...(phoneVariations.length > 0 ? [{ user: { phone: { in: phoneVariations } } }] : []),
+            { customerName: { equals: wo.customerName.trim() } },
           ],
           status: { in: ['PENDING', 'OVERDUE'] },
         },
@@ -223,6 +275,14 @@ export async function POST(
           createdAt: 'desc',
         },
       });
+
+      // Link invoice to targetUserId if found without userId
+      if (invoice && !invoice.userId && targetUserId) {
+        await prisma.invoice.update({
+          where: { id: invoice.id },
+          data: { userId: targetUserId },
+        }).catch(() => {});
+      }
     }
 
     const company = await prisma.company.findFirst();
@@ -242,30 +302,45 @@ export async function POST(
         }).catch(() => {});
       }
 
-      const targetPhone = wo.customer?.phone || wo.customerPhone || invoice.customerPhone || invoice.user?.phone;
-      const targetCustomerName = wo.customer?.name || wo.customerName || invoice.customerName || invoice.user?.name || 'Pelanggan';
-      const targetCustomerId = wo.customer?.customerId || invoice.user?.customerId || undefined;
-      const targetUsername = wo.customer?.username || invoice.customerUsername || invoice.user?.username || undefined;
-      const profileName = wo.customer?.profile?.name || invoice.user?.profile?.name || '-';
-      const areaName = wo.customer?.area?.name || invoice.user?.area?.name || '-';
+      const targetPhone = targetCustomer?.phone || wo.customerPhone || invoice.customerPhone || invoice.user?.phone;
+      const targetCustomerName = targetCustomer?.name || wo.customerName || invoice.customerName || invoice.user?.name || 'Pelanggan';
+      const targetCustomerId = targetCustomer?.customerId || invoice.user?.customerId || undefined;
+      const targetUsername = targetCustomer?.username || invoice.customerUsername || invoice.user?.username || undefined;
+      const profileName = targetCustomer?.profile?.name || invoice.user?.profile?.name || '-';
+      const areaName = targetCustomer?.area?.name || invoice.user?.area?.name || '-';
 
       // Only send if not already notified to prevent duplicate invoices
       if (targetPhone && (!invoice.waNotifiedAt || (invoice.waRetryCount || 0) === 0)) {
         try {
-          await sendInvoiceReminder({
-            phone: targetPhone,
-            customerName: targetCustomerName,
-            customerId: targetCustomerId,
-            customerUsername: targetUsername,
-            profileName,
-            area: areaName,
-            invoiceNumber: invoice.invoiceNumber,
-            amount: invoice.amount,
-            dueDate: invoice.dueDate,
-            paymentLink,
-            companyName: company?.name || 'ISP',
-            companyPhone: company?.phone || '',
-          });
+          const isInstallType = wo.issueType?.toUpperCase().includes('INSTAL') || wo.issueType?.toUpperCase() === 'INSTALLATION';
+          if (isInstallType) {
+            await sendInstallationInvoice({
+              customerName: targetCustomerName,
+              customerPhone: targetPhone,
+              customerId: targetCustomerId,
+              username: targetUsername,
+              invoiceNumber: invoice.invoiceNumber,
+              amount: invoice.amount,
+              dueDate: invoice.dueDate,
+              paymentLink,
+              profileName,
+            });
+          } else {
+            await sendInvoiceReminder({
+              phone: targetPhone,
+              customerName: targetCustomerName,
+              customerId: targetCustomerId,
+              customerUsername: targetUsername,
+              profileName,
+              area: areaName,
+              invoiceNumber: invoice.invoiceNumber,
+              amount: invoice.amount,
+              dueDate: invoice.dueDate,
+              paymentLink,
+              companyName: company?.name || 'ISP',
+              companyPhone: company?.phone || '',
+            });
+          }
 
           await prisma.invoice.update({
             where: { id: invoice.id },
@@ -288,7 +363,7 @@ export async function POST(
           workOrderId: wo.id,
           customerName: wo.customerName,
           customerPhone: wo.customerPhone,
-          customerId: wo.customer?.customerId || wo.customer?.username || wo.customerPhone,
+          customerId: targetCustomer?.customerId || targetCustomer?.username || wo.customerPhone,
         });
       } catch (notifErr) {
         console.error('[WorkOrder Complete] Failed to send admin installation completed alert:', notifErr);

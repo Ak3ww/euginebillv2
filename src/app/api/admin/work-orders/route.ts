@@ -113,11 +113,35 @@ export async function POST(req: Request) {
       );
     }
 
+    // Auto-resolve linkedUserId if not explicitly provided
+    let finalLinkedUserId = linkedUserId || null;
+    if (!finalLinkedUserId && (customerPhone || customerName)) {
+      const cleanPhone = customerPhone.replace(/\D/g, '');
+      const phoneVariations = cleanPhone ? [
+        cleanPhone,
+        '0' + cleanPhone.replace(/^62/, ''),
+        '62' + cleanPhone.replace(/^0/, ''),
+      ] : [];
+
+      const matchedUser = await prisma.pppoeUser.findFirst({
+        where: {
+          OR: [
+            ...(phoneVariations.length > 0 ? [{ phone: { in: phoneVariations } }] : []),
+            { name: { equals: customerName.trim() } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (matchedUser) {
+        finalLinkedUserId = matchedUser.id;
+      }
+    }
+
     const status = technicianId ? 'ASSIGNED' : 'OPEN';
 
     const newWorkOrder = await prisma.workOrder.create({
       data: {
-        linkedUserId: linkedUserId || null,
+        linkedUserId: finalLinkedUserId,
         customerName,
         customerPhone,
         customerAddress,

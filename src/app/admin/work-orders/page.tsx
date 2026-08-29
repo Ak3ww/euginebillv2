@@ -45,6 +45,7 @@ export default function AdminWorkOrdersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
+    linkedUserId: '',
     customerName: '',
     customerPhone: '',
     customerAddress: '',
@@ -85,6 +86,7 @@ export default function AdminWorkOrdersPage() {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('new') === 'true') {
         setFormData({
+          linkedUserId: urlParams.get('userId') || '',
           customerName: urlParams.get('name') || '',
           customerPhone: urlParams.get('phone') || '',
           customerAddress: urlParams.get('address') || '',
@@ -116,6 +118,7 @@ export default function AdminWorkOrdersPage() {
         addToast({ type: 'success', title: 'Berhasil', description: 'Surat Tugas (SPK) berhasil diterbitkan!' });
         setIsModalOpen(false);
         setFormData({
+          linkedUserId: '',
           customerName: '',
           customerPhone: '',
           customerAddress: '',
