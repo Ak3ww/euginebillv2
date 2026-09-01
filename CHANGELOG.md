@@ -6,6 +6,29 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [2.35.0] — 2026-09-01
+### Added
+- **ONT Remote: Telnet Auto-Unlock Engine for ZTE Modems** — Menambahkan auto-probe dan auto-unlock via Telnet (port 23) dengan eksekusi internal CLI `sendcmd 1 DB set SecurityMng 0 WebWANEnable 1` & `saveasy` saat Web GUI modem ZTE (F609, F670, F670L, F660) terkunci dari sisi WAN/PPPoE.
+- **ONT Remote: Dynamic Host Header Masking** — Node.js reverse proxy di VPS secara otomatis me-rewrite header `Host` menjadi IP lokal modem (`Host: 192.168.20.xxx`), menyelesaikan error `400 Bad Request` dari webserver Boa/thttpd ZTE.
+- **ONT Remote: Transparent Multi-Path Probing** — Menghapus forced 302 redirect kaku dan menggantinya dengan fallback probing adaptif (`/`, `/login.gch`, `/getpage.gch?pid=1002`, `/web/frame/login.asp`) untuk kompatibilitas semua versi firmware ZTE & CPE lainnya.
+- **Dokumentasi Lengkap Remote ONT** — Menambahkan file panduan arsitektur teknis di `docs/mikrotik/ONT_REMOTE_ACCESS_GUIDE.md`.
+- **SPK / Work Order Auto-Activation Pipeline** — Penyelesaian SPK dari portal teknisi kini otomatis menghubungkan pelanggan (`linkedUserId`), mengaktifkan status akun pelanggan ke `ACTIVE`, menyinkronkan secret aktif ke MikroTik, mengupdate status registrasi ke `INSTALLED`, dan men-seed data ODP serta koordinat GPS pelanggan secara otomatis.
+- **Perlindungan Anti Double WA Tagihan** — Endpoint aktivasi admin dan penyelesaian teknisi dilengkapi guard `invoice.waNotifiedAt` dan `waRetryCount` agar tidak pernah mengirimkan dobel pesan tagihan WhatsApp.
+- **Live Customer Phone Synchronization** — Pengeditan nomor HP pelanggan di Data Pelanggan secara instan menyinkronkan seluruh invoice dan SPK terkait; seluruh pengiriman WhatsApp (Struk Lunas, Pengingat Cron H-7 s/d Hari-H) selalu memprioritaskan nomor HP terbaru pelanggan.
+
+### Files
+- `src/server/services/mikrotik/ont-remote.service.ts` — Engine Telnet auto-unlock, reverse proxy header masking, multi-path fallback, dan NAT cleanup.
+- `docs/mikrotik/ONT_REMOTE_ACCESS_GUIDE.md` — NEW: Dokumentasi arsitektur remote access ONT ZTE & Multi-Vendor.
+- `src/app/api/technician/work-orders/[id]/complete/route.ts` — Auto-resolve customer, status activation ke ACTIVE, MikroTik secret sync, dan anti-duplicate WA.
+- `src/app/api/admin/work-orders/route.ts` — Auto-lookup linkedUserId dari nomor HP / nama saat SPK dibuat.
+- `src/app/admin/work-orders/page.tsx` — Dukungan eksplisit `linkedUserId` pada state form & URL parameter.
+- `src/app/api/whatsapp/resend-receipt/route.ts` — Prioritaskan nomor HP live pelanggan dan auto-sync snapshot invoice.
+- `src/server/services/pppoe.service.ts` — Sinkronisasi nomor HP & nama ke invoice & work order saat user diedit.
+- `src/server/jobs/voucher-sync.ts` — Prioritaskan live user phone pada cron job pengingat tagihan.
+- `scripts/fix-installed-customers.js` — NEW: Skrip sinkronisasi database untuk pelanggan & tagihan lama.
+
+---
+
 ## [2.34.4] — 2026-05-13
 ### Added
 - **Sidebar: Permintaan Top-Up & Suspend** — tambah `nav.topupRequests` (`/admin/topup-requests`) dan `nav.suspendRequests` (`/admin/suspend-requests`) sebagai child PPPoE

@@ -4,6 +4,22 @@ All notable changes to EugineBill RADIUS will be documented in this file.
 
 ---
 
+## [2.35.0] - 2026-09-01 (Remote ONT ZTE Auto-Unlock, Host Masking & SPK Auto-Activation)
+
+### ✅ Fitur: Remote ONT Web GUI Engine (ZTE & Multi-Vendor)
+- **Telnet Auto-Unlock (`WebWANEnable = 1`)**: Auto-probing port 23 dan auto-eksekusi internal CLI ZTE `sendcmd 1 DB set SecurityMng 0 WebWANEnable 1` & `saveasy` saat Web GUI modem ZTE (F609, F670, F670L, F660) terkunci dari sisi WAN/PPPoE.
+- **Dynamic Host Header Masking**: VPS Node.js reverse proxy me-rewrite header `Host` menjadi IP lokal modem (`Host: 192.168.20.xxx`), menyelesaikan error `400 Bad Request` dari webserver Boa/thttpd ZTE.
+- **Transparent Multi-Path Probing**: Menghapus forced 302 redirect kaku dan menggantinya dengan fallback probing adaptif (`/`, `/login.gch`, `/getpage.gch?pid=1002`, `/web/frame/login.asp`).
+- **Dokumentasi Lengkap Remote ONT**: Tersedia di `docs/mikrotik/ONT_REMOTE_ACCESS_GUIDE.md`.
+
+### ✅ Fitur: SPK / Work Order Auto-Activation Pipeline & Anti-Duplicate WA
+- **Auto-Resolve `linkedUserId`**: Menghubungkan akun pelanggan secara otomatis dari nomor HP/nama jika SPK dibuat tanpa ID spesifik.
+- **Auto-Activation ke ACTIVE**: Status akun pelanggan otomatis diubah ke `ACTIVE`, ODP assignment dibuat, GPS disimpan, dan PPP Secret langsung disinkronkan ke MikroTik saat teknisi klik selesai di portal teknisi.
+- **Anti Double WA Tagihan**: Mencegah dobel pesan tagihan WhatsApp saat admin mengakses dashboard pelanggan.
+- **Live Customer Phone Synchronization**: Pengeditan nomor HP pelanggan langsung disinkronkan ke seluruh invoice, SPK, dan cron job pengingat tagihan.
+
+---
+
 ## [2.13.1] - 2026-04-05 (Fix Wablas Send Endpoint)
 
 ### ✅ Fix: Wablas Kirim Pesan Gagal

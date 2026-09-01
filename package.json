@@ -1,6 +1,6 @@
 {
   "name": "EugineBill-radius",
-  "version": "2.31.7",
+  "version": "2.35.0",
   "private": false,
   "scripts": {
     "dev": "next dev",
