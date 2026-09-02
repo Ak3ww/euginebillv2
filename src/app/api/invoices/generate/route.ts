@@ -51,9 +51,13 @@ export async function POST(request: NextRequest) {
       return new Date(year, month - 1, day, 23, 59, 59, 999);
     };
 
-    // Build user query — include BOTH POSTPAID and PREPAID
+    // Build user query — strictly ACTIVE and ISOLATED only (EXCLUDE ALL STOPPED/INACTIVE/DISMANTLE)
     const userWhere: any = {
-      status: { in: ['active', 'isolated'] },
+      status: { in: ['active', 'ACTIVE', 'isolated', 'ISOLATED'] },
+      NOT: [
+        { status: { in: ['stop', 'STOP', 'stopped', 'STOPPED', 'inactive', 'INACTIVE', 'dismantle', 'DISMANTLE', 'terminated', 'TERMINATED'] } },
+        { username: { contains: '-OFF-' } },
+      ],
     };
     if (scope === 'single') userWhere.id = userId;
     if (areaId && areaId !== 'all') userWhere.areaId = areaId;
@@ -67,7 +71,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (users.length === 0) {
-      return NextResponse.json({ success: true, generated: 0, skipped: 0, errors: [], message: 'Tidak ada pelanggan ditemukan' });
+      return NextResponse.json({ success: true, generated: 0, skipped: 0, errors: [], message: 'Tidak ada pelanggan aktif ditemukan' });
     }
 
     // Fetch company baseUrl for payment links
@@ -99,6 +103,13 @@ export async function POST(request: NextRequest) {
 
     for (const user of users) {
       try {
+        // Skip if user status is stopped or username contains -OFF-
+        const uStatus = (user.status || '').toLowerCase();
+        if (['stop', 'stopped', 'inactive', 'dismantle', 'terminated'].includes(uStatus) || user.username.includes('-OFF-')) {
+          skipped++;
+          continue;
+        }
+
         // Skip if already has invoice for this month
         if (skipExisting && usersWithInvoice.has(user.id)) {
           skipped++;

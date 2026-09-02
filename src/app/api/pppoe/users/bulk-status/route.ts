@@ -58,6 +58,17 @@ export async function PUT(request: Request) {
       });
     }
 
+    // If status is stop, auto-delete any unpaid pending/overdue invoices for all stopped customers
+    if (status === 'stop') {
+      const deletedInv = await prisma.invoice.deleteMany({
+        where: {
+          userId: { in: userIds },
+          status: { in: ['PENDING', 'OVERDUE'] },
+        },
+      }).catch(() => ({ count: 0 }));
+      console.log(`[Bulk Status Change] Auto-deleted ${deletedInv.count} unpaid invoices for stopped users`);
+    }
+
     // Apply network-level changes per user
     for (const user of users) {
       if (isRadiusEnabled) {

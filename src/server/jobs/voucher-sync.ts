@@ -1505,17 +1505,12 @@ export async function generateInvoices(force = false): Promise<{ success: boolea
     let skipped = 0;
     const errors: string[] = [];
 
-    // Include isolated/blocked users because they may need invoice to pay and reactivate
-    // EXCLUDE 'stop' status - users who have stopped subscription should NOT get new invoices
+    // ONLY include active and isolated users. NEVER generate invoices for stopped, blocked, suspended, or inactive users
     const eligibleStatuses = [
       'active',
       'isolated',
-      'blocked',
-      'suspended',
       'ACTIVE',
       'ISOLATED',
-      'BLOCKED',
-      'SUSPENDED',
     ]
 
     // Get company settings for invoice generation window
@@ -1657,6 +1652,13 @@ export async function generateInvoices(force = false): Promise<{ success: boolea
 
     for (const user of users) {
       try {
+        // Strict stop check: skip stopped users or archived usernames
+        const uStatus = (user.status || '').toLowerCase();
+        if (['stop', 'stopped', 'blocked', 'suspended', 'dismantle', 'inactive', 'terminated'].includes(uStatus) || user.username.includes('-OFF-')) {
+          skipped++;
+          continue;
+        }
+
         // Check if user already has unpaid invoice (any time)
         const existingInvoice = await prisma.invoice.findFirst({
           where: {

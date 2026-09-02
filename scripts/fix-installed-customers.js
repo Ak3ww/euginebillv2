@@ -249,8 +249,43 @@ async function main() {
     }
   }
 
+  // 6. Hapus Tagihan Tertunda/Overdue Milik Pelanggan yang Sudah Berstatus Berhenti (STOP / STOPPED / -OFF-)
+  console.log('\n=== MENGHAPUS TAGIHAN TERTUNDA MILIK PELANGGAN BERHENTI (STOP) ===');
+  const stoppedUserInvoices = await prisma.invoice.findMany({
+    where: {
+      status: { in: ['PENDING', 'OVERDUE'] },
+      OR: [
+        {
+          user: {
+            status: { in: ['stop', 'STOP', 'stopped', 'STOPPED', 'dismantle', 'DISMANTLE', 'inactive', 'INACTIVE', 'terminated', 'TERMINATED'] },
+          },
+        },
+        {
+          user: {
+            username: { contains: '-OFF-' },
+          },
+        },
+      ],
+    },
+    include: {
+      user: {
+        select: { id: true, username: true, name: true, status: true },
+      },
+    },
+  });
+
+  let deletedStoppedCount = 0;
+  for (const inv of stoppedUserInvoices) {
+    await prisma.invoice.delete({
+      where: { id: inv.id },
+    }).catch(() => {});
+
+    console.log(`[HAPUS TAGIHAN STOP] Menghapus tagihan ${inv.invoiceNumber} (Rp ${Number(inv.amount).toLocaleString('id-ID')}) milik pelanggan berhenti: ${inv.user?.name || inv.customerName} (${inv.user?.username || inv.customerUsername}, status: ${inv.user?.status})`);
+    deletedStoppedCount++;
+  }
+
   console.log(`\n========================================`);
-  console.log(`SELESAI: Berhasil mengaktifkan ${updatedCount} pelanggan, menyinkronkan ${syncedInvoicesCount} nomor HP invoice, menyinkronkan ${syncedDueDateCount} jatuh tempo invoice, dan memperbaiki ${fixedPriceCount} nominal tagihan yang terpotong.`);
+  console.log(`SELESAI: Berhasil mengaktifkan ${updatedCount} pelanggan, menyinkronkan ${syncedInvoicesCount} nomor HP invoice, menyinkronkan ${syncedDueDateCount} jatuh tempo invoice, memperbaiki ${fixedPriceCount} nominal tagihan yang terpotong, dan menghapus ${deletedStoppedCount} tagihan pelanggan berhenti (STOP).`);
   console.log(`========================================\n`);
 }
 

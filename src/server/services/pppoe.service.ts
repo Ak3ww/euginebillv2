@@ -694,6 +694,17 @@ export async function updatePppoeUser(
           ...(data.name && { customerName: data.name }),
         },
       });
+      // If status changed to stop, auto-delete all unpaid pending/overdue invoices
+      const newStatus = (data.status || '').toLowerCase();
+      if (newStatus === 'stop' || newStatus === 'stopped') {
+        const delInv = await prisma.invoice.deleteMany({
+          where: {
+            userId: user.id,
+            status: { in: ['PENDING', 'OVERDUE'] },
+          },
+        }).catch(() => ({ count: 0 }));
+        console.log(`[updatePppoeUser] Deleted ${delInv.count} unpaid invoices for stopped user ${user.username}`);
+      }
     } catch (syncRelErr) {
       console.error('[updatePppoeUser] Failed syncing updated phone/name/dueDate to invoices/workOrders:', syncRelErr);
     }
