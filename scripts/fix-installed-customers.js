@@ -249,23 +249,25 @@ async function main() {
     }
   }
 
-  // 6. Hapus Tagihan Tertunda/Overdue Milik Pelanggan yang Sudah Berstatus Berhenti (STOP / STOPPED / -OFF-)
-  console.log('\n=== MENGHAPUS TAGIHAN TERTUNDA MILIK PELANGGAN BERHENTI (STOP) ===');
+  // 6. Hapus Tagihan Bulan Terakhir (September 2026) Milik Pelanggan yang Sudah Berstatus Berhenti (STOP / STOPPED / -OFF-)
+  // CATATAN: Tagihan bulan Agustus dan ke belakang TETAP DIPERTAHANKAN untuk rekapan & riwayat keuangan!
+  console.log('\n=== MENGHAPUS TAGIHAN SEPTEMBER MILIK PELANGGAN BERHENTI (STOP) ===');
+  const currentMonthStart = new Date('2026-09-01T00:00:00Z');
+
   const stoppedUserInvoices = await prisma.invoice.findMany({
     where: {
       status: { in: ['PENDING', 'OVERDUE'] },
       OR: [
-        {
-          user: {
-            status: { in: ['stop', 'STOP', 'stopped', 'STOPPED', 'dismantle', 'DISMANTLE', 'inactive', 'INACTIVE', 'terminated', 'TERMINATED'] },
-          },
-        },
-        {
-          user: {
-            username: { contains: '-OFF-' },
-          },
-        },
+        { invoiceNumber: { startsWith: 'INV-202609' } },
+        { createdAt: { gte: currentMonthStart } },
+        { dueDate: { gte: currentMonthStart } },
       ],
+      user: {
+        OR: [
+          { status: { in: ['stop', 'STOP', 'stopped', 'STOPPED', 'dismantle', 'DISMANTLE', 'inactive', 'INACTIVE', 'terminated', 'TERMINATED'] } },
+          { username: { contains: '-OFF-' } },
+        ],
+      },
     },
     include: {
       user: {
@@ -280,7 +282,7 @@ async function main() {
       where: { id: inv.id },
     }).catch(() => {});
 
-    console.log(`[HAPUS TAGIHAN STOP] Menghapus tagihan ${inv.invoiceNumber} (Rp ${Number(inv.amount).toLocaleString('id-ID')}) milik pelanggan berhenti: ${inv.user?.name || inv.customerName} (${inv.user?.username || inv.customerUsername}, status: ${inv.user?.status})`);
+    console.log(`[HAPUS TAGIHAN STOP SEPTEMBER] Menghapus tagihan September ${inv.invoiceNumber} (Rp ${Number(inv.amount).toLocaleString('id-ID')}) milik pelanggan berhenti: ${inv.user?.name || inv.customerName} (${inv.user?.username || inv.customerUsername}, status: ${inv.user?.status}) - Tagihan lama tetap aman.`);
     deletedStoppedCount++;
   }
 

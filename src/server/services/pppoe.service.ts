@@ -694,16 +694,22 @@ export async function updatePppoeUser(
           ...(data.name && { customerName: data.name }),
         },
       });
-      // If status changed to stop, auto-delete all unpaid pending/overdue invoices
+      // If status changed to stop, auto-delete only current/future unpaid invoices (keep past months in history)
       const newStatus = (data.status || '').toLowerCase();
       if (newStatus === 'stop' || newStatus === 'stopped') {
+        const now = new Date();
+        const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
         const delInv = await prisma.invoice.deleteMany({
           where: {
             userId: user.id,
             status: { in: ['PENDING', 'OVERDUE'] },
+            OR: [
+              { dueDate: { gte: startOfCurrentMonth } },
+              { createdAt: { gte: startOfCurrentMonth } },
+            ],
           },
         }).catch(() => ({ count: 0 }));
-        console.log(`[updatePppoeUser] Deleted ${delInv.count} unpaid invoices for stopped user ${user.username}`);
+        console.log(`[updatePppoeUser] Deleted ${delInv.count} current-month unpaid invoices for stopped user ${user.username} (past history preserved)`);
       }
     } catch (syncRelErr) {
       console.error('[updatePppoeUser] Failed syncing updated phone/name/dueDate to invoices/workOrders:', syncRelErr);

@@ -80,15 +80,21 @@ export async function PUT(request: Request) {
       },
     });
 
-    // If status is stop, auto-delete any unpaid pending/overdue invoices for this customer
+    // If status is stop, auto-delete only current/future unpaid invoices (keep past months in history)
     if (status === 'stop') {
+      const now = new Date();
+      const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
       const deletedInv = await prisma.invoice.deleteMany({
         where: {
           userId: user.id,
           status: { in: ['PENDING', 'OVERDUE'] },
+          OR: [
+            { dueDate: { gte: startOfCurrentMonth } },
+            { createdAt: { gte: startOfCurrentMonth } },
+          ],
         },
       }).catch(() => ({ count: 0 }));
-      console.log(`[Status Change] Auto-deleted ${deletedInv.count} unpaid invoices for stopped user ${user.username}`);
+      console.log(`[Status Change] Auto-deleted ${deletedInv.count} current-month unpaid invoices for stopped user ${user.username} (past history preserved)`);
     }
 
     if (isRadiusEnabled) {
