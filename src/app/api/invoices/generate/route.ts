@@ -110,18 +110,18 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Determine if user is a new PSB installation customer
-        const paidInvoiceCount = await prisma.invoice.count({
-          where: { userId: user.id, status: 'PAID' },
-        });
-        const isPsbUser = user.status === 'PENDING_INSTALLATION' || paidInvoiceCount === 0;
+        // Determine if user is truly a new PSB installation customer registered in targetMonth
+        const isPendingInstallation = (user.status || '').toUpperCase() === 'PENDING_INSTALLATION';
+        const userCreated = user.createdAt ? new Date(user.createdAt) : new Date();
+        const userRegMonth = `${userCreated.getFullYear()}-${String(userCreated.getMonth() + 1).padStart(2, '0')}`;
+        const isNewPsbInTargetMonth = isPendingInstallation && userRegMonth === targetMonth;
 
         // Determine due date & invoice type
         const subscriptionType = (user as any).subscriptionType || 'POSTPAID';
         let dueDate: Date;
         let invoiceType: string;
 
-        if (isPsbUser) {
+        if (isNewPsbInTargetMonth) {
           dueDate = getDueDatePostpaid((user as any).billingDay ?? null);
           invoiceType = 'INSTALLATION';
         } else if (subscriptionType === 'PREPAID') {
@@ -136,17 +136,16 @@ export async function POST(request: NextRequest) {
           invoiceType = 'MONTHLY';
         }
 
-        // Calculate amount (auto-prorate for PSB if registered mid-month)
+        // Calculate amount (ONLY auto-prorate for new PSB registered in targetMonth)
         let baseAmount = user.profile.price;
-        if (isPsbUser) {
-          const registeredDate = user.createdAt || new Date();
-          const regDay = registeredDate.getDate();
+        if (isNewPsbInTargetMonth) {
+          const regDay = userCreated.getDate();
           const targetBillingDay = (user as any).billingDay || 1;
           const daysInMonth = new Date(year, month, 0).getDate();
           const daysRemaining = daysInMonth - regDay + 1;
 
-          if (regDay !== targetBillingDay && daysRemaining > 0 && daysRemaining < 30) {
-            baseAmount = Math.round((user.profile.price / 30) * daysRemaining);
+          if (regDay !== targetBillingDay && daysRemaining > 0 && daysRemaining < daysInMonth) {
+            baseAmount = Math.round((user.profile.price / daysInMonth) * daysRemaining);
           }
         }
         let amount = baseAmount;

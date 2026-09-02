@@ -212,8 +212,44 @@ async function main() {
     }
   }
 
+  // 5. Memperbaiki Nominal Tagihan yang Terpotong / Salah Prorata (seperti kasus Rahmat Nugraha Rp 95.000)
+  console.log('\n=== MEMPERBAIKI NOMINAL TAGIHAN BULANAN YANG SALAH PRORATA ===');
+  const recentInvoicesWithPriceMismatch = await prisma.invoice.findMany({
+    where: {
+      status: { in: ['PENDING', 'OVERDUE'] },
+    },
+    include: {
+      user: {
+        include: { profile: true },
+      },
+    },
+  });
+
+  let fixedPriceCount = 0;
+  for (const inv of recentInvoicesWithPriceMismatch) {
+    if (inv.user?.profile && inv.user.status?.toUpperCase() === 'ACTIVE') {
+      const fullPrice = Number(inv.user.profile.price);
+      const currentAmount = Number(inv.amount);
+
+      // Jika nominal tagihan lebih kecil dari harga paket (dan bukan sengaja ada diskon khusus)
+      if (currentAmount < fullPrice && inv.invoiceType === 'INSTALLATION') {
+        await prisma.invoice.update({
+          where: { id: inv.id },
+          data: {
+            amount: fullPrice,
+            baseAmount: fullPrice,
+            invoiceType: 'MONTHLY',
+          },
+        });
+
+        console.log(`[FIX HARGA] Tagihan ${inv.invoiceNumber} milik ${inv.user.name} (${inv.user.username}): Dikembalikan dari Rp ${currentAmount.toLocaleString('id-ID')} -> Rp ${fullPrice.toLocaleString('id-ID')} (Paket: ${inv.user.profile.name})`);
+        fixedPriceCount++;
+      }
+    }
+  }
+
   console.log(`\n========================================`);
-  console.log(`SELESAI: Berhasil mengaktifkan ${updatedCount} pelanggan, menyinkronkan ${syncedInvoicesCount} nomor HP invoice, dan menyinkronkan ${syncedDueDateCount} jatuh tempo invoice.`);
+  console.log(`SELESAI: Berhasil mengaktifkan ${updatedCount} pelanggan, menyinkronkan ${syncedInvoicesCount} nomor HP invoice, menyinkronkan ${syncedDueDateCount} jatuh tempo invoice, dan memperbaiki ${fixedPriceCount} nominal tagihan yang terpotong.`);
   console.log(`========================================\n`);
 }
 
