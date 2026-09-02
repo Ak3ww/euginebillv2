@@ -951,6 +951,34 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           continue
         }
 
+        // 🛑 SAFETY GUARD: Check if customer's actual service expiredAt is in the future
+        if (invoice.user?.expiredAt) {
+          const userExpMs = new Date(invoice.user.expiredAt).getTime();
+          const isUserActiveInFuture = userExpMs > Date.now();
+
+          // If customer expired date is in the future:
+          if (isUserActiveInFuture) {
+            // Auto-sync invoice.dueDate to match user.expiredAt in DB
+            if (new Date(invoice.dueDate).getTime() !== userExpMs) {
+              await prisma.invoice.update({
+                where: { id: invoice.id },
+                data: { 
+                  dueDate: new Date(userExpMs),
+                  status: 'PENDING',
+                },
+              }).catch(() => {});
+            }
+
+            // If this iteration is checking overdue days (reminderDay > 0):
+            // DO NOT SEND OVERDUE/ISOLIR REMINDER! Customer is NOT expired!
+            if (reminderDay > 0) {
+              console.log(`[Invoice Reminder] 🛑 SKIPPED Overdue reminder for ${invoice.invoiceNumber}: User (${invoice.user.username}) is active with future expiry (${new Date(userExpMs).toISOString()})`);
+              skippedCount++;
+              continue;
+            }
+          }
+        }
+
         // Resolve latest phone and customer name from active user model
         const targetPhone = (invoice.user?.phone || invoice.customerPhone || '').trim();
         const targetCustomerName = invoice.user?.name || invoice.customerName || invoice.user?.username || 'Pelanggan';

@@ -652,16 +652,41 @@ export async function updatePppoeUser(
     } as never,
   });
 
-  // If phone or name changed, sync across all related invoices and work orders
-  if (data.phone || data.name) {
+  // If phone, name, or expiredAt changed, sync across all related invoices and work orders
+  if (data.phone || data.name || data.expiredAt) {
     try {
+      const isFutureExpiry = user.expiredAt && new Date(user.expiredAt).getTime() > Date.now();
+      
+      // Update pending/overdue invoices with new dueDate if expiredAt changed
       await prisma.invoice.updateMany({
-        where: { userId: user.id },
+        where: { 
+          userId: user.id,
+          status: { in: ['PENDING', 'OVERDUE'] },
+        },
         data: {
           ...(data.phone && { customerPhone: data.phone }),
           ...(data.name && { customerName: data.name }),
+          ...(data.expiredAt && user.expiredAt && {
+            dueDate: user.expiredAt,
+            ...(isFutureExpiry && { 
+              status: 'PENDING',
+              sentReminders: '[]', // reset stale overdue reminder history
+            }),
+          }),
         },
       });
+
+      // Also update customerPhone and customerName on all invoices (including paid)
+      if (data.phone || data.name) {
+        await prisma.invoice.updateMany({
+          where: { userId: user.id },
+          data: {
+            ...(data.phone && { customerPhone: data.phone }),
+            ...(data.name && { customerName: data.name }),
+          },
+        });
+      }
+
       await prisma.workOrder.updateMany({
         where: { linkedUserId: user.id },
         data: {
@@ -670,7 +695,7 @@ export async function updatePppoeUser(
         },
       });
     } catch (syncRelErr) {
-      console.error('[updatePppoeUser] Failed syncing updated phone/name to invoices/workOrders:', syncRelErr);
+      console.error('[updatePppoeUser] Failed syncing updated phone/name/dueDate to invoices/workOrders:', syncRelErr);
     }
   }
 

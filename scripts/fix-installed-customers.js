@@ -179,8 +179,41 @@ async function main() {
     }
   }
 
+  // 4. Sinkronisasi Tanggal Jatuh Tempo Invoice dengan expiredAt Pelanggan Aktif
+  console.log('\n=== MENYINKRONKAN JATUH TEMPO INVOICE DENGAN EXPIRED PELANGGAN AKTIF ===');
+  const activeUsersWithFutureExpiry = await prisma.pppoeUser.findMany({
+    where: {
+      expiredAt: {
+        gt: new Date(),
+      },
+    },
+    select: { id: true, username: true, name: true, expiredAt: true },
+  });
+
+  let syncedDueDateCount = 0;
+  for (const u of activeUsersWithFutureExpiry) {
+    if (u.expiredAt) {
+      const invUpdated = await prisma.invoice.updateMany({
+        where: {
+          userId: u.id,
+          status: { in: ['PENDING', 'OVERDUE'] },
+        },
+        data: {
+          dueDate: u.expiredAt,
+          status: 'PENDING',
+          sentReminders: '[]', // Reset history agar tidak terjebak di reminder kadaluwarsa
+        },
+      });
+
+      if (invUpdated.count > 0) {
+        console.log(`[SYNC JATUH TEMPO] Pelanggan ${u.name} (${u.username}): Sinkronisasi ${invUpdated.count} invoice -> Jatuh Tempo ${u.expiredAt.toISOString()}`);
+        syncedDueDateCount += invUpdated.count;
+      }
+    }
+  }
+
   console.log(`\n========================================`);
-  console.log(`SELESAI: Berhasil mengaktifkan ${updatedCount} pelanggan dan menyinkronkan ${syncedInvoicesCount} invoice.`);
+  console.log(`SELESAI: Berhasil mengaktifkan ${updatedCount} pelanggan, menyinkronkan ${syncedInvoicesCount} nomor HP invoice, dan menyinkronkan ${syncedDueDateCount} jatuh tempo invoice.`);
   console.log(`========================================\n`);
 }
 

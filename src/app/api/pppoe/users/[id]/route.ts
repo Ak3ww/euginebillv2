@@ -43,8 +43,8 @@ export async function PATCH(
     
     if (!existing) return notFound('User');
     
-    // Only allow safe fields to be updated
-    const { name, phone, email, address, password, comment } = body;
+    // Allow safe fields to be updated
+    const { name, phone, email, address, password, comment, expiredAt } = body;
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (phone !== undefined) updateData.phone = phone;
@@ -52,27 +52,54 @@ export async function PATCH(
     if (address !== undefined) updateData.address = address;
     if (password !== undefined && password.trim() !== '') updateData.password = password;
     if (comment !== undefined) updateData.comment = comment;
+    if (expiredAt !== undefined) {
+      const expStr = String(expiredAt);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(expStr)) {
+        const [y, m, d] = expStr.split('-').map(Number);
+        updateData.expiredAt = new Date(Date.UTC(y, m - 1, d, 16, 59, 59, 999));
+      } else {
+        updateData.expiredAt = new Date(expStr);
+      }
+    }
     
     const updated = await prisma.pppoeUser.update({
       where: { id: existing.id },
       data: updateData,
     });
 
-    if (phone !== undefined || name !== undefined) {
+    if (phone !== undefined || name !== undefined || updateData.expiredAt) {
+      const isFutureExpiry = updateData.expiredAt && new Date(updateData.expiredAt).getTime() > Date.now();
       await prisma.invoice.updateMany({
-        where: { userId: existing.id },
+        where: { 
+          userId: existing.id,
+          status: { in: ['PENDING', 'OVERDUE'] },
+        },
         data: {
           ...(phone !== undefined && { customerPhone: phone }),
           ...(name !== undefined && { customerName: name }),
+          ...(updateData.expiredAt && {
+            dueDate: updateData.expiredAt,
+            ...(isFutureExpiry && { status: 'PENDING', sentReminders: '[]' }),
+          }),
         },
       }).catch(() => {});
-      await prisma.workOrder.updateMany({
-        where: { linkedUserId: existing.id },
-        data: {
-          ...(phone !== undefined && { customerPhone: phone }),
-          ...(name !== undefined && { customerName: name }),
-        },
-      }).catch(() => {});
+
+      if (phone !== undefined || name !== undefined) {
+        await prisma.invoice.updateMany({
+          where: { userId: existing.id },
+          data: {
+            ...(phone !== undefined && { customerPhone: phone }),
+            ...(name !== undefined && { customerName: name }),
+          },
+        }).catch(() => {});
+        await prisma.workOrder.updateMany({
+          where: { linkedUserId: existing.id },
+          data: {
+            ...(phone !== undefined && { customerPhone: phone }),
+            ...(name !== undefined && { customerName: name }),
+          },
+        }).catch(() => {});
+      }
     }
     
     return ok({ success: true, user: updated });
