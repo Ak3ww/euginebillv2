@@ -212,7 +212,7 @@ async function main() {
     }
   }
 
-  // 5. Memperbaiki Nominal Tagihan yang Terpotong / Salah Prorata (seperti kasus Rahmat Nugraha Rp 95.000)
+  // 5. Memperbaiki Nominal Tagihan yang Terpotong / Salah Prorata (seperti Halimah Rp 10.000, Rahmat Nugraha Rp 95.000)
   console.log('\n=== MEMPERBAIKI NOMINAL TAGIHAN BULANAN YANG SALAH PRORATA ===');
   const recentInvoicesWithPriceMismatch = await prisma.invoice.findMany({
     where: {
@@ -227,12 +227,13 @@ async function main() {
 
   let fixedPriceCount = 0;
   for (const inv of recentInvoicesWithPriceMismatch) {
-    if (inv.user?.profile && inv.user.status?.toUpperCase() === 'ACTIVE') {
+    if (inv.user?.profile) {
       const fullPrice = Number(inv.user.profile.price);
       const currentAmount = Number(inv.amount);
+      const isSepInvoice = inv.invoiceNumber?.startsWith('INV-202609') || (inv.dueDate && new Date(inv.dueDate).getMonth() === 8);
 
-      // Jika nominal tagihan lebih kecil dari harga paket (dan bukan sengaja ada diskon khusus)
-      if (currentAmount < fullPrice && inv.invoiceType === 'INSTALLATION') {
+      // Jika nominal tagihan lebih kecil dari harga paket dan dibuat untuk bulan September / salah tipe INSTALLATION
+      if (currentAmount < fullPrice && (inv.invoiceType === 'INSTALLATION' || isSepInvoice)) {
         await prisma.invoice.update({
           where: { id: inv.id },
           data: {
