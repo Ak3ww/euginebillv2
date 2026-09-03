@@ -1,183 +1,362 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Copy, Check, ChevronDown, Store, Building2, Smartphone, CreditCard } from 'lucide-react';
 
-export function BankInstructions({ bankName, vaNumber }: { bankName: string, vaNumber: string }) {
-  const rawBank = (bankName || '').toLowerCase();
-  let bank = rawBank;
-  if (rawBank === 'bc' || rawBank === 'bca') bank = 'bca';
-  if (rawBank === 'm2' || rawBank === 'mandiri') bank = 'mandiri';
-  if (rawBank === 'i1' || rawBank === 'bni') bank = 'bni';
-  if (rawBank === 'bv' || rawBank === 'bsi') bank = 'bsi';
-  if (rawBank === 'br' || rawBank === 'briv' || rawBank === 'briva' || rawBank === 'bri') bank = 'bri';
+interface BankInstructionsProps {
+  bankName: string;
+  vaNumber: string;
+}
 
-  let content = null;
+export function BankInstructions({ bankName, vaNumber }: BankInstructionsProps) {
+  const [copied, setCopied] = useState(false);
+  const rawBank = (bankName || '').toLowerCase().trim();
 
-  if (bank.includes('bca')) {
-    content = (
-      <div className="text-left text-sm text-neutral-300 space-y-4">
-        <div>
-          <p className="font-bold text-white">ATM BCA</p>
-          <ol className="list-decimal pl-4 mt-1 space-y-1">
-            <li>Masukkan kartu ATM dan PIN Anda</li>
-            <li>Pilih menu <b>Transaksi Lainnya</b></li>
-            <li>Pilih <b>Transfer</b> &gt; <b>ke Rekening BCA Virtual Account</b></li>
-            <li>Masukkan Nomor Pembayaran <b>({vaNumber})</b></li>
-            <li>Masukkan jumlah pembayaran sesuai tagihan</li>
-            <li>Konfirmasi pembayaran dan simpan struk</li>
-          </ol>
-        </div>
-        <div>
-          <p className="font-bold text-white">m-BCA (BCA Mobile)</p>
-          <ol className="list-decimal pl-4 mt-1 space-y-1">
-            <li>Buka aplikasi BCA Mobile dan login</li>
-            <li>Pilih menu <b>m-Transfer</b></li>
-            <li>Pilih <b>BCA Virtual Account</b></li>
-            <li>Masukkan Nomor Pembayaran <b>({vaNumber})</b></li>
-            <li>Masukkan jumlah pembayaran dan konfirmasi dengan PIN</li>
-          </ol>
-        </div>
-      </div>
-    );
-  } else if (bank.includes('bri')) {
-    content = (
-      <div className="text-left text-sm text-neutral-300 space-y-4">
-        <div>
-          <p className="font-bold text-white">ATM BRI</p>
-          <ol className="list-decimal pl-4 mt-1 space-y-1">
-            <li>Masukkan kartu ATM dan PIN Anda</li>
-            <li>Pilih menu <b>Transaksi Lain</b> atau menu serupa</li>
-            <li>Pilih <b>Pembayaran</b>, lalu <b>Lainnya</b></li>
-            <li>Pilih <b>BRIVA</b></li>
-            <li>Masukkan Nomor Pembayaran <b>({vaNumber})</b></li>
-            <li>Masukkan jumlah pembayaran sesuai tagihan</li>
-            <li>Konfirmasi pembayaran dan simpan struk</li>
-          </ol>
-        </div>
-        <div>
-          <p className="font-bold text-white">Mobile Banking BRI (BRIMO)</p>
-          <ol className="list-decimal pl-4 mt-1 space-y-1">
-            <li>Buka aplikasi BRImo dan login</li>
-            <li>Pilih menu <b>Pembayaran</b></li>
-            <li>Pilih <b>BRIVA</b></li>
-            <li>Masukkan Nomor Pembayaran <b>({vaNumber})</b></li>
-            <li>Masukkan jumlah pembayaran dan konfirmasi</li>
-          </ol>
-        </div>
-      </div>
-    );
-  } else if (bank.includes('bni')) {
-    content = (
-      <div className="text-left text-sm text-neutral-300 space-y-4">
-        <div>
-          <p className="font-bold text-white">ATM BNI</p>
-          <ol className="list-decimal pl-4 mt-1 space-y-1">
-            <li>Masukkan kartu ATM dan PIN Anda</li>
-            <li>Pilih menu <b>Transaksi Lainnya</b></li>
-            <li>Pilih <b>Pembayaran</b>, lalu <b>Virtual Account Billing</b></li>
-            <li>Masukkan Nomor Pembayaran <b>({vaNumber})</b></li>
-            <li>Konfirmasi pembayaran dan ikuti petunjuk selanjutnya</li>
-          </ol>
-        </div>
-        <div>
-          <p className="font-bold text-white">Mobile Banking BNI</p>
-          <ol className="list-decimal pl-4 mt-1 space-y-1">
-            <li>Buka aplikasi BNI Mobile Banking dan login</li>
-            <li>Pilih menu <b>Transfer</b> &gt; <b>Virtual Account Billing</b></li>
-            <li>Pilih Rekening debet &gt; klik <b>Input Baru</b></li>
-            <li>Masukkan nomor virtual account <b>({vaNumber})</b></li>
-            <li>Klik Selanjutnya dan konfirmasi</li>
-          </ol>
-        </div>
-      </div>
-    );
-  } else if (bank.includes('bsi')) {
-    content = (
-      <div className="text-left text-sm text-neutral-300 space-y-4">
-        <div>
-          <p className="font-bold text-white">BSI Mobile</p>
-          <ol className="list-decimal pl-4 mt-1 space-y-1">
-            <li>Login ke aplikasi BSI Mobile</li>
-            <li>Pilih menu <b>Transfer</b> &gt; <b>Virtual Account Billing</b></li>
-            <li>Masukkan Nomor Pembayaran <b>({vaNumber})</b> pada menu Input Baru</li>
-            <li>Layar akan menampilkan total tagihan, konfirmasi pembayaran</li>
-          </ol>
-        </div>
-      </div>
-    );
-  } else if (bank.includes('mandiri')) {
-    content = (
-      <div className="text-left text-sm text-neutral-300 space-y-4">
-        <div>
-          <p className="font-bold text-white">Livin' by Mandiri</p>
-          <ol className="list-decimal pl-4 mt-1 space-y-1">
-            <li>Login ke aplikasi Livin' by Mandiri</li>
-            <li>Pilih menu <b>Pembayaran Baru</b> dan kemudian <b>Multi Payment</b></li>
-            <li>Pilih penyedia jasa <b>Finpay</b></li>
-            <li>Masukkan Nomor Pembayaran <b>({vaNumber})</b> dan nominal</li>
-            <li>Konfirmasi transaksi dengan PIN Anda</li>
-          </ol>
-        </div>
-      </div>
-    );
-  } else if (bank.includes('permata')) {
-    content = (
-      <div className="text-left text-sm text-neutral-300 space-y-4">
-        <div>
-          <p className="font-bold text-white">PermataMobile X</p>
-          <ol className="list-decimal pl-4 mt-1 space-y-1">
-            <li>Buka aplikasi PermataMobile X dan login</li>
-            <li>Pilih menu <b>Bayar Tagihan</b> &gt; <b>Virtual Account</b></li>
-            <li>Masukkan Nomor Pembayaran <b>({vaNumber})</b></li>
-            <li>Pilih rekening sumber dana dan konfirmasi pembayaran</li>
-          </ol>
-        </div>
-      </div>
-    );
-  } else if (bank.includes('maybank')) {
-    content = (
-      <div className="text-left text-sm text-neutral-300 space-y-4">
-        <div>
-          <p className="font-bold text-white">M2U ID (Maybank)</p>
-          <ol className="list-decimal pl-4 mt-1 space-y-1">
-            <li>Buka aplikasi M2U ID dan login</li>
-            <li>Pilih menu <b>Pembayaran</b> &gt; <b>Maybank Virtual Account</b></li>
-            <li>Masukkan Nomor Pembayaran <b>({vaNumber})</b></li>
-            <li>Masukkan Jumlah Transfer lalu konfirmasi</li>
-          </ol>
-        </div>
-      </div>
-    );
-  } else if (bank.includes('alfamart') || bank.includes('indomaret')) {
-    content = (
-      <div className="text-left text-sm text-neutral-300 space-y-4">
-        <div>
-          <p className="font-bold text-white">Pembayaran di Gerai {bank.includes('alfa') ? 'Alfamart' : 'Indomaret'}</p>
-          <ol className="list-decimal pl-4 mt-1 space-y-1">
-            <li>Pergi ke gerai {bank.includes('alfa') ? 'Alfamart' : 'Indomaret'} terdekat</li>
-            <li>Informasikan ke Kasir ingin membayar menggunakan <b>Payment Code Finpay / Pronpay</b></li>
-            <li>Berikan Nomor Kode Bayar <b>({vaNumber})</b></li>
-            <li>Lakukan pembayaran sesuai nominal tagihan</li>
-          </ol>
-        </div>
-      </div>
-    );
-  } else {
-    content = (
-      <div className="text-left text-sm text-neutral-300">
-        <p>Gunakan nomor Virtual Account <b>{vaNumber}</b> untuk melakukan transfer dari ATM, Internet Banking, atau Mobile Banking bank terkait.</p>
-      </div>
-    );
-  }
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(vaNumber);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Detection flags for different payment channels
+  const isAlfamart = rawBank.includes('alfa') || rawBank.includes('alfamart') || rawBank.includes('alfamidi') || rawBank.includes('lawson') || rawBank.includes('dandan');
+  const isIndomaret = rawBank.includes('indo') || rawBank.includes('indomaret') || rawBank.includes('indomart') || rawBank.includes('ceriamart');
+  const isRetail = isAlfamart || isIndomaret || rawBank.includes('finpay') || rawBank.includes('pronpay') || rawBank.includes('retail') || rawBank.includes('cstore');
+
+  const isBca = rawBank.includes('bca') || rawBank === 'bc';
+  const isBri = rawBank.includes('bri') || rawBank === 'br' || rawBank === 'briva';
+  const isBni = rawBank.includes('bni') || rawBank === 'i1';
+  const isMandiri = rawBank.includes('mandiri') || rawBank === 'm2' || rawBank.includes('livin');
+  const isBsi = rawBank.includes('bsi') || rawBank === 'bv';
+  const isPermata = rawBank.includes('permata');
+  const isCimb = rawBank.includes('cimb') || rawBank.includes('niaga');
+  const isMaybank = rawBank.includes('maybank') || rawBank.includes('m2u');
+
+  let outletTitle = 'Gerai Retail';
+  if (isAlfamart) outletTitle = 'Alfamart / Alfamidi / Lawson';
+  if (isIndomaret) outletTitle = 'Indomaret / Ceriamart';
 
   return (
-    <details className="group">
-      <summary className="text-sm font-bold text-white cursor-pointer list-none flex items-center justify-between outline-none">
-        Lihat Cara Pembayaran
-        <span className="transition group-open:rotate-180 text-neutral-400">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    <details className="group bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden transition-all" open>
+      <summary className="px-4 sm:px-5 py-3.5 sm:py-4 cursor-pointer list-none flex items-center justify-between outline-none bg-slate-50/60 hover:bg-slate-50 transition-colors">
+        <div className="flex items-center gap-2.5">
+          {isRetail ? (
+            <div className="w-7 h-7 rounded-lg bg-blue-100 text-[#002c60] flex items-center justify-center shrink-0 font-bold">
+              <Store className="w-4 h-4" />
+            </div>
+          ) : (
+            <div className="w-7 h-7 rounded-lg bg-blue-100 text-[#002c60] flex items-center justify-center shrink-0 font-bold">
+              <Building2 className="w-4 h-4" />
+            </div>
+          )}
+          <span className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
+            Petunjuk Cara Pembayaran
+          </span>
+        </div>
+        <span className="transition-transform duration-200 group-open:rotate-180 text-slate-500">
+          <ChevronDown className="w-5 h-5" />
         </span>
       </summary>
-      <div className="mt-4 border-t border-neutral-800 pt-4">
-        {content}
+
+      <div className="p-4 sm:p-5 border-t border-slate-200 space-y-4 text-left">
+        {/* Highlight Payment Code / VA Box with Copy Button */}
+        <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div>
+            <span className="text-xs font-semibold text-slate-600 block">
+              {isRetail ? 'Kode Pembayaran Kasir' : 'Nomor Virtual Account'}
+            </span>
+            <span className="font-mono text-base sm:text-lg font-extrabold text-[#002c60] tracking-wider">
+              {vaNumber}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#002c60] hover:bg-[#003b82] text-white text-xs font-bold rounded-lg shadow-xs transition-colors self-start sm:self-center"
+          >
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? 'Tersalin' : 'Salin Kode'}
+          </button>
+        </div>
+
+        {/* 1. GERAI RETAIL (ALFAMART / INDOMARET / FINPAY / PRONPAY) */}
+        {isRetail && (
+          <div className="space-y-4">
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#002c60] bg-blue-100/70 px-2 py-0.5 rounded">
+                  {outletTitle}
+                </span>
+              </div>
+              <ol className="space-y-2.5">
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                    1
+                  </span>
+                  <span>
+                    Kunjungi gerai <b>{outletTitle}</b> terdekat.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                    2
+                  </span>
+                  <span>
+                    Sampaikan kepada kasir bahwa Anda ingin melakukan pembayaran merchant <b>Finpay</b> atau <b>Pronpay</b> (Pembayaran Tagihan Online).
+                  </span>
+                </li>
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                    3
+                  </span>
+                  <span>
+                    Tunjukkan atau sebutkan Kode Pembayaran: <b className="font-mono text-[#002c60] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">{vaNumber}</b> kepada kasir.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                    4
+                  </span>
+                  <span>
+                    Kasir akan memverifikasi nama pelanggan dan total nominal tagihan. Pastikan rincian telah sesuai.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                    5
+                  </span>
+                  <span>
+                    Lakukan pembayaran kepada kasir secara tunai atau menggunakan kartu debit.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                    6
+                  </span>
+                  <span>
+                    Simpan struk cetak pembayaran resmi dari kasir sebagai bukti transaksi yang sah.
+                  </span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {/* 2. BCA VIRTUAL ACCOUNT */}
+        {isBca && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs sm:text-sm font-bold text-slate-900">m-BCA (BCA Mobile)</p>
+              <ol className="space-y-2 text-xs sm:text-sm text-slate-700">
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                  <span>Buka aplikasi BCA Mobile dan pilih menu <b>m-BCA</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                  <span>Pilih menu <b>m-Transfer</b> &gt; <b>BCA Virtual Account</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                  <span>Masukkan Nomor Virtual Account <b>{vaNumber}</b> lalu klik <b>Send</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">4</span>
+                  <span>Pastikan nama dan nominal tagihan telah sesuai, lalu konfirmasi dengan PIN m-BCA Anda.</span>
+                </li>
+              </ol>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <p className="text-xs sm:text-sm font-bold text-slate-900">ATM BCA</p>
+              <ol className="space-y-2 text-xs sm:text-sm text-slate-700">
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                  <span>Masukkan kartu ATM dan PIN BCA Anda.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                  <span>Pilih menu <b>Transaksi Lainnya</b> &gt; <b>Transfer</b> &gt; <b>ke Rekening BCA Virtual Account</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                  <span>Masukkan Nomor Virtual Account <b>{vaNumber}</b> dan ikuti instruksi hingga selesai.</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {/* 3. BRI VIRTUAL ACCOUNT (BRIVA) */}
+        {isBri && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs sm:text-sm font-bold text-slate-900">BRImo (Mobile Banking BRI)</p>
+              <ol className="space-y-2 text-xs sm:text-sm text-slate-700">
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                  <span>Login ke aplikasi <b>BRImo</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                  <span>Pilih menu <b>Tagihan</b> &gt; <b>BRIVA</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                  <span>Pilih <b>Pembayaran Baru</b> dan masukkan Nomor Pembayaran <b>{vaNumber}</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">4</span>
+                  <span>Periksa rincian tagihan, lalu masukkan PIN BRImo untuk menyelesaikan transaksi.</span>
+                </li>
+              </ol>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <p className="text-xs sm:text-sm font-bold text-slate-900">ATM BRI</p>
+              <ol className="space-y-2 text-xs sm:text-sm text-slate-700">
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                  <span>Masukkan kartu ATM dan PIN Anda di mesin ATM BRI.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                  <span>Pilih <b>Transaksi Lain</b> &gt; <b>Pembayaran</b> &gt; <b>Lainnya</b> &gt; <b>BRIVA</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                  <span>Masukkan Nomor Pembayaran <b>{vaNumber}</b> dan konfirmasi pembayaran.</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {/* 4. BNI VIRTUAL ACCOUNT */}
+        {isBni && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs sm:text-sm font-bold text-slate-900">BNI Mobile Banking</p>
+              <ol className="space-y-2 text-xs sm:text-sm text-slate-700">
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                  <span>Login ke <b>BNI Mobile Banking</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                  <span>Pilih menu <b>Transfer</b> &gt; <b>Virtual Account Billing</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                  <span>Pilih tab <b>Input Baru</b> dan masukkan Nomor VA <b>{vaNumber}</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">4</span>
+                  <span>Konfirmasi rincian tagihan dan masukkan Password Transaksi Anda.</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {/* 5. MANDIRI VIRTUAL ACCOUNT */}
+        {isMandiri && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs sm:text-sm font-bold text-slate-900">Livin' by Mandiri (Kuning)</p>
+              <ol className="space-y-2 text-xs sm:text-sm text-slate-700">
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                  <span>Login ke aplikasi <b>Livin' by Mandiri</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                  <span>Pilih menu <b>Bayar</b> &gt; cari penyedia jasa <b>Virtual Account / Finpay</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                  <span>Masukkan Nomor Pembayaran <b>{vaNumber}</b> lalu klik <b>Lanjutkan</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">4</span>
+                  <span>Pastikan data pembayaran benar dan konfirmasi dengan PIN Livin' Anda.</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {/* 6. BSI VIRTUAL ACCOUNT */}
+        {isBsi && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs sm:text-sm font-bold text-slate-900">BSI Mobile</p>
+              <ol className="space-y-2 text-xs sm:text-sm text-slate-700">
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                  <span>Buka dan login ke aplikasi <b>BSI Mobile</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                  <span>Pilih menu <b>Bayar</b> &gt; <b>Virtual Account Billing</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                  <span>Masukkan Nomor Virtual Account <b>{vaNumber}</b> lalu konfirmasi.</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {/* 7. PERMATA & BANK LAINNYA */}
+        {isPermata && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs sm:text-sm font-bold text-slate-900">PermataMobile X</p>
+              <ol className="space-y-2 text-xs sm:text-sm text-slate-700">
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                  <span>Login ke aplikasi <b>PermataMobile X</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                  <span>Pilih <b>Bayar Tagihan</b> &gt; <b>Virtual Account</b>.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                  <span>Masukkan Nomor Pembayaran <b>{vaNumber}</b> dan selesaikan transaksi.</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {/* 8. FALLBACK UNTUK SEMUA BANK / ATM BERSAMA */}
+        {!isRetail && !isBca && !isBri && !isBni && !isMandiri && !isBsi && !isPermata && (
+          <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+            <p className="font-semibold text-slate-900">
+              Transfer Antar Bank / ATM Bersama / Prima:
+            </p>
+            <ol className="space-y-2">
+              <li className="flex items-start gap-2.5">
+                <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                <span>Buka aplikasi m-Banking atau ATM bank pilihan Anda.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                <span>Pilih menu <b>Transfer Antar Bank</b> atau <b>Virtual Account</b>.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                <span>Masukkan Nomor Rekening / Virtual Account <b>{vaNumber}</b>.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">4</span>
+                <span>Pastikan nominal pembayaran sesuai dengan total tagihan dan konfirmasi.</span>
+              </li>
+            </ol>
+          </div>
+        )}
       </div>
     </details>
   );

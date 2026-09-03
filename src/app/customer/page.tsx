@@ -269,9 +269,15 @@ export default function CustomerDashboard() {
               >
                 <span className="material-symbols-outlined text-[14px]">visibility</span> Lihat
               </button>
-              {(latestInvoice.status === 'PENDING' || latestInvoice.status === 'OVERDUE') && latestInvoice.paymentToken && (
+              {(latestInvoice.status === 'PENDING' || latestInvoice.status === 'OVERDUE') && (latestInvoice.paymentLink || latestInvoice.paymentToken) && (
                 <button
-                  onClick={() => router.push(`/pay/${latestInvoice.paymentToken}`)}
+                  onClick={() => {
+                    if (latestInvoice.paymentLink && latestInvoice.paymentLink.startsWith('http')) {
+                      window.location.href = latestInvoice.paymentLink;
+                    } else {
+                      router.push(`/pay/${latestInvoice.paymentToken}`);
+                    }
+                  }}
                   className="flex-1 bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 transition-opacity py-2.5 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider flex justify-center items-center gap-1.5"
                 >
                   <span className="material-symbols-outlined text-[14px]">payment</span> Bayar Sekarang

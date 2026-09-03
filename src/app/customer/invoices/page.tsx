@@ -14,6 +14,7 @@ interface Invoice {
   profileName?: string;
   invoiceType?: string;
   paymentToken?: string;
+  paymentLink?: string | null;
 }
 
 type StatusFilter = 'all' | 'unpaid' | 'overdue' | 'paid';
@@ -253,9 +254,15 @@ export default function CustomerInvoicesPage() {
                         </button>
 
                         {/* Bayar — only for unpaid/overdue */}
-                        {(isUnpaid || isOverdue) && inv.paymentToken && (
+                        {(isUnpaid || isOverdue) && (inv.paymentLink || inv.paymentToken) && (
                           <button
-                            onClick={() => router.push(`/pay/${inv.paymentToken}`)}
+                            onClick={() => {
+                              if (inv.paymentLink && inv.paymentLink.startsWith('http')) {
+                                window.location.href = inv.paymentLink;
+                              } else {
+                                router.push(`/pay/${inv.paymentToken}`);
+                              }
+                            }}
                             className="btn-primary whitespace-nowrap"
                           >
                             <span className="material-symbols-outlined text-[14px]">payment</span>

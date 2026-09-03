@@ -8,7 +8,7 @@ import {
   CheckCircle, Clock, AlertCircle, CreditCard, Building2, 
   Loader2, User, Phone, Package, Calendar, MapPin, 
   FileText, Image as ImageIcon, QrCode, Download, ChevronLeft, ChevronRight,
-  CheckCircle2, Copy, ArrowRight, ShieldCheck, Zap
+  CheckCircle2, Copy, ArrowRight, ShieldCheck, Zap, Store
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { BankInstructions } from './BankInstructions';
@@ -457,33 +457,39 @@ export default function PaymentPage() {
     return (
       <div className="min-h-screen bg-[var(--color-paper-2)] text-[var(--color-ink)] font-sans pb-16">
         {/* Top Navigation Bar: < Pembayaran */}
-        <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-3.5 flex items-center gap-3">
+        <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between shadow-2xs">
           <button
             onClick={() => setActivePaymentView('selection')}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 hover:text-[var(--color-accent)] transition-colors"
+            className="inline-flex items-center gap-2 text-sm sm:text-base font-bold text-slate-800 hover:text-[#002c60] transition-colors"
           >
-            <ChevronLeft className="w-5 h-5 text-slate-600" />
-            <span className="text-sm">Pembayaran</span>
+            <ChevronLeft className="w-5 h-5 text-slate-700" />
+            <span>Pilih Metode Lain</span>
           </button>
+          <span className="text-xs sm:text-sm font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+            {invoice.invoiceNumber}
+          </span>
         </div>
 
-        <div className="max-w-md mx-auto px-4 py-4 space-y-3.5 animate-in fade-in duration-300">
+        <div className="max-w-md mx-auto px-4 py-5 space-y-4 animate-in fade-in duration-300">
           {/* Card 1: Total Pembayaran & Timer Countdown */}
-          <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-3.5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <span className="text-xs font-medium text-slate-600">Total Pembayaran</span>
-              <span className="text-base font-bold text-[var(--color-accent)] font-mono">
+              <span className="text-xs sm:text-sm font-semibold text-slate-600">Total Pembayaran</span>
+              <span className="text-xl sm:text-2xl font-extrabold text-[#002c60] font-mono tracking-tight">
                 Rp{invoice.amount.toLocaleString('id-ID')}
               </span>
             </div>
 
             <div className="flex items-start justify-between">
-              <span className="text-xs font-medium text-slate-600">Bayar Dalam</span>
+              <div>
+                <span className="text-xs sm:text-sm font-semibold text-slate-600 block">Sisa Waktu Bayar</span>
+                <span className="text-xs text-slate-500 font-medium">Batas 24 Jam</span>
+              </div>
               <div className="text-right">
-                <div className="text-sm font-bold text-slate-900 font-mono tracking-wider">
+                <div className="text-base sm:text-lg font-mono font-extrabold text-slate-900 tracking-wider">
                   {countdown.hh} : {countdown.mm} : {countdown.ss}
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">
+                <div className="text-xs text-slate-500 font-medium mt-0.5">
                   Jatuh tempo {formatDate(invoice.dueDate)}
                 </div>
               </div>
@@ -491,43 +497,43 @@ export default function PaymentPage() {
           </div>
 
           {/* Card 2: Container QRIS Resmi */}
-          <div className="bg-white rounded-xl border border-slate-200/90 p-6 shadow-xs text-center space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-7 shadow-xs text-center space-y-4">
             {/* Header: Logo QRIS + QR Code Standar Pembayaran Nasional */}
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2.5">
               <BankLogo name="qris" size="md" variant="plain" />
-              <div className="text-left leading-none">
-                <span className="text-[11px] font-bold text-slate-800 block">QR Code Standar</span>
-                <span className="text-[10px] text-slate-500 font-medium">Pembayaran Nasional</span>
+              <div className="text-left leading-tight">
+                <span className="text-xs sm:text-sm font-extrabold text-slate-900 block">QR Code Standar</span>
+                <span className="text-[11px] sm:text-xs text-slate-600 font-semibold">Pembayaran Nasional</span>
               </div>
             </div>
 
             {/* Crisp QR Code Container */}
-            <div className="inline-block p-4 bg-white rounded-xl border border-slate-200 shadow-xs">
+            <div className="inline-block p-4 sm:p-5 bg-white rounded-2xl border-2 border-slate-200 shadow-xs">
               {qrString ? (
                 <QRCodeSVG
                   id="qris-svg-render"
                   value={qrString}
-                  size={240}
+                  size={260}
                   level="M"
                   includeMargin={true}
-                  className="w-[220px] h-[220px] sm:w-[240px] sm:h-[240px] mx-auto"
+                  className="w-[230px] h-[230px] sm:w-[260px] sm:h-[260px] mx-auto"
                 />
               ) : (
-                <div className="w-[220px] h-[220px] flex items-center justify-center bg-slate-50 rounded-lg">
-                  <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent)]" />
+                <div className="w-[230px] h-[230px] sm:w-[260px] sm:h-[260px] flex items-center justify-center bg-slate-50 rounded-xl">
+                  <Loader2 className="w-8 h-8 animate-spin text-[#002c60]" />
                 </div>
               )}
             </div>
 
             {/* NMID */}
-            <p className="font-mono text-xs font-semibold text-slate-600 tracking-wider">
+            <p className="font-mono text-xs sm:text-sm font-bold text-slate-700 tracking-wider">
               NMID: ID2025444802321
             </p>
           </div>
 
           {/* Card 3: Banner Menerima Berbagai Pembayaran QR */}
-          <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-xs space-y-3">
-            <h4 className="text-xs font-bold text-slate-800 text-left">
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-3">
+            <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 text-left">
               Menerima Berbagai Pembayaran QR
             </h4>
             <div className="pt-1">
@@ -535,23 +541,23 @@ export default function PaymentPage() {
             </div>
           </div>
 
-          {/* Card 4: Petunjuk Pembayaran QRIS (Langkah 1 s/d 6 Rapi) */}
-          <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-xs space-y-3.5">
-            <h4 className="text-xs font-bold text-slate-800 text-left">
+          {/* Card 4: Petunjuk Pembayaran QRIS (Langkah 1 s/d 6 Rapi & High Contrast) */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-4">
+            <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 text-left">
               Petunjuk Pembayaran QRIS
             </h4>
 
             <ol className="space-y-3 text-left">
               {[
-                'Simpan atau screenshot Kode QR, yang berlaku selama 24 jam. Kamu bisa muat ulang untuk dapatkan kode baru.',
-                'Scan Kode QR dengan m-banking, dompet elektronik, atau aplikasi pembayaran lain.',
-                'Pastikan rincian pembayaran telah sesuai, lalu lanjutkan pembayaran.',
-                'Transaksi akan secara otomatis terbayar dan diperbarui setelah pembayaran berhasil.',
-                'Simpan bukti pembayaran untuk verifikasi lebih lanjut jika diperlukan.',
-                'Pembayaran tidak dapat diproses jika menggunakan metode pembayaran yang tidak didukung.',
+                'Simpan atau screenshot Kode QR, yang berlaku selama 24 jam. Anda bisa muat ulang untuk dapatkan kode baru.',
+                'Buka aplikasi m-Banking (BCA, BRI, Mandiri, BNI, dll) atau e-Wallet (GoPay, DANA, ShopeePay, OVO).',
+                'Pilih menu Bayar / Scan QRIS, lalu arahkan kamera ke Kode QR atau unggah screenshot dari galeri.',
+                'Pastikan nama merchant dan nominal pembayaran sesuai, lalu konfirmasi pembayaran Anda.',
+                'Transaksi akan secara otomatis terbayar dan sistem langsung mengonfirmasi status lunas.',
+                'Simpan bukti struk digital pembayaran dari aplikasi m-banking/e-wallet Anda jika diperlukan.',
               ].map((step, idx) => (
-                <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-600 leading-relaxed">
-                  <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                <li key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
+                  <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
                     {idx + 1}
                   </span>
                   <span>{step}</span>
@@ -561,20 +567,20 @@ export default function PaymentPage() {
           </div>
 
           {/* Sticky Bottom Actions */}
-          <div className="space-y-2 pt-2">
+          <div className="space-y-2.5 pt-2">
             <button
               onClick={handleDownloadQrisCanvas}
-              className="w-full py-3.5 px-4 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+              className="w-full py-3.5 sm:py-4 px-4 bg-[#002c60] hover:bg-[#003b82] text-white font-bold text-sm sm:text-base rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
             >
-              <Download className="w-4 h-4" /> Simpan Kode QR
+              <Download className="w-4 h-4 sm:w-5 sm:h-5" /> Simpan Kode QR
             </button>
 
             <button
               onClick={handleCheckPaymentStatus}
               disabled={checkingStatus}
-              className="w-full py-3 px-4 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-3.5 sm:py-4 px-4 bg-white border-2 border-slate-300 text-slate-800 hover:bg-slate-50 font-bold text-sm sm:text-base rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+              {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin text-[#002c60]" /> : <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
               Saya Sudah Bayar
             </button>
           </div>
@@ -584,59 +590,66 @@ export default function PaymentPage() {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // STATE 3: ACTIVE VIRTUAL ACCOUNT PAYMENT
+  // STATE 3: ACTIVE VIRTUAL ACCOUNT / RETAIL PAYMENT
   // ════════════════════════════════════════════════════════════════════════════
   if (activePaymentView === 'va' && vaNumber) {
     return (
       <div className="min-h-screen bg-[var(--color-paper-2)] text-[var(--color-ink)] font-sans pb-16">
-        <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-3.5 flex items-center gap-3">
+        <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between shadow-2xs">
           <button
             onClick={() => setActivePaymentView('selection')}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 hover:text-[var(--color-accent)] transition-colors"
+            className="inline-flex items-center gap-2 text-sm sm:text-base font-bold text-slate-800 hover:text-[#002c60] transition-colors"
           >
-            <ChevronLeft className="w-5 h-5 text-slate-600" />
-            <span className="text-sm">Pilih Metode Lain</span>
+            <ChevronLeft className="w-5 h-5 text-slate-700" />
+            <span>Pilih Metode Lain</span>
           </button>
+          <span className="text-xs sm:text-sm font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+            {invoice.invoiceNumber}
+          </span>
         </div>
 
-        <div className="max-w-md mx-auto px-4 py-4 space-y-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+        <div className="max-w-md mx-auto px-4 py-5 space-y-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <BankLogo name={vaBank || 'bank'} size="sm" />
-                <span className="text-xs font-bold text-slate-800">Virtual Account ({vaBank})</span>
+                <span className="text-sm font-bold text-slate-900">{vaBank || 'Metode Pembayaran'}</span>
               </div>
-              <span className="text-xs font-bold text-[var(--color-accent)] font-mono">
+              <span className="text-base sm:text-lg font-bold text-[#002c60] font-mono">
                 {formatCurrency(invoice.amount)}
               </span>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1 text-center">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nomor Virtual Account</p>
-              <p className="text-2xl font-mono font-bold text-slate-900 tracking-wider py-1">{vaNumber}</p>
+            <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200 space-y-2 text-center">
+              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                {((vaBank || '').toLowerCase().includes('alfa') || (vaBank || '').toLowerCase().includes('indo') || (vaBank || '').toLowerCase().includes('finpay'))
+                  ? 'Kode Pembayaran Kasir'
+                  : 'Nomor Virtual Account'}
+              </p>
+              <p className="text-2xl sm:text-3xl font-mono font-extrabold text-slate-900 tracking-wider py-1 select-all">{vaNumber}</p>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(vaNumber);
                   setCopiedVa(true);
                   setTimeout(() => setCopiedVa(false), 2000);
                 }}
-                className="inline-flex items-center gap-1 text-xs font-bold text-[var(--color-accent)] hover:underline pt-1"
+                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#002c60] bg-blue-50 px-3.5 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors pt-1"
               >
-                {copiedVa ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedVa ? 'Nomor Disalin!' : 'Salin Nomor VA'}
+                {copiedVa ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                {copiedVa ? 'Nomor Disalin!' : 'Salin Kode Bayar'}
               </button>
             </div>
 
-            <div className="border-t border-slate-100 pt-3">
+            <div className="border-t border-slate-100 pt-2">
               <BankInstructions bankName={vaBank || ''} vaNumber={vaNumber} />
             </div>
 
             <button
               onClick={handleCheckPaymentStatus}
               disabled={checkingStatus}
-              className="w-full py-3 px-4 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-3.5 sm:py-4 px-4 bg-[#002c60] hover:bg-[#003b82] text-white font-bold text-sm sm:text-base rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
               Saya Sudah Bayar
             </button>
           </div>
@@ -651,56 +664,56 @@ export default function PaymentPage() {
   return (
     <main className="min-h-screen bg-[var(--color-paper-2)] text-[var(--color-ink)] font-sans pb-20">
       {/* Header Brand */}
-      <header className="bg-white border-b border-slate-200/90 py-4 px-4 sticky top-0 z-30 shadow-2xs">
+      <header className="bg-white border-b border-slate-200/90 py-4 px-4 sm:px-6 sticky top-0 z-30 shadow-2xs">
         <div className="max-w-xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             {company?.logo ? (
-              <img src={company.logo} alt={company.name} className="h-7 max-w-[130px] object-contain" />
+              <img src={company.logo} alt={company.name} className="h-8 max-w-[140px] object-contain" />
             ) : (
-              <span className="font-bold text-sm text-[var(--color-accent)] tracking-tight">{company?.name || 'Portal Pembayaran'}</span>
+              <span className="font-extrabold text-base sm:text-lg text-[#002c60] tracking-tight">{company?.name || 'Portal Pembayaran'}</span>
             )}
           </div>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-            <Clock className="w-3 h-3" /> Menunggu Pembayaran
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs">
+            <Clock className="w-3.5 h-3.5" /> Menunggu Pembayaran
           </span>
         </div>
       </header>
 
-      <div className="max-w-xl mx-auto px-4 py-5 space-y-4">
+      <div className="max-w-xl mx-auto px-4 sm:px-6 py-5 space-y-4">
         {/* Invoice Summary Card */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-4">
-          <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex items-start justify-between border-b border-slate-100 pb-3.5">
             <div>
-              <p className="text-[11px] text-slate-500 font-medium">Tagihan Layanan Internet</p>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-mono tracking-tight mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-600 font-semibold">Tagihan Layanan Internet</p>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#002c60] font-mono tracking-tight mt-0.5">
                 {formatCurrency(invoice.amount)}
               </h1>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-slate-400 font-mono uppercase block">Nomor Tagihan</span>
-              <span className="text-xs font-mono font-bold text-slate-700">{invoice.invoiceNumber}</span>
+              <span className="text-xs text-slate-500 font-medium uppercase tracking-wider block">No. Tagihan</span>
+              <span className="text-xs sm:text-sm font-mono font-bold text-slate-900">{invoice.invoiceNumber}</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-xs">
+          <div className="grid grid-cols-2 gap-3.5 text-xs sm:text-sm">
             <div>
-              <span className="text-slate-400 block text-[11px]">Nama Pelanggan</span>
-              <span className="font-bold text-slate-800 truncate block">{invoice.customerName || invoice.user?.name}</span>
+              <span className="text-slate-500 block text-xs font-medium">Nama Pelanggan</span>
+              <span className="font-bold text-slate-900 truncate block text-sm sm:text-base">{invoice.customerName || invoice.user?.name}</span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[11px]">Jatuh Tempo</span>
-              <span className="font-bold text-slate-800 block">{formatDate(invoice.dueDate)}</span>
+              <span className="text-slate-500 block text-xs font-medium">Jatuh Tempo</span>
+              <span className="font-bold text-slate-900 block text-sm sm:text-base">{formatDate(invoice.dueDate)}</span>
             </div>
             {invoice.user?.profile && (
               <div>
-                <span className="text-slate-400 block text-[11px]">Paket Langganan</span>
-                <span className="font-bold text-slate-800 block">{invoice.user.profile.name}</span>
+                <span className="text-slate-500 block text-xs font-medium">Paket Langganan</span>
+                <span className="font-bold text-slate-900 block text-sm sm:text-base">{invoice.user.profile.name}</span>
               </div>
             )}
             {invoice.user?.customerId && (
               <div>
-                <span className="text-slate-400 block text-[11px]">ID Pelanggan</span>
-                <span className="font-bold text-slate-800 font-mono block">{invoice.user.customerId}</span>
+                <span className="text-slate-500 block text-xs font-medium">ID Pelanggan</span>
+                <span className="font-bold text-slate-900 font-mono block text-sm sm:text-base">{invoice.user.customerId}</span>
               </div>
             )}
           </div>
@@ -708,15 +721,15 @@ export default function PaymentPage() {
 
         {/* Global Payment Alert */}
         {error && (
-          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm font-medium flex items-center gap-2.5">
+            <AlertCircle className="w-5 h-5 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Payment Channels Section */}
-        <div className="space-y-3">
-          <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wider px-1">
+        <div className="space-y-3.5">
+          <h2 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider px-1">
             Pilih Metode Pembayaran
           </h2>
 
@@ -735,42 +748,42 @@ export default function PaymentPage() {
                 }
               }}
               disabled={processing}
-              className="w-full text-left bg-white border-2 border-[var(--color-accent)]/40 hover:border-[var(--color-accent)] rounded-2xl p-4 shadow-xs hover:shadow-md transition-all group relative overflow-hidden"
+              className="w-full text-left bg-white border-2 border-[#002c60]/40 hover:border-[#002c60] rounded-2xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all group relative overflow-hidden"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl shrink-0 group-hover:scale-105 transition-transform">
+                <div className="flex items-start gap-3.5">
+                  <div className="p-2.5 bg-blue-50/80 border border-blue-200 rounded-xl shrink-0 group-hover:scale-105 transition-transform">
                     <BankLogo name="qris" size="md" variant="plain" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-slate-900 group-hover:text-[var(--color-accent)] transition-colors">
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-[#002c60] transition-colors">
                         QRIS (Standar Pembayaran Nasional)
                       </h3>
-                      <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded border border-emerald-200">
+                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-md border border-emerald-200">
                         Instan
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      BCA, Mandiri, BRI, BNI, GoPay, DANA, ShopeePay & lainnya
+                    <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1">
+                      BCA, Mandiri, BRI, BNI, GoPay, DANA, ShopeePay & semua bank
                     </p>
-                    <div className="mt-3 pt-2 border-t border-slate-100">
+                    <div className="mt-3.5 pt-2.5 border-t border-slate-100">
                       <AcceptedQrisBadges />
                     </div>
                   </div>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-[var(--color-accent)] group-hover:text-white transition-all shrink-0 mt-1">
-                  <ChevronRight className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-[#002c60] group-hover:text-white transition-all shrink-0 mt-1">
+                  <ChevronRight className="w-5 h-5" />
                 </div>
               </div>
             </button>
           )}
 
-          {/* ── 2. KARTU VIRTUAL ACCOUNT ── */}
+          {/* ── 2. KARTU VIRTUAL ACCOUNT (DUITKU) ── */}
           {duitkuMethods.filter((m) => m.group === 'VA' || m.name.toLowerCase().includes('va')).length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
-              <h3 className="text-xs font-bold text-slate-800 flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-[var(--color-accent)]" /> Virtual Account Bank
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs space-y-3">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-[#002c60]" /> Virtual Account Bank
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {duitkuMethods
@@ -780,26 +793,26 @@ export default function PaymentPage() {
                       key={method.code}
                       onClick={() => handlePayment('duitku', method.code)}
                       disabled={processing}
-                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-[var(--color-accent)] hover:bg-slate-50 transition-all text-left group disabled:opacity-50"
+                      className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-[#002c60] hover:bg-slate-50 transition-all text-left group disabled:opacity-50"
                     >
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-3">
                         <BankLogo name={method.name} size="sm" />
-                        <span className="text-xs font-bold text-slate-800 group-hover:text-[var(--color-accent)]">
+                        <span className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-[#002c60]">
                           {method.name}
                         </span>
                       </div>
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                     </button>
                   ))}
               </div>
             </div>
           )}
 
-          {/* ── 3. QRIN METHODS JIKA ADA VIRTUAL ACCOUNT / RETAIL ── */}
+          {/* ── 3. QRIN METHODS (GERAI RETAIL / VIRTUAL ACCOUNT LAINNYA) ── */}
           {qrinMethods.filter((m) => m.code !== 'qris').length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
-              <h3 className="text-xs font-bold text-slate-800 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-[var(--color-accent)]" /> Kanal Pembayaran Tambahan (QRIN)
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs space-y-3">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Store className="w-4 h-4 text-[#002c60]" /> Gerai Retail & Kanal Lainnya (QRIN)
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {qrinMethods
@@ -809,15 +822,15 @@ export default function PaymentPage() {
                       key={method.code}
                       onClick={() => handlePayment('qrin', method.code)}
                       disabled={processing}
-                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-[var(--color-accent)] hover:bg-slate-50 transition-all text-left group disabled:opacity-50"
+                      className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-[#002c60] hover:bg-slate-50 transition-all text-left group disabled:opacity-50"
                     >
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-3">
                         <BankLogo name={method.name} size="sm" />
-                        <span className="text-xs font-bold text-slate-800 group-hover:text-[var(--color-accent)]">
+                        <span className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-[#002c60]">
                           {method.name}
                         </span>
                       </div>
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                     </button>
                   ))}
               </div>
@@ -832,10 +845,10 @@ export default function PaymentPage() {
                 className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left"
               >
                 <div className="flex items-center gap-3">
-                  <Building2 className="w-5 h-5 text-slate-500" />
+                  <Building2 className="w-5 h-5 text-slate-600" />
                   <div>
-                    <p className="text-xs font-bold text-slate-800">Transfer Manual Bank</p>
-                    <p className="text-[11px] text-slate-400">Konfirmasi bukti transfer</p>
+                    <p className="text-xs sm:text-sm font-bold text-slate-800">Transfer Manual Bank</p>
+                    <p className="text-xs text-slate-500">Konfirmasi bukti transfer</p>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -849,9 +862,9 @@ export default function PaymentPage() {
       {processing && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 animate-in fade-in">
           <div className="bg-white rounded-2xl p-6 flex flex-col items-center shadow-xl max-w-xs w-full mx-4 text-center border border-slate-200">
-            <Loader2 className="w-10 h-10 animate-spin text-[var(--color-accent)] mb-3" />
-            <p className="text-sm font-bold text-slate-800">Menyiapkan Transaksi...</p>
-            <p className="text-xs text-slate-500 mt-1">Menghubungkan ke gateway pembayaran</p>
+            <Loader2 className="w-10 h-10 animate-spin text-[#002c60] mb-3" />
+            <p className="text-sm sm:text-base font-bold text-slate-900">Menyiapkan Transaksi...</p>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">Menghubungkan ke gateway pembayaran</p>
           </div>
         </div>
       )}
@@ -860,14 +873,14 @@ export default function PaymentPage() {
       {statusError && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-xl border border-slate-200 animate-in zoom-in-95">
-            <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 border border-amber-200">
+            <div className="w-14 h-14 bg-amber-50 text-amber-700 rounded-full flex items-center justify-center mx-auto mb-3 border border-amber-200">
               <Clock className="w-7 h-7" />
             </div>
-            <h3 className="text-base font-bold text-slate-800 mb-1.5">Belum Terdeteksi</h3>
-            <p className="text-xs text-slate-500 mb-5 leading-relaxed">{statusError}</p>
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1.5">Belum Terdeteksi</h3>
+            <p className="text-xs sm:text-sm text-slate-600 mb-5 leading-relaxed">{statusError}</p>
             <button 
               onClick={() => setStatusError(null)}
-              className="w-full bg-[var(--color-accent)] hover:opacity-90 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-sm"
+              className="w-full bg-[#002c60] hover:bg-[#003b82] text-white font-bold py-3 px-4 rounded-xl text-xs sm:text-sm transition-all shadow-sm"
             >
               Mengerti
             </button>

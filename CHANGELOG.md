@@ -7,8 +7,12 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [2.36.0] — 2026-09-03
 ### Added & Changed
 - **Customer Experience & Payment Redesign (`/pay/[token]`)**:
-  - *Issue*: Halaman pembayaran sebelumnya berupa form monolith dengan icon generic `<CreditCard />` abu-abu dan opsi manual transfer yang tidak relevan bagi gateway otomatis.
-  - *Solusi*: Redesign total antarmuka pembayaran pelanggan mengacu pada layout referensi standar QRIS nasional:
+  - *Issue*: Halaman pembayaran sebelumnya berupa form monolith dengan icon generic `<CreditCard />` abu-abu dan opsi manual transfer yang tidak relevan bagi gateway otomatis. Ukuran font pada iterasi awal terlalu kecil (10px-11px), kontras teks instruksi menyatu dengan latar belakang, serta instruksi gerai retail (Alfamart/Indomaret) keliru menampilkan instruksi transfer ATM virtual account.
+  - *Solusi*:
+    - Skala tipografi dinaikkan secara drastis (judul 18px-24px, harga 24px-32px font-extrabold monospace, instruksi 14px-15px tebal dengan nomor langkah lingkaran kontras tinggi).
+    - Perombakan total `BankInstructions.tsx`: Teks tidak lagi menggunakan warna gelap/putih redup. Menambahkan instruksi pembayaran gerai retail **Alfamart / Alfamidi / Lawson** dan **Indomaret / Ceriamart** via **Finpay / Pronpay** lengkap dengan kode kasir yang bisa disalin 1-klik dan skrip dialog kasir.
+    - Sinkronisasi domain pembayaran kanonikal: Tombol "Bayar" pada portal pelanggan (`/customer`) kini memprioritaskan `paymentLink` resmi perusahaan (`euginemediagroup.com/pay/...`) dan ditambahkan rewrite alias `/customer/pay/:token` pada `next.config.ts`.
+    - Merilis panduan brand resmi: `docs/design/EUGINEBILL_BRAND_GUIDE.md`.
     - State 1: Pilihan kanal pembayaran aktif (QRIS dengan logo resmi & deretan badge bank/e-wallet, serta Virtual Account resmi). Opsi transfer manual disembunyikan secara bersih (`SHOW_MANUAL_TRANSFER = false`).
     - State 2: Mode aktif bayar QRIS persis layout referensi mobile/desktop (`< Pembayaran`, Card Total Tagihan & Timer Countdown 24 Jam `23 : 58 : 02`, Container QR Code SVG tajam dari `qrcode.react` + NMID, banner `Menerima Berbagai Pembayaran QR`, 6 langkah petunjuk standar nasional, dan tombol `Simpan Kode QR` dengan generator canvas resolusi tinggi 750x1000).
 - **Integrasi Aset Resmi `idn-finlogos` & Komponen `<BankLogo />`**:

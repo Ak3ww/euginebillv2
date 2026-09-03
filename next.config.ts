@@ -164,6 +164,14 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: '/customer/pay/:token',
+        destination: '/pay/:token',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
