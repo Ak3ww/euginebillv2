@@ -66,10 +66,21 @@ async function main() {
       dueDate: septDueDate,
       status: 'PAID',
       paidAt: paidDate,
-      paymentMethod: 'CASH',
-      notes: 'Pelunasan Cash September 2026 (Diperbarui via script fix)',
     }
   });
+
+  // Catat transaksi pembayaran Cash ke tabel payment
+  await prisma.payment.create({
+    data: {
+      id: `pay-${Date.now()}`,
+      invoiceId: invToPay.id,
+      amount: invToPay.amount,
+      method: 'CASH',
+      status: 'SUCCESS',
+      paidAt: paidDate,
+    }
+  }).catch(() => {});
+
   console.log(`   ✅ Selesai: DueDate diubah ke 2026-09-05, Status: PAID (Lunas Cash).`);
 
   // Hapus invoice duplikat sisanya (jika ada lebih dari 1 invoice pending Oktober)
