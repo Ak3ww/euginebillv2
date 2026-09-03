@@ -46,9 +46,10 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     - Berikan pesan transparan di `errors[]` jika memang dilewati karena ada tagihan aktif dengan nomor invoice terkait.
 
 ### Files
+- `scripts/check-user-invoices.js` — NEW: Skrip diagnostik database & force-generator invoice untuk pelanggan bermasalah.
 - `src/app/api/invoices/generate/route.ts` — Perbaikan duplicate check, fallback expiredAt, dan user filter.
 - `src/server/services/pppoe.service.ts` — Case-insensitive status mapping pada `listPppoeUsers`.
-- `src/app/admin/invoices/page.tsx` — Izinkan pencarian seluruh status pelanggan pada modal generate single.
+- `src/app/admin/invoices/page.tsx` — Izinkan pencarian seluruh status pelanggan pada modal generate & perbaiki filter pencarian tabel.
 - `src/components/ui/BankLogo.tsx` — NEW: Komponen logo perbankan & e-wallet resmi Indonesia.
 - `public/images/banks/` — NEW: 16 SVG resmi dari `idn-finlogos`.
 - `src/app/pay/[token]/page.tsx` — Redesign halaman pembayaran dengan layout QRIS referensi & timer 24h.

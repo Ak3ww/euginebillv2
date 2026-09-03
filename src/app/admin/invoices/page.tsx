@@ -212,10 +212,14 @@ export default function InvoicesPage() {
     if (!searchQuery) return invoices;
     const query = searchQuery.toLowerCase();
     return invoices.filter(inv =>
-      inv.invoiceNumber.toLowerCase().includes(query) ||
+      inv.invoiceNumber?.toLowerCase().includes(query) ||
       inv.customerName?.toLowerCase().includes(query) ||
       inv.customerUsername?.toLowerCase().includes(query) ||
-      inv.customerPhone?.includes(query)
+      inv.customerPhone?.includes(query) ||
+      (inv as any).user?.name?.toLowerCase().includes(query) ||
+      (inv as any).user?.username?.toLowerCase().includes(query) ||
+      (inv as any).user?.customerId?.toLowerCase().includes(query) ||
+      (inv as any).user?.phone?.includes(query)
     );
   };
 
