@@ -911,7 +911,7 @@ export default function InvoicesPage() {
     if (!q || q.length < 2) { setGenUsers([]); return; }
     setGenLoadingUsers(true);
     try {
-      const res = await fetch(`/api/pppoe/users?status=active`);
+      const res = await fetch(`/api/pppoe/users`);
       const data = await res.json();
       const all = (data.users || []) as { id: string; name: string; username: string; phone: string; profile: { name: string } | null }[];
       const filtered = all.filter(u =>

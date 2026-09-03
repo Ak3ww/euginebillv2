@@ -81,13 +81,18 @@ export interface UpdatePppoeUserInput {
 export async function listPppoeUsers(params: { status?: string | null }) {
   const whereClause: Record<string, unknown> = {};
   if (params.status) {
-    if (params.status === 'stop' || params.status === 'stopped' || params.status === 'suspended') {
-      whereClause.status = { in: ['stop', 'stopped', 'suspended'] };
+    const s = params.status.toLowerCase();
+    if (['stop', 'stopped', 'suspended', 'terminated', 'dismantle'].includes(s)) {
+      whereClause.status = { in: ['stop', 'stopped', 'suspended', 'STOP', 'STOPPED', 'terminated', 'TERMINATED', 'dismantle', 'DISMANTLE'] };
+    } else if (s === 'active') {
+      whereClause.status = { in: ['active', 'ACTIVE'] };
+    } else if (s === 'isolated') {
+      whereClause.status = { in: ['isolated', 'ISOLATED'] };
     } else {
       whereClause.status = params.status;
     }
   } else {
-    whereClause.status = { notIn: ['stop', 'stopped', 'suspended'] };
+    whereClause.status = { notIn: ['stop', 'stopped', 'suspended', 'STOP', 'STOPPED', 'terminated', 'TERMINATED', 'dismantle', 'DISMANTLE'] };
   }
 
   const users = await prisma.pppoeUser.findMany({

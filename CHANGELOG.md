@@ -31,9 +31,24 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Atasi kebocoran firewall address-list MikroTik (`removeUserFromMikrotikAddressList`) dengan dukungan Dual-Mode (Non-RADIUS default & RADIUS mode).
   - Atomic conditional update webhook untuk mencegah double-credit voucher & saldo agen.
   - Perbaikan perhitungan traffic live session PPPoE membaca `/interface/print` `<pppoe-{user}>`.
-  - Engine konverter QRIS statis ke dinamis (EMVCo TLV + CRC16) dan webhook listener Android.
+- **Fix Invoice Generation Skipped User (Kasus Rahmat Hidayat)**:
+  - *Issue*: Pelanggan (seperti Rahmat Hidayat) selalu dilewati (`skipped`) saat generate tagihan, padahal di dashboard/UI tagihan bulan bersangkutan sama sekali tidak ada.
+  - *Akar Masalah*:
+    1. Query pengecekan tagihan ganda (`existingInvoices`) sebelumnya mencocokkan `createdAt` dan `status: { not: 'CANCELLED' }`. Jika pelanggan memiliki tagihan PSB atau record yang terbuat di bulan berjalan dengan `dueDate` berbeda atau status EXPIRED/FAILED, sistem keliru menandai pelanggan sudah memiliki tagihan dan melewatkannya. Namun di UI dashboard tagihan tidak muncul karena UI memfilter strictly berdasarkan `dueDate`.
+    2. Pelanggan bertipe `PREPAID` yang nilai `expiredAt`-nya belum terisi (null) sebelumnya dilewati secara diam-diam (`skipped++; continue;`) tanpa fallback.
+    3. Pada generate satuan (`scope=single`), query user terikat filter kaku `status: in ['active', 'isolated']`.
+    4. Pencarian pengguna pada form generate tagihan dibatasi `?status=active` sehingga pengguna dengan casing status berbeda tidak muncul.
+  - *Solusi*:
+    - Pengecekan duplicate di `src/app/api/invoices/generate/route.ts` kini strictly mencocokkan invoice aktif (`PENDING`, `OVERDUE`, `PAID`) dengan `dueDate` di bulan tagihan target (`monthStart` s/d `monthEnd`), memeriksa `userId` maupun `customerUsername`.
+    - Fallback otomatis perhitungan `dueDate` untuk pelanggan `PREPAID` jika `expiredAt` masih null.
+    - Untuk `scope='single'`, user langsung diproses berdasarkan ID tanpa terhalang filter status.
+    - Perbaiki pencarian user di `src/app/admin/invoices/page.tsx` dan `src/server/services/pppoe.service.ts` agar mendukung pencarian seluruh status.
+    - Berikan pesan transparan di `errors[]` jika memang dilewati karena ada tagihan aktif dengan nomor invoice terkait.
 
 ### Files
+- `src/app/api/invoices/generate/route.ts` — Perbaikan duplicate check, fallback expiredAt, dan user filter.
+- `src/server/services/pppoe.service.ts` — Case-insensitive status mapping pada `listPppoeUsers`.
+- `src/app/admin/invoices/page.tsx` — Izinkan pencarian seluruh status pelanggan pada modal generate single.
 - `src/components/ui/BankLogo.tsx` — NEW: Komponen logo perbankan & e-wallet resmi Indonesia.
 - `public/images/banks/` — NEW: 16 SVG resmi dari `idn-finlogos`.
 - `src/app/pay/[token]/page.tsx` — Redesign halaman pembayaran dengan layout QRIS referensi & timer 24h.
