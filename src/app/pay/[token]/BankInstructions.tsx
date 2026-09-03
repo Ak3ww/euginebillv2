@@ -18,9 +18,10 @@ export function BankInstructions({ bankName, vaNumber }: BankInstructionsProps) 
   };
 
   // Detection flags for different payment channels
-  const isAlfamart = rawBank.includes('alfa') || rawBank.includes('alfamart') || rawBank.includes('alfamidi') || rawBank.includes('lawson') || rawBank.includes('dandan');
-  const isIndomaret = rawBank.includes('indo') || rawBank.includes('indomaret') || rawBank.includes('indomart') || rawBank.includes('ceriamart');
-  const isRetail = isAlfamart || isIndomaret || rawBank.includes('finpay') || rawBank.includes('pronpay') || rawBank.includes('retail') || rawBank.includes('cstore');
+  const isPaymentCode = rawBank.includes('payment code') || rawBank.includes('kode bayar') || rawBank.includes('code');
+  const isAlfamart = rawBank.includes('alfa') || rawBank.includes('alfamart') || rawBank.includes('alfamidi') || rawBank.includes('lawson') || rawBank.includes('dandan') || (isPaymentCode && vaNumber.startsWith('021'));
+  const isIndomaret = rawBank.includes('indo') || rawBank.includes('indomaret') || rawBank.includes('indomart') || rawBank.includes('ceriamart') || (isPaymentCode && vaNumber.startsWith('019'));
+  const isRetail = isAlfamart || isIndomaret || isPaymentCode || rawBank.includes('finpay') || rawBank.includes('pronpay') || rawBank.includes('retail') || rawBank.includes('cstore');
 
   const isBca = rawBank.includes('bca') || rawBank === 'bc';
   const isBri = rawBank.includes('bri') || rawBank === 'br' || rawBank === 'briva';
@@ -31,9 +32,9 @@ export function BankInstructions({ bankName, vaNumber }: BankInstructionsProps) 
   const isCimb = rawBank.includes('cimb') || rawBank.includes('niaga');
   const isMaybank = rawBank.includes('maybank') || rawBank.includes('m2u');
 
-  let outletTitle = 'Gerai Retail';
-  if (isAlfamart) outletTitle = 'Alfamart / Alfamidi / Lawson';
-  if (isIndomaret) outletTitle = 'Indomaret / Ceriamart';
+  let outletTitle = 'Gerai Retail (Alfamart / Indomaret)';
+  if (isAlfamart) outletTitle = 'Gerai Alfamart / Alfamidi / Lawson';
+  if (isIndomaret) outletTitle = 'Gerai Indomaret / Ceriamart';
 
   return (
     <details className="group bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden transition-all" open>
@@ -62,7 +63,7 @@ export function BankInstructions({ bankName, vaNumber }: BankInstructionsProps) 
         <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div>
             <span className="text-xs font-semibold text-slate-600 block">
-              {isRetail ? 'Kode Pembayaran Kasir' : 'Nomor Virtual Account'}
+              {isRetail ? 'Nomor Kode Bayar Kasir' : 'Nomor Virtual Account'}
             </span>
             <span className="font-mono text-base sm:text-lg font-extrabold text-[#002c60] tracking-wider">
               {vaNumber}
@@ -88,52 +89,44 @@ export function BankInstructions({ bankName, vaNumber }: BankInstructionsProps) 
                 </span>
               </div>
               <ol className="space-y-2.5">
-                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">
                   <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
                     1
                   </span>
                   <span>
-                    Kunjungi gerai <b>{outletTitle}</b> terdekat.
+                    Pergi ke gerai <b>{outletTitle}</b> terdekat.
                   </span>
                 </li>
-                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">
                   <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
                     2
                   </span>
                   <span>
-                    Sampaikan kepada kasir bahwa Anda ingin melakukan pembayaran merchant <b>Finpay</b> atau <b>Pronpay</b> (Pembayaran Tagihan Online).
+                    Informasikan ke Kasir ingin membayar menggunakan <b>Payment Code Finpay / Pronpay</b> (Pembayaran Tagihan Online).
                   </span>
                 </li>
-                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">
                   <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
                     3
                   </span>
                   <span>
-                    Tunjukkan atau sebutkan Kode Pembayaran: <b className="font-mono text-[#002c60] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">{vaNumber}</b> kepada kasir.
+                    Berikan Nomor Kode Bayar <b>({vaNumber})</b> kepada kasir.
                   </span>
                 </li>
-                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">
                   <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
                     4
                   </span>
                   <span>
-                    Kasir akan memverifikasi nama pelanggan dan total nominal tagihan. Pastikan rincian telah sesuai.
+                    Lakukan pembayaran sesuai nominal tagihan kepada kasir.
                   </span>
                 </li>
-                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">
                   <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
                     5
                   </span>
                   <span>
-                    Lakukan pembayaran kepada kasir secara tunai atau menggunakan kartu debit.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
-                  <span className="w-5 h-5 rounded-full bg-[#002c60] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                    6
-                  </span>
-                  <span>
-                    Simpan struk cetak pembayaran resmi dari kasir sebagai bukti transaksi yang sah.
+                    Minta dan simpan struk bukti pembayaran dari kasir sebagai bukti sah transaksi.
                   </span>
                 </li>
               </ol>

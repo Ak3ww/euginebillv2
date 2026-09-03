@@ -322,8 +322,18 @@ export async function POST(request: NextRequest) {
           
           qrString = dataObj.qris_data || dataObj.qr_string || dataObj.qr_code || dataObj.payload || '';
           const vaNum = dataObj.va_number || dataObj.payment_code || '';
-          const vaName = dataObj.va_bank || dataObj.payment_name || '';
-          
+          let vaName = dataObj.va_bank || dataObj.payment_name || '';
+
+          // Normalize generic "Payment Code" from QRIN to specific retail merchant name
+          if (!vaName || vaName.toLowerCase() === 'payment code') {
+            const m = qrinMethod.toLowerCase();
+            if (m.includes('alfa')) vaName = 'Alfamart';
+            else if (m.includes('indo')) vaName = 'Indomaret';
+            else if (vaNum.startsWith('021')) vaName = 'Alfamart';
+            else if (vaNum.startsWith('019')) vaName = 'Indomaret';
+            else vaName = qrinMethod.toUpperCase();
+          }
+
           paymentUrl = dataObj.payment_url || dataObj.checkout_url || '';
           
           if (!qrString && !paymentUrl && !vaNum) {

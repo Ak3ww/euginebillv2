@@ -225,7 +225,7 @@ export default function PaymentPage() {
   const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
   const formatDate = (dateStr: string) => formatWIB(dateStr, 'd MMMM yyyy, HH:mm');
 
-  const handlePayment = async (gateway: string, paymentMethod?: string) => {
+  const handlePayment = async (gateway: string, paymentMethod?: string, methodName?: string) => {
     if (!invoice) return;
     setProcessing(true);
     setError(null);
@@ -243,7 +243,10 @@ export default function PaymentPage() {
         setActivePaymentView('qris');
       } else if (data.vaNumber) {
         setVaNumber(data.vaNumber);
-        setVaBank(data.vaBank || paymentMethod || 'Virtual Account');
+        const resolvedBank = (methodName && methodName.toLowerCase() !== 'payment code')
+          ? methodName
+          : ((data.vaBank && data.vaBank.toLowerCase() !== 'payment code') ? data.vaBank : (paymentMethod || 'Metode Pembayaran'));
+        setVaBank(resolvedBank);
         setActivePaymentView('va');
       } else if (data.paymentUrl) {
         window.location.href = data.paymentUrl;
@@ -593,6 +596,16 @@ export default function PaymentPage() {
   // STATE 3: ACTIVE VIRTUAL ACCOUNT / RETAIL PAYMENT
   // ════════════════════════════════════════════════════════════════════════════
   if (activePaymentView === 'va' && vaNumber) {
+    const isRetailPayment = 
+      (vaBank || '').toLowerCase().includes('alfa') ||
+      (vaBank || '').toLowerCase().includes('indo') ||
+      (vaBank || '').toLowerCase().includes('finpay') ||
+      (vaBank || '').toLowerCase().includes('pronpay') ||
+      (vaBank || '').toLowerCase().includes('cstore') ||
+      (vaBank || '').toLowerCase().includes('payment code') ||
+      (vaNumber || '').startsWith('021') ||
+      (vaNumber || '').startsWith('019');
+
     return (
       <div className="min-h-screen bg-[var(--color-paper-2)] text-[var(--color-ink)] font-sans pb-16">
         <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between shadow-2xs">
@@ -613,7 +626,9 @@ export default function PaymentPage() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
                 <BankLogo name={vaBank || 'bank'} size="sm" />
-                <span className="text-sm font-bold text-slate-900">{vaBank || 'Metode Pembayaran'}</span>
+                <span className="text-sm font-bold text-slate-900">
+                  {isRetailPayment ? `Gerai Retail (${vaBank || 'Kasir'})` : `Virtual Account (${vaBank || 'Bank'})`}
+                </span>
               </div>
               <span className="text-base sm:text-lg font-bold text-[#002c60] font-mono">
                 {formatCurrency(invoice.amount)}
@@ -622,9 +637,7 @@ export default function PaymentPage() {
 
             <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200 space-y-2 text-center">
               <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                {((vaBank || '').toLowerCase().includes('alfa') || (vaBank || '').toLowerCase().includes('indo') || (vaBank || '').toLowerCase().includes('finpay'))
-                  ? 'Kode Pembayaran Kasir'
-                  : 'Nomor Virtual Account'}
+                {isRetailPayment ? 'Nomor Kode Bayar Kasir' : 'Nomor Virtual Account'}
               </p>
               <p className="text-2xl sm:text-3xl font-mono font-extrabold text-slate-900 tracking-wider py-1 select-all">{vaNumber}</p>
               <button
@@ -636,7 +649,7 @@ export default function PaymentPage() {
                 className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#002c60] bg-blue-50 px-3.5 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors pt-1"
               >
                 {copiedVa ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                {copiedVa ? 'Nomor Disalin!' : 'Salin Kode Bayar'}
+                {copiedVa ? 'Kode Disalin!' : (isRetailPayment ? 'Salin Kode Bayar Kasir' : 'Salin Nomor VA')}
               </button>
             </div>
 
@@ -791,7 +804,7 @@ export default function PaymentPage() {
                   .map((method) => (
                     <button
                       key={method.code}
-                      onClick={() => handlePayment('duitku', method.code)}
+                      onClick={() => handlePayment('duitku', method.code, method.name)}
                       disabled={processing}
                       className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-[#002c60] hover:bg-slate-50 transition-all text-left group disabled:opacity-50"
                     >
@@ -820,7 +833,7 @@ export default function PaymentPage() {
                   .map((method) => (
                     <button
                       key={method.code}
-                      onClick={() => handlePayment('qrin', method.code)}
+                      onClick={() => handlePayment('qrin', method.code, method.name)}
                       disabled={processing}
                       className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-[#002c60] hover:bg-slate-50 transition-all text-left group disabled:opacity-50"
                     >
