@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
+import { requirePermission } from '@/server/middleware/api-auth';
 
 export const dynamic = 'force-dynamic';
 
 // GET - Fetch ODPs for technician autocomplete and GPS matching
 // Includes usedPorts: array of port numbers currently occupied by active customers
 export async function GET() {
+  const auth = await requirePermission('technician.access');
+  if (!auth.authorized) return auth.response;
   try {
     const odps = await prisma.networkODP.findMany({
       select: {

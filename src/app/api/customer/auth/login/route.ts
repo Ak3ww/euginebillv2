@@ -15,10 +15,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user by customerId
+    // Normalize phone number variants
+    const cleanDigits = identifier.replace(/[^0-9]/g, '');
+    const phoneCandidates = [
+      identifier.trim(),
+      cleanDigits,
+      cleanDigits.startsWith('0') ? '62' + cleanDigits.slice(1) : '',
+      cleanDigits.startsWith('62') ? '0' + cleanDigits.slice(2) : '',
+      cleanDigits ? '+' + cleanDigits : '',
+    ].filter(Boolean);
+
+    // Find user by customerId, username, or phone number
     const user = await prisma.pppoeUser.findFirst({
       where: {
-        customerId: identifier,
+        OR: [
+          { customerId: identifier.trim() },
+          { username: identifier.trim() },
+          { phone: { in: phoneCandidates } },
+        ],
       },
       select: {
         id: true,

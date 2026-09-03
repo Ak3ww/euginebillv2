@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { ok, notFound, serverError } from '@/lib/api-response';
 import { getPppoeUserById } from '@/server/services/pppoe.service';
 import { prisma } from '@/server/db/client';
+import { checkAuth } from '@/server/middleware/api-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +11,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await checkAuth();
+  if (!auth.authorized) return auth.response;
   try {
     const { id } = await params;
     const result = await getPppoeUserById(id);
@@ -27,6 +30,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await checkAuth();
+  if (!auth.authorized) return auth.response;
   try {
     const { id } = await params;
     const body = await request.json();

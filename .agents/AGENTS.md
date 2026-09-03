@@ -51,3 +51,10 @@ For ALL customer-facing UI development (customer portal, payment pages, public l
    - Socat must be running on Linux VPS for port forwarding.
    - Port range `24000:24999` must be open on VPS firewall / cloud security group.
 
+## Mandatory Documentation & Changelog Standard (Tulis Yang Dikerjakan, Kerjakan Yang Ditulis)
+1. **Auto-Update CHANGELOG.md**: Setiap kali ada penambahan fitur, refaktor, perbaikan bug, atau fase kerja selesai, WAJIB mendokumentasikannya di file `CHANGELOG.md` pada root project dengan format standar:
+   - Tanggal & Latar Belakang Masalah (Issue / Context)
+   - Solusi Arsitektural & Perubahan Teknis
+   - Daftar File yang Ditambahkan / Dimodifikasi (`Files`)
+2. **Dokumentasi Teknis Fitur Baru di `docs/`**: Untuk setiap fitur baru atau perombakan sistem yang signifikan, WAJIB membuat atau memperbarui file panduan `.md` di dalam direktori `docs/` (misal `docs/customer/...` atau `docs/mikrotik/...`) yang merinci alur kerja, kontrak API, dan troubleshooting agar tim dapat membaca dan mengauditnya kembali sewaktu-waktu.
+3. **Integritas Dokumentasi**: Selalu pastikan apa yang dituliskan pada dokumentasi sesuai 100% dengan kode yang diimplementasikan (*write what we do, and do what we write*).

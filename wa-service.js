@@ -37,31 +37,20 @@ let myNumber = null;
 // Silent logger — no noise in PM2 logs except our console.log calls
 const logger = pino({ level: 'silent' });
 
-// Auto-restart on corrupted session (Bad MAC)
-let badMacCount = 0;
-const originalConsoleError = console.error;
-console.error = function (...args) {
-  if (args.some(a => typeof a === 'string' && (a.includes('Bad MAC') || a.includes('Failed to decrypt')))) {
-    badMacCount++;
-    if (badMacCount >= 3) {
-       originalConsoleError('[WA Service] 🛑 CRITICAL: Multiple Bad MAC / Encryption errors detected. Session is corrupted. Forcing auto-logout...');
-       badMacCount = 0;
-       connectionStatus = 'error'; // Set to error so UI shows 'Device Terputus'
-       if (sock) {
-         try { sock.logout('Corrupted session').catch(() => {}); } catch {}
-       }
-       try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch {}
-       sock = null;
-    }
-  }
-  originalConsoleError.apply(console, args);
-};
+// Mutex to prevent duplicate Baileys sockets
+let isConnecting = false;
 
 async function connectToWhatsApp() {
+  if (isConnecting) {
+    console.log('[WA Service] Already connecting — skipping duplicate call.');
+    return;
+  }
+  isConnecting = true;
+
   connectionStatus = 'initializing';
   qrCodeImage = null;
-  badMacCount = 0; // reset on new connection
 
+  try {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const { version, isLatest } = await fetchLatestBaileysVersion();
   console.log(`[WA Service] Baileys v${version.join('.')}, isLatest: ${isLatest}`);
@@ -89,14 +78,15 @@ async function connectToWhatsApp() {
     }
 
     if (connection === 'close') {
+      isConnecting = false;
       const shouldReconnect =
         lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log(
-        '[WA Service] Connection closed:',
-        lastDisconnect?.error?.message || 'unknown',
-        '| reconnect:',
-        shouldReconnect,
-      );
+      const errMsg = lastDisconnect?.error?.message || 'unknown';
+      console.log('[WA Service] Connection closed:', errMsg, '| reconnect:', shouldReconnect);
+
+      if (errMsg.includes('Bad MAC') || errMsg.includes('Failed to decrypt')) {
+        console.warn('[WA Service] Bad MAC / decrypt error detected — reconnecting without clearing auth...');
+      }
 
       if (shouldReconnect) {
         connectionStatus = 'reconnecting';
@@ -108,7 +98,8 @@ async function connectToWhatsApp() {
         sock = null;
       }
     } else if (connection === 'open') {
-      console.log('[WA Service] ✅ Connected to WhatsApp!');
+      isConnecting = false;
+      console.log('[WA Service] Connected to WhatsApp!');
       connectionStatus = 'connected';
       qrCodeImage = null;
       if (sock?.user?.id) {
@@ -119,13 +110,29 @@ async function connectToWhatsApp() {
   });
 
   sock.ev.on('creds.update', saveCreds);
+  } catch (err) {
+    isConnecting = false;
+    throw err;
+  }
 }
 
 // Start on launch
 connectToWhatsApp().catch(err => {
   console.error('[WA Service] Startup error:', err);
   connectionStatus = 'error';
+  isConnecting = false;
 });
+
+// Graceful shutdown
+function gracefulShutdown(signal) {
+  console.log('[WA Service] Received ' + signal + ' — shutting down gracefully...');
+  if (sock) {
+    try { sock.end(); } catch {}
+  }
+  process.exit(0);
+}
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 // ─── API Routes ──────────────────────────────────────────────────────────────
 

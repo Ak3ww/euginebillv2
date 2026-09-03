@@ -272,9 +272,24 @@ export async function GET(request: NextRequest) {
               );
               await Promise.race([connectPromise, timeoutPromise]);
 
-              // 1. Fetch live PPPoE active sessions
+              // 1. Fetch live PPPoE active sessions and pppoe-in interface traffic counters
               if (type !== 'hotspot') {
-                const activePPP = await api.write('/ppp/active/print').catch(() => []);
+                const [activePPP, interfaces] = await Promise.all([
+                  api.write('/ppp/active/print').catch(() => []),
+                  api.write('/interface/print', ['?type=pppoe-in']).catch(() => []),
+                ]);
+
+                const ifaceMap = new Map<string, { rx: bigint; tx: bigint }>();
+                for (const iface of (interfaces || [])) {
+                  const ifName = iface.name ? String(iface.name).replace(/^<pppoe-/, '').replace(/>$/, '') : '';
+                  if (ifName) {
+                    ifaceMap.set(ifName, {
+                      rx: BigInt(iface['rx-byte'] || 0),
+                      tx: BigInt(iface['tx-byte'] || 0),
+                    });
+                  }
+                }
+
                 for (const ppp of activePPP) {
                   const username = ppp.name || ppp.user || '';
                   const ip = ppp.address || '';
@@ -282,6 +297,7 @@ export async function GET(request: NextRequest) {
                   const uptimeStr = ppp.uptime || '0s';
                   const uptimeSecs = parseUptime(uptimeStr);
                   const startTime = new Date(Date.now() - uptimeSecs * 1000);
+                  const ifStats = ifaceMap.get(username);
 
                   liveSessionsList.push({
                     radacctid: BigInt(0),
@@ -294,8 +310,8 @@ export async function GET(request: NextRequest) {
                     acctupdatetime: new Date(),
                     acctstoptime: null,
                     acctsessiontime: uptimeSecs,
-                    acctinputoctets: BigInt(ppp['bytes-in'] || ppp['rx-byte'] || 0),
-                    acctoutputoctets: BigInt(ppp['bytes-out'] || ppp['tx-byte'] || 0),
+                    acctinputoctets: ifStats ? ifStats.rx : BigInt(0),
+                    acctoutputoctets: ifStats ? ifStats.tx : BigInt(0),
                     acctterminatecause: '',
                     routerId: r.id,
                     service: 'pppoe',

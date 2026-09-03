@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
+import { requirePermission } from '@/server/middleware/api-auth';
 const RouterOSAPI = require('node-routeros').RouterOSAPI;
 
 interface MikrotikInterface {

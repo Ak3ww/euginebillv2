@@ -184,17 +184,28 @@ async function start() {
   scheduleJob('acs_session_cleanup', '*/30 * * * *', 'ACS Session Cleanup');       // Bersihkan sesi CWMP kedaluwarsa dari DB
   scheduleJob('acs_dhcp_sync', '*/30 * * * *', 'ACS DHCP Lease Sync');             // Tarik DHCP lease dan trigger Connection Request
 
-  // Telegram crons integration (dynamic settings)
+  // Telegram crons — register with concrete fallback schedule if DB says 'dynamic'
   setTimeout(async () => {
     try {
-      const backupConf = getJobConfig('telegram_backup', 'dynamic');
-      const healthConf = getJobConfig('telegram_health', 'dynamic');
-      
-      if (backupConf.enabled) {
-        console.log('  - [ACTIVE]   Telegram Backup (telegram_backup) -> Managed dynamically');
+      const backupConf = getJobConfig('telegram_backup', '0 2 * * *'); // Default: daily 02:00 WIB
+      const healthConf = getJobConfig('telegram_health', '0 8 * * *'); // Default: daily 08:00 WIB
+
+      if (backupConf.enabled && backupConf.schedule && backupConf.schedule !== 'dynamic') {
+        cron.schedule(backupConf.schedule, async () => {
+          await runCronJob('telegram_backup', 'Telegram DB Backup');
+        });
+        console.log('  - [ACTIVE]   Telegram Backup (telegram_backup) -> ' + backupConf.schedule);
+      } else if (backupConf.enabled) {
+        console.log('  - [ACTIVE]   Telegram Backup (telegram_backup) -> Managed externally');
       }
-      if (healthConf.enabled) {
-        console.log('  - [ACTIVE]   Telegram Health Check (telegram_health) -> Managed dynamically');
+
+      if (healthConf.enabled && healthConf.schedule && healthConf.schedule !== 'dynamic') {
+        cron.schedule(healthConf.schedule, async () => {
+          await runCronJob('telegram_health', 'Telegram Health Report');
+        });
+        console.log('  - [ACTIVE]   Telegram Health (telegram_health) -> ' + healthConf.schedule);
+      } else if (healthConf.enabled) {
+        console.log('  - [ACTIVE]   Telegram Health (telegram_health) -> Managed externally');
       }
     } catch (err) {
       console.warn('[CRON SERVICE] Telegram settings loading skipped:', err.message);

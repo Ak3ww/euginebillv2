@@ -46,8 +46,9 @@ export async function GET(req: NextRequest) {
       where.status = 'isolated';
     }
 
-    // Fetch PPPoE users with relations (includes password for backup purposes)
+    // Fetch PPPoE users with relations — cap at 2000 rows to avoid OOM
     const users = await prisma.pppoeUser.findMany({
+      take: 2000,
       where,
       include: {
         profile: true,
@@ -62,12 +63,11 @@ export async function GET(req: NextRequest) {
     });
 
     if (format === 'pdf') {
-      // Generate PDF data for client-side rendering
-      const headers = ['No', 'Username', 'Password', 'Nama', 'Phone', 'Profile', 'Status', 'Expired', 'Router'];
+      // PDF export — password column excluded for security
+      const headers = ['No', 'Username', 'Nama', 'Phone', 'Profile', 'Status', 'Expired', 'Router'];
       const rows = users.map((u, idx) => [
         idx + 1,
         u.username,
-        u.password,
         u.name,
         u.phone,
         u.profile.name,
@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Excel export
+    // Excel export — includes passwords for admin backup/migration purposes
     const unifiedHeaders = [
       'ID Pelanggan (kosongkan = auto)',
       'PPPoE Pelanggan',

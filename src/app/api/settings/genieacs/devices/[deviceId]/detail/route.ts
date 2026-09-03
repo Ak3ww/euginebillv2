@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGenieACSCredentials } from '../../../route';
+import { requirePermission } from '@/server/middleware/api-auth';
 
 // Helper to extract raw value from GenieACS format (handles {_value: x} format)
 function extractRawValue(val: unknown): unknown {

@@ -173,10 +173,9 @@ async function restartFreeRADIUS(): Promise<{ success: boolean; error?: string }
 async function sendAlert(message: string, severity: 'warning' | 'critical') {
     try {
         // Get admin users to notify
-        const adminUsers = await prisma.users.findMany({
+        const adminUsers = await prisma.adminUser.findMany({
             where: {
-                role: { in: ['ADMIN'] },
-                email: { not: '' }
+                role: { in: ['SUPER_ADMIN'] },
             },
             select: {
                 id: true,

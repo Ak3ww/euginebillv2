@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { prisma } from '@/server/db/client';
+import { requirePermission } from '@/server/middleware/api-auth';
 
 // GET - Get uplink connections for a router
 export async function GET(

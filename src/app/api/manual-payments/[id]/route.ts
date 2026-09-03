@@ -350,6 +350,15 @@ export async function PATCH(
             }
           }
         }
+
+        // Clean up MikroTik firewall isolir address-list (Dual-Mode)
+        try {
+          const { removeUserFromMikrotikAddressList } = await import('@/server/services/radius/coa-handler.service');
+          removeUserFromMikrotikAddressList(manualPayment.user.username, manualPayment.user.routerId, 'isolir')
+            .catch(err => console.error('[Manual Payment APPROVE] Address-list un-isolir error:', err?.message));
+        } catch (addrErr) {
+          console.error('[Manual Payment APPROVE] Could not load address-list cleaner:', addrErr);
+        }
       } catch (syncErr) {
         console.error('[Manual Payment APPROVE] Sync error:', syncErr);
       }

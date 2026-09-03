@@ -4,6 +4,55 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.36.0] — 2026-09-03
+### Added & Changed
+- **Customer Experience & Payment Redesign (`/pay/[token]`)**:
+  - *Issue*: Halaman pembayaran sebelumnya berupa form monolith dengan icon generic `<CreditCard />` abu-abu dan opsi manual transfer yang tidak relevan bagi gateway otomatis.
+  - *Solusi*: Redesign total antarmuka pembayaran pelanggan mengacu pada layout referensi standar QRIS nasional:
+    - State 1: Pilihan kanal pembayaran aktif (QRIS dengan logo resmi & deretan badge bank/e-wallet, serta Virtual Account resmi). Opsi transfer manual disembunyikan secara bersih (`SHOW_MANUAL_TRANSFER = false`).
+    - State 2: Mode aktif bayar QRIS persis layout referensi mobile/desktop (`< Pembayaran`, Card Total Tagihan & Timer Countdown 24 Jam `23 : 58 : 02`, Container QR Code SVG tajam dari `qrcode.react` + NMID, banner `Menerima Berbagai Pembayaran QR`, 6 langkah petunjuk standar nasional, dan tombol `Simpan Kode QR` dengan generator canvas resolusi tinggi 750x1000).
+- **Integrasi Aset Resmi `idn-finlogos` & Komponen `<BankLogo />`**:
+  - Menyalin 16 SVG resmi dari repositori `hafidznoor/idn-finlogos` ke `public/images/banks/` (BCA, Mandiri, BRI, BNI, BSI, SeaBank, CIMB Niaga, Permata, QRIS, GoPay, DANA, ShopeePay, OVO, LinkAja, Alfamart, Indomaret).
+  - Membangun komponen reusable `BankLogo.tsx` dan `<AcceptedQrisBadges />` tanpa dependensi eksternal.
+- **Redesign Halaman Login Pelanggan (`/customer/login`)**:
+  - *Issue*: Halaman login pelanggan sebelumnya menggunakan gradien cyan usang dan hanya menerima input `customerId`.
+  - *Solusi*: Tampilan baru mengadopsi **Hallmark Enterprise Oceanic Blue (`#002c60`, `#1b437c`)** mobile-first. Mendukung login menggunakan **ID Pelanggan, Username PPPoE, maupun Nomor HP** (dengan normalisasi otomatis `08...`, `628...`, `+628...`).
+  - **Sistem Lupa Password Mandiri**: Endpoint baru `/api/customer/auth/reset-password` memungkinkan pelanggan memverifikasi OTP via WhatsApp dan mengatur sandi portal baru secara mandiri tanpa campur tangan admin.
+  - **Masuk Cepat via OTP WhatsApp**: Alternatif masuk instan tanpa perlu mengingat password.
+- **Penyempurnaan Customer Portal & Status Coming Soon**:
+  - Halaman WiFi (`/customer/wifi`) yang belum tersambung 100% dengan TR-069/GenieACS kini menampilkan kartu pemberitahuan informatif *"Fitur Sedang Peningkatan Sistem (Coming Soon)"* dengan tombol direct CS WhatsApp, mencegah kebingungan pelanggan.
+  - Ditambahkan badge *"Segera"* pada menu WiFi sidebar dan mobile bottom navigation bar.
+- **Remediasi Keamanan, SRE, & Jaringan (Fase 1-3)**:
+  - Tutup 33 rute API sensitif dengan `checkAuth` & `requirePermission`.
+  - Hapus data leak route `api/debug/test-user/[id]`.
+  - Hapus monkey-patching perusak sesi WhatsApp di `wa-service.js` saat mendeteksi Bad MAC.
+  - Aktifkan backup harian Telegram pukul 02:00 WIB di `cron-service.js`.
+  - Naikkan memory limit PM2 ke 750M (`--max-old-space-size=650`) & hard limit 2000 baris ekspor.
+  - Atasi kebocoran firewall address-list MikroTik (`removeUserFromMikrotikAddressList`) dengan dukungan Dual-Mode (Non-RADIUS default & RADIUS mode).
+  - Atomic conditional update webhook untuk mencegah double-credit voucher & saldo agen.
+  - Perbaikan perhitungan traffic live session PPPoE membaca `/interface/print` `<pppoe-{user}>`.
+  - Engine konverter QRIS statis ke dinamis (EMVCo TLV + CRC16) dan webhook listener Android.
+
+### Files
+- `src/components/ui/BankLogo.tsx` — NEW: Komponen logo perbankan & e-wallet resmi Indonesia.
+- `public/images/banks/` — NEW: 16 SVG resmi dari `idn-finlogos`.
+- `src/app/pay/[token]/page.tsx` — Redesign halaman pembayaran dengan layout QRIS referensi & timer 24h.
+- `src/app/customer/login/page.tsx` — Redesign halaman login pelanggan Oceanic Blue & multi-identifier.
+- `src/app/api/customer/auth/login/route.ts` — Dukungan login via customerId, username, dan nomor HP.
+- `src/app/api/customer/auth/reset-password/route.ts` — NEW: Endpoint reset password mandiri via OTP WhatsApp.
+- `src/app/customer/wifi/page.tsx` — Tampilan informatif status Coming Soon & direct WhatsApp CS.
+- `src/app/customer/CustomerClientLayout.tsx` — Badge "Segera" pada menu WiFi sidebar & bottom nav.
+- `src/server/services/radius/coa-handler.service.ts` — Dual-mode address-list cleaner `removeUserFromMikrotikAddressList`.
+- `src/app/api/payment/webhook/route.ts` — Atomic webhook lock & auto un-isolir firewall address list.
+- `src/app/api/sessions/route.ts` — Byte counter traffic akurat membaca interface `<pppoe-{user}>`.
+- `src/lib/qris.ts` — NEW: Standalone EMVCo TLV parser & dynamic QRIS engine.
+- `src/app/api/payment/qris-notify/route.ts` — NEW: Webhook receiver notifikasi perbankan Android.
+- `src/app/api/payment/qris-generate/route.ts` — NEW: Generator nominal unik QRIS dinamis.
+- `wa-service.js` — Mutex isConnecting, penghapusan auto-nuke Bad MAC, dan graceful shutdown.
+- `cron-service.js` — Penjadwalan fallback backup harian Telegram pukul 02:00 WIB.
+- `.agents/AGENTS.md` — Penambahan aturan baku *Mandatory Documentation & Changelog Standard*.
+- `docs/customer/CUSTOMER_EXPERIENCE_PAYMENT_GUIDE.md` — NEW: Dokumentasi teknis alur pembayaran & customer portal.
+
 ---
 
 ## [2.35.0] — 2026-09-01

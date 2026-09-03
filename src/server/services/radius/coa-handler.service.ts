@@ -543,10 +543,227 @@ export async function addToMikrotikAddressList(
   return false
 }
 
+/**
+ * Remove a framed IP address from a MikroTik firewall address-list.
+ */
+export async function removeFromMikrotikAddressList(
+  nasIpAddress: string,
+  framedIp: string,
+  listName: string = 'isolir'
+): Promise<boolean> {
+  if (!framedIp || framedIp === '0.0.0.0') return false
+
+  let nas = await prisma.router.findFirst({ where: { nasname: nasIpAddress } })
+  if (!nas) {
+    nas = await prisma.router.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+    })
+  }
+  if (!nas || !nas.username || !nas.password) {
+    console.log(`[CoA] removeFromMikrotikAddressList: no NAS with API credentials for ${nasIpAddress}`)
+    return false
+  }
+
+  const targetIp = nas.ipAddress && nas.ipAddress !== nas.nasname ? nas.ipAddress : nas.nasname
+  const portsToTry = [nas.apiPort, nas.port].filter((p, i, arr) => p && arr.indexOf(p) === i) as number[]
+
+  for (const port of portsToTry) {
+    try {
+      const result = await withTimeout(
+        (async () => {
+          const apiOpts: any = {
+            host: targetIp,
+            port,
+            user: nas!.username,
+            password: nas!.password,
+            timeout: 3,
+          }
+          if (port === 8729 || port === nas!.apiPort) {
+            apiOpts.tls = { rejectUnauthorized: false }
+          }
+          const api = new RouterOSAPI(apiOpts)
+          await api.connect()
+
+          const existing = await api.write('/ip/firewall/address-list/print', [
+            `?list=${listName}`,
+            `?address=${framedIp}`,
+          ])
+
+          if (existing && existing.length > 0) {
+            for (const item of existing) {
+              if (item['.id']) {
+                await api.write('/ip/firewall/address-list/remove', [`=.id=${item['.id']}`])
+              }
+            }
+          }
+
+          try { await api.close() } catch {}
+          return true
+        })(),
+        5000,
+        `MikroTik API RemoveAddressList ${targetIp}:${port}`
+      )
+
+      if (result) {
+        console.log(`[CoA] ✓ Removed ${framedIp} from address-list '${listName}' on ${targetIp}:${port}`)
+        return true
+      }
+    } catch (err: any) {
+      console.log(`[CoA] removeFromMikrotikAddressList port ${port}: ${err?.message}`)
+    }
+  }
+
+  return false
+}
+
+/**
+ * Dual-Mode Helper: Remove PPPoE customer from MikroTik firewall isolir address-list.
+ * Resolves customer IP in both RADIUS (radacct) and Non-RADIUS (mikrotikSession / /ppp/active) mode.
+ */
+export async function removeUserFromMikrotikAddressList(
+  username: string,
+  routerId?: string | null,
+  listName: string = 'isolir'
+): Promise<boolean> {
+  if (!username) return false
+
+  try {
+    const user = await prisma.pppoeUser.findUnique({
+      where: { username },
+      select: {
+        id: true,
+        username: true,
+        ipAddress: true,
+        routerId: true,
+        router: {
+          select: {
+            id: true,
+            nasname: true,
+            ipAddress: true,
+            username: true,
+            password: true,
+            port: true,
+            apiPort: true,
+          }
+        }
+      }
+    })
+
+    const effectiveRouterId = routerId || user?.routerId
+    let router = user?.router
+    if (!router && effectiveRouterId) {
+      router = await prisma.router.findUnique({
+        where: { id: effectiveRouterId },
+        select: {
+          id: true,
+          nasname: true,
+          ipAddress: true,
+          username: true,
+          password: true,
+          port: true,
+          apiPort: true,
+        }
+      })
+    }
+
+    if (!router || !router.username || !router.password) {
+      console.log(`[CoA] removeUserFromMikrotikAddressList: no router credentials for user ${username}`)
+      return false
+    }
+
+    const company = await prisma.company.findFirst({ select: { radiusEnabled: true } })
+    const isRadius = company?.radiusEnabled ?? false
+
+    const candidateIps = new Set<string>()
+    if (user?.ipAddress) candidateIps.add(user.ipAddress)
+
+    if (isRadius) {
+      try {
+        const radacctRecord = await prisma.radacct.findFirst({
+          where: { username },
+          orderBy: { radacctid: 'desc' },
+          select: { framedipaddress: true }
+        })
+        if (radacctRecord?.framedipaddress && radacctRecord.framedipaddress !== '0.0.0.0') {
+          candidateIps.add(radacctRecord.framedipaddress)
+        }
+      } catch {}
+    } else {
+      try {
+        const mtSession = await (prisma as any).mikrotikSession?.findFirst({
+          where: { username },
+          orderBy: { createdAt: 'desc' },
+          select: { ipAddress: true }
+        })
+        if (mtSession?.ipAddress) {
+          candidateIps.add(mtSession.ipAddress)
+        }
+      } catch {}
+    }
+
+    const targetIp = router.ipAddress && router.ipAddress !== router.nasname ? router.ipAddress : router.nasname
+    const portsToTry = [router.apiPort, router.port].filter((p, i, arr) => p && arr.indexOf(p) === i) as number[]
+
+    for (const port of portsToTry) {
+      try {
+        await withTimeout(
+          (async () => {
+            const apiOpts: any = {
+              host: targetIp,
+              port,
+              user: router!.username,
+              password: router!.password,
+              timeout: 4,
+            }
+            if (port === 8729 || port === router!.apiPort) {
+              apiOpts.tls = { rejectUnauthorized: false }
+            }
+            const api = new RouterOSAPI(apiOpts)
+            await api.connect()
+
+            try {
+              const active = await api.write('/ppp/active/print', [`?name=${username}`])
+              if (active && active.length > 0 && active[0].address) {
+                candidateIps.add(active[0].address)
+              }
+            } catch {}
+
+            const listEntries = await api.write('/ip/firewall/address-list/print', [`?list=${listName}`])
+            for (const item of (listEntries || [])) {
+              const matchesIp = item.address && candidateIps.has(item.address)
+              const matchesComment = item.comment && (item.comment.includes(username) || item.comment.includes('auto-isolated'))
+              if ((matchesIp || (matchesComment && matchesIp)) && item['.id']) {
+                await api.write('/ip/firewall/address-list/remove', [`=.id=${item['.id']}`])
+                console.log(`[CoA] ✓ Removed address-list entry id=${item['.id']} (${item.address}) for ${username}`)
+              }
+            }
+
+            try { await api.close() } catch {}
+          })(),
+          6000,
+          `MikroTik API removeUserFromAddressList ${targetIp}:${port}`
+        )
+        return true
+      } catch (err: any) {
+        console.log(`[CoA] removeUserFromMikrotikAddressList port ${port}: ${err?.message}`)
+      }
+    }
+
+    return false
+  } catch (outerErr: any) {
+    console.error(`[CoA] removeUserFromMikrotikAddressList error: ${outerErr?.message}`)
+    return false
+  }
+}
+
 export default {
   sendCoADisconnect,
   disconnectExpiredSessions,
   disconnectPPPoEUser,
   disconnectMultiplePPPoEUsers,
   addToMikrotikAddressList,
+  removeFromMikrotikAddressList,
+  removeUserFromMikrotikAddressList,
 }
+

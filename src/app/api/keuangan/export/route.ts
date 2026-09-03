@@ -48,12 +48,14 @@ export async function GET(request: NextRequest) {
     let routerConditions: any[] = [];
     if (routerId && routerId !== 'all') {
       const usersInRouter = await prisma.pppoeUser.findMany({
+      take: 2000,
         where: { routerId },
         select: { id: true, username: true, customerId: true, name: true },
       });
       const userIds = usersInRouter.map(u => u.id);
 
       const invoicesInRouter = await prisma.invoice.findMany({
+      take: 2000,
         where: {
           OR: [
             { user: { routerId } },
@@ -113,6 +115,7 @@ export async function GET(request: NextRequest) {
 
     // Get transactions with category info
     const transactions = await prisma.transaction.findMany({
+      take: 2000,
       where,
       include: {
         category: true,

@@ -112,6 +112,15 @@ export async function POST(
       }
     }
 
+    // Clean up MikroTik firewall isolir address-list (Dual-Mode: RADIUS & Non-RADIUS)
+    try {
+      const { removeUserFromMikrotikAddressList } = await import('@/server/services/radius/coa-handler.service');
+      removeUserFromMikrotikAddressList(userRecord.username, userRecord.routerId, 'isolir')
+        .catch(err => console.error('[Mark Paid] Address-list un-isolir error:', err?.message));
+    } catch (addrErr) {
+      console.error('[Mark Paid] Could not load address-list cleaner:', addrErr);
+    }
+
     // 2. SECONDARY: Restore RADIUS tables if RADIUS mode is enabled
     const company = await prisma.company.findFirst();
     if (company?.radiusEnabled && userRecord.profile) {

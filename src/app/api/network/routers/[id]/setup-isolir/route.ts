@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { getCidrRange } from '@/server/services/isolation.service';
+import { requirePermission } from '@/server/middleware/api-auth';
 
 export async function POST(
   request: NextRequest,

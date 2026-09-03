@@ -3,23 +3,48 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Shield, Lock, ArrowRight, Loader2, User, Sun, Moon, Wifi } from 'lucide-react';
-import { useTheme } from '@/hooks/useTheme';
+import { 
+  Lock, ArrowRight, Loader2, User, Phone, 
+  Eye, EyeOff, KeyRound, MessageSquare, CheckCircle2, AlertCircle, Sparkles, Wifi
+} from 'lucide-react';
+import '@/app/customer/customer.css';
 
 export default function CustomerLoginPage() {
   const router = useRouter();
-  const { isDark, toggleTheme } = useTheme();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [companyName, setCompanyName] = useState('');
+  
+  // Brand settings
+  const [companyName, setCompanyName] = useState('Eugine Media');
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [companyPhone, setCompanyPhone] = useState('');
   const [footerText, setFooterText] = useState('');
   const [brandLoaded, setBrandLoaded] = useState(false);
 
+  // Mode: 'password' | 'otp'
+  const [loginMode, setLoginMode] = useState<'password' | 'otp'>('password');
+  
+  // OTP Login State
+  const [otpPhone, setOtpPhone] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCountdown, setOtpCountdown] = useState(0);
+
+  // Forgot Password Modal State
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState<1 | 2>(1);
+  const [forgotPhone, setForgotPhone] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotShowPassword, setForgotShowPassword] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState('');
+
   useEffect(() => {
-    // If already logged in as customer, redirect to customer portal
     const existingToken = localStorage.getItem('customer_token');
     if (existingToken) {
       router.replace('/customer');
@@ -27,26 +52,39 @@ export default function CustomerLoginPage() {
     }
 
     fetch('/api/public/company')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.company.name) {
-          setCompanyName(data.company.name);
-        }
-        if (data.success && data.company.logo) {
-          setCompanyLogo(data.company.logo);
-        }
-        if (data.success && data.company.footerCustomer) {
-          setFooterText(data.company.footerCustomer);
-        } else if (data.success && data.company.poweredBy) {
-          setFooterText(`Powered by ${data.company.poweredBy}`);
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.company) {
+          if (data.company.name) setCompanyName(data.company.name);
+          if (data.company.logo) setCompanyLogo(data.company.logo);
+          if (data.company.phone) setCompanyPhone(data.company.phone);
+          if (data.company.footerCustomer) {
+            setFooterText(data.company.footerCustomer);
+          } else if (data.company.poweredBy) {
+            setFooterText(`Powered by ${data.company.poweredBy}`);
+          }
         }
       })
-      .catch(err => console.error('Load company name error:', err))
+      .catch((err) => console.error('Load company error:', err))
       .finally(() => setBrandLoaded(true));
   }, [router]);
 
+  // Countdown timer for OTP
+  useEffect(() => {
+    if (otpCountdown > 0) {
+      const timer = setTimeout(() => setOtpCountdown(otpCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [otpCountdown]);
+
+  // Handle Standard Password Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!identifier || !password) {
+      setError('ID Pelanggan / No. HP dan Password wajib diisi');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -64,223 +102,522 @@ export default function CustomerLoginPage() {
         localStorage.setItem('customer_user', JSON.stringify(data.user));
         router.push('/customer');
       } else {
-        setError(data.error || 'ID Pelanggan atau Password salah');
+        setError(data.error || 'ID Pelanggan, Nomor HP, atau Password salah');
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      setError('Terjadi kesalahan. Silakan coba lagi.');
+      setError('Terjadi kendala koneksi. Silakan coba kembali.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle Send OTP Login
+  const handleSendOtpLogin = async () => {
+    if (!otpPhone) {
+      setError('Masukkan nomor WhatsApp Anda');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/customer/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: otpPhone }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setOtpSent(true);
+        setOtpCountdown(60);
+      } else {
+        setError(data.error || 'Gagal mengirim kode OTP ke nomor tersebut');
+      }
+    } catch {
+      setError('Gagal mengirim OTP. Pastikan koneksi internet stabil.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Verify OTP Login
+  const handleVerifyOtpLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpPhone || !otpCode) {
+      setError('Nomor HP dan Kode OTP wajib diisi');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/customer/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: otpPhone, otpCode }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('customer_token', data.token);
+        if (data.user) {
+          localStorage.setItem('customer_user', JSON.stringify(data.user));
+        }
+        router.push('/customer');
+      } else {
+        setError(data.error || 'Kode OTP tidak valid atau telah kedaluwarsa');
+      }
+    } catch {
+      setError('Gagal memverifikasi OTP. Coba beberapa saat lagi.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Forgot Password: Step 1 Send OTP
+  const handleForgotSendOtp = async () => {
+    if (!forgotPhone) {
+      setForgotError('Masukkan nomor WhatsApp terdaftar Anda');
+      return;
+    }
+
+    setForgotLoading(true);
+    setForgotError('');
+
+    try {
+      const res = await fetch('/api/customer/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: forgotPhone }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setForgotStep(2);
+      } else {
+        setForgotError(data.error || 'Nomor WhatsApp tidak terdaftar di sistem kami');
+      }
+    } catch {
+      setForgotError('Gagal menghubungi server');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  // Forgot Password: Step 2 Reset Password
+  const handleForgotReset = async () => {
+    if (!forgotOtp || !forgotNewPassword) {
+      setForgotError('Kode OTP dan Password Baru wajib diisi');
+      return;
+    }
+
+    if (forgotNewPassword.length < 4) {
+      setForgotError('Password minimal 4 karakter');
+      return;
+    }
+
+    setForgotLoading(true);
+    setForgotError('');
+
+    try {
+      const res = await fetch('/api/customer/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: forgotPhone,
+          otpCode: forgotOtp,
+          newPassword: forgotNewPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setForgotSuccess(data.message || 'Password berhasil diubah!');
+        setTimeout(() => {
+          setShowForgotModal(false);
+          setForgotStep(1);
+          setForgotPhone('');
+          setForgotOtp('');
+          setForgotNewPassword('');
+          setForgotSuccess('');
+          setLoginMode('password');
+        }, 2000);
+      } else {
+        setForgotError(data.error || 'Kode OTP salah atau kedaluwarsa');
+      }
+    } catch {
+      setForgotError('Gagal mereset password. Silakan coba lagi.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   if (!brandLoaded) {
-    return <div className="min-h-screen bg-background" />;
+    return (
+      <div className="min-h-screen bg-[var(--color-paper-2)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent)]" />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-background transition-colors duration-300">
-      {/* ── Mobile Brand Header (mobile only) ── */}
-      <div className="lg:hidden bg-gradient-to-br from-cyan-500 to-blue-700 px-6 pt-10 pb-8 relative overflow-hidden flex-shrink-0">
-        <div className="absolute top-[-50px] right-[-50px] w-40 h-40 bg-white/10 rounded-full pointer-events-none" />
-        <div className="absolute bottom-[-30px] left-[-30px] w-28 h-28 bg-white/5 rounded-full pointer-events-none" />
-        <div className="relative z-10">
-          <span className="text-xs font-semibold uppercase tracking-widest text-cyan-100">Portal Pelanggan</span>
-          <h1 className="text-3xl font-extrabold text-white mt-1 leading-tight">
-            {companyName}
-          </h1>
-          <p className="text-sm text-blue-100/80 mt-2 leading-relaxed">
-            Cek tagihan, bayar online, dan pantau status langganan internet Anda kapan saja.
-          </p>
-          <div className="flex flex-wrap gap-2 mt-4">
-            {['Tagihan Online', 'Bayar Mudah', 'Notifikasi WA'].map(f => (
-              <span key={f} className="text-xs font-medium bg-white/20 text-white px-3 py-1 rounded-full">{f}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-      {/* ── Left Panel: Login Form ── */}
-      <div className="flex items-start justify-center w-full lg:w-[430px] lg:min-h-screen bg-card border-r border-border shadow-xl px-8 pt-10 lg:pt-14 pb-10 flex-shrink-0 relative">
-
-        {/* Theme Toggle */}
-        <button
-          onClick={toggleTheme}
-          className="absolute top-4 right-4 p-2 rounded-xl border border-border bg-muted hover:bg-muted/80 text-muted-foreground transition-all shadow-sm"
-          title={isDark ? 'Mode Terang' : 'Mode Gelap'}
-        >
-          {isDark ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-slate-500" />}
-        </button>
-
-        <div className="w-full max-w-[320px]">
-
-          {/* Logo */}
-          <div className="flex justify-center mb-5">
+    <div className="min-h-screen bg-[var(--color-paper-2)] flex flex-col justify-between selection:bg-[var(--color-accent)] selection:text-white font-sans">
+      {/* ── Top Header Brand ── */}
+      <header className="w-full bg-[var(--color-accent-hover)] text-white pt-10 pb-16 px-4 sm:px-6 relative overflow-hidden shadow-sm">
+        <div className="absolute top-0 right-0 translate-x-12 -translate-y-12 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+        <div className="max-w-md mx-auto relative z-10 text-center">
+          <div className="inline-flex items-center justify-center p-2.5 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20 mb-4 shadow-sm">
             {companyLogo ? (
-              <div className="w-24 h-24 p-2 rounded-xl border border-border bg-card shadow-sm flex items-center justify-center overflow-hidden">
-                <Image unoptimized src={companyLogo} alt={companyName} width={220} height={110} className="max-h-full max-w-full w-auto h-auto object-contain" />
-              </div>
+              <img
+                src={companyLogo}
+                alt={companyName}
+                className="h-10 max-w-[160px] object-contain drop-shadow-sm"
+              />
             ) : (
-              <div className="inline-flex items-center justify-center w-14 h-14 bg-primary rounded-2xl shadow-lg shadow-primary/25">
-                <Shield className="w-7 h-7 text-white" />
+              <div className="flex items-center gap-2 px-2">
+                <Wifi className="w-6 h-6 text-white" />
+                <span className="font-bold text-lg tracking-tight text-white">{companyName}</span>
               </div>
             )}
           </div>
-
-          {/* Subtitle */}
-          <p className="text-center text-sm text-primary font-semibold mb-6">
-            Portal Pelanggan
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">Portal Pelanggan</h1>
+          <p className="text-xs text-blue-100/80 mt-1 max-w-xs mx-auto">
+            Akses rincian tagihan, pembayaran instan, dan pantau status internet Anda.
           </p>
+        </div>
+      </header>
 
-          {/* Error */}
+      {/* ── Main Form Card Container ── */}
+      <main className="flex-1 max-w-md w-full mx-auto px-4 -mt-8 relative z-20 mb-8">
+        <div className="bg-[var(--color-paper)] rounded-2xl border border-[var(--color-rule)] shadow-lg p-6 sm:p-7">
+          {/* Mode Switcher */}
+          <div className="flex bg-[var(--color-paper-3)] p-1 rounded-xl border border-[var(--color-rule)] mb-6">
+            <button
+              type="button"
+              onClick={() => { setLoginMode('password'); setError(''); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                loginMode === 'password'
+                  ? 'bg-[var(--color-paper)] text-[var(--color-accent)] shadow-xs border border-[var(--color-rule)]'
+                  : 'text-[var(--color-muted)] hover:text-[var(--color-ink)]'
+              }`}
+            >
+              <KeyRound className="w-3.5 h-3.5" /> Sandi Akun
+            </button>
+            <button
+              type="button"
+              onClick={() => { setLoginMode('otp'); setError(''); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                loginMode === 'otp'
+                  ? 'bg-[var(--color-paper)] text-[var(--color-accent)] shadow-xs border border-[var(--color-rule)]'
+                  : 'text-[var(--color-muted)] hover:text-[var(--color-ink)]'
+              }`}
+            >
+              <Phone className="w-3.5 h-3.5" /> WhatsApp OTP
+            </button>
+          </div>
+
+          {/* Global Alert */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/50 rounded-xl">
-              <p className="text-xs text-red-600 dark:text-red-400 font-medium">{error}</p>
+            <div className="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="flex rounded-lg overflow-hidden border border-border focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-              <div className="bg-primary px-4 flex items-center justify-center flex-shrink-0">
-                <User className="w-5 h-5 text-white" />
+          {/* ── FORM 1: PASSWORD LOGIN ── */}
+          {loginMode === 'password' && (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[var(--color-ink)] mb-1.5">
+                  ID Pelanggan / Nomor HP
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="Contoh: EMG001 atau 0812xxxx"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl text-xs sm:text-sm text-[var(--color-ink)] placeholder:text-slate-400 focus:outline-none focus:border-[var(--color-accent)] focus:bg-white transition-all"
+                    required
+                  />
+                </div>
               </div>
-              <input
-                type="text"
-                required
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                className="flex-1 px-4 py-3 text-sm bg-muted text-foreground placeholder:text-muted-foreground focus:bg-input focus:outline-none transition-colors"
-                placeholder="ID Pelanggan (UID)"
-                disabled={loading}
-                autoComplete="username"
-              />
-            </div>
 
-            <div className="flex rounded-lg overflow-hidden border border-border focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-              <div className="bg-primary px-4 flex items-center justify-center flex-shrink-0">
-                <Lock className="w-5 h-5 text-white" />
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-[var(--color-ink)]">
+                    Password Portal
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotPhone(identifier);
+                      setShowForgotModal(true);
+                      setForgotStep(1);
+                      setForgotError('');
+                    }}
+                    className="text-[11px] font-bold text-[var(--color-accent)] hover:underline"
+                  >
+                    Lupa Password?
+                  </button>
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-10 pr-10 py-2.5 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl text-xs sm:text-sm text-[var(--color-ink)] placeholder:text-slate-400 focus:outline-none focus:border-[var(--color-accent)] focus:bg-white transition-all font-mono"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="flex-1 px-4 py-3 text-sm bg-muted text-foreground placeholder:text-muted-foreground focus:bg-input focus:outline-none transition-colors"
-                placeholder="Password"
-                disabled={loading}
-                autoComplete="current-password"
-              />
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-semibold rounded-lg transition-all shadow-sm flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" />Memproses...</>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-2 py-3 px-4 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Memeriksa...
+                  </>
+                ) : (
+                  <>
+                    Masuk ke Akun <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
+
+          {/* ── FORM 2: OTP LOGIN ── */}
+          {loginMode === 'otp' && (
+            <form onSubmit={handleVerifyOtpLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[var(--color-ink)] mb-1.5">
+                  Nomor WhatsApp Terdaftar
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Phone className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="tel"
+                    value={otpPhone}
+                    onChange={(e) => setOtpPhone(e.target.value)}
+                    placeholder="Contoh: 081234567890"
+                    disabled={otpSent}
+                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl text-xs sm:text-sm text-[var(--color-ink)] placeholder:text-slate-400 focus:outline-none focus:border-[var(--color-accent)] focus:bg-white transition-all disabled:opacity-60"
+                    required
+                  />
+                </div>
+              </div>
+
+              {!otpSent ? (
+                <button
+                  type="button"
+                  onClick={handleSendOtpLogin}
+                  disabled={loading || !otpPhone}
+                  className="w-full py-3 px-4 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+                  Kirim Kode OTP via WhatsApp
+                </button>
               ) : (
-                <>Masuk<ArrowRight className="w-4 h-4" /></>
+                <div className="space-y-3 animate-in fade-in">
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--color-ink)] mb-1.5">
+                      Masukkan 6 Digit Kode OTP
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="000000"
+                      className="w-full py-2.5 text-center tracking-widest font-mono text-lg font-bold bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl text-[var(--color-accent)] focus:outline-none focus:border-[var(--color-accent)] focus:bg-white transition-all"
+                      required
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500">Tidak menerima kode?</span>
+                    {otpCountdown > 0 ? (
+                      <span className="font-mono text-slate-400 font-medium">Kirim ulang ({otpCountdown}s)</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleSendOtpLogin}
+                        disabled={loading}
+                        className="font-bold text-[var(--color-accent)] hover:underline"
+                      >
+                        Kirim Ulang OTP
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || otpCode.length < 6}
+                    className="w-full py-3 px-4 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                    Verifikasi & Masuk
+                  </button>
+                </div>
               )}
-            </button>
-          </form>
+            </form>
+          )}
 
-          {/* Register Buttons */}
-          <div className="mt-5 pt-4 border-t border-gray-100 dark:border-slate-700">
-            <p className="text-xs text-center text-muted-foreground mb-3 uppercase tracking-wider font-medium">Layanan Lainnya</p>
-            <div className="grid grid-cols-2 gap-3">
+          {/* Quick Help WhatsApp Link */}
+          {companyPhone && (
+            <div className="mt-6 pt-5 border-t border-[var(--color-rule)] text-center">
+              <p className="text-[11px] text-slate-500 mb-2 font-medium">
+                Kendalanya belum teratasi?
+              </p>
+              <a
+                href={`https://wa.me/${companyPhone.replace(/[^0-9]/g, '')}?text=Halo%20Admin%20${encodeURIComponent(companyName)},%20saya%20butuh%20bantuan%20login%20portal%20pelanggan.`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-[#25D366] hover:underline"
+              >
+                <MessageSquare className="w-3.5 h-3.5" /> Hubungi Layanan Pelanggan
+              </a>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* ── Footer ── */}
+      <footer className="text-center py-6 text-[11px] text-slate-400">
+        <p>{footerText || `© ${new Date().getFullYear()} ${companyName}. Hak Cipta Dilindungi.`}</p>
+      </footer>
+
+      {/* ── MODAL LUPA PASSWORD MANDIRI ── */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-[var(--color-accent)] flex items-center justify-center">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800">Atur Ulang Password</h3>
+              </div>
               <button
                 type="button"
-                onClick={() => router.push('/daftar')}
-                className="py-2.5 px-3 bg-muted hover:bg-primary/5 border border-border text-foreground text-xs font-medium rounded-lg transition-all"
+                onClick={() => setShowForgotModal(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-sm"
               >
-                Daftar Pelanggan
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push('/cek-tagihan')}
-                className="py-2.5 px-3 bg-muted hover:bg-primary/5 border border-border text-foreground text-xs font-medium rounded-lg transition-all"
-              >
-                Cek Tagihan
+                ✕
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => router.push('/evoucher')}
-              className="w-full mt-3 py-2.5 bg-muted hover:bg-primary/5 border border-border text-muted-foreground text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-2"
-            >
-              <Wifi className="w-4 h-4" />
-              Beli Voucher WiFi
-            </button>
-          </div>
 
-          {/* Footer */}
-          <p className="text-center text-xs text-muted-foreground mt-6">{footerText}</p>
-          <p className="text-center mt-2">
-            <a
-              href="/admin/login"
-              className="text-xs text-muted-foreground hover:text-primary transition-colors"
-            >
-              Admin? Masuk di sini →
-            </a>
-          </p>
+            {forgotError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+                {forgotError}
+              </div>
+            )}
+
+            {forgotSuccess && (
+              <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2 font-medium">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{forgotSuccess}</span>
+              </div>
+            )}
+
+            {forgotStep === 1 ? (
+              <div className="space-y-4">
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Masukkan nomor WhatsApp yang terdaftar pada akun internet Anda untuk menerima kode verifikasi OTP.
+                </p>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Nomor WhatsApp</label>
+                  <input
+                    type="tel"
+                    value={forgotPhone}
+                    onChange={(e) => setForgotPhone(e.target.value)}
+                    placeholder="0812xxxxxxxx"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-[var(--color-accent)]"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleForgotSendOtp}
+                  disabled={forgotLoading || !forgotPhone}
+                  className="w-full py-2.5 bg-[var(--color-accent)] text-white text-xs font-bold rounded-xl shadow-sm hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Kirim Kode Verifikasi'}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                <p className="text-xs text-slate-600">
+                  Kode OTP telah dikirim ke WhatsApp <b>{forgotPhone}</b>.
+                </p>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Kode OTP (6 Digit)</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={forgotOtp}
+                    onChange={(e) => setForgotOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="000000"
+                    className="w-full py-2 text-center font-mono font-bold tracking-widest text-base bg-slate-50 border border-slate-200 rounded-xl text-[var(--color-accent)] focus:outline-none focus:border-[var(--color-accent)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Password Baru</label>
+                  <div className="relative">
+                    <input
+                      type={forgotShowPassword ? 'text' : 'password'}
+                      value={forgotNewPassword}
+                      onChange={(e) => setForgotNewPassword(e.target.value)}
+                      placeholder="Minimal 4 karakter"
+                      className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:outline-none focus:border-[var(--color-accent)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForgotShowPassword(!forgotShowPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400"
+                    >
+                      {forgotShowPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleForgotReset}
+                  disabled={forgotLoading || !forgotOtp || !forgotNewPassword}
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
+                >
+                  {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  Simpan Password Baru
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* ── Right Panel: Brand Info ── */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-slate-100 via-white to-cyan-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 items-center justify-center px-12 py-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-72 h-72 bg-cyan-100/60 dark:bg-cyan-900/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-56 h-56 bg-blue-100/50 dark:bg-blue-900/20 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="max-w-lg w-full relative z-10">
-          <div className="mb-2">
-            <span className="text-xs font-semibold uppercase tracking-widest text-primary">Portal Pelanggan</span>
-          </div>
-          <h1 className="text-5xl font-extrabold leading-tight mb-1 text-foreground">
-            {companyName}
-          </h1>
-          <div className="mb-4 h-1.5 w-28 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600" />
-              <p className="text-base text-muted-foreground mb-8 leading-relaxed">
-            Portal layanan mandiri pelanggan ISP. Cek tagihan, bayar online, dan pantau status langganan internet Anda kapan saja.
-          </p>
-
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border text-center">
-              <div className="w-10 h-10 bg-cyan-100 dark:bg-cyan-900/40 rounded-xl flex items-center justify-center mx-auto mb-3">
-                <svg className="w-5 h-5 text-cyan-600 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              </div>
-              <p className="text-sm font-bold text-foreground mb-1">Tagihan Online</p>
-              <p className="text-xs text-muted-foreground leading-snug">Lihat &amp; unduh invoice kapan saja</p>
-            </div>
-            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border text-center">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 rounded-xl flex items-center justify-center mx-auto mb-3">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-              </div>
-              <p className="text-sm font-bold text-foreground mb-1">Bayar Mudah</p>
-              <p className="text-xs text-muted-foreground leading-snug">QRIS, bank &amp; retail</p>
-            </div>
-            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border text-center">
-              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/40 rounded-xl flex items-center justify-center mx-auto mb-3">
-                <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-              </div>
-              <p className="text-sm font-bold text-foreground mb-1">Notifikasi WA</p>
-              <p className="text-xs text-muted-foreground leading-snug">Pengingat otomatis WhatsApp</p>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {[
-              { color: 'bg-primary', text: 'Invoice Digital — Unduh &amp; cetak tagihan bulanan dengan mudah' },
-              { color: 'bg-blue-500', text: 'Riwayat Pembayaran — Pantau semua histori transaksi kapan saja' },
-              { color: 'bg-green-500', text: 'Portal Self-Service — Kelola akun sendiri tanpa perlu telepon' },
-            ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 bg-card/70 rounded-xl px-4 py-3 border border-border/60">
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.color}`} />
-                <p className="text-sm text-foreground/80" dangerouslySetInnerHTML={{ __html: item.text }} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

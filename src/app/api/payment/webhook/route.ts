@@ -570,17 +570,21 @@ async function handleVoucherOrder(
   console.log(`✅ Voucher order found: ${order.orderNumber}`);
 
   if (status === 'settlement' || status === 'capture') {
-    if (order.status !== 'PAID') {
-      // Update order to PAID
-      await prisma.voucherOrder.update({
-        where: { id: order.id },
-        data: {
-          status: 'PAID',
-          paidAt: paidAt || new Date()
-        }
-      });
+    // ─── ATOMIC IDEMPOTENCY GUARD ─────────────────────────────────────────────
+    const markPaid = await prisma.voucherOrder.updateMany({
+      where: { id: order.id, status: { not: 'PAID' } },
+      data: {
+        status: 'PAID',
+        paidAt: paidAt || new Date()
+      }
+    });
 
-      console.log(`✅ Order ${order.orderNumber} marked as PAID`);
+    if (markPaid.count === 0) {
+      console.log(`[Voucher Order] ⏭️  Order ${order.orderNumber} already PAID — skipping duplicate generation`);
+      return;
+    }
+
+    console.log(`✅ Order ${order.orderNumber} marked as PAID`);
 
       // Create notification using NotificationService
       try {
@@ -764,8 +768,6 @@ async function handleVoucherOrder(
         }
       }
     }
-}
-
   }
 
 // Generate random voucher code
@@ -817,15 +819,31 @@ async function handleAgentDeposit(
     depositStatus = 'FAILED';
   }
 
-  // Update deposit status
-  await prisma.agentDeposit.update({
-    where: { id: deposit.id },
-    data: {
-      status: depositStatus,
-      transactionId: transactionId || deposit.transactionId,
-      paidAt: depositStatus === 'PAID' ? (paidAt || new Date()) : null,
-    },
-  });
+  // ─── ATOMIC IDEMPOTENCY GUARD ─────────────────────────────────────────────
+  if (depositStatus === 'PAID') {
+    const updated = await prisma.agentDeposit.updateMany({
+      where: { id: deposit.id, status: 'PENDING' },
+      data: {
+        status: 'PAID',
+        transactionId: transactionId || deposit.transactionId,
+        paidAt: paidAt || new Date(),
+      },
+    });
+
+    if (updated.count === 0) {
+      console.log(`[Agent Deposit] ⏭️  Deposit ${depositId} already processed — skipping duplicate credit`);
+      return;
+    }
+  } else {
+    await prisma.agentDeposit.updateMany({
+      where: { id: deposit.id, status: 'PENDING' },
+      data: {
+        status: depositStatus,
+        transactionId: transactionId || deposit.transactionId,
+        paidAt: null,
+      },
+    });
+  }
 
   console.log(`[Agent Deposit] Updated deposit status to: ${depositStatus}`);
 
@@ -1753,6 +1771,15 @@ export async function handleInvoicePayment(
                 await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, mkProfileName);
                 console.log(`✅ Mikrotik user disconnected to apply active profile: ${mkProfileName}`);
               }
+            }
+
+            // Remove user from MikroTik firewall isolir address-list (Dual-Mode: RADIUS & Non-RADIUS)
+            try {
+              const { removeUserFromMikrotikAddressList } = await import('@/server/services/radius/coa-handler.service');
+              removeUserFromMikrotikAddressList(user.username, user.routerId, 'isolir')
+                .catch(err => console.error('[Webhook] Address-list un-isolir error:', err?.message));
+            } catch (addrErr) {
+              console.error('[Webhook] Could not load address-list cleaner:', addrErr);
             }
           } catch (syncError) {
             console.error('Sync error:', syncError);

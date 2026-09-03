@@ -2,15 +2,17 @@
 
 import '@/app/customer/customer.css';
 import { formatWIB } from '@/lib/timezone';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   CheckCircle, Clock, AlertCircle, CreditCard, Building2, 
   Loader2, User, Phone, Package, Calendar, MapPin, 
-  Mail, Hash, Zap, ChevronRight, Lock, CheckCircle2, ShieldCheck, FileText, Image as ImageIcon, X, QrCode, Download, Wrench
+  FileText, Image as ImageIcon, QrCode, Download, ChevronLeft, ChevronRight,
+  CheckCircle2, Copy, ArrowRight, ShieldCheck, Zap
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { BankInstructions } from './BankInstructions';
+import { BankLogo, AcceptedQrisBadges } from '@/components/ui/BankLogo';
 
 interface Invoice {
   id: string;
@@ -39,7 +41,7 @@ interface Invoice {
 }
 
 interface PaymentGateway { id: string; name: string; provider: string; isActive: boolean; }
-interface CompanySetting { name: string; address: string | null; phone: string | null; email: string | null; bankAccounts?: any; }
+interface CompanySetting { name: string; address: string | null; phone: string | null; email: string | null; logo?: string | null; bankAccounts?: any; }
 
 export default function PaymentPage() {
   const params = useParams();
@@ -52,29 +54,63 @@ export default function PaymentPage() {
   const [company, setCompany] = useState<CompanySetting | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  
+  // Payment methods from gateways
   const [duitkuMethods, setDuitkuMethods] = useState<{ code: string; name: string; group: string }[]>([]);
   const [loadingDuitkuMethods, setLoadingDuitkuMethods] = useState(false);
   const [qrinMethods, setQrinMethods] = useState<{ code: string; name: string; group: string; logo?: string }[]>([]);
   const [loadingQrinMethods, setLoadingQrinMethods] = useState(false);
   
-  const [showManualForm, setShowManualForm] = useState(false);
-  const [manualForm, setManualForm] = useState({ bankName: '', accountNumber: '', accountName: '', destinationBank: '', notes: '', receiptImage: null as File | null });
-  const [uploading, setUploading] = useState(false);
-  const [manualError, setManualError] = useState<string | null>(null);
-  const [manualSuccess, setManualSuccess] = useState(false);
+  // Active Payment State
+  const [activePaymentView, setActivePaymentView] = useState<'selection' | 'qris' | 'va'>('selection');
   const [qrString, setQrString] = useState<string | null>(null);
   const [vaNumber, setVaNumber] = useState<string | null>(null);
   const [vaBank, setVaBank] = useState<string | null>(null);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [copiedVa, setCopiedVa] = useState(false);
+
+  // 24-hour countdown timer for QRIS
+  const [countdownSeconds, setCountdownSeconds] = useState(24 * 60 * 60 - 118); // default ~23:58:02
+
+  // Manual Transfer (Hidden by default, preserved for future toggle)
+  const SHOW_MANUAL_TRANSFER = false;
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualForm, setManualForm] = useState({ bankName: '', accountNumber: '', accountName: '', destinationBank: '', notes: '', receiptImage: null as File | null });
+  const [uploading, setUploading] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
+  const [manualSuccess, setManualSuccess] = useState(false);
+
+  // Timer ticker
+  useEffect(() => {
+    if (activePaymentView === 'qris' && countdownSeconds > 0) {
+      const timer = setInterval(() => {
+        setCountdownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [activePaymentView, countdownSeconds]);
+
+  // Format seconds into HH : MM : SS
+  const formatCountdown = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return {
+      hh: String(hours).padStart(2, '0'),
+      mm: String(minutes).padStart(2, '0'),
+      ss: String(seconds).padStart(2, '0'),
+    };
+  };
 
   useEffect(() => { loadInvoice(); }, [token]);
 
+  // Check URL query parameters for returning transactions
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const orderIdParam = params.get('merchantOrderId') || params.get('orderId');
+      const p = new URLSearchParams(window.location.search);
+      const orderIdParam = p.get('merchantOrderId') || p.get('orderId');
       if (orderIdParam) {
         setCurrentOrderId(orderIdParam);
         checkOrderPaidStatus(orderIdParam);
@@ -84,6 +120,7 @@ export default function PaymentPage() {
 
   const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Auto redirect on paid
   useEffect(() => {
     if (invoice?.status === 'PAID') {
       redirectTimerRef.current = setTimeout(() => {
@@ -93,17 +130,30 @@ export default function PaymentPage() {
     return () => {
       if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
     };
-  }, [invoice?.status, router, invoice?.id]);
+  }, [invoice?.status, router, invoice?.invoiceNumber]);
+
+  // Background Poller for Payment Status (Paused when tab hidden)
+  useEffect(() => {
+    if (activePaymentView === 'selection' || invoice?.status === 'PAID' || !currentOrderId) return;
+
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        checkOrderPaidStatus(currentOrderId);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [activePaymentView, invoice?.status, currentOrderId]);
 
   const checkOrderPaidStatus = async (orderId: string) => {
     try {
       const res = await fetch(`/api/payment/check-order?orderId=${orderId}`);
       const data = await res.json();
-      if (res.ok && data.status === 'settlement') {
+      if (res.ok && (data.status === 'settlement' || data.status === 'PAID')) {
         window.location.reload();
       }
     } catch (e) {
-      console.error(e);
+      console.error('Check order status error:', e);
     }
   };
 
@@ -116,10 +166,10 @@ export default function PaymentPage() {
     try {
       const res = await fetch(`/api/payment/check-order?orderId=${currentOrderId}`);
       const data = await res.json();
-      if (res.ok && data.status === 'settlement') {
+      if (res.ok && (data.status === 'settlement' || data.status === 'PAID')) {
         window.location.reload();
       } else {
-        setStatusError('Pembayaran belum terdeteksi. Harap selesaikan pembayaran di aplikasi Anda terlebih dahulu, kemudian coba kembali.');
+        setStatusError('Pembayaran belum terdeteksi. Silakan selesaikan pembayaran di aplikasi m-Banking/e-Wallet Anda terlebih dahulu, kemudian klik tombol ini kembali.');
       }
     } catch {
       window.location.reload();
@@ -153,7 +203,7 @@ export default function PaymentPage() {
       const data = await res.json();
       setDuitkuMethods(data.methods || []);
     } catch {
-      // Use empty
+      // Empty fallback
     } finally {
       setLoadingDuitkuMethods(false);
     }
@@ -166,28 +216,14 @@ export default function PaymentPage() {
       const data = await res.json();
       setQrinMethods(data.methods || []);
     } catch {
-      // Use empty
+      // Empty fallback
     } finally {
       setLoadingQrinMethods(false);
     }
   };
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
-  const formatDate = (dateStr: string) => formatWIB(dateStr, 'd MMM yyyy');
-
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      PAID: 'badge-success',
-      PENDING: 'badge-error',
-      OVERDUE: 'badge-warning'
-    };
-    const icons: Record<string, React.ReactNode> = { PAID: <CheckCircle className="w-3.5 h-3.5" />, PENDING: <Clock className="w-3.5 h-3.5" />, OVERDUE: <AlertCircle className="w-3.5 h-3.5" /> };
-    return (
-      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${styles[status] || 'bg-[var(--color-paper-2)] text-[var(--color-ink-2)]'}`}>
-        {icons[status]} {status === 'PAID' ? 'Lunas' : status === 'PENDING' ? 'Belum Bayar' : 'Terlambat'}
-      </span>
-    );
-  };
+  const formatDate = (dateStr: string) => formatWIB(dateStr, 'd MMMM yyyy, HH:mm');
 
   const handlePayment = async (gateway: string, paymentMethod?: string) => {
     if (!invoice) return;
@@ -202,19 +238,115 @@ export default function PaymentPage() {
       if (data.orderId) {
         setCurrentOrderId(data.orderId);
       }
-      if (data.vaNumber) {
-        setVaNumber(data.vaNumber);
-        setVaBank(data.vaBank || 'Virtual Account');
-      } else if (data.qrString) {
+      if (data.qrString) {
         setQrString(data.qrString);
+        setActivePaymentView('qris');
+      } else if (data.vaNumber) {
+        setVaNumber(data.vaNumber);
+        setVaBank(data.vaBank || paymentMethod || 'Virtual Account');
+        setActivePaymentView('va');
       } else if (data.paymentUrl) {
         window.location.href = data.paymentUrl;
       } else {
-        setError('Link pembayaran tidak tersedia');
+        setError('Kanal pembayaran tidak merespon tautan transaksi');
       }
-    } catch { setError('Gagal terhubung ke gateway pembayaran'); } finally { setProcessing(false); }
+    } catch { 
+      setError('Gagal terhubung ke gateway pembayaran'); 
+    } finally { 
+      setProcessing(false); 
+    }
   };
 
+  // High-Resolution Professional Canvas Download for QRIS
+  const handleDownloadQrisCanvas = () => {
+    const svg = document.getElementById('qris-svg-render');
+    if (!svg || !invoice) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new window.Image();
+
+    canvas.width = 750;
+    canvas.height = 1000;
+
+    img.onload = () => {
+      if (!ctx) return;
+      // White Card
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Top Navy Header Banner (#002c60)
+      ctx.fillStyle = '#002c60';
+      ctx.fillRect(0, 0, canvas.width, 160);
+
+      // Header Text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(company?.name || 'PEMBAYARAN RESMI ISP', canvas.width / 2, 65);
+
+      ctx.font = '16px sans-serif';
+      ctx.fillStyle = '#93c5fd';
+      ctx.fillText('QRIS STANDAR PEMBAYARAN NASIONAL', canvas.width / 2, 105);
+
+      // Invoice info block
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(40, 190, canvas.width - 80, 110);
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(40, 190, canvas.width - 80, 110);
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#64748b';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('NO. INVOICE:', 70, 230);
+      ctx.fillText('TOTAL TAGIHAN:', 70, 270);
+
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(invoice.invoiceNumber, canvas.width - 70, 230);
+
+      ctx.fillStyle = '#002c60';
+      ctx.font = 'bold 24px monospace';
+      ctx.fillText(`Rp ${invoice.amount.toLocaleString('id-ID')}`, canvas.width - 70, 270);
+
+      // Draw QR Code Center
+      const qrSize = 440;
+      const qrX = (canvas.width - qrSize) / 2;
+      const qrY = 340;
+      ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+
+      // Footer Box
+      ctx.fillStyle = '#f1f5f9';
+      ctx.fillRect(40, 820, canvas.width - 80, 130);
+      ctx.strokeRect(40, 820, canvas.width - 80, 130);
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#334155';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.fillText('Menerima Pembayaran Melalui Aplikasi Apapun:', canvas.width / 2, 860);
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('BCA • Mandiri • BRI • BNI • BSI • GoPay • DANA • ShopeePay • OVO', canvas.width / 2, 900);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(`Berlaku 24 Jam sejak invoice dibuat`, canvas.width / 2, 928);
+
+      // Trigger download
+      const a = document.createElement('a');
+      a.download = `QRIS-${invoice.invoiceNumber}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    };
+
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
+  // Preserved Manual Submit Handler
   const handleManualSubmit = async () => {
     setManualError(null);
     if (!manualForm.bankName || !manualForm.accountName || !manualForm.receiptImage) {
@@ -250,600 +382,464 @@ export default function PaymentPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-[var(--color-paper)] flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-[var(--color-paper-2)] flex flex-col items-center justify-center p-4">
       <div className="w-16 h-16 relative flex items-center justify-center">
-        <div className="absolute inset-0 rounded-full border-4 border-[var(--color-paper-3)]"></div>
+        <div className="absolute inset-0 rounded-full border-4 border-slate-200"></div>
         <div className="absolute inset-0 rounded-full border-4 border-[var(--color-accent)] border-t-transparent animate-spin"></div>
         <ShieldCheck className="w-6 h-6 text-[var(--color-accent)] absolute" />
       </div>
-      <p className="mt-4 font-medium text-[var(--color-muted)]">Mempersiapkan Portal Pembayaran Aman...</p>
+      <p className="mt-4 font-medium text-xs sm:text-sm text-[var(--color-muted)]">Memuat Halaman Pembayaran Aman...</p>
     </div>
   );
 
   if (error || !invoice) return (
-    <div className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center p-4">
-      <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden max-w-sm w-full text-center">
-        <div className="w-20 h-20 bg-[var(--color-error-bg)] text-[var(--color-error)] rounded-full flex items-center justify-center mx-auto mb-5 border border-[var(--color-error)]">
-          <AlertCircle className="w-10 h-10" />
+    <div className="min-h-screen bg-[var(--color-paper-2)] flex items-center justify-center p-4">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 max-w-sm w-full text-center">
+        <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-200">
+          <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-bold mb-2">Tagihan Tidak Ditemukan</h2>
-        <p className="text-sm text-[var(--color-muted)] leading-relaxed">{error || 'Link pembayaran tidak valid atau sudah kadaluarsa.'}</p>
-        <div className="mt-6 flex flex-col gap-3">
-          <button onClick={() => window.location.reload()} className="bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 rounded-[var(--radius-sm)] py-3 font-bold transition-opacity w-full">Muat Ulang</button>
-          <a href="/" className="bg-[var(--color-paper-2)] text-[var(--color-ink)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors w-full rounded-full py-2 flex items-center justify-center font-medium text-sm">Kembali ke Beranda</a>
+        <h2 className="text-lg font-bold mb-1 text-slate-800">Tagihan Tidak Ditemukan</h2>
+        <p className="text-xs text-slate-500 leading-relaxed">{error || 'Tautan pembayaran tidak valid atau telah kedaluwarsa.'}</p>
+        <div className="mt-6 flex flex-col gap-2">
+          <button onClick={() => window.location.reload()} className="bg-[var(--color-accent)] text-white hover:opacity-90 rounded-xl py-2.5 font-bold text-xs">Muat Ulang</button>
+          <button onClick={() => router.push('/customer')} className="bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl py-2.5 font-medium text-xs">Kembali ke Portal</button>
         </div>
       </div>
     </div>
   );
 
+  // Success Paid View
   if (invoice.status === 'PAID') return (
-    <div className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center p-4">
-      <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden max-w-sm w-full text-center animate-in zoom-in-95 duration-500">
-        <div className="w-20 h-20 bg-[var(--color-success-bg)] rounded-full flex items-center justify-center mx-auto mb-5 border border-[var(--color-success)]">
-          <CheckCircle2 className="w-10 h-10 text-[var(--color-success)]" />
+    <div className="min-h-screen bg-[var(--color-paper-2)] flex items-center justify-center p-4">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-md p-6 sm:p-8 max-w-sm w-full text-center animate-in zoom-in-95">
+        <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-200">
+          <CheckCircle2 className="w-8 h-8 text-emerald-600" />
         </div>
-        <h2 className="text-2xl font-bold mb-2">Pembayaran Berhasil</h2>
-        <p className="text-sm text-[var(--color-muted)] mb-8">Terima kasih, tagihan Anda telah lunas.</p>
+        <h2 className="text-xl font-bold mb-1 text-slate-800">Pembayaran Berhasil</h2>
+        <p className="text-xs text-slate-500 mb-6">Terima kasih, tagihan Anda telah terkonfirmasi lunas.</p>
         
-        <div className="bg-[var(--color-paper-3)] rounded-[var(--radius-lg)] p-5 text-left space-y-4 border border-[var(--color-rule)] mb-8">
-          <div className="flex justify-between items-center text-sm border-b border-[var(--color-rule)] pb-3">
-            <span className="text-[var(--color-muted)]">No. Tagihan</span>
-            <span className="font-bold flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-[var(--color-accent)]"/>{invoice.invoiceNumber}</span>
+        <div className="bg-slate-50 rounded-xl p-4 text-left space-y-3 border border-slate-200 mb-6">
+          <div className="flex justify-between items-center text-xs border-b border-slate-200 pb-2">
+            <span className="text-slate-500">No. Tagihan</span>
+            <span className="font-mono font-bold text-slate-800">{invoice.invoiceNumber}</span>
           </div>
-          <div className="flex justify-between items-center text-sm border-b border-[var(--color-rule)] pb-3">
-            <span className="text-[var(--color-muted)]">Total Dibayar</span>
-            <span className="font-bold text-lg">{formatCurrency(invoice.amount)}</span>
+          <div className="flex justify-between items-center text-xs border-b border-slate-200 pb-2">
+            <span className="text-slate-500">Total Dibayar</span>
+            <span className="font-bold text-sm text-[var(--color-accent)]">{formatCurrency(invoice.amount)}</span>
           </div>
           {invoice.paidAt && (
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-[var(--color-muted)]">Waktu Bayar</span>
-              <span className="font-semibold text-xs">{formatDate(invoice.paidAt)}</span>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-slate-500">Waktu Bayar</span>
+              <span className="font-medium text-[11px] text-slate-700">{formatDate(invoice.paidAt)}</span>
             </div>
           )}
         </div>
         
-        <div className="flex flex-col gap-3">
+        <div className="space-y-2">
           <button 
             onClick={() => router.push(`/invoice/${invoice.invoiceNumber}/print`)}
-            className="bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 rounded-[var(--radius-sm)] py-3 font-bold transition-opacity w-full flex items-center justify-center gap-2"
+            className="w-full bg-[var(--color-accent)] text-white hover:opacity-90 rounded-xl py-3 font-bold text-xs flex items-center justify-center gap-2 shadow-sm"
           >
-            <FileText className="w-4 h-4" />
-            Lihat / Cetak Bukti Pembayaran
+            <FileText className="w-4 h-4" /> Cetak Bukti Pembayaran
           </button>
-          <p className="text-xs text-[var(--color-muted)] mt-2">Anda akan dialihkan otomatis dalam 3 detik...</p>
+          <p className="text-[11px] text-slate-400">Dialihkan otomatis dalam 3 detik...</p>
         </div>
       </div>
     </div>
   );
 
-  return (
-    <main className="max-w-2xl mx-auto px-4 py-8 min-h-screen pb-24 flex flex-col gap-6 py-8 flex flex-col gap-[var(--space-lg)] min-h-screen pb-24">
-      
-      {/* Secure Header */}
-      <div className="flex flex-col items-center text-center mb-2">
-        <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-[var(--color-paper-2)] text-[var(--color-muted)] text-xs font-medium border border-[var(--color-rule)] mb-4">
-          <Lock className="w-3.5 h-3.5 text-[var(--color-accent)]" /> Portal Pembayaran Aman SSL
-        </div>
-        <h1 className="text-3xl font-display font-medium tracking-tight">Checkout</h1>
-      </div>
+  const countdown = formatCountdown(countdownSeconds);
 
-      {/* Global Error Banner */}
-      {error && (
-        <div className="bg-[var(--color-error-bg)] border border-[var(--color-error)] text-[var(--color-error)] p-4 rounded-[var(--radius-md)] flex items-start gap-3 animate-in fade-in shadow-sm">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <p className="text-sm font-medium">{error}</p>
+  // ════════════════════════════════════════════════════════════════════════════
+  // STATE 2: ACTIVE QRIS PAYMENT (PERSIS REFERENSI SCREENSHOT ANDA)
+  // ════════════════════════════════════════════════════════════════════════════
+  if (activePaymentView === 'qris') {
+    return (
+      <div className="min-h-screen bg-[var(--color-paper-2)] text-[var(--color-ink)] font-sans pb-16">
+        {/* Top Navigation Bar: < Pembayaran */}
+        <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-3.5 flex items-center gap-3">
+          <button
+            onClick={() => setActivePaymentView('selection')}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 hover:text-[var(--color-accent)] transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5 text-slate-600" />
+            <span className="text-sm">Pembayaran</span>
+          </button>
         </div>
-      )}
 
-      {/* Primary Invoice Card */}
-      <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden overflow-hidden flex flex-col p-0">
-        <div className="bg-[var(--color-paper-3)] px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-rule)]">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <p className="text-[var(--color-muted)] text-xs font-medium uppercase tracking-wider">Total Tagihan</p>
-              {invoice.invoiceType === 'INSTALLATION' && (
-                <span className="bg-blue-500/10 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30 flex items-center gap-1">
-                  <Wrench className="w-3 h-3" /> Invoice Pasang Baru (PSB)
-                </span>
-              )}
+        <div className="max-w-md mx-auto px-4 py-4 space-y-3.5 animate-in fade-in duration-300">
+          {/* Card 1: Total Pembayaran & Timer Countdown */}
+          <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <span className="text-xs font-medium text-slate-600">Total Pembayaran</span>
+              <span className="text-base font-bold text-[var(--color-accent)] font-mono">
+                Rp{invoice.amount.toLocaleString('id-ID')}
+              </span>
             </div>
-            <p className="text-3xl font-bold">{formatCurrency(invoice.amount)}</p>
-          </div>
-          <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2">
-            {getStatusBadge(invoice.status)}
-            <span className="text-[var(--color-muted)] text-xs font-mono">{invoice.invoiceNumber}</span>
-          </div>
-        </div>
-        
-        <div className="p-6 sm:p-8 space-y-6">
-          {/* Customer Information */}
-          <div>
-            <h3 className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-4 border-b border-[var(--color-rule)] pb-2">Informasi Pelanggan</h3>
-            <div className="grid gap-4">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-[var(--color-paper-3)] border border-[var(--color-rule)] flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <User className="w-4 h-4 text-[var(--color-accent)]" />
+
+            <div className="flex items-start justify-between">
+              <span className="text-xs font-medium text-slate-600">Bayar Dalam</span>
+              <div className="text-right">
+                <div className="text-sm font-bold text-slate-900 font-mono tracking-wider">
+                  {countdown.hh} : {countdown.mm} : {countdown.ss}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-[var(--color-ink)]">{invoice.user?.name || invoice.customerName}</p>
-                  <div className="text-xs text-[var(--color-muted)] mt-0.5 flex flex-wrap gap-x-4 gap-y-1">
-                    {invoice.user?.customerId && <span className="flex items-center gap-1"><Hash className="w-3 h-3 text-[var(--color-accent)]"/> {invoice.user.customerId}</span>}
-                    <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-[var(--color-accent)]"/> {invoice.user?.phone || invoice.customerPhone}</span>
-                    {invoice.user?.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-[var(--color-accent)]"/> {invoice.user.email}</span>}
-                  </div>
+                <div className="text-[11px] text-slate-400 mt-0.5">
+                  Jatuh tempo {formatDate(invoice.dueDate)}
                 </div>
               </div>
+            </div>
+          </div>
 
-              {invoice.user?.address && (
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[var(--color-paper-3)] flex items-center justify-center flex-shrink-0 mt-0.5 border border-[var(--color-rule)]">
-                    <MapPin className="w-4 h-4 text-[var(--color-muted)]" />
-                  </div>
-                  <p className="text-sm text-[var(--color-muted)] leading-relaxed pt-1.5">{invoice.user.address}</p>
-                </div>
-              )}
-              
-              {invoice.user?.profile && (
-                <div className="flex items-start gap-3 bg-[var(--color-paper-2)] p-3 rounded-xl border border-[var(--color-rule)] mt-2 shadow-sm">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--color-paper-3)] flex items-center justify-center flex-shrink-0">
-                    <Package className="w-4 h-4 text-[var(--color-muted)]" />
-                  </div>
-                  <div className="flex-1 pt-0.5">
-                    <p className="text-sm font-bold text-[var(--color-ink)]">{invoice.user.profile.name}</p>
-                    {(invoice.user.profile.downloadSpeed > 0) && (
-                      <p className="text-xs text-[var(--color-muted)] flex items-center gap-1 mt-1"><Zap className="w-3 h-3 text-[var(--color-accent)]" /> {invoice.user.profile.downloadSpeed} Mbps</p>
-                    )}
-                  </div>
+          {/* Card 2: Container QRIS Resmi */}
+          <div className="bg-white rounded-xl border border-slate-200/90 p-6 shadow-xs text-center space-y-4">
+            {/* Header: Logo QRIS + QR Code Standar Pembayaran Nasional */}
+            <div className="flex items-center justify-center gap-2">
+              <BankLogo name="qris" size="md" variant="plain" />
+              <div className="text-left leading-none">
+                <span className="text-[11px] font-bold text-slate-800 block">QR Code Standar</span>
+                <span className="text-[10px] text-slate-500 font-medium">Pembayaran Nasional</span>
+              </div>
+            </div>
+
+            {/* Crisp QR Code Container */}
+            <div className="inline-block p-4 bg-white rounded-xl border border-slate-200 shadow-xs">
+              {qrString ? (
+                <QRCodeSVG
+                  id="qris-svg-render"
+                  value={qrString}
+                  size={240}
+                  level="M"
+                  includeMargin={true}
+                  className="w-[220px] h-[220px] sm:w-[240px] sm:h-[240px] mx-auto"
+                />
+              ) : (
+                <div className="w-[220px] h-[220px] flex items-center justify-center bg-slate-50 rounded-lg">
+                  <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent)]" />
                 </div>
               )}
             </div>
+
+            {/* NMID */}
+            <p className="font-mono text-xs font-semibold text-slate-600 tracking-wider">
+              NMID: ID2025444802321
+            </p>
           </div>
 
-          {/* Dates Grid */}
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[var(--color-rule)]">
-            <div>
-              <p className="text-[11px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-[var(--color-muted)]" /> Tanggal Terbit</p>
-              <p className="text-sm font-bold text-[var(--color-ink)] pl-5">{formatDate(invoice.createdAt)}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-[var(--color-error)] uppercase tracking-wider mb-1 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-[var(--color-error)]" /> Jatuh Tempo</p>
-              <p className="text-sm font-bold text-[var(--color-error)] pl-5">{formatDate(invoice.dueDate)}</p>
+          {/* Card 3: Banner Menerima Berbagai Pembayaran QR */}
+          <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+            <h4 className="text-xs font-bold text-slate-800 text-left">
+              Menerima Berbagai Pembayaran QR
+            </h4>
+            <div className="pt-1">
+              <AcceptedQrisBadges />
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Payment Methods Section */}
-      <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden overflow-hidden flex flex-col p-0">
-        <div className="px-6 sm:px-8 py-5 border-b border-[var(--color-rule)] bg-[var(--color-paper-3)] flex items-center gap-3">
-          <div className="w-8 h-8 bg-[var(--color-paper)] text-[var(--color-accent)] rounded-[var(--radius-md)] flex items-center justify-center border border-[var(--color-rule)] shadow-sm">
-            <CreditCard className="w-4 h-4" />
+          {/* Card 4: Petunjuk Pembayaran QRIS (Langkah 1 s/d 6 Rapi) */}
+          <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-xs space-y-3.5">
+            <h4 className="text-xs font-bold text-slate-800 text-left">
+              Petunjuk Pembayaran QRIS
+            </h4>
+
+            <ol className="space-y-3 text-left">
+              {[
+                'Simpan atau screenshot Kode QR, yang berlaku selama 24 jam. Kamu bisa muat ulang untuk dapatkan kode baru.',
+                'Scan Kode QR dengan m-banking, dompet elektronik, atau aplikasi pembayaran lain.',
+                'Pastikan rincian pembayaran telah sesuai, lalu lanjutkan pembayaran.',
+                'Transaksi akan secara otomatis terbayar dan diperbarui setelah pembayaran berhasil.',
+                'Simpan bukti pembayaran untuk verifikasi lebih lanjut jika diperlukan.',
+                'Pembayaran tidak dapat diproses jika menggunakan metode pembayaran yang tidak didukung.',
+              ].map((step, idx) => (
+                <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-600 leading-relaxed">
+                  <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                    {idx + 1}
+                  </span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
           </div>
-          <h2 className="text-lg font-bold">Pilih Metode Pembayaran</h2>
-        </div>
-        
-        <div className="p-6 sm:p-8 space-y-6">
 
-          {/* Official QRIS MP-EUGINE MEDIA Card (HIDDEN PER USER REQUEST) */}
-          {false && (invoice?.invoiceType === 'INSTALLATION' || (invoice as any)?.type === 'INSTALLATION') && (
-            <div className="border border-[var(--color-rule)] rounded-[var(--radius-lg)] overflow-hidden bg-[var(--color-paper-2)] shadow-sm p-6 space-y-5">
-              {/* Hidden */}
-            </div>
-          )}
-
-          {/* INLINE ACTIVE PAYMENT BOX (QRIS) */}
-          {qrString && (
-            <div className="border-2 border-[var(--color-accent)] rounded-2xl p-6 bg-[var(--color-paper-2)] space-y-5 shadow-lg animate-in fade-in duration-300">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-rule)] pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-[var(--color-accent)] flex items-center justify-center font-bold border border-primary/20">
-                    <QrCode className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-[var(--color-ink)]">Kode QRIS Pembayaran (Otomatis Lunas)</h3>
-                    <p className="text-xs text-[var(--color-muted)] font-mono">Scan QRIS menggunakan aplikasi M-Banking atau E-Wallet Anda</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setQrString(null)}
-                  className="px-3 py-1.5 text-xs font-mono font-bold bg-[var(--color-paper-3)] border border-[var(--color-rule)] rounded-lg hover:bg-[var(--color-paper)] text-[var(--color-ink)] self-start sm:self-auto"
-                >
-                  Pilih Metode Lain
-                </button>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-6 bg-[var(--color-paper-3)] p-5 rounded-xl border border-[var(--color-rule)]">
-                <div className="bg-white p-4 rounded-xl border-2 border-gray-200 shadow-md flex-shrink-0 text-center">
-                  <QRCodeSVG id="qris-svg-inline" value={qrString} size={200} level="H" includeMargin={false} />
-                  <p className="text-[10px] text-gray-500 font-mono mt-2">Scan &amp; Bayar Otomatis</p>
-                </div>
-
-                <div className="space-y-4 text-xs text-[var(--color-ink)] flex-1 w-full">
-                  <div className="bg-[var(--color-paper)] p-3 rounded-lg border border-[var(--color-rule)]">
-                    <p className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-0.5">Total Tagihan</p>
-                    <p className="text-2xl font-bold text-[var(--color-accent)]">{formatCurrency(invoice.amount)}</p>
-                  </div>
-
-                  <div className="space-y-1 text-[var(--color-muted)]">
-                    <p className="font-bold text-[var(--color-ink)] text-xs">Cara Bayar Pakai QRIS:</p>
-                    <ol className="list-decimal list-inside space-y-1 text-[11px]">
-                      <li>Buka M-Banking (BCA, Mandiri, BRI, BNI) atau E-Wallet (GoPay, OVO, DANA, ShopeePay).</li>
-                      <li>Pilih menu <strong>Scan QR / QRIS</strong>.</li>
-                      <li>Arahkan kamera ke kode QRIS di samping atau gunakan tombol simpan gambar.</li>
-                      <li>Selesaikan pembayaran, status tagihan akan <strong>Otomatis Lunas</strong>.</li>
-                    </ol>
-                  </div>
-
-                  <div className="flex flex-wrap sm:flex-nowrap gap-3 pt-2">
-                    <button
-                      onClick={() => {
-                        const svg = document.getElementById('qris-svg-inline');
-                        if (!svg) return;
-                        const svgData = new XMLSerializer().serializeToString(svg);
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        const img = new Image();
-                        img.onload = () => {
-                          const width = 400;
-                          const height = 550;
-                          canvas.width = width;
-                          canvas.height = height;
-                          if (ctx) {
-                            ctx.fillStyle = '#ffffff';
-                            ctx.fillRect(0, 0, width, height);
-
-                            ctx.fillStyle = '#002c60';
-                            ctx.fillRect(0, 0, width, 120);
-
-                            ctx.fillStyle = '#ffffff';
-                            ctx.font = 'bold 26px sans-serif';
-                            ctx.textAlign = 'center';
-                            ctx.fillText(company?.name || 'EugineMediaGroup', width / 2, 55);
-
-                            ctx.font = '15px sans-serif';
-                            ctx.fillStyle = '#93c5fd';
-                            ctx.fillText('Scan QRIS untuk Membayar', width / 2, 85);
-
-                            ctx.fillStyle = '#f1f5f9';
-                            ctx.fillRect(60, 150, 280, 280);
-
-                            ctx.drawImage(img, 75, 165, 250, 250);
-
-                            ctx.fillStyle = '#0f172a';
-                            ctx.font = 'bold 30px sans-serif';
-                            ctx.fillText(`Rp ${invoice.amount.toLocaleString('id-ID')}`, width / 2, 480);
-
-                            ctx.fillStyle = '#64748b';
-                            ctx.font = '13px sans-serif';
-                            ctx.fillText(`INV: ${invoice.invoiceNumber}`, width / 2, 510);
-                          }
-                          const a = document.createElement('a');
-                          a.download = `QRIS-${invoice.invoiceNumber}.png`;
-                          a.href = canvas.toDataURL('image/png');
-                          a.click();
-                        };
-                        img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
-                      }}
-                      className="flex-1 px-4 py-3 bg-[var(--color-paper-3)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-2)] text-[var(--color-ink)] rounded-xl font-bold text-xs flex items-center justify-center gap-2"
-                    >
-                      <ImageIcon className="w-4 h-4 text-[var(--color-accent)]" /> Simpan Gambar QRIS
-                    </button>
-                    <button
-                      onClick={handleCheckPaymentStatus}
-                      disabled={checkingStatus}
-                      className="flex-[1.5] px-4 py-3 bg-primary text-primary-foreground hover:opacity-90 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
-                    >
-                      {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                      Saya Sudah Bayar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* INLINE ACTIVE PAYMENT BOX (VIRTUAL ACCOUNT) */}
-          {vaNumber && (
-            <div className="border-2 border-[var(--color-accent)] rounded-2xl p-6 bg-[var(--color-paper-2)] space-y-5 shadow-lg animate-in fade-in duration-300">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-rule)] pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-[var(--color-accent)] flex items-center justify-center font-bold border border-primary/20">
-                    <CreditCard className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-[var(--color-ink)]">Kode Pembayaran / Virtual Account ({vaBank})</h3>
-                    <p className="text-xs text-[var(--color-muted)] font-mono">Transfer ke nomor Virtual Account untuk otomatis lunas</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setVaNumber(null)}
-                  className="px-3 py-1.5 text-xs font-mono font-bold bg-[var(--color-paper-3)] border border-[var(--color-rule)] rounded-lg hover:bg-[var(--color-paper)] text-[var(--color-ink)] self-start sm:self-auto"
-                >
-                  Pilih Metode Lain
-                </button>
-              </div>
-
-              <div className="bg-[var(--color-paper-3)] p-5 rounded-xl border border-[var(--color-rule)] space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[var(--color-paper)] p-4 rounded-xl border border-[var(--color-rule)]">
-                  <div>
-                    <p className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-0.5">Nomor Virtual Account / Kode</p>
-                    <p className="text-2xl font-mono font-bold text-[var(--color-accent)]">{vaNumber}</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(vaNumber);
-                      alert('Nomor Virtual Account berhasil disalin!');
-                    }}
-                    className="px-4 py-2 bg-[var(--color-paper-3)] border border-[var(--color-rule)] text-[var(--color-ink)] font-bold text-xs rounded-lg hover:bg-[var(--color-paper-2)] self-start sm:self-auto"
-                  >
-                    Salin Kode
-                  </button>
-                </div>
-
-                <div className="bg-[var(--color-paper)] p-4 rounded-xl border border-[var(--color-rule)]">
-                  <BankInstructions bankName={vaBank || ''} vaNumber={vaNumber} />
-                </div>
-
-                <div className="flex flex-wrap sm:flex-nowrap gap-3 pt-2">
-                  <button
-                    onClick={handleCheckPaymentStatus}
-                    disabled={checkingStatus}
-                    className="w-full px-4 py-3.5 bg-primary text-primary-foreground hover:opacity-90 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
-                  >
-                    {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                    Saya Sudah Bayar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Manual Transfer Option */}
-          <div className="border border-[var(--color-rule)] rounded-[var(--radius-lg)] overflow-hidden bg-[var(--color-paper-2)] shadow-sm">
+          {/* Sticky Bottom Actions */}
+          <div className="space-y-2 pt-2">
             <button
-              onClick={() => setShowManualForm(!showManualForm)}
-              className={`w-full flex items-center justify-between p-4 hover:bg-[var(--color-paper-3)] transition-colors ${showManualForm ? 'border-b border-[var(--color-rule)] bg-[var(--color-paper-3)]' : 'bg-[var(--color-paper-2)]'}`}
+              onClick={handleDownloadQrisCanvas}
+              className="w-full py-3.5 px-4 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
             >
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-[var(--radius-md)] flex items-center justify-center transition-colors ${showManualForm ? 'bg-[var(--color-accent)] text-[var(--color-accent-ink)] shadow-md' : 'bg-[var(--color-paper)] text-[var(--color-ink-2)] border border-[var(--color-rule)]'}`}>
-                  <Building2 className="w-5 h-5" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-bold text-[var(--color-ink)]">Transfer Manual Bank</p>
-                  <p className="text-xs text-[var(--color-muted)] mt-0.5">Upload bukti transfer</p>
-                </div>
-              </div>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 ${showManualForm ? 'bg-[var(--color-paper-3)] text-[var(--color-accent)] rotate-90 border border-[var(--color-rule)]' : 'bg-[var(--color-paper)] text-[var(--color-muted)] border border-[var(--color-rule)]'}`}>
-                <ChevronRight className="w-4 h-4" />
-              </div>
+              <Download className="w-4 h-4" /> Simpan Kode QR
             </button>
 
-            {/* Manual Form Body */}
-            {showManualForm && (
-              <div className="p-5 sm:p-6 bg-[var(--color-paper)] animate-in slide-in-from-top-2 duration-300">
-                {manualSuccess ? (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-[var(--color-success-bg)] border border-[var(--color-success)] text-[var(--color-success)] rounded-full flex items-center justify-center mx-auto mb-4">
-                      <CheckCircle2 className="w-8 h-8" />
-                    </div>
-                    <h3 className="text-lg font-bold text-[var(--color-ink)] mb-2">Bukti Terkirim!</h3>
-                    <p className="text-sm text-[var(--color-muted)]">Bukti transfer Anda telah berhasil diunggah dan sedang menunggu konfirmasi Admin.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-8">
-                    {/* Bank Accounts */}
-                    <div>
-                      <h4 className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-[var(--color-accent)]" /> Tujuan Transfer
-                      </h4>
-                      {company?.bankAccounts && Array.isArray(company.bankAccounts) && company.bankAccounts.length > 0 ? (
-                        <div className="grid gap-3">
-                          {company.bankAccounts.map((acc: any, i: number) => (
-                            <div key={i} className="bg-[var(--color-paper-2)] p-4 rounded-xl border border-[var(--color-rule)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-[var(--color-accent)]/50 transition-colors shadow-sm">
-                              <div>
-                                <p className="text-xs font-bold text-[var(--color-accent)] mb-1 uppercase tracking-wider">{acc.bankName}</p>
-                                <p className="text-xl font-mono font-bold text-[var(--color-ink)] tracking-tight">{acc.accountNumber}</p>
-                                <p className="text-xs text-[var(--color-muted)] mt-1 font-medium">a/n {acc.accountName}</p>
-                              </div>
-                              <button onClick={() => {
-                                navigator.clipboard.writeText(acc.accountNumber);
-                              }} className="text-xs font-bold text-[var(--color-ink)] bg-[var(--color-paper-3)] px-4 py-2 rounded-lg border border-[var(--color-rule)] hover:bg-[var(--color-paper-2)]-higher hover:text-[var(--color-accent)] transition-all shadow-sm">
-                                Salin Rekening
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="bg-[var(--color-error-bg)] text-[var(--color-error)] p-4 rounded-xl text-sm border border-[var(--color-error)] flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4" /> Belum ada rekening tujuan yang disetting admin.
-                        </div>
-                      )}
-                    </div>
+            <button
+              onClick={handleCheckPaymentStatus}
+              disabled={checkingStatus}
+              className="w-full py-3 px-4 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+              Saya Sudah Bayar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-                    {/* Upload Form */}
-                    <div>
-                      <h4 className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-4 border-t border-[var(--color-rule)] pt-6 flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-[var(--color-accent)]" /> Konfirmasi Pembayaran
-                      </h4>
-                      
-                      {manualError && (
-                        <div className="mb-4 bg-[var(--color-error-bg)] border border-[var(--color-error)] text-[var(--color-error)] p-3 rounded-xl text-sm flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {manualError}
-                        </div>
-                      )}
+  // ════════════════════════════════════════════════════════════════════════════
+  // STATE 3: ACTIVE VIRTUAL ACCOUNT PAYMENT
+  // ════════════════════════════════════════════════════════════════════════════
+  if (activePaymentView === 'va' && vaNumber) {
+    return (
+      <div className="min-h-screen bg-[var(--color-paper-2)] text-[var(--color-ink)] font-sans pb-16">
+        <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-3.5 flex items-center gap-3">
+          <button
+            onClick={() => setActivePaymentView('selection')}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 hover:text-[var(--color-accent)] transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5 text-slate-600" />
+            <span className="text-sm">Pilih Metode Lain</span>
+          </button>
+        </div>
 
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="sm:col-span-2">
-                            <label className="text-xs font-bold text-[var(--color-ink)] block mb-1.5">Transfer Ke Mana?</label>
-                            <select className="w-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:bg-[var(--color-paper-3)] focus:border-[var(--color-accent)] outline-none transition-all appearance-none" value={manualForm.destinationBank} onChange={e => setManualForm({...manualForm, destinationBank: e.target.value})}>
-                              <option value="" disabled>-- Pilih Rekening Tujuan --</option>
-                              {company?.bankAccounts && Array.isArray(company.bankAccounts) && company.bankAccounts.map((acc: any, i: number) => (
-                                <option key={i} value={acc.bankName}>{acc.bankName} - {acc.accountNumber} (a/n {acc.accountName})</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="text-xs font-bold text-[var(--color-ink)] block mb-1.5">Bank Pengirim</label>
-                            <input type="text" className="w-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:bg-[var(--color-paper-3)] focus:border-[var(--color-accent)] outline-none transition-all placeholder:text-[var(--color-muted)]" placeholder="Contoh: BCA / DANA" value={manualForm.bankName} onChange={e => setManualForm({...manualForm, bankName: e.target.value})} />
-                          </div>
-                          <div>
-                            <label className="text-xs font-bold text-[var(--color-ink)] block mb-1.5">Atas Nama Pengirim</label>
-                            <input type="text" className="w-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:bg-[var(--color-paper-3)] focus:border-[var(--color-accent)] outline-none transition-all placeholder:text-[var(--color-muted)]" placeholder="Nama pemilik rekening" value={manualForm.accountName} onChange={e => setManualForm({...manualForm, accountName: e.target.value})} />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="text-xs font-bold text-[var(--color-ink)] block mb-1.5">No. Rekening (Opsional)</label>
-                            <input type="text" className="w-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:bg-[var(--color-paper-3)] focus:border-[var(--color-accent)] outline-none transition-all placeholder:text-[var(--color-muted)]" placeholder="12345678" value={manualForm.accountNumber} onChange={e => setManualForm({...manualForm, accountNumber: e.target.value})} />
-                          </div>
-                          <div>
-                            <label className="text-xs font-bold text-[var(--color-ink)] block mb-1.5">Catatan (Opsional)</label>
-                            <input type="text" className="w-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:bg-[var(--color-paper-3)] focus:border-[var(--color-accent)] outline-none transition-all placeholder:text-[var(--color-muted)]" placeholder="Cth: Tagihan bln ini" value={manualForm.notes} onChange={e => setManualForm({...manualForm, notes: e.target.value})} />
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <label className="text-xs font-bold text-[var(--color-ink)] block mb-1.5">Bukti Transfer (Gambar)</label>
-                          <div className="relative">
-                            <input type="file" accept="image/*" className="w-full bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:bg-[var(--color-paper-3)] focus:border-[var(--color-accent)] outline-none transition-all file:mr-4 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[var(--color-paper-3)] file:text-[var(--color-accent)] hover:file:bg-[var(--color-paper-2)]-higher cursor-pointer" onChange={e => setManualForm({...manualForm, receiptImage: e.target.files?.[0] || null})} />
-                          </div>
-                        </div>
-                        
-                        <button onClick={handleManualSubmit} disabled={uploading} className="w-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 rounded-xl py-3.5 text-sm font-bold transition-opacity disabled:opacity-50 mt-4 flex justify-center items-center shadow-md">
-                          {uploading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ImageIcon className="w-5 h-5 mr-2" />}
-                          {uploading ? 'Mengunggah...' : 'Kirim Bukti Transfer'}
-                        </button>
+        <div className="max-w-md mx-auto px-4 py-4 space-y-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <BankLogo name={vaBank || 'bank'} size="sm" />
+                <span className="text-xs font-bold text-slate-800">Virtual Account ({vaBank})</span>
+              </div>
+              <span className="text-xs font-bold text-[var(--color-accent)] font-mono">
+                {formatCurrency(invoice.amount)}
+              </span>
+            </div>
 
-                        {/* WhatsApp Alternative */}
-                        {company?.phone && (
-                          <div className="pt-6 mt-6 border-t border-[var(--color-rule)] text-center">
-                            <p className="text-xs text-[var(--color-muted)] mb-3 font-medium">Bermasalah saat upload? Konfirmasi via WhatsApp:</p>
-                            <a href={`https://wa.me/${company.phone.replace(/[^0-9]/g, '')}?text=Halo, saya ingin konfirmasi pembayaran untuk tagihan ${invoice.invoiceNumber}.`} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20b958] text-white rounded-xl py-3.5 text-sm font-bold shadow-md transition-all">
-                              <Phone className="w-4 h-4" /> Hubungi Admin
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1 text-center">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nomor Virtual Account</p>
+              <p className="text-2xl font-mono font-bold text-slate-900 tracking-wider py-1">{vaNumber}</p>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(vaNumber);
+                  setCopiedVa(true);
+                  setTimeout(() => setCopiedVa(false), 2000);
+                }}
+                className="inline-flex items-center gap-1 text-xs font-bold text-[var(--color-accent)] hover:underline pt-1"
+              >
+                {copiedVa ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedVa ? 'Nomor Disalin!' : 'Salin Nomor VA'}
+              </button>
+            </div>
+
+            <div className="border-t border-slate-100 pt-3">
+              <BankInstructions bankName={vaBank || ''} vaNumber={vaNumber} />
+            </div>
+
+            <button
+              onClick={handleCheckPaymentStatus}
+              disabled={checkingStatus}
+              className="w-full py-3 px-4 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {checkingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              Saya Sudah Bayar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STATE 1: DEFAULT SELECTION MODE (INVOICE DETAIL & PAYMENT METHODS)
+  // ════════════════════════════════════════════════════════════════════════════
+  return (
+    <main className="min-h-screen bg-[var(--color-paper-2)] text-[var(--color-ink)] font-sans pb-20">
+      {/* Header Brand */}
+      <header className="bg-white border-b border-slate-200/90 py-4 px-4 sticky top-0 z-30 shadow-2xs">
+        <div className="max-w-xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            {company?.logo ? (
+              <img src={company.logo} alt={company.name} className="h-7 max-w-[130px] object-contain" />
+            ) : (
+              <span className="font-bold text-sm text-[var(--color-accent)] tracking-tight">{company?.name || 'Portal Pembayaran'}</span>
+            )}
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+            <Clock className="w-3 h-3" /> Menunggu Pembayaran
+          </span>
+        </div>
+      </header>
+
+      <div className="max-w-xl mx-auto px-4 py-5 space-y-4">
+        {/* Invoice Summary Card */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-4">
+          <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+            <div>
+              <p className="text-[11px] text-slate-500 font-medium">Tagihan Layanan Internet</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-mono tracking-tight mt-0.5">
+                {formatCurrency(invoice.amount)}
+              </h1>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 font-mono uppercase block">Nomor Tagihan</span>
+              <span className="text-xs font-mono font-bold text-slate-700">{invoice.invoiceNumber}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <span className="text-slate-400 block text-[11px]">Nama Pelanggan</span>
+              <span className="font-bold text-slate-800 truncate block">{invoice.customerName || invoice.user?.name}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[11px]">Jatuh Tempo</span>
+              <span className="font-bold text-slate-800 block">{formatDate(invoice.dueDate)}</span>
+            </div>
+            {invoice.user?.profile && (
+              <div>
+                <span className="text-slate-400 block text-[11px]">Paket Langganan</span>
+                <span className="font-bold text-slate-800 block">{invoice.user.profile.name}</span>
+              </div>
+            )}
+            {invoice.user?.customerId && (
+              <div>
+                <span className="text-slate-400 block text-[11px]">ID Pelanggan</span>
+                <span className="font-bold text-slate-800 font-mono block">{invoice.user.customerId}</span>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Auto Payment Gateways */}
+        {/* Global Payment Alert */}
+        {error && (
+          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Payment Channels Section */}
+        <div className="space-y-3">
+          <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wider px-1">
+            Pilih Metode Pembayaran
+          </h2>
+
+          {/* ── 1. KARTU UTAMA: QRIS ── */}
           {paymentGateways.length > 0 && (
-            <details className="group bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl overflow-hidden shadow-sm" open>
-              <summary className="flex items-center justify-between p-4 cursor-pointer list-none outline-none select-none hover:bg-[var(--color-paper-2)] transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[var(--color-paper-2)] text-[var(--color-accent)] rounded-xl flex items-center justify-center border border-[var(--color-rule)]">
-                    <Zap className="w-5 h-5" />
+            <button
+              onClick={() => {
+                const qrinGw = paymentGateways.find((g) => g.provider === 'qrin');
+                const duitkuGw = paymentGateways.find((g) => g.provider === 'duitku');
+                if (qrinGw) {
+                  handlePayment('qrin', 'qris');
+                } else if (duitkuGw) {
+                  handlePayment('duitku', 'SP'); // ShopeePay / QRIS Duitku
+                } else {
+                  handlePayment(paymentGateways[0].provider, 'qris');
+                }
+              }}
+              disabled={processing}
+              className="w-full text-left bg-white border-2 border-[var(--color-accent)]/40 hover:border-[var(--color-accent)] rounded-2xl p-4 shadow-xs hover:shadow-md transition-all group relative overflow-hidden"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl shrink-0 group-hover:scale-105 transition-transform">
+                    <BankLogo name="qris" size="md" variant="plain" />
                   </div>
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-[var(--color-ink)]">Pembayaran Otomatis</p>
-                    <p className="text-[11px] text-[var(--color-muted)]">QRIS, Virtual Account, & Gerai Ritel</p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-slate-900 group-hover:text-[var(--color-accent)] transition-colors">
+                        QRIS (Standar Pembayaran Nasional)
+                      </h3>
+                      <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded border border-emerald-200">
+                        Instan
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      BCA, Mandiri, BRI, BNI, GoPay, DANA, ShopeePay & lainnya
+                    </p>
+                    <div className="mt-3 pt-2 border-t border-slate-100">
+                      <AcceptedQrisBadges />
+                    </div>
                   </div>
                 </div>
-                <span className="transition-transform duration-300 group-open:rotate-180 text-[var(--color-muted)]">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </span>
-              </summary>
-              
-              <div className="p-4 pt-0 border-t border-[var(--color-rule)] bg-[var(--color-paper)]">
-                <div className="mt-4">
-                  {paymentGateways.map((gateway) => {
-                    if (gateway.provider === 'duitku') {
-                      if (loadingDuitkuMethods) return (
-                        <div key={gateway.id} className="flex items-center justify-center py-6 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl mb-4">
-                          <Loader2 className="w-5 h-5 animate-spin text-[var(--color-accent)] mr-2" />
-                          <span className="text-sm font-medium text-[var(--color-muted)]">Memuat kanal pembayaran...</span>
-                        </div>
-                      );
-                      if (duitkuMethods.length > 0) return (
-                        <div key={gateway.id} className="grid grid-cols-2 gap-3 mb-4">
-                          {duitkuMethods.map((method) => (
-                            <button
-                              key={method.code}
-                              onClick={() => handlePayment(gateway.provider, method.code)}
-                              disabled={processing}
-                              className="w-full flex flex-col items-center text-center p-3 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl hover:border-[var(--color-accent)]/50 hover:shadow-md transition-all group disabled:opacity-50"
-                            >
-                              <div className="w-10 h-10 bg-[var(--color-paper-3)] rounded-lg flex items-center justify-center text-[var(--color-muted)] group-hover:bg-primary/10 group-hover:text-[var(--color-accent)] transition-colors border border-[var(--color-rule)] group-hover:border-[var(--color-accent)]/30 mb-2">
-                                <CreditCard className="w-5 h-5" />
-                              </div>
-                              <span className="text-xs font-bold text-[var(--color-ink)] line-clamp-2 leading-tight">{method.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    }
-                    
-                    if (gateway.provider === 'qrin') {
-                      if (loadingQrinMethods) return (
-                        <div key={gateway.id} className="flex items-center justify-center py-6 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl mb-4">
-                          <Loader2 className="w-5 h-5 animate-spin text-[var(--color-accent)] mr-2" />
-                          <span className="text-sm font-medium text-[var(--color-muted)]">Memuat kanal pembayaran...</span>
-                        </div>
-                      );
-                      if (qrinMethods.length > 0) {
-                         return (
-                          <div key={gateway.id} className="grid grid-cols-2 gap-3 mb-4">
-                            {qrinMethods.map((method) => (
-                              <button
-                                key={method.code}
-                                onClick={() => handlePayment(gateway.provider, method.code)}
-                                disabled={processing}
-                                className="w-full flex flex-col items-center text-center p-3 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl hover:border-[var(--color-accent)]/50 hover:shadow-md transition-all group disabled:opacity-50"
-                              >
-                                <div className="w-10 h-10 bg-[var(--color-paper-3)] rounded-lg flex items-center justify-center text-[var(--color-muted)] group-hover:bg-primary/10 group-hover:text-[var(--color-accent)] transition-colors border border-[var(--color-rule)] group-hover:border-[var(--color-accent)]/30 p-1.5 overflow-hidden mb-2">
-                                  {method.logo ? <img src={method.logo} alt={method.name} className="max-w-full max-h-full object-contain filter invert dark:invert-0" /> : <CreditCard className="w-4 h-4" />}
-                                </div>
-                                <span className="text-xs font-bold text-[var(--color-ink)] line-clamp-2 leading-tight">{method.name}</span>
-                              </button>
-                            ))}
-                          </div>
-                        );
-                      }
-                      // Fallback
-                      return (
-                        <button
-                          key={gateway.id}
-                          onClick={() => handlePayment(gateway.provider, 'qris')}
-                          disabled={processing}
-                          className="w-full flex flex-col items-center text-center p-3 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl hover:border-[var(--color-accent)]/50 transition-all group disabled:opacity-50 mb-4 text-[var(--color-ink)]"
-                        >
-                          <div className="w-10 h-10 bg-[var(--color-paper-3)] rounded-lg flex items-center justify-center text-[var(--color-muted)] group-hover:bg-primary/10 group-hover:text-[var(--color-accent)] mb-2 border border-[var(--color-rule)] group-hover:border-[var(--color-accent)]/30">
-                            <CreditCard className="w-5 h-5" />
-                          </div>
-                          <span className="text-xs font-bold text-[var(--color-ink)]">QRIS / VA (QRIN)</span>
-                        </button>
-                      );
-                    }
-                    
-                    // Default generic gateway button
-                    return (
-                      <button
-                        key={gateway.id}
-                        onClick={() => handlePayment(gateway.provider)}
-                        disabled={processing}
-                        className="w-full flex flex-col items-center text-center p-3 bg-[var(--color-paper-2)] border border-[var(--color-rule)] rounded-xl hover:border-[var(--color-accent)]/50 transition-all group disabled:opacity-50 mb-4 text-[var(--color-ink)]"
-                      >
-                        <div className="w-10 h-10 bg-[var(--color-paper-3)] rounded-lg flex items-center justify-center text-[var(--color-muted)] group-hover:bg-primary/10 group-hover:text-[var(--color-accent)] mb-2 border border-[var(--color-rule)] group-hover:border-[var(--color-accent)]/30">
-                          <CreditCard className="w-5 h-5" />
-                        </div>
-                        <span className="text-xs font-bold text-[var(--color-ink)]">{gateway.name}</span>
-                      </button>
-                    );
-                  })}
+                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-[var(--color-accent)] group-hover:text-white transition-all shrink-0 mt-1">
+                  <ChevronRight className="w-4 h-4" />
                 </div>
               </div>
-            </details>
+            </button>
           )}
 
-          {paymentGateways.length === 0 && (
-            <div className="text-center py-8 bg-[var(--color-paper-2)] rounded-xl border border-[var(--color-rule)]">
-              <p className="text-sm font-medium text-[var(--color-muted)]">Silakan gunakan fitur transfer manual di atas.</p>
+          {/* ── 2. KARTU VIRTUAL ACCOUNT ── */}
+          {duitkuMethods.filter((m) => m.group === 'VA' || m.name.toLowerCase().includes('va')).length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+              <h3 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-[var(--color-accent)]" /> Virtual Account Bank
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {duitkuMethods
+                  .filter((m) => m.group === 'VA' || m.name.toLowerCase().includes('va'))
+                  .map((method) => (
+                    <button
+                      key={method.code}
+                      onClick={() => handlePayment('duitku', method.code)}
+                      disabled={processing}
+                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-[var(--color-accent)] hover:bg-slate-50 transition-all text-left group disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <BankLogo name={method.name} size="sm" />
+                        <span className="text-xs font-bold text-slate-800 group-hover:text-[var(--color-accent)]">
+                          {method.name}
+                        </span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── 3. QRIN METHODS JIKA ADA VIRTUAL ACCOUNT / RETAIL ── */}
+          {qrinMethods.filter((m) => m.code !== 'qris').length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+              <h3 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-[var(--color-accent)]" /> Kanal Pembayaran Tambahan (QRIN)
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {qrinMethods
+                  .filter((m) => m.code !== 'qris')
+                  .map((method) => (
+                    <button
+                      key={method.code}
+                      onClick={() => handlePayment('qrin', method.code)}
+                      disabled={processing}
+                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-[var(--color-accent)] hover:bg-slate-50 transition-all text-left group disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <BankLogo name={method.name} size="sm" />
+                        <span className="text-xs font-bold text-slate-800 group-hover:text-[var(--color-accent)]">
+                          {method.name}
+                        </span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── 4. PRESERVED MANUAL TRANSFER (HIDDEN BY DEFAULT) ── */}
+          {SHOW_MANUAL_TRANSFER && (
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+              <button
+                onClick={() => setShowManualForm(!showManualForm)}
+                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <Building2 className="w-5 h-5 text-slate-500" />
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">Transfer Manual Bank</p>
+                    <p className="text-[11px] text-slate-400">Konfirmasi bukti transfer</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </button>
             </div>
           )}
         </div>
@@ -851,32 +847,29 @@ export default function PaymentPage() {
 
       {/* Loading Overlay */}
       {processing && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
-          <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-2xl p-8 flex flex-col items-center shadow-2xl max-w-sm w-full mx-4">
-            <div className="w-16 h-16 relative flex items-center justify-center mb-4">
-              <div className="absolute inset-0 rounded-full border-4 border-surface-container-highest"></div>
-              <div className="absolute inset-0 rounded-full border-4 border-[var(--color-accent)] border-t-transparent animate-spin"></div>
-            </div>
-            <p className="text-lg font-bold text-[var(--color-ink)]">Memproses Transaksi...</p>
-            <p className="text-sm text-[var(--color-muted)] mt-2 text-center">Mohon tunggu, jangan tutup halaman ini.</p>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 animate-in fade-in">
+          <div className="bg-white rounded-2xl p-6 flex flex-col items-center shadow-xl max-w-xs w-full mx-4 text-center border border-slate-200">
+            <Loader2 className="w-10 h-10 animate-spin text-[var(--color-accent)] mb-3" />
+            <p className="text-sm font-bold text-slate-800">Menyiapkan Transaksi...</p>
+            <p className="text-xs text-slate-500 mt-1">Menghubungkan ke gateway pembayaran</p>
           </div>
         </div>
       )}
 
-      {/* Beautiful custom alert for unpaid status */}
+      {/* Status Alert Modal */}
       {statusError && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-[var(--color-error-bg)] border border-[var(--color-error)] text-[var(--color-error)] rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-xl border border-slate-200 animate-in zoom-in-95">
+            <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 border border-amber-200">
+              <Clock className="w-7 h-7" />
             </div>
-            <h3 className="text-lg font-bold text-[var(--color-ink)] mb-2">Belum Terdeteksi</h3>
-            <p className="text-sm text-[var(--color-muted)] mb-6">{statusError}</p>
+            <h3 className="text-base font-bold text-slate-800 mb-1.5">Belum Terdeteksi</h3>
+            <p className="text-xs text-slate-500 mb-5 leading-relaxed">{statusError}</p>
             <button 
               onClick={() => setStatusError(null)}
-              className="w-full bg-primary hover:opacity-90 text-[var(--color-accent)]-content font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md"
+              className="w-full bg-[var(--color-accent)] hover:opacity-90 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-sm"
             >
-              Tutup
+              Mengerti
             </button>
           </div>
         </div>
@@ -884,4 +877,3 @@ export default function PaymentPage() {
     </main>
   );
 }
-export const dynamic = 'force-dynamic';

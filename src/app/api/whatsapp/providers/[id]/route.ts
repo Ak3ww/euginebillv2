@@ -1,5 +1,6 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
+import { requirePermission } from '@/server/middleware/api-auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -7,6 +8,8 @@ interface RouteParams {
 
 // PUT - Update provider
 export async function PUT(request: NextRequest, { params }: RouteParams) {
+  const auth = await requirePermission('settings.whatsapp');
+  if (!auth.authorized) return auth.response;
   try {
     const { id } = await params;
     const body = await request.json();
@@ -39,6 +42,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 // DELETE - Delete provider
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  const auth = await requirePermission('settings.whatsapp');
+  if (!auth.authorized) return auth.response;
   try {
     const { id } = await params;
 

@@ -266,17 +266,36 @@ export default function CustomerWiFiPage() {
             <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-muted)]">Memuat data router...</p>
           </div>
         </div>
-      ) : noGenieACS ? (
-        <div className="bento-card text-center py-16">
-          <span className="material-symbols-outlined text-[48px] text-[var(--color-muted)] block mb-3">cloud_off</span>
-          <h3 className="font-display text-lg font-semibold text-[var(--color-ink)] mb-2">GenieACS Tidak Tersedia</h3>
-          <p className="text-sm font-body text-[var(--color-ink-2)]">Manajemen router tidak tersedia saat ini.</p>
-        </div>
-      ) : noDevice ? (
-        <div className="bento-card text-center py-16">
-          <span className="material-symbols-outlined text-[48px] text-[var(--color-muted)] block mb-3">router</span>
-          <h3 className="font-display text-lg font-semibold text-[var(--color-ink)] mb-2">Perangkat Tidak Ditemukan</h3>
-          <p className="text-sm font-body text-[var(--color-ink-2)]">Tidak ada router yang terhubung ke akun Anda.</p>
+      ) : noGenieACS || noDevice ? (
+        <div className="bento-card text-center py-12 px-6 max-w-lg mx-auto bg-white rounded-2xl border border-[var(--color-rule)] shadow-xs animate-in fade-in">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[var(--color-accent)] flex items-center justify-center mx-auto mb-4 border border-blue-100">
+            <Wifi className="w-8 h-8" />
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 mb-3">
+            <Info className="w-3.5 h-3.5" /> Fitur Sedang Peningkatan Sistem (Coming Soon)
+          </span>
+          <h3 className="font-display text-lg font-bold text-[var(--color-ink)] mb-2">
+            Manajemen Wi-Fi Mandiri Segera Hadir
+          </h3>
+          <p className="text-xs sm:text-sm font-body text-[var(--color-muted)] leading-relaxed mb-6">
+            Mohon maaf atas ketidaknyamanannya. Fitur remote manajemen Wi-Fi & modem mandiri saat ini sedang dalam tahap peningkatan sistem untuk integrasi yang lebih stabil.
+          </p>
+          <div className="bg-[var(--color-paper-3)] p-4 rounded-xl border border-[var(--color-rule)] text-left mb-6">
+            <p className="text-xs font-bold text-[var(--color-ink)] mb-1 flex items-center gap-1.5">
+              <Info className="w-4 h-4 text-[var(--color-accent)] shrink-0" /> Butuh Ubah Sandi Wi-Fi Sekarang?
+            </p>
+            <p className="text-xs text-[var(--color-muted)] leading-relaxed">
+              Tim support teknis kami siap membantu Anda mengubah nama Wi-Fi (SSID) atau kata sandi secara instan melalui WhatsApp.
+            </p>
+          </div>
+          <a
+            href="https://wa.me/?text=Halo%20Admin,%20saya%20ingin%20bantuan%20mengubah%20password%20WiFi%20pada%20modem%20saya."
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold text-xs shadow-sm transition-all"
+          >
+            <Radio className="w-4 h-4" /> Hubungi Layanan Teknis WhatsApp
+          </a>
         </div>
       ) : device ? (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5">

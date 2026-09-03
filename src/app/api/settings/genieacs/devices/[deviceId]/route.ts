@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGenieACSCredentials } from '../../route';
+import { requirePermission } from '@/server/middleware/api-auth';
 
 // DELETE - Delete a specific device from GenieACS
 export async function DELETE(

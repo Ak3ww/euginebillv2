@@ -254,12 +254,29 @@ model invoice {
   payments         payment[]
   manualPayments   manualPayment[]
   registration     registrationRequest?
+  qrisPending      qrisPending?
 
   @@index([userId], map: "invoices_userId_fkey")
   @@index([status])
   @@index([dueDate])
   @@index([invoiceType])
   @@map("invoices")
+}
+
+model qrisPending {
+  id            String    @id @default(cuid())
+  invoiceId     String    @unique
+  uniqueAmount  Int       // Nominal unik (ditambah suffix/kode unik)
+  baseAmount    Int       // Nominal tagihan asli
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+  matchedAt     DateTime?
+  
+  invoice       invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  @@index([uniqueAmount])
+  @@index([expiresAt])
+  @@map("qris_pending")
 }
 
 enum InvoiceType {

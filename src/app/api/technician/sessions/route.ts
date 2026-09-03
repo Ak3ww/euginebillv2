@@ -38,24 +38,63 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
   const limit = Math.min(100, parseInt(searchParams.get('limit') || '50', 10));
 
-  // Get active sessions from radacct
-  const onlineSessions = await prisma.radacct.findMany({
-    where: { acctstoptime: null },
-    select: {
-      radacctid: true,
-      acctuniqueid: true,
-      acctsessionid: true,
-      username: true,
-      framedipaddress: true,
-      callingstationid: true,
-      nasipaddress: true,
-      acctstarttime: true,
-      acctinputoctets: true,
-      acctoutputoctets: true,
-    },
-    orderBy: { acctstarttime: 'desc' },
-    take: 1000,
-  });
+  // Check if RADIUS mode or Non-RADIUS mode is enabled
+  const company = await prisma.company.findFirst({ select: { radiusEnabled: true } });
+  const isRadius = company?.radiusEnabled ?? false;
+
+  let onlineSessions: Array<{
+    radacctid: bigint | number;
+    acctuniqueid: string;
+    acctsessionid: string;
+    username: string;
+    framedipaddress: string | null;
+    callingstationid: string | null;
+    nasipaddress: string | null;
+    acctstarttime: Date | null;
+    acctinputoctets: bigint | null;
+    acctoutputoctets: bigint | null;
+  }> = [];
+
+  if (isRadius) {
+    onlineSessions = await prisma.radacct.findMany({
+      where: { acctstoptime: null },
+      select: {
+        radacctid: true,
+        acctuniqueid: true,
+        acctsessionid: true,
+        username: true,
+        framedipaddress: true,
+        callingstationid: true,
+        nasipaddress: true,
+        acctstarttime: true,
+        acctinputoctets: true,
+        acctoutputoctets: true,
+      },
+      orderBy: { acctstarttime: 'desc' },
+      take: 1000,
+    });
+  } else {
+    // Non-RADIUS mode (default): query mikrotikSession table populated by poller
+    const mtSessions = await prisma.mikrotikSession.findMany({
+      where: { stopTime: null },
+      include: { router: { select: { ipAddress: true, nasname: true } } },
+      orderBy: { startTime: 'desc' },
+      take: 1000,
+    });
+
+    onlineSessions = mtSessions.map((s) => ({
+      radacctid: 0,
+      acctuniqueid: s.id,
+      acctsessionid: s.id,
+      username: s.username,
+      framedipaddress: s.ipAddress,
+      callingstationid: s.macAddress,
+      nasipaddress: s.router?.ipAddress || s.router?.nasname || '',
+      acctstarttime: s.startTime,
+      acctinputoctets: s.rxBytes,
+      acctoutputoctets: s.txBytes,
+    }));
+  }
 
   // Cross-reference with pppoeUser data
   const usernames = onlineSessions.map((s) => s.username);

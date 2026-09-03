@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch vouchers with relations
     const vouchers = await prisma.hotspotVoucher.findMany({
+      take: 2000,
       where,
       include: {
         profile: {

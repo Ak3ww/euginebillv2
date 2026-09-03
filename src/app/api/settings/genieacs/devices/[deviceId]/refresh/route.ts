@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGenieACSCredentials } from '../../../route';
+import { requirePermission } from '@/server/middleware/api-auth';
 
 // Helper: fetch with AbortController timeout
 async function fetchWithTimeout(url: string, options: RequestInit = {}, ms = 15000): Promise<Response> {

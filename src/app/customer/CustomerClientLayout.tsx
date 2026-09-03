@@ -298,8 +298,11 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
           <button onClick={() => router.push('/customer/invoices')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer/invoices') ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
             <FileText className="w-5 h-5" /> Tagihan
           </button>
-          <button onClick={() => router.push('/customer/wifi')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer/wifi') ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
-            <Wifi className="w-5 h-5" /> WiFi
+          <button onClick={() => router.push('/customer/wifi')} className={cn("w-full flex items-center justify-between px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer/wifi') ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
+            <div className="flex items-center gap-3">
+              <Wifi className="w-5 h-5" /> WiFi
+            </div>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Segera</span>
           </button>
           <button onClick={() => router.push('/customer/tickets')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer/tickets') ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
             <MessageSquare className="w-5 h-5" /> Bantuan
@@ -427,8 +430,11 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
               <FileText className="w-6 h-6" />
               <span className="font-mono text-[10px] mt-1 uppercase tracking-wider">Tagihan</span>
             </button>
-            <button onClick={() => router.push('/customer/wifi')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/wifi') ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
-              <Wifi className="w-6 h-6" />
+            <button onClick={() => router.push('/customer/wifi')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1 relative", isActive('/customer/wifi') ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
+              <div className="relative">
+                <Wifi className="w-6 h-6" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white" />
+              </div>
               <span className="font-mono text-[10px] mt-1 uppercase tracking-wider">WiFi</span>
             </button>
             <button onClick={() => router.push('/customer/tickets')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/tickets') ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
