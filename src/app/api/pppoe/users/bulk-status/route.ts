@@ -130,51 +130,59 @@ export async function PUT(request: Request) {
           await prisma.$executeRaw`DELETE FROM radusergroup WHERE username = ${user.username}`;
           await prisma.$executeRaw`DELETE FROM radreply WHERE username = ${user.username}`;
         }
+      }
 
-        // ========== ALWAYS SYNC MIKROTIK DIRECT API (PPP Secret & Active Session) ==========
-        if (user.router) {
-          const { MikroTikConnection } = await import('@/server/services/mikrotik/client');
-          const port = (user.router as any).port || 8728;
-          const conn = new MikroTikConnection({
-            host: user.router.ipAddress,
-            username: user.router.username,
-            password: user.router.password,
-            port,
-          });
-          try {
-            await conn.connect();
-            const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`]);
-            if (existing.length > 0) {
-              if (status === 'stop' || status === 'blocked') {
-                await conn.execute('/ppp/secret/set', [
-                  `=.id=${existing[0]['.id']}`,
-                  `=disabled=yes`,
-                ]);
-              } else if (status === 'active') {
-                const normalProfile = user.profile.mikrotikProfileName || user.profile.name || user.profile.groupName;
-                await conn.execute('/ppp/secret/set', [
-                  `=.id=${existing[0]['.id']}`,
-                  `=disabled=no`,
-                  `=profile=${normalProfile}`,
-                ]);
-              } else if (status === 'isolated') {
-                await conn.execute('/ppp/secret/set', [
-                  `=.id=${existing[0]['.id']}`,
-                  `=disabled=no`,
-                  `=profile=isolir`,
-                ]);
-              }
+      // ========== ALWAYS SYNC MIKROTIK DIRECT API (PPP Secret & Active Session) ==========
+      if (user.router) {
+        const { MikroTikConnection } = await import('@/server/services/mikrotik/client');
+        const port = (user.router as any).port || 8728;
+        const conn = new MikroTikConnection({
+          host: user.router.ipAddress,
+          username: user.router.username,
+          password: user.router.password,
+          port,
+        });
+        try {
+          await conn.connect();
+          const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`]);
+          if (existing.length > 0) {
+            if (status === 'stop' || status === 'blocked') {
+              await conn.execute('/ppp/secret/set', [
+                `=.id=${existing[0]['.id']}`,
+                `=disabled=yes`,
+              ]);
+            } else if (status === 'active') {
+              const normalProfile = user.profile.mikrotikProfileName || user.profile.name || user.profile.groupName;
+              await conn.execute('/ppp/secret/set', [
+                `=.id=${existing[0]['.id']}`,
+                `=disabled=no`,
+                `=profile=${normalProfile}`,
+              ]);
+            } else if (status === 'isolated') {
+              await conn.execute('/ppp/secret/set', [
+                `=.id=${existing[0]['.id']}`,
+                `=disabled=no`,
+                `=profile=isolir`,
+              ]);
             }
-            const active = await conn.execute('/ppp/active/print', [`?name=${user.username}`]);
-            for (const session of active) {
-              await conn.execute('/ppp/active/remove', [`=.id=${session['.id']}`]);
-            }
-            await conn.disconnect();
-            console.log(`[Bulk Status Change] MikroTik API sync complete for ${user.username} (status: ${status}, port: ${port})`);
-          } catch (err) {
-            console.error(`[Bulk Status Change] MikroTik API sync error for ${user.username} on port ${port}:`, err);
-            try { await conn.disconnect(); } catch { /* ignore */ }
           }
+          const active = await conn.execute('/ppp/active/print', [`?name=${user.username}`]);
+          for (const session of active) {
+            await conn.execute('/ppp/active/remove', [`=.id=${session['.id']}`]);
+          }
+          await conn.disconnect();
+          console.log(`[Bulk Status Change] MikroTik API sync complete for ${user.username} (status: ${status}, port: ${port})`);
+        } catch (err) {
+          console.error(`[Bulk Status Change] MikroTik API sync error for ${user.username} on port ${port}:`, err);
+          try { await conn.disconnect(); } catch { /* ignore */ }
+        }
+
+        // Clean up MikroTik firewall isolir address-list when user is reactivated
+        if (status === 'active') {
+          try {
+            const { removeUserFromMikrotikAddressList } = await import('@/server/services/radius/coa-handler.service');
+            removeUserFromMikrotikAddressList(user.username, user.router.id, 'isolir').catch(() => {});
+          } catch {}
         }
       }
     }

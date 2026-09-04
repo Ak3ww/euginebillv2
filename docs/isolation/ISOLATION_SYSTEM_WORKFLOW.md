@@ -1063,6 +1063,34 @@ A properly working isolation system should:
 9. ✅ Grace period **properly calculated** before isolation
 10. ✅ CoA disconnect **forces re-authentication** on status change
 
+## 🔄 Bulk Un-isolation & Billing Realignment System
+
+### 1. CLI Automation Script (`scripts/unisolate-all-and-set-date-6.js`)
+Digunakan untuk operasi pemulihan massal langsung di terminal VPS:
+```bash
+node scripts/unisolate-all-and-set-date-6.js
+```
+**Alur Kerja Teknis**:
+1. Mengambil seluruh user PPPoE dengan status `isolated`.
+2. Mengelompokkan koneksi berdasarkan router MikroTik (`routerId`) untuk membuka 1 koneksi per router.
+3. Mengembalikan PPP secret profile ke profil paket asli pelanggan (`disabled=no`).
+4. Menendang sesi aktif di `/ppp/active` agar ONT melakukan *reconnect* otomatis dengan kecepatan normal.
+5. Menghapus IP dan komentar pelanggan dari `/ip/firewall/address-list` list `isolir`.
+6. Sinkronisasi tabel FreeRADIUS (membersihkan Auth-Type Reject di `radcheck`, Reply-Message di `radreply`, mengembalikan grup `radusergroup`, dan menutup sesi `radacct`).
+7. Memperbarui `company.fixedBillingDate = 6`.
+8. Memperbarui `billingDay = 6`, `billingCycleDay = 6`, dan `expiredAt = 2026-09-06T23:59:59.999Z` untuk seluruh pelanggan aktif/terisolir.
+9. Memperbarui tagihan belum lunas bulan September 2026 (`PENDING` / `OVERDUE`) ke `dueDate = 2026-09-06T23:59:59.999Z` dan mengubah statusnya menjadi `PENDING`.
+
+### 2. Admin API Route (`POST /api/pppoe/users/unisolate-all`)
+Endpoint backend terproteksi sesi admin NextAuth untuk mengeksekusi un-isolir massal langsung dari dashboard web atau cURL:
+```bash
+curl -X POST http://localhost:3000/api/pppoe/users/unisolate-all \
+  -H "Content-Type: application/json"
+```
+
+### 3. Antarmuka Web Dashboard (`/admin/isolated-users`)
+Tombol **"Unisolir Semua Client (Set Tgl 6)"** tersedia di bagian header pemantauan pelanggan terisolir dengan modal konfirmasi interaktif sebelum eksekusi.
+
 ---
 
 ## 📚 Related Documentation

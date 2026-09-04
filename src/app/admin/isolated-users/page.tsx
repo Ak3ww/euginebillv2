@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatWIB } from '@/lib/timezone';
 import {
-  Shield, Users, Wifi, WifiOff, DollarSign, RefreshCw, Search, Download,
+  Shield, ShieldCheck, Users, Wifi, WifiOff, DollarSign, RefreshCw, Search, Download,
   AlertTriangle, CheckCircle, XCircle, Phone, Calendar, TrendingUp, Activity,
   ChevronDown, ChevronUp, Copy, ExternalLink, Check, CreditCard, Eye,
   FileText, Clock, Ban, MapPin, Hash, BellOff, Bell, MessageSquareOff,
@@ -177,6 +177,82 @@ function WaNotifModal({
   );
 }
 
+// Modal konfirmasi un-isolir massal seluruh client & set tanggal 6
+function UnisolateConfirmModal({
+  userCount,
+  onClose,
+  onConfirm,
+  loading,
+}: {
+  userCount: number;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+  loading: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-emerald-500" />
+            <span className="font-semibold text-sm text-foreground">Konfirmasi Buka Isolir Massal</span>
+          </div>
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-foreground leading-relaxed">
+            Anda akan membuka isolir <strong className="text-primary font-semibold">{userCount} pelanggan</strong> dan mengembalikan status koneksi mereka ke aktif.
+          </p>
+
+          <div className="p-3.5 bg-muted/40 rounded-xl border border-border text-xs space-y-2 text-muted-foreground">
+            <div className="flex items-center gap-2 text-foreground font-medium">
+              <Calendar className="w-4 h-4 text-primary shrink-0" />
+              <span>Tanggal Jatuh Tempo &amp; Isolir Baru:</span>
+            </div>
+            <p className="pl-6 text-foreground font-semibold text-sm">
+              6 September 2026 (23:59:59 WIB)
+            </p>
+            <div className="pl-6 text-[11px] text-muted-foreground space-y-1 pt-1">
+              <div>- Profil paket normal di MikroTik akan dipulihkan.</div>
+              <div>- Sesi aktif akan di-kick agar ONT reconnect dengan kecepatan normal.</div>
+              <div>- IP pelanggan dibersihkan dari firewall address-list isolir.</div>
+              <div>- Tagihan bulan September yang belum lunas diperbarui ke 6 September 2026.</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-2 px-5 py-4 border-t border-border bg-muted/20">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 py-2 rounded-xl border border-border bg-background text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all"
+          >
+            Batal
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-all disabled:opacity-60 shadow-sm"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            {loading ? 'Memproses...' : 'Ya, Buka Isolir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function IsolatedUsersMonitorPage() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
@@ -189,6 +265,8 @@ export default function IsolatedUsersMonitorPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [waModalUser, setWaModalUser] = useState<IsolatedUser | null>(null);
   const [savingNotif, setSavingNotif] = useState<string | null>(null);
+  const [unisolating, setUnisolating] = useState(false);
+  const [showUnisolateConfirm, setShowUnisolateConfirm] = useState(false);
 
   const fetchData = useCallback(async (silent = false) => {
     try {
@@ -242,6 +320,29 @@ export default function IsolatedUsersMonitorPage() {
       console.error('Failed to update WA notification:', err);
     } finally {
       setSavingNotif(null);
+    }
+  };
+
+  const handleUnisolateAll = async () => {
+    setUnisolating(true);
+    try {
+      const res = await fetch('/api/pppoe/users/unisolate-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Berhasil membuka isolir ${data.data.unisolatedCount} pelanggan!\nTanggal isolir & tagihan diperbarui ke 6 September 2026.`);
+        await fetchData();
+      } else {
+        alert(`Gagal: ${data.error || 'Terjadi kesalahan sistem'}`);
+      }
+    } catch (err) {
+      console.error('Unisolate all error:', err);
+      alert('Terjadi kesalahan jaringan saat membuka isolir');
+    } finally {
+      setUnisolating(false);
+      setShowUnisolateConfirm(false);
     }
   };
 
@@ -303,6 +404,16 @@ export default function IsolatedUsersMonitorPage() {
         />
       )}
 
+      {/* Unisolate All Confirm Modal */}
+      {showUnisolateConfirm && (
+        <UnisolateConfirmModal
+          userCount={users.length}
+          onClose={() => setShowUnisolateConfirm(false)}
+          onConfirm={handleUnisolateAll}
+          loading={unisolating}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -314,14 +425,26 @@ export default function IsolatedUsersMonitorPage() {
             {t('isolatedUsers.subtitle')}
           </p>
         </div>
-        <button
-          onClick={() => fetchData()}
-          disabled={refreshing}
-          className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg hover:bg-primary/20 transition-all text-sm text-primary"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-          {refreshing ? t('isolatedUsers.refreshing') : t('common.refresh')}
-        </button>
+        <div className="flex items-center gap-2">
+          {users.length > 0 && (
+            <button
+              onClick={() => setShowUnisolateConfirm(true)}
+              disabled={unisolating}
+              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all text-xs font-medium shadow-sm disabled:opacity-50"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              {unisolating ? 'Memproses...' : 'Unisolir Semua Client (Set Tgl 6)'}
+            </button>
+          )}
+          <button
+            onClick={() => fetchData()}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg hover:bg-primary/20 transition-all text-sm text-primary"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? t('isolatedUsers.refreshing') : t('common.refresh')}
+          </button>
+        </div>
       </div>
 
       {/* Stats */}

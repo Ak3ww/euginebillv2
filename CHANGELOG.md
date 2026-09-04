@@ -4,6 +4,32 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.0] — 2026-09-04
+### Added & Changed
+- **Sistem Un-isolir Massal Seluruh Client & Penyelarasan Tanggal Isolir ke Tanggal 6**:
+  - *Context*: Permintaan operasional untuk membuka blokir/isolir seluruh pelanggan yang terisolir dan memundurkan tanggal jatuh tempo serta isolir ke tanggal 6 September 2026 (jam 23:59:59 WIB).
+  - *Solusi & Implementasi*:
+    1. **Skrip Otomasi Satu Klik (`scripts/unisolate-all-and-set-date-6.js`)**:
+       - Membuka isolir semua pelanggan berstatus `isolated` menjadi `active`.
+       - Mengelompokkan koneksi berdasarkan router MikroTik (1 sesi koneksi per router, menghilangkan overhead buka-tutup berulang kali).
+       - Memulihkan profil PPP secret ke profil paket asli (`user.profile.mikrotikProfileName || user.profile.name || user.profile.groupName`) dengan `disabled=no`.
+       - Menendang sesi aktif di `/ppp/active` agar ONT melakukan *reconnect* otomatis dengan kecepatan normal.
+       - Membersihkan IP dan komentar pelanggan dari firewall address-list `isolir`.
+       - Sinkronisasi tabel FreeRADIUS (membersihkan Auth-Type Reject di `radcheck`, Reply-Message di `radreply`, mengembalikan grup `radusergroup`, dan menutup sesi `radacct`).
+       - Memperbarui `company.fixedBillingDate = 6`.
+       - Memperbarui `billingDay = 6`, `billingCycleDay = 6`, dan `expiredAt = 2026-09-06T23:59:59.999Z` untuk pelanggan yang di-unisolir dan pelanggan dengan masa aktif <= 6 September 2026 (pelanggan yang sudah bayar bulan berikutnya tetap aman tanpa pengurangan masa aktif).
+       - Memperbarui tagihan belum lunas bulan September 2026 (`PENDING` / `OVERDUE`) ke `dueDate = 2026-09-06T23:59:59.999Z` dan mengubah statusnya menjadi `PENDING`.
+    2. **Endpoint API Admin (`POST /api/pppoe/users/unisolate-all`)**:
+       - Endpoint backend terproteksi autentikasi admin NextAuth untuk mengeksekusi logika un-isolir massal dan penyesuaian tanggal secara langsung dari web browser atau API call.
+       - Menyertakan pencatatan audit log `logActivity` dengan detail metrik eksekusi.
+    3. **Tombol Antarmuka Admin (`/admin/isolated-users`)**:
+       - Ditambahkan tombol aksi **"Unisolir Semua Client (Set Tgl 6)"** lengkap dengan modal konfirmasi `UnisolateConfirmModal` dan indikator loading.
+       - Sepenuhnya mematuhi standar desain Shadcn UI dan aturan bebas text emoji (menggunakan Lucide icon `<ShieldCheck />`).
+    4. **Perbaikan Dual-Mode pada Bulk Status (`/api/pppoe/users/bulk-status`)**:
+       - Memperbaiki penutupan blok `if (isRadiusEnabled)` sehingga sinkronisasi MikroTik Direct API tetap berjalan 100% pada sistem non-RADIUS default.
+       - Menambahkan pembersihan otomatis `/ip/firewall/address-list` list `isolir` saat status user diubah ke `active`.
+  - *Files*: `scripts/unisolate-all-and-set-date-6.js`, `src/app/api/pppoe/users/unisolate-all/route.ts`, `src/app/api/pppoe/users/bulk-status/route.ts`, `src/app/admin/isolated-users/page.tsx`, `CHANGELOG.md`, `docs/isolation/ISOLATION_SYSTEM_WORKFLOW.md`
+
 ## [2.36.0] — 2026-09-03
 ### Added & Changed
 - **Penonaktifan Popup Promo PWA pada Halaman Pembayaran (`/pay/*`)**:
