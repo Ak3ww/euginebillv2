@@ -6,6 +6,10 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [2.36.0] — 2026-09-03
 ### Added & Changed
+- **Penonaktifan Popup Promo PWA pada Halaman Pembayaran (`/pay/*`)**:
+  - *Issue*: Popup modal promo install aplikasi PWA ("Install Aplikasi Pelanggan") muncul di atas halaman pembayaran (`/pay/[token]`), menghalangi rincian tagihan, QRIS, dan kode bayar kasir saat pelanggan hendak membayar.
+  - *Solusi*: Menambahkan pengecualian rute transaksi pembayaran (`/pay`, `/payment`, dan rute turunan lainnya) pada komponen `PwaInstallPrompt.tsx` agar antarmuka pembayaran 100% bebas dari distraksi popup.
+  - *Files*: `src/components/pwa-install-prompt.tsx`, `CHANGELOG.md`
 - **Customer Experience & Payment Redesign (`/pay/[token]`)**:
   - *Issue*: Halaman pembayaran sebelumnya berupa form monolith dengan icon generic `<CreditCard />` abu-abu dan opsi manual transfer yang tidak relevan bagi gateway otomatis. Ukuran font pada iterasi awal terlalu kecil (10px-11px), kontras teks instruksi menyatu dengan latar belakang, serta instruksi gerai retail (Alfamart/Indomaret) keliru menampilkan instruksi transfer ATM virtual account.
   - *Solusi*:

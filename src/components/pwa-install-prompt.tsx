@@ -84,12 +84,15 @@ export function PwaInstallPrompt() {
     sessionStorage.setItem('pwa-install-dismissed', '1');
   };
 
-  // Do not render on admin/technician/agent routes
+  // Do not render on admin/technician/agent routes or customer payment flows
   if (
     !pathname ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/technician') ||
-    pathname.startsWith('/agent')
+    pathname.startsWith('/agent') ||
+    pathname.startsWith('/pay') ||
+    pathname.startsWith('/payment') ||
+    pathname.includes('/pay')
   ) {
     return null;
   }
