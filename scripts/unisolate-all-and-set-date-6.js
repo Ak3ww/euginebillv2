@@ -218,18 +218,39 @@ async function main() {
         console.log('   ✓ Sinkronisasi FreeRADIUS selesai.');
       }
 
-      // Update status pelanggan di database menjadi 'active'
-      const unisolatedIds = isolatedUsers.map(u => u.id);
-      await prisma.pppoeUser.updateMany({
-        where: { id: { in: unisolatedIds } },
-        data: {
-          status: 'active',
-          billingDay: 6,
-          billingCycleDay: 6,
-          expiredAt: TARGET_DATE,
-        }
+      // Ambil daftar user yang memiliki tagihan belum lunas (PENDING atau OVERDUE)
+      const unpaidInvoices = await prisma.invoice.findMany({
+        where: { status: { in: ['PENDING', 'OVERDUE'] } },
+        select: { userId: true },
+        distinct: ['userId'],
       });
-      console.log(`\n✅ Database: ${unisolatedIds.length} pelanggan status diubah menjadi 'active' & expiredAt 6 September 2026.`);
+      const unpaidUserIdSet = new Set(unpaidInvoices.map(i => i.userId));
+
+      const SEPTEMBER_TARGET = new Date('2026-09-06T23:59:59.999Z');
+      const OCTOBER_TARGET = new Date('2026-10-06T23:59:59.999Z');
+
+      // Update pelanggan terisolir di database menjadi 'active'
+      for (const user of isolatedUsers) {
+        const hasUnpaid = unpaidUserIdSet.has(user.id);
+        const targetExpiry = hasUnpaid ? SEPTEMBER_TARGET : OCTOBER_TARGET;
+
+        await prisma.pppoeUser.update({
+          where: { id: user.id },
+          data: {
+            status: 'active',
+            billingDay: 6,
+            billingCycleDay: 6,
+            expiredAt: targetExpiry,
+          },
+        });
+
+        if (!hasUnpaid) {
+          console.log(`   💎 [${user.username}] SUDAH LUNAS: Masa aktif disetel ke 6 Oktober 2026 (aman dari auto-isolir).`);
+        } else {
+          console.log(`   ⏳ [${user.username}] BELUM LUNAS: Masa aktif & toleransi disetel ke 6 September 2026.`);
+        }
+      }
+      console.log(`\n✅ Database: ${isolatedUsers.length} pelanggan status diubah menjadi 'active'.`);
     } else {
       console.log('ℹ️ Tidak ada pelanggan berstatus terisolir saat ini.');
     }
@@ -237,37 +258,58 @@ async function main() {
     // 3. Update Tanggal Isolir & Billing Day untuk Seluruh Pelanggan Aktif
     console.log('\n📅 Menyelaraskan Tanggal Jatuh Tempo & Isolir Seluruh Pelanggan...');
 
-    // Pelanggan dengan expiredAt <= 6 September 2026 (atau NULL) dan bukan stop/blocked
-    const alignResult = await prisma.pppoeUser.updateMany({
-      where: {
-        status: { notIn: ['stop', 'blocked'] },
-        OR: [
-          { expiredAt: null },
-          { expiredAt: { lte: TARGET_DATE } },
-        ]
-      },
-      data: {
-        billingDay: 6,
-        billingCycleDay: 6,
-        expiredAt: TARGET_DATE,
-      }
-    });
-    console.log(`   ✓ ${alignResult.count} pelanggan diperbarui: expiredAt = 06/09/2026, billingDay = 6.`);
+    const SEPTEMBER_TARGET = new Date('2026-09-06T23:59:59.999Z');
+    const OCTOBER_TARGET = new Date('2026-10-06T23:59:59.999Z');
 
-    // Untuk pelanggan yang sudah bayar lebih awal (misal Oktober), update siklus billingDay = 6 tanpa kurangi masa aktifnya
-    const futurePaidResult = await prisma.pppoeUser.updateMany({
-      where: {
-        status: { notIn: ['stop', 'blocked'] },
-        expiredAt: { gt: TARGET_DATE },
-      },
-      data: {
-        billingDay: 6,
-        billingCycleDay: 6,
-      }
+    // Ambil fresh list user dengan tagihan belum lunas
+    const allUnpaidInvoices = await prisma.invoice.findMany({
+      where: { status: { in: ['PENDING', 'OVERDUE'] } },
+      select: { userId: true },
+      distinct: ['userId'],
     });
-    if (futurePaidResult.count > 0) {
-      console.log(`   ✓ ${futurePaidResult.count} pelanggan yang sudah bayar bulan berikutnya (masa aktif tetap aman) diperbarui siklus billingDay = 6.`);
+    const allUnpaidSet = new Set(allUnpaidInvoices.map(i => i.userId));
+
+    // Ambil semua pelanggan aktif (bukan stop/blocked)
+    const activeUsers = await prisma.pppoeUser.findMany({
+      where: { status: { notIn: ['stop', 'blocked'] } },
+      select: { id: true, username: true, expiredAt: true },
+    });
+
+    let paidCount = 0;
+    let unpaidCount = 0;
+
+    for (const u of activeUsers) {
+      const hasUnpaid = allUnpaidSet.has(u.id);
+      let newExp = u.expiredAt;
+
+      if (!hasUnpaid) {
+        // Pelanggan SUDAH LUNAS tagihannya:
+        // Jika expiredAt <= September, majukan ke Oktober 2026!
+        if (!u.expiredAt || u.expiredAt <= SEPTEMBER_TARGET) {
+          newExp = OCTOBER_TARGET;
+          paidCount++;
+        }
+      } else {
+        // Pelanggan BELUM BAYAR tagihannya:
+        // Set ke 6 September 2026 23:59:59 WIB (toleransi s/d tgl 6)
+        if (!u.expiredAt || u.expiredAt <= SEPTEMBER_TARGET) {
+          newExp = SEPTEMBER_TARGET;
+          unpaidCount++;
+        }
+      }
+
+      await prisma.pppoeUser.update({
+        where: { id: u.id },
+        data: {
+          billingDay: 6,
+          billingCycleDay: 6,
+          expiredAt: newExp,
+        },
+      });
     }
+
+    console.log(`   ✓ ${paidCount} pelanggan yang SUDAH LUNAS dipastikan aktif hingga 6 Oktober 2026.`);
+    console.log(`   ✓ ${unpaidCount} pelanggan yang BELUM LUNAS diberi toleransi hingga 6 September 2026 (23:59:59 WIB).`);
 
     // 4. Update Tagihan Invoice September yang Belum Lunas (PENDING & OVERDUE)
     console.log('\n📄 Menyesuaikan Tagihan Invoice September 2026...');
@@ -283,7 +325,7 @@ async function main() {
         ]
       },
       data: {
-        dueDate: TARGET_DATE,
+        dueDate: SEPTEMBER_TARGET,
         status: 'PENDING', // Kembalikan OVERDUE ke PENDING karena tanggal jatuh tempo dimundurkan ke tgl 6
       }
     });

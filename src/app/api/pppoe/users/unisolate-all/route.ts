@@ -177,46 +177,78 @@ export async function POST(request: Request) {
         }
       }
 
-      // Update status database untuk seluruh pelanggan terisolir
-      const unisolatedIds = isolatedUsers.map(u => u.id);
-      await prisma.pppoeUser.updateMany({
-        where: { id: { in: unisolatedIds } },
-        data: {
-          status: 'active',
-          billingDay: 6,
-          billingCycleDay: 6,
-          expiredAt: TARGET_DATE,
-        }
+      // Ambil daftar user yang memiliki tagihan belum lunas (PENDING atau OVERDUE)
+      const unpaidInvoices = await prisma.invoice.findMany({
+        where: { status: { in: ['PENDING', 'OVERDUE'] } },
+        select: { userId: true },
+        distinct: ['userId'],
       });
+      const unpaidUserIdSet = new Set(unpaidInvoices.map(i => i.userId));
+
+      const SEPTEMBER_TARGET = new Date('2026-09-06T23:59:59.999Z');
+      const OCTOBER_TARGET = new Date('2026-10-06T23:59:59.999Z');
+
+      // Update status database untuk seluruh pelanggan terisolir
+      for (const user of isolatedUsers) {
+        const hasUnpaid = unpaidUserIdSet.has(user.id);
+        const targetExpiry = hasUnpaid ? SEPTEMBER_TARGET : OCTOBER_TARGET;
+
+        await prisma.pppoeUser.update({
+          where: { id: user.id },
+          data: {
+            status: 'active',
+            billingDay: 6,
+            billingCycleDay: 6,
+            expiredAt: targetExpiry,
+          },
+        });
+      }
     }
 
     // 3. Update Tanggal Isolir & Billing Day Pelanggan Lainnya
-    const alignResult = await prisma.pppoeUser.updateMany({
-      where: {
-        status: { notIn: ['stop', 'blocked'] },
-        OR: [
-          { expiredAt: null },
-          { expiredAt: { lte: TARGET_DATE } },
-        ]
-      },
-      data: {
-        billingDay: 6,
-        billingCycleDay: 6,
-        expiredAt: TARGET_DATE,
-      }
+    const SEPTEMBER_TARGET = new Date('2026-09-06T23:59:59.999Z');
+    const OCTOBER_TARGET = new Date('2026-10-06T23:59:59.999Z');
+
+    const allUnpaidInvoices = await prisma.invoice.findMany({
+      where: { status: { in: ['PENDING', 'OVERDUE'] } },
+      select: { userId: true },
+      distinct: ['userId'],
+    });
+    const allUnpaidSet = new Set(allUnpaidInvoices.map(i => i.userId));
+
+    const activeUsers = await prisma.pppoeUser.findMany({
+      where: { status: { notIn: ['stop', 'blocked'] } },
+      select: { id: true, expiredAt: true },
     });
 
-    // Update siklus billingDay = 6 untuk pelanggan yang sudah bayar bulan berikutnya
-    await prisma.pppoeUser.updateMany({
-      where: {
-        status: { notIn: ['stop', 'blocked'] },
-        expiredAt: { gt: TARGET_DATE },
-      },
-      data: {
-        billingDay: 6,
-        billingCycleDay: 6,
+    let paidCount = 0;
+    let unpaidCount = 0;
+
+    for (const u of activeUsers) {
+      const hasUnpaid = allUnpaidSet.has(u.id);
+      let newExp = u.expiredAt;
+
+      if (!hasUnpaid) {
+        if (!u.expiredAt || u.expiredAt <= SEPTEMBER_TARGET) {
+          newExp = OCTOBER_TARGET;
+          paidCount++;
+        }
+      } else {
+        if (!u.expiredAt || u.expiredAt <= SEPTEMBER_TARGET) {
+          newExp = SEPTEMBER_TARGET;
+          unpaidCount++;
+        }
       }
-    });
+
+      await prisma.pppoeUser.update({
+        where: { id: u.id },
+        data: {
+          billingDay: 6,
+          billingCycleDay: 6,
+          expiredAt: newExp,
+        },
+      });
+    }
 
     // 4. Update Tagihan Invoice Belum Lunas September 2026
     const startOfSept = new Date('2026-09-01T00:00:00.000Z');
@@ -246,7 +278,9 @@ export async function POST(request: Request) {
       status: 'success',
       metadata: {
         unisolatedCount: isolatedUsers.length,
-        alignedUsersCount: alignResult.count,
+        alignedUsersCount: activeUsers.length,
+        paidCount,
+        unpaidCount,
         updatedInvoicesCount: invResult.count,
         mikrotikSuccess,
         mikrotikFailed,
@@ -260,7 +294,9 @@ export async function POST(request: Request) {
       message: `Berhasil membuka isolir ${isolatedUsers.length} pelanggan dan menyelaraskan tanggal isolir ke 6 September 2026.`,
       data: {
         unisolatedCount: isolatedUsers.length,
-        alignedUsersCount: alignResult.count,
+        alignedUsersCount: activeUsers.length,
+        paidCount,
+        unpaidCount,
         updatedInvoicesCount: invResult.count,
         mikrotikSuccess,
         mikrotikFailed,

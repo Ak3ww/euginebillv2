@@ -336,6 +336,59 @@ export async function autoIsolatePPPoEUsers(): Promise<{
 
     for (const user of expiredUsers) {
       try {
+        // 🛑 SAFETY GUARD 1: Verify invoice status before isolating!
+        // Never isolate a customer who has already paid their invoices!
+        const unpaidInvoices = await prisma.invoice.findMany({
+          where: {
+            userId: user.id,
+            status: { in: ['PENDING', 'OVERDUE'] },
+          },
+          orderBy: { dueDate: 'asc' },
+        });
+
+        // 🛑 SAFETY GUARD 2: Customer has ZERO unpaid invoices (already paid!)
+        if (unpaidInvoices.length === 0) {
+          // Auto-heal: calculate proper next month billing expiry (23:59:59 WIB)
+          const now = new Date();
+          const userRecord = await prisma.pppoeUser.findUnique({
+            where: { id: user.id },
+            select: { billingDay: true },
+          });
+
+          const bd = userRecord?.billingDay || company?.fixedBillingDate || 6;
+          const nextMonth = now.getUTCMonth() + 1;
+          const nextYear = nextMonth > 11 ? now.getUTCFullYear() + 1 : now.getUTCFullYear();
+          const nm = nextMonth % 12;
+          const nextMonthLastDay = new Date(Date.UTC(nextYear, nm + 1, 0)).getUTCDate();
+          const nextExpiry = new Date(Date.UTC(nextYear, nm, Math.min(bd, nextMonthLastDay), 23, 59, 59, 999));
+
+          await prisma.pppoeUser.update({
+            where: { id: user.id },
+            data: {
+              status: 'active',
+              expiredAt: nextExpiry,
+            },
+          });
+
+          console.log(`[PPPoE Auto-Isolir] 🛑 PROTECTED: User ${user.username} has 0 unpaid invoices (already paid). Auto-healed expiredAt to ${nextExpiry.toISOString()}`);
+          continue; // SKIP ISOLATION!
+        }
+
+        // 🛑 SAFETY GUARD 3: Customer has unpaid invoice. Check if invoice is ACTUALLY overdue!
+        // A customer has until end of day (23:59:59 WIB) on their dueDate + gracePeriodDays
+        const earliestUnpaid = unpaidInvoices[0];
+        const invDue = new Date(earliestUnpaid.dueDate);
+        // Normalize to end of day (23:59:59.999)
+        const effectiveDueEnd = new Date(invDue);
+        effectiveDueEnd.setUTCHours(23, 59, 59, 999);
+        const graceEndMs = effectiveDueEnd.getTime() + (gracePeriodDays * 24 * 60 * 60 * 1000);
+        const nowMs = startedAt.getTime();
+
+        if (nowMs <= graceEndMs) {
+          console.log(`[PPPoE Auto-Isolir] 🛑 PROTECTED: User ${user.username} invoice ${earliestUnpaid.invoiceNumber} due date (${invDue.toISOString()}) has not yet passed with grace (${gracePeriodDays}d). Skipping isolation.`);
+          continue; // SKIP ISOLATION!
+        }
+
         // 1. Update user status to isolated (not suspended!)
         await prisma.pppoeUser.update({
           where: { id: user.id },

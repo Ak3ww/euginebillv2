@@ -4,6 +4,28 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.1] — 2026-09-05
+### Fixed & Hardened
+- **Remediasi Kritis False Auto-Isolir & Perbaikan Sinkronisasi Invoice / Tanggal Jatuh Tempo**:
+  - *Context / Root Causes*:
+    1. **Early Expiration (Isolir Lebih Awal pada 4 Sept 23:00 WIB padahal Jatuh Tempo 5 Sept)**:
+       - Nilai `expiredAt` tersimpan dengan jam midnight `00:00:00` (detik pertama pergantian hari tanggal jatuh tempo, bukan akhir hari).
+       - Ketika dikonversi ke format UTC (`-7 jam` dari WIB), tanggal `2026-09-05 00:00:00 WIB` berubah menjadi `2026-09-04 17:00:00 UTC`.
+       - Di server database, evaluasi kueri SQL `expiredAt <= NOW()` telah bernilai `TRUE` pada tanggal 4 September jam 23:00 WIB (16:00 UTC atau midnight server), sehingga pelanggan diputus 7-24 jam sebelum masa toleransi berakhir. Standar jatuh tempo seharusnya berlaku penuh hingga akhir hari (`23:59:59 WIB`).
+    2. **Pelanggan yang Sudah Lunas Ikut Terisolir**:
+       - Job cron `pppoe-sync.ts` (yang menangani aksi `pppoe_auto_isolir`) mengeksekusi kueri langsung `SELECT * FROM pppoe_users WHERE status = 'active' AND expired_at <= NOW()` tanpa pernah memeriksa tabel `invoices`.
+       - Endpoint admin "Tandai Lunas" (`src/app/api/pppoe/users/[id]/mark-paid/route.ts`) memperbarui `invoice.status = 'PAID'` dan mengaktifkan status user, namun **tidak memajukan `expiredAt` pelanggan**. Akibatnya, `expiredAt` tetap bernilai di masa lalu dan job cron berikutnya langsung mengisolir kembali pelanggan yang baru saja melunasi tagihannya.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Multi-layer Safeguard pada Engine Auto-Isolir (`pppoe-sync.ts` & `auto-isolation.ts`)**:
+       - *Guard 1 & 2 (Verifikasi Status Tagihan & Auto-Heal)*: Sebelum mengeksekusi isolir di MikroTik/RADIUS, sistem memeriksa tagihan aktif (`PENDING`, `OVERDUE`). Jika pelanggan memiliki 0 tagihan tertunggak (artinya sudah lunas), proses isolir DIBATALKAN seketika dan sistem secara otomatis memulihkan (*auto-heal*) `expiredAt` pelanggan ke siklus bulan berikutnya jam `23:59:59 WIB`.
+       - *Guard 3 (Verifikasi Akhir Hari & Masa Tenggang / Grace Period)*: Untuk pelanggan dengan tagihan belum lunas, sistem memastikan tanggal jatuh tempo diperhitungkan hingga akhir hari (`23:59:59 WIB`) ditambah masa tenggang (`company.gracePeriodDays`). Jika waktu berjalan belum melampaui batas akhir tersebut, isolir ditangguhkan.
+    2. **Perbaikan Otomatis Masa Aktif pada "Tandai Lunas" (`mark-paid/route.ts`)**:
+       - Saat admin menandai invoice lunas, sistem kini otomatis menghitung perpanjangan masa aktif `expiredAt` ke siklus tagihan berikutnya pada jam `23:59:59 WIB` (untuk pascabayar) atau menambah durasi profil paket (untuk prabayar).
+    3. **Pembedaan Pelanggan Lunas vs Belum Lunas pada Penyelarasan Tanggal 6 (`unisolate-all/route.ts` & `unisolate-all-and-set-date-6.js`)**:
+       - Pelanggan yang telah melunasi tagihan September disetel masa aktifnya hingga **6 Oktober 2026 jam 23:59:59 WIB** sehingga 100% aman dari isolir September.
+       - Pelanggan yang belum lunas disetel masa aktif dan jatuh temponya hingga **6 September 2026 jam 23:59:59 WIB**.
+  - *Files*: `src/server/jobs/pppoe-sync.ts`, `src/server/jobs/auto-isolation.ts`, `src/app/api/pppoe/users/[id]/mark-paid/route.ts`, `src/app/api/pppoe/users/unisolate-all/route.ts`, `scripts/unisolate-all-and-set-date-6.js`, `CHANGELOG.md`
+
 ## [2.37.0] — 2026-09-04
 ### Added & Changed
 - **Sistem Un-isolir Massal Seluruh Client & Penyelarasan Tanggal Isolir ke Tanggal 6**:

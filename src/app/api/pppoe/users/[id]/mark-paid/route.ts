@@ -24,7 +24,10 @@ export async function POST(
         password: true,
         ipAddress: true,
         routerId: true,
-        profile: { select: { groupName: true, mikrotikProfileName: true, name: true } },
+        billingDay: true,
+        subscriptionType: true,
+        expiredAt: true,
+        profile: { select: { groupName: true, mikrotikProfileName: true, name: true, validityValue: true, validityUnit: true } },
       },
     });
 
@@ -94,10 +97,39 @@ export async function POST(
       });
     }
 
-    // Update user status to active
+    // Calculate new expiredAt for user (extend to next billing cycle at 23:59:59 WIB)
+    const companySettings = await prisma.company.findFirst();
+    const bd = userRecord.billingDay || companySettings?.fixedBillingDate || 6;
+    
+    let newExpiredAt: Date;
+    if (userRecord.subscriptionType === 'PREPAID') {
+      const baseDate = (userRecord.expiredAt && userRecord.expiredAt > now) ? new Date(userRecord.expiredAt) : new Date(now);
+      const val = userRecord.profile?.validityValue || 1;
+      const unit = userRecord.profile?.validityUnit || 'MONTHS';
+      if (unit === 'DAYS') {
+        baseDate.setDate(baseDate.getDate() + val);
+      } else {
+        baseDate.setMonth(baseDate.getMonth() + val);
+      }
+      baseDate.setUTCHours(23, 59, 59, 999);
+      newExpiredAt = baseDate;
+    } else {
+      // POSTPAID: next month's billingDay at 23:59:59 WIB
+      const nextMonth = now.getUTCMonth() + 1;
+      const nextYear = nextMonth > 11 ? now.getUTCFullYear() + 1 : now.getUTCFullYear();
+      const nm = nextMonth % 12;
+      const nextMonthLastDay = new Date(Date.UTC(nextYear, nm + 1, 0)).getUTCDate();
+      newExpiredAt = new Date(Date.UTC(nextYear, nm, Math.min(bd, nextMonthLastDay), 23, 59, 59, 999));
+    }
+
+    // Update user status to active and advance expiredAt
     const updatedUser = await prisma.pppoeUser.update({
       where: { id },
-      data: { status: 'active' },
+      data: { 
+        status: 'active',
+        expiredAt: newExpiredAt,
+        lastPaymentDate: now,
+      },
       select: { username: true },
     });
 

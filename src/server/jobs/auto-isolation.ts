@@ -70,8 +70,58 @@ export async function autoIsolateExpiredUsers() {
     let isolatedCount = 0;
     const errors: string[] = [];
 
+    const gracePeriodDays = company?.gracePeriodDays ?? 0;
+    const nowCheck = new Date();
+
     for (const user of expiredUsers) {
       try {
+        // 🛑 SAFETY GUARD 1: Verify invoice status before isolating!
+        const unpaidInvoices = await prisma.invoice.findMany({
+          where: {
+            userId: user.id,
+            status: { in: ['PENDING', 'OVERDUE'] },
+          },
+          orderBy: { dueDate: 'asc' },
+        });
+
+        // 🛑 SAFETY GUARD 2: Customer has ZERO unpaid invoices (already paid!)
+        if (unpaidInvoices.length === 0) {
+          const userRecord = await prisma.pppoeUser.findUnique({
+            where: { id: user.id },
+            select: { billingDay: true },
+          });
+
+          const bd = userRecord?.billingDay || company?.fixedBillingDate || 6;
+          const nextMonth = nowCheck.getUTCMonth() + 1;
+          const nextYear = nextMonth > 11 ? nowCheck.getUTCFullYear() + 1 : nowCheck.getUTCFullYear();
+          const nm = nextMonth % 12;
+          const nextMonthLastDay = new Date(Date.UTC(nextYear, nm + 1, 0)).getUTCDate();
+          const nextExpiry = new Date(Date.UTC(nextYear, nm, Math.min(bd, nextMonthLastDay), 23, 59, 59, 999));
+
+          await prisma.pppoeUser.update({
+            where: { id: user.id },
+            data: {
+              status: 'active',
+              expiredAt: nextExpiry,
+            },
+          });
+
+          console.log(`[AUTO-ISOLATE] 🛑 PROTECTED: User ${user.username} has 0 unpaid invoices (already paid). Auto-healed expiredAt to ${nextExpiry.toISOString()}`);
+          continue; // SKIP ISOLATION!
+        }
+
+        // 🛑 SAFETY GUARD 3: Check if invoice dueDate has actually passed
+        const earliestUnpaid = unpaidInvoices[0];
+        const invDue = new Date(earliestUnpaid.dueDate);
+        const effectiveDueEnd = new Date(invDue);
+        effectiveDueEnd.setUTCHours(23, 59, 59, 999);
+        const graceEndMs = effectiveDueEnd.getTime() + (gracePeriodDays * 24 * 60 * 60 * 1000);
+
+        if (nowCheck.getTime() <= graceEndMs) {
+          console.log(`[AUTO-ISOLATE] 🛑 PROTECTED: User ${user.username} invoice ${earliestUnpaid.invoiceNumber} due date (${invDue.toISOString()}) has not yet passed. Skipping isolation.`);
+          continue; // SKIP ISOLATION!
+        }
+
         console.log(`[AUTO-ISOLATE] Processing: ${user.username}`);
 
         // 1. Update user status to isolated
