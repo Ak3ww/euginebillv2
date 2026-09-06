@@ -1675,6 +1675,33 @@ export async function generateInvoices(force = false): Promise<{ success: boolea
           continue;
         }
 
+        // 🛑 SAFETY GUARD 1: User's expiredAt is already in the future beyond this billing period!
+        // If a customer is active and their expiredAt is already past the target due date,
+        // it means their subscription is ALREADY PAID for this period! NEVER bill them again!
+        const targetDueDate = user.subscriptionType === 'PREPAID'
+          ? (user.expiredAt || getNextBillingDay(user.billingDay ?? 1))
+          : getNextBillingDay(user.billingDay ?? 1);
+
+        if (user.expiredAt && user.expiredAt.getTime() > targetDueDate.getTime() + 12 * 60 * 60 * 1000) {
+          skipped++;
+          console.log(`[Invoice Generate] 🛑 SKIPPED ${user.username}: already active & paid until ${user.expiredAt.toISOString().slice(0, 10)} (ahead of target due ${targetDueDate.toISOString().slice(0, 10)})`);
+          continue;
+        }
+
+        // 🛑 SAFETY GUARD 2: Check if user already paid an invoice in the last 25 days
+        const recentPaidInvoice = await prisma.invoice.findFirst({
+          where: {
+            userId: user.id,
+            status: 'PAID',
+            paidAt: { gte: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000) },
+          },
+        });
+        if (recentPaidInvoice && user.expiredAt && user.expiredAt.getTime() > Date.now()) {
+          skipped++;
+          console.log(`[Invoice Generate] 🛑 SKIPPED ${user.username}: already paid invoice ${recentPaidInvoice.invoiceNumber} on ${recentPaidInvoice.paidAt?.toISOString().slice(0, 10)}`);
+          continue;
+        }
+
         // Check if user already has a PAID invoice covering the same billing period.
         // This prevents generating a duplicate invoice right after a user renews/extends
         // (their expiredAt gets pushed forward into the generation window, but they already paid).
