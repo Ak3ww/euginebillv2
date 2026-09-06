@@ -72,20 +72,12 @@ export async function PATCH(
       data: updateData,
     });
 
-    if (phone !== undefined || name !== undefined || updateData.expiredAt) {
-      const isFutureExpiry = updateData.expiredAt && new Date(updateData.expiredAt).getTime() > Date.now();
+    if (phone !== undefined || name !== undefined) {
       await prisma.invoice.updateMany({
-        where: { 
-          userId: existing.id,
-          status: { in: ['PENDING', 'OVERDUE'] },
-        },
+        where: { userId: existing.id },
         data: {
           ...(phone !== undefined && { customerPhone: phone }),
           ...(name !== undefined && { customerName: name }),
-          ...(updateData.expiredAt && {
-            dueDate: updateData.expiredAt,
-            ...(isFutureExpiry && { status: 'PENDING', sentReminders: '[]' }),
-          }),
         },
       }).catch(() => {});
 

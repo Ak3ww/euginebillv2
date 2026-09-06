@@ -152,8 +152,8 @@ export async function POST(request: NextRequest) {
           dueDate = getDueDatePostpaid((user as any).billingDay ?? null);
           invoiceType = 'INSTALLATION';
         } else if (subscriptionType === 'PREPAID') {
-          // If expiredAt is set, use it; otherwise fallback to billingDay in targetMonth or monthEnd
-          if (user.expiredAt) {
+          // If expiredAt falls within targetMonth, use it; otherwise use billingDay of targetMonth
+          if (user.expiredAt && user.expiredAt >= monthStart && user.expiredAt <= monthEnd) {
             dueDate = user.expiredAt;
           } else {
             dueDate = getDueDatePostpaid((user as any).billingDay ?? null);

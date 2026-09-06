@@ -4,6 +4,24 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.2] — 2026-09-06
+### Fixed & Hardened
+- **Perbaikan Kritis Penimpaan Tanggal Jatuh Tempo Invoice & Duplikasi Tagihan Prematur**:
+  - *Context / Root Causes*:
+    1. **Penimpaan Tanggal Jatuh Tempo (`dueDate`) Menjadi Oktober**:
+       - Pada `src/server/services/pppoe.service.ts` dan `src/app/api/pppoe/users/[id]/route.ts`, terdapat mutasi `prisma.invoice.updateMany` yang menimpa seluruh `dueDate` invoice berstatus `PENDING` dan `OVERDUE` dengan `user.expiredAt` setiap kali profil pelanggan diubah/diperpanjang.
+       - Akibatnya, seluruh tagihan lama (dari bulan Juli, Agustus, dan September) tanggal jatuh temponya tertimpa menjadi tanggal 5 Oktober 2026, sehingga terlempar dari filter bulan September di dashboard admin dan muncul di bulan Oktober.
+    2. **Pembuatan Tagihan Baru Prematur (H-30) pada Cron Invoice Generator**:
+       - Pada `voucher-sync.ts`, batas pembuatan tagihan prabayar (`prepaidEndDate`) disetel hardcode `now + 30 hari`. Akibatnya, begitu pelanggan melunasi tagihan September dan masa aktifnya maju ke Oktober (dalam rentang 30 hari), cron langsung membuatkan tagihan baru untuk Oktober saat itu juga (terjadi pada Najwa Selma dengan `INV-20260906-DBA0FB`).
+    3. **Duplikasi Tagihan pada Generator Manual**:
+       - Pada `src/app/api/invoices/generate/route.ts`, pengecekan duplikat membatasi pencarian `dueDate` pada bulan target, sementara tagihan yang baru dibuat jatuh temponya mengambil `expiredAt` (Oktober), sehingga pengecekan duplikat menganggap user belum punya tagihan dan membuat tagihan baru berulang kali (seperti dialami Aby Aditya dengan 3 invoice).
+  - *Solusi & Perubahan Teknis*:
+    1. Menghapus penimpaan kolom `dueDate` dari pembaruan profil user di `pppoe.service.ts` dan `[id]/route.ts`.
+    2. Menyelaraskan rentang waktu pembuatan tagihan prabayar di `voucher-sync.ts` dari `+ 30 hari` menjadi `+ invoiceGenerateDays` (misal H-7).
+    3. Memastikan generator tagihan `generate/route.ts` menjaga `dueDate` tagihan tetap berada dalam `targetMonth`.
+    4. Merilis skrip perbaikan satu klik (`scripts/fix-september-invoices.js`) untuk mengembalikan seluruh tagihan September ke tanggal 6 September 2026, menghapus tagihan duplikat Aby Aditya, dan menghapus invoice prematur Najwa Selma.
+  - *Files*: `src/app/api/pppoe/users/[id]/route.ts`, `src/server/services/pppoe.service.ts`, `src/app/api/invoices/generate/route.ts`, `src/server/jobs/voucher-sync.ts`, `scripts/fix-september-invoices.js`, `CHANGELOG.md`
+
 ## [2.37.1] — 2026-09-05
 ### Fixed & Hardened
 - **Remediasi Kritis False Auto-Isolir & Perbaikan Sinkronisasi Invoice / Tanggal Jatuh Tempo**:

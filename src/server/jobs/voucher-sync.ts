@@ -1527,7 +1527,7 @@ export async function generateInvoices(force = false): Promise<{ success: boolea
     const prepaidStartDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
     const prepaidStartDateForce = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 90, 0, 0, 0));
 
-    const prepaidEndDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 30, 23, 59, 59, 999));
+    const prepaidEndDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + invoiceGenerateDays, 23, 59, 59, 999));
 
     const prepaidUsers = await prisma.pppoeUser.findMany({
       where: {
