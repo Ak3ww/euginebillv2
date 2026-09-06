@@ -4,6 +4,29 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.5] — 2026-09-06
+### Fixed & Improved
+- **Penyempurnaan Tampilan Login Pelanggan & Implementasi Penuh Riwayat Pembayaran (`/customer/history`)**:
+  - *Context / User Request*:
+    1. Tampilan login pelanggan sebelumnya dirasa aneh dan kurang rapi akibat potongan gradien setengah layar dan distorsi aspect ratio logo.
+    2. Halaman riwayat pembayaran (`/customer/history`) kosong tidak menampilkan data transaksi karena sebelumnya hanya berupa placeholder statis tanpa koneksi API.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Logo Resmi Eugine Media Group**:
+       - Mengintegrasikan aset logo resmi Eugine Media Group dari `stitch_exports/logo.png` (resolusi tinggi, latar transparan, emblem 'E' dengan gelombang wifi) ke `public/images/eugine-logo.png`, `public/logo.png`, dan `public/images/logo.png`.
+       - Memberikan penanganan error fallback yang aman pada tag `<img>` untuk menghindari looping error.
+    2. **Penyempurnaan Halaman Login Pelanggan (`src/app/customer/login/page.tsx`)**:
+       - Menghapus gradien cut-off 320px yang canggung, menggantikannya dengan kanvas bersih modern (`bg-slate-100/70`) dan aksen garis brand tipis di puncak layar.
+       - Memperbaiki wadah logo agar proporsional secara natural (`h-14 sm:h-16 w-auto max-w-[220px] object-contain`) di atas kartu formulir login.
+       - Merapikan segmented switcher metode masuk ("Sandi Akun" dan "WhatsApp OTP") dan modal reset mandiri "Lupa Password".
+    3. **Implementasi Penuh Halaman Riwayat Transaksi (`src/app/customer/history/page.tsx`)**:
+       - Mengintegrasikan antarmuka secara reaktif ke endpoint API `/api/customer/payment-history` menggunakan Bearer token pelanggan.
+       - Menambahkan 3 kartu metrik ringkasan interaktif: Total Terbayar (Rp), Transaksi Lunas, dan Menunggu Pembayaran.
+       - Menambahkan filter pill status: Semua, Lunas, Menunggu, Ditolak, serta live search berdasarkan nomor faktur atau bank transfer.
+       - Menambahkan aksi langsung: tombol Lihat Faktur Publik (`/invoice/[id]`) dan tombol Unduh PDF Faktur Resmi (`/invoice/[id]/pdf`).
+    4. **Pembaruan Layout Portal Pelanggan (`src/app/customer/CustomerClientLayout.tsx`)**:
+       - Memperbarui desktop sidebar dan mobile app bar untuk menggunakan logo resmi `eugine-logo.png` dengan fallback `/logo.png`.
+  - *Files*: `src/app/customer/login/page.tsx`, `src/app/customer/history/page.tsx`, `src/app/customer/CustomerClientLayout.tsx`, `public/images/eugine-logo.png`, `public/logo.png`, `public/images/logo.png`, `CHANGELOG.md`
+
 ## [2.37.4] — 2026-09-06
 ### Added & Redesigned
 - **Redesain Antarmuka Portal & Halaman Login Pelanggan (Hallmark Oceanic Blue & Mobile-First)**:

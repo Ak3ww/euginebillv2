@@ -271,74 +271,68 @@ export default function CustomerLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between selection:bg-[#002c60] selection:text-white font-sans relative overflow-x-hidden">
-      {/* ── Background Ambient Spatial Lights ── */}
-      <div className="absolute top-0 inset-x-0 h-80 bg-gradient-to-b from-[#002c60] to-transparent opacity-95 pointer-events-none" />
-      <div className="absolute top-0 right-1/4 -translate-y-24 w-96 h-96 bg-sky-400/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-10 left-1/4 -translate-y-20 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-slate-100/70 flex flex-col justify-between selection:bg-[#002c60] selection:text-white font-sans">
+      {/* ── Top Subtle Brand Line ── */}
+      <div className="h-1.5 w-full bg-gradient-to-r from-[#001c39] via-[#002c60] to-[#0ea5e9]" />
 
-      {/* ── Top Brand Header ── */}
-      <header className="relative z-10 w-full pt-8 pb-12 px-4 sm:px-6 text-center">
-        <div className="max-w-md mx-auto">
-          {/* Logo badge with spatial glass */}
-          <div className="inline-flex items-center justify-center p-3 sm:p-3.5 bg-white/95 rounded-2xl shadow-xl shadow-[#002c60]/15 border border-white/40 mb-4 backdrop-blur-md transition-transform duration-200 hover:scale-105">
-            <img
-              src={resolvedLogo}
-              alt={companyName}
-              className="h-10 sm:h-12 w-auto max-w-[180px] object-contain drop-shadow-sm"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
+      {/* ── Main Content Container ── */}
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 my-auto">
+        <div className="w-full max-w-md">
+          {/* Brand Header */}
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-white shadow-sm border border-slate-200/80 mb-3.5">
+              <img
+                src={companyLogo || '/images/eugine-logo.png'}
+                alt={companyName || 'Eugine Media Group'}
+                className="h-14 sm:h-16 w-auto max-w-[220px] object-contain"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (target.src.endsWith('/logo.png')) {
+                    target.style.display = 'none';
+                  } else {
+                    target.src = '/logo.png';
+                  }
+                }}
+              />
+            </div>
+
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              Portal Pelanggan
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto leading-relaxed">
+              Masuk untuk kelola tagihan, pembayaran instan, dan pantau koneksi internet Anda.
+            </p>
           </div>
 
-          <div className="flex items-center justify-center gap-1.5 mb-1.5">
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold tracking-wide bg-white/15 text-blue-100 border border-white/20 backdrop-blur-xs">
-              <ShieldCheck className="w-3.5 h-3.5 text-cyan-300" />
-              Layanan Resmi
-            </span>
-          </div>
-
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white drop-shadow-sm">
-            Portal Pelanggan
-          </h1>
-          <p className="text-xs sm:text-sm text-blue-100/90 mt-1.5 max-w-sm mx-auto leading-relaxed">
-            Akses rincian tagihan, pembayaran instan, dan pantau status internet Anda.
-          </p>
-        </div>
-      </header>
-
-      {/* ── Main Interactive Card ── */}
-      <main className="relative z-20 flex-1 max-w-md w-full mx-auto px-4 -mt-4 sm:-mt-6 mb-10">
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-900/5 p-6 sm:p-8 backdrop-blur-md">
-          
-          {/* Segmented Mode Switcher */}
-          <div className="flex bg-slate-100/80 p-1 rounded-xl border border-slate-200/70 mb-6">
-            <button
-              type="button"
-              onClick={() => { setLoginMode('password'); setError(''); }}
-              className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-                loginMode === 'password'
-                  ? 'bg-white text-[#002c60] shadow-sm font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <KeyRound className="w-4 h-4 text-[#1b437c]" />
-              Sandi Akun
-            </button>
-            <button
-              type="button"
-              onClick={() => { setLoginMode('otp'); setError(''); }}
-              className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-                loginMode === 'otp'
-                  ? 'bg-white text-[#002c60] shadow-sm font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Phone className="w-4 h-4 text-[#1b437c]" />
-              WhatsApp OTP
-            </button>
-          </div>
+          {/* Form Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/60 p-6 sm:p-8">
+            {/* Segmented Mode Switcher */}
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60 mb-6">
+              <button
+                type="button"
+                onClick={() => { setLoginMode('password'); setError(''); }}
+                className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer ${
+                  loginMode === 'password'
+                    ? 'bg-white text-[#002c60] shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <KeyRound className="w-4 h-4 text-[#1b437c]" />
+                Sandi Akun
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLoginMode('otp'); setError(''); }}
+                className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer ${
+                  loginMode === 'otp'
+                    ? 'bg-white text-[#002c60] shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Phone className="w-4 h-4 text-[#1b437c]" />
+                WhatsApp OTP
+              </button>
+            </div>
 
           {/* Global Alert Notification */}
           {error && (
@@ -528,6 +522,7 @@ export default function CustomerLoginPage() {
               </a>
             </div>
           )}
+          </div>
         </div>
       </main>
 
