@@ -149,19 +149,29 @@ async function main() {
         let anomalyType = null;
         let recommendedAction = null;
 
+        const isCreatedBeforeSept = inv.createdAt && new Date(inv.createdAt) < startSept;
+
         if (isFutureExpired && hasPaidSept) {
-          // Kasus 1: Sudah ada tagihan Lunas di September, tapi masih ada tagihan Pending (duplikat atau prematur Oktober)
+          // Kasus 1: Sudah ada tagihan Lunas di September, tapi masih ada tagihan Pending
           if (isDueOct) {
             anomalyType = 'TAGIHAN_PREMATUR_OKTOBER';
             recommendedAction = 'Hapus tagihan prematur Oktober (karena user sudah lunas September & belum saatnya tagihan Oktober)';
+          } else if (isCreatedBeforeSept) {
+            anomalyType = 'TAGIHAN_ISOLIR_DILEWATI';
+            recommendedAction = 'Batalkan tagihan isolir lampau (STATUS: CANCELLED) karena pelanggan skip bayar saat isolir dan sudah lunas September';
           } else {
             anomalyType = 'TAGIHAN_DUPLIKAT_SEPTEMBER';
             recommendedAction = 'Hapus tagihan duplikat tertunda September (karena user sudah bayar tagihan September lainnya)';
           }
         } else if (isOctoberExpired && !hasPaidSept) {
           // Kasus 2: Masa aktif sudah diperpanjang sampai Oktober (berarti sudah bayar September), tapi invoice September masih PENDING
-          anomalyType = 'TAGIHAN_SEPTEMBER_BELUM_DITANDAI_LUNAS';
-          recommendedAction = 'Ubah status tagihan September ini menjadi PAID (Lunas), karena masa aktif user sudah diperpanjang ke Oktober';
+          if (isCreatedBeforeSept && pendingInvoices.length > 1) {
+            anomalyType = 'TAGIHAN_ISOLIR_DILEWATI';
+            recommendedAction = 'Batalkan tagihan isolir lampau (STATUS: CANCELLED) karena pelanggan skip bayar saat isolir';
+          } else {
+            anomalyType = 'TAGIHAN_SEPTEMBER_BELUM_DITANDAI_LUNAS';
+            recommendedAction = 'Ubah status tagihan ini menjadi PAID (Lunas September), karena masa aktif user sudah diperpanjang ke Oktober';
+          }
         } else if (isDueOct && !isDueSept) {
           // Kasus 3: Tagihan bertanggal Oktober padahal saat ini masih 6 September
           anomalyType = 'TAGIHAN_PREMATUR_OKTOBER';
@@ -254,6 +264,14 @@ async function main() {
           }
 
           console.log(`   ✅ [LUNAS] Invoice ${an.invoice.invoiceNumber} milik ${an.user.name} diubah menjadi PAID (September 2026).`);
+          fixedCount++;
+        } else if (an.anomalyType === 'TAGIHAN_ISOLIR_DILEWATI') {
+          // Batalkan invoice isolir lampau karena dilewati saat reaktivasi
+          await prisma.invoice.update({
+            where: { id: an.invoice.id },
+            data: { status: 'CANCELLED' }
+          });
+          console.log(`   🚫 [DIBATALKAN] Invoice isolir lampau ${an.invoice.invoiceNumber} milik ${an.user.name} dibatalkan (STATUS: CANCELLED).`);
           fixedCount++;
         } else if (an.anomalyType === 'TAGIHAN_PREMATUR_OKTOBER' || an.anomalyType === 'TAGIHAN_DUPLIKAT_SEPTEMBER') {
           // Hapus tagihan duplikat / prematur
