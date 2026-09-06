@@ -4,6 +4,19 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.3] — 2026-09-06
+### Fixed
+- **Perbaikan Rute Faktur/Invoice 404 pada Subdomain Customer Portal (`customer.euginemediagroup.com`)**:
+  - *Context / Issue*: Saat pelanggan membuka tautan faktur/invoice melalui portal pelanggan (`https://customer.euginemediagroup.com/invoice/INV-...`), halaman menampilkan error 404 (*This page could not be found*), sedangkan ketika diakses melalui domain utama (`https://euginemediagroup.com/invoice/INV-...`) halaman dapat terbuka normal.
+  - *Root Cause*:
+    - Di `src/proxy.ts`, aturan routing subdomain memetakan `customer.*` dengan menambahkan prefix target base `/customer` ke seluruh path yang tidak memiliki ekstensi file:
+      `url.pathname = '/customer' + pathname`
+    - Akibatnya, URL `/invoice/INV-...` di-rewrite secara internal menjadi `/customer/invoice/INV-...`. Karena halaman invoice publik berada di `src/app/invoice/[id]` (bukan di dalam `/customer/`), Next.js mengembalikan status 404.
+  - *Solusi & Perubahan Teknis*:
+    1. Menambahkan pengecualian rute standalone (`isStandaloneRoute`) pada `src/proxy.ts` untuk rute `/invoice`, `/pay`, `/isolated`, dan `/uploads` agar tidak di-prefix dengan path subdomain `/customer`.
+    2. Menambahkan fallback rewrite di `next.config.ts` untuk memetakan `/customer/invoice/:path*` langsung ke `/invoice/:path*`.
+  - *Files*: `src/proxy.ts`, `next.config.ts`, `CHANGELOG.md`
+
 ## [2.37.2] — 2026-09-06
 ### Fixed & Hardened
 - **Perbaikan Kritis Penimpaan Tanggal Jatuh Tempo Invoice & Duplikasi Tagihan Prematur**:

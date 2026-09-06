@@ -76,7 +76,14 @@ export default async function proxy(req: NextRequest) {
       // Don't rewrite API routes, Next.js internals, or static files
       const isSystem = pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.startsWith('/favicon');
       const isStaticFile = /\.(ico|png|jpg|jpeg|gif|svg|js|css|woff|woff2|ttf|mp4|webp|json|txt|xml)$/.test(pathname);
-      if (!isSystem && !isStaticFile) {
+      // Standalone public routes that should NOT be scoped to a subdomain prefix:
+      const isStandaloneRoute = 
+        pathname.startsWith('/invoice') || 
+        pathname.startsWith('/pay') || 
+        pathname.startsWith('/isolated') || 
+        pathname.startsWith('/uploads');
+
+      if (!isSystem && !isStaticFile && !isStandaloneRoute) {
         if (!pathname.startsWith(targetBase)) {
           const url = req.nextUrl.clone();
           url.pathname = targetBase + (pathname === '/' ? '' : pathname);

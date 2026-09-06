@@ -170,6 +170,10 @@ const nextConfig: NextConfig = {
         source: '/customer/pay/:token',
         destination: '/pay/:token',
       },
+      {
+        source: '/customer/invoice/:path*',
+        destination: '/invoice/:path*',
+      },
     ];
   },
 };
