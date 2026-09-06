@@ -282,168 +282,394 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
+    const resolvedLogo = companyLogo || '/images/logo.png';
+
     return (
-    <div className="min-h-screen flex flex-col md:flex-row font-sans bg-[var(--color-paper-2)] text-[var(--color-ink)]">
+    <div className="min-h-screen flex flex-col md:flex-row font-sans bg-slate-50 text-slate-900 selection:bg-[#002c60] selection:text-white">
       
-      {/* Desktop Sidebar (Hidden on Mobile) */}
-      <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 bg-[var(--color-paper)] border-r border-[var(--color-rule)] z-40 transition-colors duration-200 shrink-0">
-        <div className="p-6">
-          <h1 className="text-2xl font-display font-semibold text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
+      {/* ── Desktop Sidebar (Hidden on Mobile) ── */}
+      <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 bg-white border-r border-slate-200/80 z-40 transition-colors duration-200 shrink-0 shadow-2xs">
+        {/* Brand Header with Eugine Media Logo */}
+        <div className="p-5 border-b border-slate-100 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center p-1.5 shadow-2xs overflow-hidden shrink-0">
+            <img 
+              src={resolvedLogo} 
+              alt={companyName || 'Eugine Media'} 
+              className="h-full w-full object-contain"
+              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm font-bold text-slate-900 truncate leading-tight tracking-tight">
+              {companyName || 'Eugine Media'}
+            </h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-mono text-slate-500 font-medium uppercase tracking-wider">Portal Pelanggan</span>
+            </div>
+          </div>
         </div>
         
-        <div className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
-          <button onClick={() => router.push('/customer')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer') && pathname === '/customer' ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
-            <Home className="w-5 h-5" /> Beranda
+        {/* Navigation Menu */}
+        <div className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <button 
+            onClick={() => router.push('/customer')} 
+            className={cn(
+              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-150 text-xs font-semibold", 
+              isActive('/customer') && pathname === '/customer' 
+                ? "bg-[#002c60] text-white shadow-sm shadow-[#002c60]/20" 
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
+            )}
+          >
+            <Home className="w-4 h-4 shrink-0" />
+            <span>Beranda</span>
           </button>
-          <button onClick={() => router.push('/customer/invoices')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer/invoices') ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
-            <FileText className="w-5 h-5" /> Tagihan
+
+          <button 
+            onClick={() => router.push('/customer/invoices')} 
+            className={cn(
+              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-150 text-xs font-semibold", 
+              isActive('/customer/invoices') 
+                ? "bg-[#002c60] text-white shadow-sm shadow-[#002c60]/20" 
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
+            )}
+          >
+            <FileText className="w-4 h-4 shrink-0" />
+            <span>Tagihan</span>
           </button>
-          <button onClick={() => router.push('/customer/wifi')} className={cn("w-full flex items-center justify-between px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer/wifi') ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
+
+          <button 
+            onClick={() => router.push('/customer/history')} 
+            className={cn(
+              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-150 text-xs font-semibold", 
+              isActive('/customer/history') 
+                ? "bg-[#002c60] text-white shadow-sm shadow-[#002c60]/20" 
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
+            )}
+          >
+            <Receipt className="w-4 h-4 shrink-0" />
+            <span>Riwayat Bayar</span>
+          </button>
+
+          <button 
+            onClick={() => router.push('/customer/wifi')} 
+            className={cn(
+              "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-150 text-xs font-semibold", 
+              isActive('/customer/wifi') 
+                ? "bg-[#002c60] text-white shadow-sm shadow-[#002c60]/20" 
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
+            )}
+          >
             <div className="flex items-center gap-3">
-              <Wifi className="w-5 h-5" /> WiFi
+              <Wifi className="w-4 h-4 shrink-0" />
+              <span>Pengaturan Wi-Fi</span>
             </div>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Segera</span>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 uppercase font-mono">Segera</span>
           </button>
-          <button onClick={() => router.push('/customer/tickets')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer/tickets') ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
-            <MessageSquare className="w-5 h-5" /> Bantuan
+
+          <button 
+            onClick={() => router.push('/customer/upgrade')} 
+            className={cn(
+              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-150 text-xs font-semibold", 
+              isActive('/customer/upgrade') 
+                ? "bg-[#002c60] text-white shadow-sm shadow-[#002c60]/20" 
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
+            )}
+          >
+            <Package className="w-4 h-4 shrink-0" />
+            <span>Ubah Paket</span>
+          </button>
+
+          <button 
+            onClick={() => router.push('/customer/tickets')} 
+            className={cn(
+              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-150 text-xs font-semibold", 
+              isActive('/customer/tickets') 
+                ? "bg-[#002c60] text-white shadow-sm shadow-[#002c60]/20" 
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
+            )}
+          >
+            <MessageSquare className="w-4 h-4 shrink-0" />
+            <span>Pusat Bantuan</span>
           </button>
         </div>
 
-        <div className="p-4 border-t border-[var(--color-rule)] space-y-2">
-           <button onClick={() => router.push('/customer/profile')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium", isActive('/customer/profile') ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]" : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]")}>
-             <User className="w-5 h-5" /> Profil Saya
+        {/* Sidebar Footer Account & Logout */}
+        <div className="p-4 border-t border-slate-100 space-y-2">
+           <button 
+             onClick={() => router.push('/customer/profile')} 
+             className={cn(
+               "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-150 text-xs font-semibold", 
+               isActive('/customer/profile') 
+                 ? "bg-slate-100 text-[#002c60]" 
+                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+             )}
+           >
+             <div className="w-7 h-7 rounded-lg bg-[#002c60] text-white flex items-center justify-center font-bold text-xs shrink-0">
+               {authenticated ? customerName.charAt(0).toUpperCase() : 'U'}
+             </div>
+             <div className="text-left min-w-0 flex-1">
+               <p className="text-xs font-bold text-slate-800 truncate">{authenticated ? customerName : 'Pelanggan'}</p>
+               <p className="text-[10px] text-slate-400 font-mono">Kelola Profil</p>
+             </div>
            </button>
-           <button onClick={() => { localStorage.removeItem('customer_token'); router.push('/customer/login'); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-sm)] transition-colors font-body text-sm font-medium text-[var(--color-error)] hover:bg-[var(--color-error-bg)]">
-             <LogOut className="w-5 h-5" /> Keluar
+           <button 
+             onClick={handleLogout} 
+             className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-150 text-xs font-semibold text-red-600 hover:bg-red-50 cursor-pointer"
+           >
+             <LogOut className="w-4 h-4 shrink-0 text-red-500" />
+             <span>Keluar dari Akun</span>
            </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* ── Main Content Area ── */}
       <div className="flex-1 flex flex-col min-w-0">
         
-        {/* Desktop Top Header */}
-        <header className="hidden md:flex w-full sticky top-0 bg-[var(--color-paper)] border-b border-[var(--color-rule)] justify-between items-center px-8 h-16 z-50">
-          <div className="text-sm font-medium text-[var(--color-muted)]">
-            Selamat datang, <strong className="text-[var(--color-ink)]">{authenticated ? customerName : ''}</strong>
+        {/* ── Desktop Top Header ── */}
+        <header className="hidden md:flex w-full sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200/80 justify-between items-center px-8 h-16 z-50 shadow-2xs">
+          <div>
+            <span className="text-xs text-slate-500">Selamat datang,</span>{' '}
+            <strong className="text-sm font-bold text-slate-900">{authenticated ? customerName : ''}</strong>
+            {now && (
+              <span className="text-[11px] font-mono text-slate-400 ml-3 pl-3 border-l border-slate-200">
+                {formatInTimeZone(now, 'Asia/Jakarta', 'EEEE, dd MMM yyyy • HH:mm', { locale: localeId })} WIB
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} className="p-2 text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)] rounded-full transition-colors relative">
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--color-error)] rounded-full animate-pulse border border-white"></span>}
-            </button>
-            <div className="w-7 h-7 rounded-full bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-accent-ink)] font-bold text-xs">
-              {authenticated ? customerName.charAt(0).toUpperCase() : 'U'}
-            </div>
-            <button onClick={toggleTheme} className="text-[var(--color-ink-2)] p-2 rounded-full hover:bg-[var(--color-paper-3)] transition-colors">
-              {isDark ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5" />}
-            </button>
-          </div>
-          
-          {bellOpen && (
-            <div className="absolute top-16 right-8 w-80 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm z-50 overflow-hidden flex flex-col">
-              <div className="p-3 border-b border-[var(--color-rule)] flex justify-between items-center bg-[var(--color-paper-2)]">
-                <span className="font-display font-semibold text-sm">Notifikasi</span>
-                {notifHistory.length > 0 && (
-                  <button onClick={handleClearAllNotifications} className="text-xs text-[var(--color-accent)] hover:underline font-medium">Bersihkan</button>
-                )}
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                {notifHistory.length === 0 ? (
-                  <div className="p-6 text-center text-sm text-[var(--color-muted)] flex flex-col items-center gap-2">
-                    <Bell className="w-8 h-8 opacity-20" />
-                    Belum ada notifikasi
-                  </div>
-                ) : (
-                  notifHistory.map(n => (
-                    <div key={n.id} className="p-3 border-b border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors relative group">
-                      <div className="text-xs font-semibold mb-1">{n.title}</div>
-                      <div className="text-[11px] text-[var(--color-ink-2)] leading-relaxed">{n.message}</div>
-                      <div className="text-[9px] text-[var(--color-muted)] mt-1">{new Date(n.timestamp).toLocaleString('id-ID')}</div>
-                      <button onClick={() => handleDeleteNotification(n.id)} className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-[var(--color-error)] hover:bg-[var(--color-error-bg)] p-1 rounded transition-all">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </header>
 
-        {/* Mobile Top App Bar */}
-        <header className="md:hidden w-full sticky top-0 bg-[var(--color-paper)] border-b border-[var(--color-rule)] flex justify-between items-center px-4 h-16 z-50">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-accent-ink)] font-bold text-sm">
+          <div className="flex items-center gap-3">
+            {/* Notification Bell */}
+            <div className="relative">
+              <button 
+                onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} 
+                className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors relative cursor-pointer"
+                aria-label="Notifikasi"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white animate-pulse" />
+                )}
+              </button>
+
+              {bellOpen && (
+                <div className="absolute top-12 right-0 w-84 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2">
+                  <div className="p-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <span className="font-bold text-xs text-slate-800 uppercase tracking-wider font-mono">Notifikasi</span>
+                    {notifHistory.length > 0 && (
+                      <button 
+                        onClick={handleClearAllNotifications} 
+                        className="text-[11px] text-[#002c60] hover:underline font-semibold cursor-pointer"
+                      >
+                        Bersihkan Semua
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                    {notifHistory.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
+                        <Bell className="w-8 h-8 opacity-20 text-slate-500" />
+                        <span>Belum ada notifikasi baru</span>
+                      </div>
+                    ) : (
+                      notifHistory.map(n => (
+                        <div key={n.id} className="p-3.5 hover:bg-slate-50/80 transition-colors relative group">
+                          <div className="text-xs font-bold text-slate-800 mb-0.5">{n.title}</div>
+                          <div className="text-[11px] text-slate-600 leading-relaxed">{n.message}</div>
+                          <div className="text-[10px] text-slate-400 mt-1.5 font-mono">{new Date(n.timestamp).toLocaleString('id-ID')}</div>
+                          <button 
+                            onClick={() => handleDeleteNotification(n.id)} 
+                            className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-1 rounded transition-all cursor-pointer"
+                            aria-label="Hapus notifikasi"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Avatar Pill */}
+            <div 
+              onClick={() => router.push('/customer/profile')}
+              className="flex items-center gap-2 pl-3 border-l border-slate-200 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-[#002c60] group-hover:bg-[#1b437c] transition-colors flex items-center justify-center text-white font-bold text-xs shadow-2xs">
                 {authenticated ? customerName.charAt(0).toUpperCase() : 'U'}
               </div>
+              <span className="text-xs font-semibold text-slate-700 group-hover:text-slate-900 hidden lg:inline">
+                {authenticated ? customerName.split(' ')[0] : 'Akun'}
+              </span>
             </div>
-          <h1 className="text-lg font-display font-semibold text-[var(--color-focus)] tracking-tight">{companyName || 'EugineBill'}</h1>
-          <button onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} className="text-[var(--color-ink-2)] transition-colors duration-200 active:opacity-70 p-2 rounded-full hover:bg-[var(--color-paper-3)] relative">
-            <Bell className="w-5 h-5" />
-            {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--color-error)] border border-white"></span>}
-          </button>
-
-          {bellOpen && (
-            <div className="absolute top-16 right-4 w-80 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-[var(--radius-lg)] shadow-sm z-50 overflow-hidden flex flex-col">
-              <div className="p-3 border-b border-[var(--color-rule)] flex justify-between items-center bg-[var(--color-paper-2)]">
-                <span className="font-display font-semibold text-sm">Notifikasi</span>
-                {notifHistory.length > 0 && (
-                  <button onClick={handleClearAllNotifications} className="text-xs text-[var(--color-accent)] hover:underline font-medium">Bersihkan</button>
-                )}
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                {notifHistory.length === 0 ? (
-                  <div className="p-6 text-center text-sm text-[var(--color-muted)] flex flex-col items-center gap-2">
-                    <Bell className="w-8 h-8 opacity-20" />
-                    Belum ada notifikasi
-                  </div>
-                ) : (
-                  notifHistory.map(n => (
-                    <div key={n.id} className="p-3 border-b border-[var(--color-rule)] hover:bg-[var(--color-paper-3)] transition-colors relative group">
-                      <div className="text-xs font-semibold mb-1">{n.title}</div>
-                      <div className="text-[11px] text-[var(--color-ink-2)] leading-relaxed">{n.message}</div>
-                      <div className="text-[9px] text-[var(--color-muted)] mt-1">{new Date(n.timestamp).toLocaleString('id-ID')}</div>
-                      <button onClick={() => handleDeleteNotification(n.id)} className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-[var(--color-error)] hover:bg-[var(--color-error-bg)] p-1 rounded transition-all">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
+          </div>
         </header>
 
-        <div className="flex-1 pb-20 md:pb-0">
+        {/* ── Mobile Top App Bar ── */}
+        <header className="md:hidden w-full sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex justify-between items-center px-4 h-16 z-50 shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center p-1 overflow-hidden shrink-0">
+              <img 
+                src={resolvedLogo} 
+                alt={companyName || 'Eugine Media'} 
+                className="h-full w-full object-contain"
+                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+              />
+            </div>
+            <div>
+              <h1 className="text-xs font-bold text-slate-900 tracking-tight leading-none">
+                {companyName || 'Eugine Media'}
+              </h1>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">Portal Pelanggan</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 relative">
+            <button 
+              onClick={() => { setBellOpen(!bellOpen); setUnreadCount(0); }} 
+              className="text-slate-600 active:text-slate-900 p-2 rounded-xl hover:bg-slate-100 relative cursor-pointer"
+              aria-label="Notifikasi"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-white animate-pulse" />
+              )}
+            </button>
+
+            {bellOpen && (
+              <div className="absolute top-12 right-0 w-76 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2">
+                <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                  <span className="font-bold text-xs text-slate-800 uppercase tracking-wider font-mono">Notifikasi</span>
+                  {notifHistory.length > 0 && (
+                    <button 
+                      onClick={handleClearAllNotifications} 
+                      className="text-[11px] text-[#002c60] hover:underline font-semibold"
+                    >
+                      Bersihkan
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                  {notifHistory.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
+                      <Bell className="w-8 h-8 opacity-20 text-slate-500" />
+                      <span>Belum ada notifikasi</span>
+                    </div>
+                  ) : (
+                    notifHistory.map(n => (
+                      <div key={n.id} className="p-3 hover:bg-slate-50 relative">
+                        <div className="text-xs font-bold text-slate-800 mb-0.5">{n.title}</div>
+                        <div className="text-[11px] text-slate-600 leading-relaxed">{n.message}</div>
+                        <div className="text-[10px] text-slate-400 mt-1 font-mono">{new Date(n.timestamp).toLocaleString('id-ID')}</div>
+                        <button 
+                          onClick={() => handleDeleteNotification(n.id)} 
+                          className="absolute top-2 right-2 text-slate-400 hover:text-red-600 p-1"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* ── Page Content ── */}
+        <div className="flex-1 pb-24 md:pb-8">
           {children}
         </div>
         
-        {/* Bottom Navigation Bar (Mobile) */}
-        <nav className="fixed bottom-0 w-full z-50 bg-[var(--color-paper)] border-t border-[var(--color-rule)] md:hidden">
-          <div className="flex justify-around items-center pt-2 pb-safe px-2 h-16 pb-2">
-            <button onClick={() => router.push('/customer')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer') && pathname === '/customer' ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
-              <Home className="w-6 h-6" />
-              <span className="font-mono text-[10px] mt-1 uppercase tracking-wider">Beranda</span>
+        {/* ── Bottom Navigation Dock (Mobile) ── */}
+        <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden mobile-nav-dock">
+          <div className="flex justify-around items-center h-16 px-2">
+            <button 
+              onClick={() => router.push('/customer')} 
+              className={cn(
+                "flex flex-col items-center justify-center font-bold active:scale-95 transition-all duration-150 py-1 px-2 rounded-xl flex-1", 
+                isActive('/customer') && pathname === '/customer' 
+                  ? "text-[#002c60]" 
+                  : "text-slate-500 hover:text-slate-800"
+              )}
+            >
+              <Home className="w-5 h-5 mb-1" />
+              <span className="font-mono text-[9px] uppercase tracking-wider font-semibold">Beranda</span>
+              {isActive('/customer') && pathname === '/customer' && (
+                <span className="w-1 h-1 rounded-full bg-[#002c60] mt-0.5" />
+              )}
             </button>
-            <button onClick={() => router.push('/customer/invoices')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/invoices') ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
-              <FileText className="w-6 h-6" />
-              <span className="font-mono text-[10px] mt-1 uppercase tracking-wider">Tagihan</span>
+
+            <button 
+              onClick={() => router.push('/customer/invoices')} 
+              className={cn(
+                "flex flex-col items-center justify-center font-bold active:scale-95 transition-all duration-150 py-1 px-2 rounded-xl flex-1", 
+                isActive('/customer/invoices') 
+                  ? "text-[#002c60]" 
+                  : "text-slate-500 hover:text-slate-800"
+              )}
+            >
+              <FileText className="w-5 h-5 mb-1" />
+              <span className="font-mono text-[9px] uppercase tracking-wider font-semibold">Tagihan</span>
+              {isActive('/customer/invoices') && (
+                <span className="w-1 h-1 rounded-full bg-[#002c60] mt-0.5" />
+              )}
             </button>
-            <button onClick={() => router.push('/customer/wifi')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1 relative", isActive('/customer/wifi') ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
+
+            <button 
+              onClick={() => router.push('/customer/wifi')} 
+              className={cn(
+                "flex flex-col items-center justify-center font-bold active:scale-95 transition-all duration-150 py-1 px-2 rounded-xl flex-1 relative", 
+                isActive('/customer/wifi') 
+                  ? "text-[#002c60]" 
+                  : "text-slate-500 hover:text-slate-800"
+              )}
+            >
               <div className="relative">
-                <Wifi className="w-6 h-6" />
+                <Wifi className="w-5 h-5 mb-1" />
                 <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white" />
               </div>
-              <span className="font-mono text-[10px] mt-1 uppercase tracking-wider">WiFi</span>
+              <span className="font-mono text-[9px] uppercase tracking-wider font-semibold">WiFi</span>
+              {isActive('/customer/wifi') && (
+                <span className="w-1 h-1 rounded-full bg-[#002c60] mt-0.5" />
+              )}
             </button>
-            <button onClick={() => router.push('/customer/tickets')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/tickets') ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
-              <MessageSquare className="w-6 h-6" />
-              <span className="font-mono text-[10px] mt-1 uppercase tracking-wider">Bantuan</span>
+
+            <button 
+              onClick={() => router.push('/customer/tickets')} 
+              className={cn(
+                "flex flex-col items-center justify-center font-bold active:scale-95 transition-all duration-150 py-1 px-2 rounded-xl flex-1", 
+                isActive('/customer/tickets') 
+                  ? "text-[#002c60]" 
+                  : "text-slate-500 hover:text-slate-800"
+              )}
+            >
+              <MessageSquare className="w-5 h-5 mb-1" />
+              <span className="font-mono text-[9px] uppercase tracking-wider font-semibold">Bantuan</span>
+              {isActive('/customer/tickets') && (
+                <span className="w-1 h-1 rounded-full bg-[#002c60] mt-0.5" />
+              )}
             </button>
-            <button onClick={() => router.push('/customer/profile')} className={cn("flex flex-col items-center justify-center font-bold active:scale-95 transition-transform duration-150 p-2 rounded-lg flex-1", isActive('/customer/profile') ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]")}>
-              <User className="w-6 h-6" />
-              <span className="font-mono text-[10px] mt-1 uppercase tracking-wider">Profil</span>
+
+            <button 
+              onClick={() => router.push('/customer/profile')} 
+              className={cn(
+                "flex flex-col items-center justify-center font-bold active:scale-95 transition-all duration-150 py-1 px-2 rounded-xl flex-1", 
+                isActive('/customer/profile') 
+                  ? "text-[#002c60]" 
+                  : "text-slate-500 hover:text-slate-800"
+              )}
+            >
+              <User className="w-5 h-5 mb-1" />
+              <span className="font-mono text-[9px] uppercase tracking-wider font-semibold">Profil</span>
+              {isActive('/customer/profile') && (
+                <span className="w-1 h-1 rounded-full bg-[#002c60] mt-0.5" />
+              )}
             </button>
           </div>
         </nav>

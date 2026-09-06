@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { 
+  Loader2, Wifi, ArrowDown, ArrowUp, Calendar, CreditCard, 
+  FileText, ShieldCheck, ChevronRight, Eye, CheckCircle2, 
+  AlertCircle, Clock, Zap, Headphones, ArrowRight, ExternalLink,
+  Receipt, ArrowUpRight
+} from 'lucide-react';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { formatWIB, nowWIB } from '@/lib/timezone';
 
@@ -158,67 +163,84 @@ export default function CustomerDashboard() {
   const latestInvoice = invoices[0];
 
     return (
-    <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-8">
-      {/* === Hero Section === */}
-      <section className="mb-6 flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
+    <main className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 pb-28 md:pb-8">
+      {/* ── Hero Section ── */}
+      <section className="mb-6 flex justify-between items-start md:items-center flex-col md:flex-row gap-3">
         <div>
-          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-[var(--color-muted)] mb-1">ID Pelanggan: {user.customerId || user.username}</p>
-          <h2 className="text-2xl md:text-[32px] font-display font-semibold text-[var(--color-ink)] leading-tight">{user.name}</h2>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              ID Pelanggan:
+            </span>
+            <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+              {user.customerId || user.username}
+            </span>
+          </div>
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight tracking-tight">
+            {user.name}
+          </h2>
         </div>
-        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider border ${
+
+        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider border shadow-2xs ${
           user.status === 'ISOLATED' || isExpired
-            ? 'bg-[var(--color-error-bg)] text-[var(--color-error)] border-[var(--color-error-border)]'
-            : 'bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success-border)]'
+            ? 'bg-red-50 text-red-700 border-red-200'
+            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
         }`}>
-          <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-          {user.status === 'ISOLATED' || isExpired ? 'Terisolir' : 'Aktif'}
+          <span className={`w-2 h-2 rounded-full ${user.status === 'ISOLATED' || isExpired ? 'bg-red-500 animate-pulse' : 'bg-emerald-500 animate-pulse'}`} />
+          <span>{user.status === 'ISOLATED' || isExpired ? 'Terisolir' : 'Layanan Aktif'}</span>
         </div>
       </section>
 
-      {/* === Bento Grid === */}
+      {/* ── Bento Grid ── */}
       <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-5">
 
-        {/* Paket Langganan Card */}
-        <div className={`bento-card col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-gradient-to-r from-[#001c39] to-[#002c60] text-white border-none shadow-lg p-7`}>
+        {/* ── Paket Langganan Card (Oceanic Blue Gradient) ── */}
+        <div className={`bento-card col-span-4 ${!latestInvoice ? 'md:col-span-8 lg:col-span-12' : 'md:col-span-8 lg:col-span-8'} relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-gradient-to-r from-[#001c39] via-[#002c60] to-[#0a3674] text-white border-none shadow-lg p-6 sm:p-7 rounded-2xl`}>
           {/* Fiber network abstract background image */}
           <div 
-            className="absolute inset-0 opacity-40 mix-blend-luminosity bg-cover bg-center pointer-events-none" 
+            className="absolute inset-0 opacity-30 mix-blend-luminosity bg-cover bg-center pointer-events-none" 
             style={{ backgroundImage: "url('/images/card_net_bg.png')" }} 
           />
           {/* Glassmorphic gradient overlay for optimal readability */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#001b3e]/90 via-[#002c60]/75 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#001b3e]/90 via-[#002c60]/80 to-transparent pointer-events-none" />
 
           <div className="flex-1 relative z-10">
             <div className="flex items-center gap-2 mb-2">
-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-blue-200/90 mb-0">Paket Langganan</span>
-              <span className="px-2.5 py-0.5 rounded-full font-mono text-[9px] font-bold uppercase tracking-wider bg-blue-400/20 text-cyan-200 border border-cyan-300/30 backdrop-blur-sm">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-blue-200/90">
+                Paket Langganan
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-[9px] font-bold uppercase tracking-wider bg-white/10 text-cyan-200 border border-cyan-300/30 backdrop-blur-xs">
+                <Wifi className="w-3 h-3 text-cyan-300" />
                 Fiber Unlimited
               </span>
             </div>
-            <div className="text-2xl md:text-[32px] font-display font-bold text-white leading-tight tracking-tight drop-shadow-sm">
+
+            <div className="text-2xl md:text-3xl font-bold text-white leading-tight tracking-tight drop-shadow-xs">
               {user.profile?.name || '-'}
             </div>
-            <div className="flex flex-wrap items-center gap-3 mt-3">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[var(--radius-sm)] bg-white/10 border border-white/15 backdrop-blur-sm text-xs font-mono font-medium text-blue-100">
-                <span className="material-symbols-outlined text-[16px] text-cyan-300">download</span>
-                Up to {user.profile?.downloadSpeed || 0} Mbps
+
+            <div className="flex flex-wrap items-center gap-2.5 mt-3.5">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 border border-white/15 backdrop-blur-xs text-xs font-mono font-medium text-blue-100">
+                <ArrowDown className="w-3.5 h-3.5 text-cyan-300" />
+                <span>Up to {user.profile?.downloadSpeed || 0} Mbps</span>
               </div>
               {user.profile?.uploadSpeed ? (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[var(--radius-sm)] bg-white/10 border border-white/15 backdrop-blur-sm text-xs font-mono font-medium text-blue-100">
-                  <span className="material-symbols-outlined text-[16px] text-cyan-300">upload</span>
-                  Up to {user.profile.uploadSpeed} Mbps
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 border border-white/15 backdrop-blur-xs text-xs font-mono font-medium text-blue-100">
+                  <ArrowUp className="w-3.5 h-3.5 text-cyan-300" />
+                  <span>Up to {user.profile.uploadSpeed} Mbps</span>
                 </div>
               ) : null}
             </div>
           </div>
 
-          <div className="w-full md:w-px md:h-16 bg-white/15 md:mx-2 shrink-0 relative z-10" />
+          <div className="w-full md:w-px md:h-20 bg-white/15 md:mx-2 shrink-0 relative z-10" />
 
           <div className="relative z-10 min-w-[160px]">
-            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-blue-200/90 mb-1">Jatuh Tempo</p>
-            <div className="text-xl font-display font-semibold text-white">{formattedDueDate}</div>
+            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-blue-200/90 mb-1">
+              Jatuh Tempo
+            </p>
+            <div className="text-xl font-bold text-white">{formattedDueDate}</div>
             <div className="flex items-center gap-2 mt-2">
-              <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded font-mono text-[10px] font-bold uppercase tracking-wider border backdrop-blur-md ${
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-mono text-[10px] font-bold uppercase tracking-wider border backdrop-blur-md ${
                 isExpired
                   ? 'bg-red-500/25 text-red-200 border-red-400/40'
                   : daysLeft <= 7
@@ -226,49 +248,61 @@ export default function CustomerDashboard() {
                   : 'bg-emerald-500/25 text-emerald-200 border-emerald-400/40'
               }`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-                {isExpired ? 'Kedaluwarsa' : `Tersisa ${daysLeft} Hari`}
+                <span>{isExpired ? 'Kedaluwarsa' : `Tersisa ${daysLeft} Hari`}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Tagihan Terbaru Card */}
+        {/* ── Tagihan Terbaru Card ── */}
         {latestInvoice && (
-          <div className={`bento-card col-span-4 md:col-span-4 lg:col-span-4 relative overflow-hidden flex flex-col justify-between ${
+          <div className={`bento-card col-span-4 md:col-span-4 lg:col-span-4 relative overflow-hidden flex flex-col justify-between bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm ${
             latestInvoice.status === 'PENDING' || latestInvoice.status === 'OVERDUE'
-              ? 'border-l-[3px] border-l-[var(--color-error)]'
-              : 'border-l-[3px] border-l-[var(--color-success)]'
+              ? 'border-l-[4px] border-l-red-500'
+              : 'border-l-[4px] border-l-emerald-500'
           }`}>
-            <div className="absolute top-0 right-0 p-4 opacity-[0.03]">
-              <span className="material-symbols-outlined text-[96px] text-[var(--color-ink)]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                {latestInvoice.status === 'PAID' ? 'check_circle' : 'receipt_long'}
-              </span>
-            </div>
             <div className="relative z-10">
-              <p className={`font-mono text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5 ${
-                latestInvoice.status === 'PAID' ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'
-              }`}>
-                <span className="material-symbols-outlined text-[14px]">receipt_long</span>
-                {latestInvoice.status === 'PAID' ? 'Tagihan Terakhir (Lunas)' : 'Tagihan Belum Dibayar'}
-              </p>
-              <p className="font-mono text-xs text-[var(--color-muted)] mb-3">{latestInvoice.invoiceNumber}</p>
-              <div className="text-3xl font-display font-semibold text-[var(--color-ink)]">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className={`font-mono text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                  latestInvoice.status === 'PAID' ? 'text-emerald-700' : 'text-red-700'
+                }`}>
+                  <Receipt className="w-3.5 h-3.5" />
+                  <span>{latestInvoice.status === 'PAID' ? 'Tagihan Terakhir (Lunas)' : 'Tagihan Belum Dibayar'}</span>
+                </p>
+                <span className={`px-2 py-0.5 rounded-md font-mono text-[9px] font-bold uppercase ${
+                  latestInvoice.status === 'PAID' 
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                    : latestInvoice.status === 'OVERDUE' 
+                    ? 'bg-red-50 text-red-700 border border-red-200' 
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}>
+                  {latestInvoice.status === 'PAID' ? 'LUNAS' : latestInvoice.status === 'OVERDUE' ? 'JATUH TEMPO' : 'MENUNGGU'}
+                </span>
+              </div>
+
+              <p className="font-mono text-xs text-slate-500 mb-2">{latestInvoice.invoiceNumber}</p>
+              
+              <div className="text-3xl font-bold text-slate-900 tracking-tight">
                 {formatCurrency(latestInvoice.amount)}
               </div>
-              <p className="font-mono text-[10px] text-[var(--color-muted)] mt-1.5">
+
+              <p className="font-mono text-[11px] text-slate-500 mt-1.5">
                 {latestInvoice.status === 'PAID'
                   ? `Dibayar: ${new Date(latestInvoice.paidAt!).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' })}`
                   : `Jatuh tempo: ${new Date(latestInvoice.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' })}`
                 }
               </p>
             </div>
+
             <div className="flex gap-2 mt-5 relative z-10">
               <button
                 onClick={() => router.push(`/invoice/${latestInvoice.invoiceNumber}`)}
-                className="flex-1 bg-[var(--color-paper-3)] text-[var(--color-ink-2)] border border-[var(--color-rule)] hover:bg-[var(--color-paper-2)] transition-colors py-2.5 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider flex justify-center items-center gap-1.5"
+                className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors py-2.5 px-3 rounded-xl font-mono text-xs uppercase font-bold tracking-wider flex justify-center items-center gap-1.5 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[14px]">visibility</span> Lihat
+                <Eye className="w-3.5 h-3.5" />
+                <span>Lihat</span>
               </button>
+
               {(latestInvoice.status === 'PENDING' || latestInvoice.status === 'OVERDUE') && (latestInvoice.paymentLink || latestInvoice.paymentToken) && (
                 <button
                   onClick={() => {
@@ -278,88 +312,103 @@ export default function CustomerDashboard() {
                       router.push(`/pay/${latestInvoice.paymentToken}`);
                     }
                   }}
-                  className="flex-1 bg-[var(--color-accent)] text-[var(--color-accent-ink)] hover:opacity-90 transition-opacity py-2.5 rounded-[var(--radius-sm)] font-mono text-[10px] uppercase font-bold tracking-wider flex justify-center items-center gap-1.5"
+                  className="flex-1 bg-[#002c60] hover:bg-[#1b437c] text-white shadow-sm shadow-[#002c60]/20 transition-all py-2.5 px-3 rounded-xl font-mono text-xs uppercase font-bold tracking-wider flex justify-center items-center gap-1.5 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[14px]">payment</span> Bayar Sekarang
+                  <CreditCard className="w-3.5 h-3.5" />
+                  <span>Bayar</span>
                 </button>
               )}
             </div>
           </div>
         )}
 
-        {/* Quick Actions */}
+        {/* ── Quick Actions Bento ── */}
         <div className="col-span-4 md:col-span-8 lg:col-span-12">
-          <h3 className="text-base font-display font-semibold text-[var(--color-ink)] mb-4">Aksi Cepat</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider font-mono mb-3">
+            Aksi Cepat
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
             {[
-              { icon: 'receipt_long', label: 'Tagihan', href: '/customer/invoices' },
-              { icon: 'router', label: 'Pengaturan Wi-Fi', href: '/customer/wifi' },
-              { icon: 'upgrade', label: 'Ubah Paket', href: '/customer/upgrade' },
-              { icon: 'contact_support', label: 'Pusat Bantuan', href: '/customer/tickets' },
-            ].map(({ icon, label, href }) => (
+              { icon: FileText, label: 'Tagihan & Invois', href: '/customer/invoices', color: 'bg-blue-50 text-[#002c60]' },
+              { icon: Wifi, label: 'Pengaturan Wi-Fi', href: '/customer/wifi', color: 'bg-cyan-50 text-cyan-700' },
+              { icon: Zap, label: 'Ubah Kecepatan', href: '/customer/upgrade', color: 'bg-amber-50 text-amber-700' },
+              { icon: Headphones, label: 'Pusat Bantuan', href: '/customer/tickets', color: 'bg-emerald-50 text-emerald-700' },
+            ].map(({ icon: Icon, label, href, color }) => (
               <button
                 key={href}
                 onClick={() => router.push(href)}
-                className="bento-card p-4 flex flex-col items-center justify-center gap-3 hover:bg-[var(--color-paper-3)] cursor-pointer group min-h-[96px]"
+                className="bg-white rounded-2xl border border-slate-200/80 p-4.5 flex flex-col items-center justify-center gap-2.5 hover:shadow-md hover:border-slate-300 transition-all duration-200 cursor-pointer group min-h-[104px]"
               >
-                <span className="material-symbols-outlined text-[var(--color-accent)] text-3xl group-hover:scale-110 transition-transform duration-200">{icon}</span>
-                <span className="font-mono text-[10px] font-bold text-[var(--color-ink)] uppercase tracking-wider text-center leading-snug">{label}</span>
+                <div className={`w-11 h-11 rounded-xl ${color} flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-2xs`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="font-mono text-xs font-bold text-slate-800 uppercase tracking-wider text-center leading-snug">
+                  {label}
+                </span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Riwayat Transaksi Singkat */}
+        {/* ── Riwayat Transaksi Singkat ── */}
         {invoices.length > 0 && (
           <div className="col-span-4 md:col-span-8 lg:col-span-12">
-            <div className="bento-card p-0 overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-rule)] bg-[var(--color-paper-2)]">
-                <h3 className="text-sm font-display font-semibold text-[var(--color-ink)]">Riwayat Transaksi</h3>
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider font-mono">
+                  Riwayat Transaksi Terakhir
+                </h3>
                 <button
                   onClick={() => router.push('/customer/invoices')}
-                  className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--color-accent)] hover:underline"
+                  className="font-mono text-xs font-bold uppercase tracking-wider text-[#002c60] hover:underline cursor-pointer flex items-center gap-1"
                 >
-                  Lihat Semua
+                  <span>Lihat Semua</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <table className="hairline-table">
-                <thead>
-                  <tr>
-                    <th>Nomor Tagihan</th>
-                    <th>Tanggal</th>
-                    <th>Jumlah</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.slice(0, 5).map(inv => (
-                    <tr
-                      key={inv.id}
-                      onClick={() => router.push(`/invoice/${inv.invoiceNumber}`)}
-                      className="cursor-pointer"
-                    >
-                      <td>
-                        <span className="font-mono text-xs text-[var(--color-muted)]">{inv.invoiceNumber}</span>
-                      </td>
-                      <td className="font-mono text-xs text-[var(--color-ink-2)] whitespace-nowrap">
-                        {new Date(inv.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' })}
-                      </td>
-                      <td className="font-mono text-sm font-medium text-[var(--color-ink)] whitespace-nowrap">
-                        {formatCurrency(inv.amount)}
-                      </td>
-                      <td>
-                        <span className={`badge ${
-                          inv.status === 'PAID' ? 'badge-paid' :
-                          inv.status === 'OVERDUE' ? 'badge-overdue' :
-                          'badge-pending'
-                        }`}>
-                          {inv.status === 'PAID' ? 'Lunas' : inv.status === 'OVERDUE' ? 'Jatuh Tempo' : 'Menunggu'}
-                        </span>
-                      </td>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-mono font-bold uppercase text-slate-500 tracking-wider">
+                      <th className="py-3 px-6">Nomor Tagihan</th>
+                      <th className="py-3 px-6">Jatuh Tempo</th>
+                      <th className="py-3 px-6">Jumlah</th>
+                      <th className="py-3 px-6">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {invoices.slice(0, 5).map(inv => (
+                      <tr
+                        key={inv.id}
+                        onClick={() => router.push(`/invoice/${inv.invoiceNumber}`)}
+                        className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                      >
+                        <td className="py-3.5 px-6 font-mono font-medium text-slate-700">
+                          {inv.invoiceNumber}
+                        </td>
+                        <td className="py-3.5 px-6 font-mono text-slate-600 whitespace-nowrap">
+                          {new Date(inv.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' })}
+                        </td>
+                        <td className="py-3.5 px-6 font-mono font-bold text-slate-900 whitespace-nowrap">
+                          {formatCurrency(inv.amount)}
+                        </td>
+                        <td className="py-3.5 px-6">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider border ${
+                            inv.status === 'PAID'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : inv.status === 'OVERDUE'
+                              ? 'bg-red-50 text-red-700 border-red-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>
+                            {inv.status === 'PAID' ? 'Lunas' : inv.status === 'OVERDUE' ? 'Jatuh Tempo' : 'Menunggu'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

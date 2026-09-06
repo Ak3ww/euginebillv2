@@ -4,6 +4,36 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.4] — 2026-09-06
+### Added & Redesigned
+- **Redesain Antarmuka Portal & Halaman Login Pelanggan (Hallmark Oceanic Blue & Mobile-First)**:
+  - *Context / User Request*: Perombakan menyeluruh pada halaman login pelanggan (`/customer/login`) serta layout portal pelanggan (`/customer/*`) dan beranda pelanggan (`src/app/customer/page.tsx`) dengan tampilan modern, profesional, mobile-friendly, integrasi logo resmi Eugine Media, tanpa merusak satu pun fitur autentikasi dan integrasi API yang ada.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Halaman Login Pelanggan (`src/app/customer/login/page.tsx`)**:
+       - Menerapkan arsitektur Hallmark Enterprise Oceanic Blue (`#002c60`, `#1b437c`) dengan kedalaman spasial Antigravity.
+       - Menampilkan logo resmi Eugine Media (`/images/logo.png` / fallback database `company.logo`) pada kartu terapung (*floating glass card*).
+       - Segmented switcher modern untuk memilih metode masuk: "Sandi Akun" (`<KeyRound />`) atau "WhatsApp OTP" (`<Phone />`).
+       - Form login sandi dengan toggle visibilitas mata (`<Eye />` / `<EyeOff />`), validasi ergonomis untuk mobile, dan tombol submit kontras tinggi dengan feedback loader.
+       - Form login WhatsApp OTP dengan hitung mundur timer (*countdown*), input OTP 6-digit font monospace renggang (`tracking-[0.5em]`), serta modal reset mandiri "Lupa Password" via WhatsApp OTP 2 langkah.
+       - Tautan langsung bantuan layanan pelanggan via WhatsApp admin.
+       - Memastikan seluruh ikon menggunakan Lucide React (strictly no text emojis).
+    2. **Layout Portal Pelanggan (`src/app/customer/CustomerClientLayout.tsx`)**:
+       - *Desktop Sidebar*: Integrasi logo Eugine Media dan nama ISP, status online ISP, menu navigasi dengan indikator pill Oceanic Blue aktif, profil singkat pelanggan, dan tombol logout.
+       - *Desktop Top Header*: Sapaan pelanggan, penanggalan real-time WIB, bel notifikasi dengan badge unread berdenyut (*pulse*), dan popover drawer notifikasi interaktif.
+       - *Mobile Top App Bar*: Header ramping dengan logo Eugine Media, status koneksi aktif, dan drawer notifikasi.
+       - *Mobile Bottom Navigation Dock*: Floating dock ergonomis di bawah layar (`backdrop-filter: blur(12px)`) dengan 5 menu cepat: Beranda, Tagihan, WiFi, Bantuan, dan Profil.
+    3. **Beranda Pelanggan (`src/app/customer/page.tsx`)**:
+       - Hero identitas pelanggan dengan nomor ID Pelanggan dan badge status koneksi (`Aktif` dengan pulse hijau atau `Terisolir`).
+       - Kartu bento paket langganan dengan gradient Oceanic Blue dan tekstur fiber network (`card_net_bg.png`), kecepatan download/upload menggunakan Lucide icons `<ArrowDown />` dan `<ArrowUp />`, serta hitung mundur jatuh tempo.
+       - Kartu tagihan terbaru dengan status tegas, nominal rupiah tebal, dan tombol aksi "Lihat" serta "Bayar Sekarang" terintegrasi gateway pembayaran.
+       - Grid aksi cepat dengan ikon Lucide React `<FileText />`, `<Wifi />`, `<Zap />`, `<Headphones />`.
+       - Tabel riwayat transaksi hairline responsif dengan badge status pembayaran.
+    4. **Styling & Head Metadata (`customer.css` & `head.tsx`)**:
+       - Penambahan utility class `.mobile-nav-dock`, `.glass-card`, dan `.oceanic-gradient`.
+       - Pembaruan `theme-color` menjadi `#002c60` di `head.tsx`.
+       - Pemasangan logo statis fallback di `public/logo.png` dan `public/images/logo.png`.
+  - *Files*: `src/app/customer/login/page.tsx`, `src/app/customer/CustomerClientLayout.tsx`, `src/app/customer/page.tsx`, `src/app/customer/customer.css`, `src/app/customer/head.tsx`, `public/logo.png`, `public/images/logo.png`, `CHANGELOG.md`
+
 ## [2.37.3] — 2026-09-06
 ### Fixed
 - **Perbaikan Rute Faktur/Invoice 404 pada Subdomain Customer Portal (`customer.euginemediagroup.com`)**:
