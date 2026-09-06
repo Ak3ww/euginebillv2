@@ -8,25 +8,50 @@ async function handleGetCounts(userIds: string[]) {
     return NextResponse.json({ success: true, counts: {} });
   }
 
-  // Get unpaid invoice counts for each user
-  const invoiceCounts = await prisma.invoice.groupBy({
-    by: ['userId'],
+  // Fetch unpaid invoices with user status & expiredAt to verify actual arrears
+  const unpaidInvoices = await prisma.invoice.findMany({
     where: {
       userId: { in: userIds },
       status: { in: ['PENDING', 'OVERDUE'] },
     },
-    _count: {
+    select: {
       id: true,
+      userId: true,
+      dueDate: true,
+      user: {
+        select: {
+          status: true,
+          expiredAt: true,
+        },
+      },
     },
   });
 
-  // Convert to map for easier lookup
   const countsMap: Record<string, number> = {};
-  invoiceCounts.forEach(item => {
-    if (item.userId) {
-      countsMap[item.userId] = item._count.id;
+  const now = new Date();
+
+  for (const inv of unpaidInvoices) {
+    if (!inv.userId) continue;
+
+    // Safety check: if user is active and their expiredAt is already extended in the future (e.g. October),
+    // it means their subscription for the current cycle is ALREADY paid and active.
+    const userExpiredAt = inv.user?.expiredAt ? new Date(inv.user.expiredAt) : null;
+    const isUserActive = inv.user?.status === 'active';
+
+    if (isUserActive && userExpiredAt && userExpiredAt > now) {
+      // 1. If invoice dueDate is in the future (not due yet) and user is already active, not an arrear
+      if (inv.dueDate && new Date(inv.dueDate) > now) {
+        continue;
+      }
+      // 2. If user expiredAt is already past the invoice dueDate by more than 1 day,
+      // the period covered by this invoice is already paid/active
+      if (inv.dueDate && userExpiredAt.getTime() > new Date(inv.dueDate).getTime() + 24 * 60 * 60 * 1000) {
+        continue;
+      }
     }
-  });
+
+    countsMap[inv.userId] = (countsMap[inv.userId] || 0) + 1;
+  }
 
   return NextResponse.json({
     success: true,

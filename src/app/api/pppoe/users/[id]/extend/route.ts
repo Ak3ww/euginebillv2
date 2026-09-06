@@ -120,22 +120,8 @@ export async function POST(
       console.error('[Extend] RADIUS restore error (non-fatal):', radiusError?.message);
     }
 
-    // Create invoice record (already PAID)
-    const invoiceNumber = generateInvoiceNumber();
-    
-    // Generate payment token and link for record keeping
     const company = await prisma.company.findFirst();
-    const forwardedProto = request.headers.get('x-forwarded-proto') || 'http';
-    const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
-    const inferredBase = forwardedHost ? `${forwardedProto}://${forwardedHost}` : '';
-    const baseUrl = (company?.baseUrl && !company.baseUrl.includes('localhost'))
-      ? company.baseUrl
-      : (inferredBase && !inferredBase.includes('localhost'))
-        ? inferredBase
-        : company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const paymentToken = crypto.randomBytes(32).toString('hex');
-    const paymentLink = `${baseUrl}/pay/${paymentToken}`;
-    
+
     // Calculate PPN if enabled on profile
     const extendBaseAmount = newProfile.price;
     let extendAmount = extendBaseAmount;
@@ -145,24 +131,75 @@ export async function POST(
       extendAmount = Math.round(extendBaseAmount + (extendBaseAmount * extendTaxRate / 100));
     }
 
-    await prisma.invoice.create({
-      data: {
-        id: generateInvoiceId(),
-        invoiceNumber,
+    // Reconcile existing unpaid invoices if any, otherwise create a new PAID invoice
+    const existingUnpaid = await prisma.invoice.findMany({
+      where: {
         userId: id,
-        amount: extendAmount,
-        baseAmount: extendBaseAmount,
-        ...(extendTaxRate !== null && { taxRate: extendTaxRate }),
-        status: 'PAID',
-        dueDate: newExpiredAt,
-        paidAt: now,
-        customerName: user.name,
-        customerPhone: user.phone,
-        customerUsername: user.username,
-        paymentToken,
-        paymentLink,
+        status: { in: ['PENDING', 'OVERDUE'] },
       },
+      orderBy: { dueDate: 'asc' },
     });
+
+    let invoiceNumber: string;
+
+    if (existingUnpaid.length > 0) {
+      // Reconcile the primary unpaid invoice to PAID
+      const primary = existingUnpaid[0];
+      invoiceNumber = primary.invoiceNumber;
+      if (primary.amount > 0) {
+        extendAmount = primary.amount;
+      }
+      await prisma.invoice.update({
+        where: { id: primary.id },
+        data: {
+          status: 'PAID',
+          paidAt: now,
+        },
+      });
+
+      // Mark any remaining duplicate unpaid invoices as PAID
+      if (existingUnpaid.length > 1) {
+        for (let i = 1; i < existingUnpaid.length; i++) {
+          await prisma.invoice.update({
+            where: { id: existingUnpaid[i].id },
+            data: { status: 'PAID', paidAt: now },
+          });
+        }
+      }
+    } else {
+      invoiceNumber = generateInvoiceNumber();
+      
+      // Generate payment token and link for record keeping
+      const forwardedProto = request.headers.get('x-forwarded-proto') || 'http';
+      const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
+      const inferredBase = forwardedHost ? `${forwardedProto}://${forwardedHost}` : '';
+      const baseUrl = (company?.baseUrl && !company.baseUrl.includes('localhost'))
+        ? company.baseUrl
+        : (inferredBase && !inferredBase.includes('localhost'))
+          ? inferredBase
+          : company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const paymentToken = crypto.randomBytes(32).toString('hex');
+      const paymentLink = `${baseUrl}/pay/${paymentToken}`;
+
+      await prisma.invoice.create({
+        data: {
+          id: generateInvoiceId(),
+          invoiceNumber,
+          userId: id,
+          amount: extendAmount,
+          baseAmount: extendBaseAmount,
+          ...(extendTaxRate !== null && { taxRate: extendTaxRate }),
+          status: 'PAID',
+          dueDate: newExpiredAt,
+          paidAt: now,
+          customerName: user.name,
+          customerPhone: user.phone,
+          customerUsername: user.username,
+          paymentToken,
+          paymentLink,
+        },
+      });
+    }
 
     // Find or create transaction category for subscription
     let category = await prisma.transactionCategory.findFirst({

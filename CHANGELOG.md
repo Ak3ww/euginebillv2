@@ -4,6 +4,26 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.6] — 2026-09-06
+### Fixed & Hardened
+- **Perbaikan Pelanggan Sudah Bayar (Masa Aktif Oktober) Muncul di Filter "Belum Bayar" & Skrip Audit Menyeluruh**:
+  - *Context / User Request*:
+    1. Pelanggan seperti RAHMAT NUGRAHA (EMG027, telp 0895338441225) status akunnya sudah bayar dan masa aktifnya sampai 05 Okt 2026, tetapi di menu Data Pelanggan (`/admin/pppoe/users`) masih terhitung dan muncul di filter "Belum Bayar" / kartu "Tunggakan".
+    2. User meminta audit menyeluruh untuk mendeteksi semua pelanggan lain dengan kasus serupa dan menyelesaikan bug sistemiknya.
+  - *Root Causes*:
+    1. Endpoint `/api/invoices/counts` sebelumnya melakukan `groupBy` mentah pada seluruh tagihan berstatus `PENDING` atau `OVERDUE` tanpa mengecek masa aktif pelanggan. Akibatnya, tagihan lama yang sudah terlewati oleh perpanjangan masa aktif (atau tagihan prematur Oktober) tetap dihitung sebagai tunggakan aktif (`invoiceCounts[user.id] > 0`).
+    2. Endpoint `/api/pppoe/users/[id]/extend` sebelumnya selalu membuat invoice `PAID` baru tanpa merekonsiliasi invoice `PENDING` yang sudah ada, sehingga tagihan lama pelanggan tertinggal gantung sebagai tagihan belum lunas.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Smart Arrears Verification pada `/api/invoices/counts` (`src/app/api/invoices/counts/route.ts`)**:
+       - Memvalidasi masa aktif pengguna (`user.status === 'active'` dan `user.expiredAt > now`).
+       - Melewati tagihan yang jatuh temponya di masa depan atau tagihan yang tanggalnya sudah tercakup oleh masa aktif pelanggan (`user.expiredAt > inv.dueDate + 24 jam`), sehingga pelanggan yang sudah lunas tidak lagi dihitung memiliki tunggakan.
+    2. **Auto-Reconciliation pada Endpoint Perpanjang (`src/app/api/pppoe/users/[id]/extend/route.ts`)**:
+       - Saat admin memperpanjang langganan pelanggan, sistem merekonsiliasi tagihan `PENDING`/`OVERDUE` yang ada menjadi `PAID` dan membersihkan status gantungnya.
+    3. **Skrip Audit & Pemulihan Menyeluruh Database (`scripts/audit-and-fix-unpaid-customers.js`)**:
+       - Dibuat skrip audit komprehensif untuk memeriksa Rahmat Nugraha dan seluruh pelanggan di database.
+       - Menyediakan mode preview (`node scripts/audit-and-fix-unpaid-customers.js`) dan mode eksekusi (`node scripts/audit-and-fix-unpaid-customers.js --fix`) untuk menandai tagihan September sebagai `PAID` dan menghapus tagihan duplikat/prematur.
+  - *Files*: `src/app/api/invoices/counts/route.ts`, `src/app/api/pppoe/users/[id]/extend/route.ts`, `scripts/audit-and-fix-unpaid-customers.js`, `CHANGELOG.md`
+
 ## [2.37.5] — 2026-09-06
 ### Fixed & Improved
 - **Penyempurnaan Tampilan Login Pelanggan & Implementasi Penuh Riwayat Pembayaran (`/customer/history`)**:
