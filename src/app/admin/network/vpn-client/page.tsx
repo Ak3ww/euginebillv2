@@ -128,6 +128,8 @@ export default function VpnClientPage() {
   const [wgPoolSaving, setWgPoolSaving] = useState(false);
   const [l2tpPoolEdit, setL2tpPoolEdit] = useState(false);
   const [l2tpPoolForm, setL2tpPoolForm] = useState({ poolStart: '', poolEnd: '', gateway: '' });
+  // L2TP Script mode toggle: full (+ports & firewall) vs quick (pure UltraVPN 5 lines)
+  const [scriptMode, setScriptMode] = useState<'full' | 'quick'>('full');
   const [l2tpPoolSaving, setL2tpPoolSaving] = useState(false);
   // VPS Settings panel toggle
   const [showVpsSettings, setShowVpsSettings] = useState(false);
@@ -808,20 +810,95 @@ export default function VpnClientPage() {
   const generateMikroTikScript = () => {
     if (!credentials) return ''
 
+    const nasDisplayName = credentials.nasName || credentials.username
+    const safeLabel = nasDisplayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 12) || 'vpn'
+    const safeApiUsername = credentials.apiUsername || `api-${credentials.vpnIp?.replace(/\./g, '-')}`
+    const safeApiPassword = credentials.apiPassword || 'EugineBillApi123!'
+    const vpsIp = credentials.vpsPublicIp || credentials.serverHost || credentials.server || 'VPS_IP'
+    const ports = credentials.publicPorts?.services || {}
+    const winboxPort = ports.winbox?.public || credentials.winboxPort || 10001
+    const winboxTarget = ports.winbox?.target || 8291
+    const apiPort = ports.api?.public || 10002
+    const apiTarget = ports.api?.target || 8728
+    const wwwPort = ports.www?.public || 10004
+    const wwwTarget = ports.www?.target || 80
+    const sshPort = ports.ssh?.public || 10006
+    const sshTarget = ports.ssh?.target || 22
+
+    // ── L2TP Client (UltraVPN Battle-Tested Standard) ─────────────
+    if (selectedVpnType === 'l2tp') {
+      const ifaceName = `ebl2-${safeLabel}`
+
+      // Format Singkat (Persis 5 Baris UltraVPN Murni)
+      if (scriptMode === 'quick') {
+        return `:do {/interface l2tp-client remove [find comment="euginebill-${credentials.username}"]} on-error={}
+:do {/interface l2tp-client remove [find name="${ifaceName}"]} on-error={}
+:do {/interface l2tp-client remove [find name="l2tp-${safeLabel}"]} on-error={}
+:if ([:len [/ppp profile find name="ebvpn-remote"]] = 0) do={/ppp profile add name=ebvpn-remote use-encryption=no change-tcp-mss=yes only-one=no}
+/interface l2tp-client add name=${ifaceName} connect-to=${credentials.server} user=${credentials.username} password="${credentials.password}" profile=ebvpn-remote use-ipsec=no allow=chap,mschap2 disabled=no add-default-route=no dial-on-demand=no comment=euginebill-${credentials.username}`.trim()
+      }
+
+      // Format Lengkap (+Port Remote Publik, User API & Firewall Filter)
+      return `# ============================================================
+# MikroTik L2TP VPN Client Setup Script (UltraVPN Standard)
+# NAS Name    : ${nasDisplayName}
+# NAS VPN IP  : ${credentials.vpnIp}
+# VPN Server  : ${credentials.server}
+#
+# ────────────────────────────────────────────────────────────
+# ALOKASI REMOTE AKSES PUBLIK (Akses dari Internet / Luar):
+# Host VPS    : ${vpsIp}
+# Winbox Port : ${vpsIp}:${winboxPort} -> MikroTik:${winboxTarget}
+# WebGUI Port : http://${vpsIp}:${wwwPort} -> MikroTik:${wwwTarget}
+# API Port    : ${vpsIp}:${apiPort} -> MikroTik:${apiTarget}
+# SSH Port    : ${vpsIp}:${sshPort} -> MikroTik:${sshTarget}
+#
+# KREDENSIAL REMOTE MIKROTIK (Khusus Sistem EugineBill & Winbox):
+# API & Winbox Username: ${safeApiUsername}
+# API & Winbox Password: ${safeApiPassword}
+# ============================================================
+
+# 0. Hapus konfigurasi lama jika ada (Idempoten & Bebas Error)
+:do { /interface l2tp-client remove [find comment="euginebill-${credentials.username}"] } on-error={}
+:do { /interface l2tp-client remove [find comment~"EugineBill"] } on-error={}
+:do { /interface l2tp-client remove [find name="${ifaceName}"] } on-error={}
+:do { /interface l2tp-client remove [find name="l2tp-${safeLabel}"] } on-error={}
+:do { /interface l2tp-client remove [find name="l2tp-client-EugineBill"] } on-error={}
+:do { /user remove [find name="${safeApiUsername}"] } on-error={}
+:do { /user remove [find comment~"EugineBill"] } on-error={}
+
+# 1. Profile PPP Khusus VPN Remote (MSS Clamping & Tanpa MPPE Encryption)
+:if ([:len [/ppp profile find name="ebvpn-remote"]] = 0) do={/ppp profile add name=ebvpn-remote use-encryption=no change-tcp-mss=yes only-one=no}
+
+# 2. Setup L2TP Client (UltraVPN Standard)
+/interface l2tp-client add name=${ifaceName} connect-to=${credentials.server} user=${credentials.username} password="${credentials.password}" profile=ebvpn-remote use-ipsec=no allow=chap,mschap2 disabled=no add-default-route=no dial-on-demand=no comment="euginebill-${credentials.username}"
+
+# 3. Buat API & Winbox User Group & User
+:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="API & Winbox Access Group" } on-error={}
+/user add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
+
+# 4. Konfigurasi Port Layanan MikroTik Aktif & Bebas Restriksi IP (Universal ROS 6 & 7)
+:do { /ip service set winbox port=${winboxTarget} address="" disabled=no } on-error={}
+:do { /ip service set api port=${apiTarget} address="" disabled=no } on-error={}
+:do { /ip service set www port=${wwwTarget} address="" disabled=no } on-error={}
+:do { /ip service set ssh address="" disabled=no } on-error={}
+
+# 5. Izinkan Akses Masuk VPN di Baris Teratas Firewall Filter MikroTik
+:do { /ip firewall filter add chain=input action=accept in-interface=${ifaceName} place-before=0 comment="Allow EugineBill VPN Remote Access" } on-error={}
+
+# ============================================================
+# PANDUAN PENGGUNAAN:
+# 1. Remote Winbox  : Buka Winbox -> Connect To: ${vpsIp}:${winboxPort} (Login: ${safeApiUsername} / Pass: ${safeApiPassword} atau Admin Anda)
+# 2. Remote WebFig  : Buka Browser -> http://${vpsIp}:${wwwPort}
+# 3. Pengaturan NAS di EugineBill:
+#    - Host IP : ${credentials.vpnIp} (atau ${vpsIp})
+#    - API Port: ${apiTarget} (atau ${apiPort})
+#    - Username: ${safeApiUsername}
+#    - Password: ${safeApiPassword}
+# ============================================================`.trim()
+    }
+
     const scriptBase = (vpnCmd: string, iface: string) => {
-      const safeApiUsername = credentials.apiUsername || `api-${credentials.vpnIp?.replace(/\./g, '-')}`
-      const safeApiPassword = credentials.apiPassword || 'EugineBillApi123!'
-      const vpsIp = credentials.vpsPublicIp || credentials.serverHost || credentials.server || 'VPS_IP'
-      const ports = credentials.publicPorts?.services || {}
-      const winboxPort = ports.winbox?.public || credentials.winboxPort || 10001
-      const winboxTarget = ports.winbox?.target || 8291
-      const apiPort = ports.api?.public || 10002
-      const apiTarget = ports.api?.target || 8728
-      const wwwPort = ports.www?.public || 10004
-      const wwwTarget = ports.www?.target || 80
-      const sshPort = ports.ssh?.public || 10006
-      const sshTarget = ports.ssh?.target || 22
-      const nasDisplayName = credentials.nasName || credentials.username
       const ifaceName = toSafeIfaceName(iface.replace('-client', ''), nasDisplayName)
       return `# ============================================================
 # MikroTik VPN Client Setup Script
@@ -853,17 +930,16 @@ export default function VpnClientPage() {
 /user add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
 
 # 3. Setup ${(selectedVpnType as string).toUpperCase()} Client
-/interface ${iface}
-${vpnCmd}
+/interface ${iface} ${vpnCmd}
 
-# 4. Pastikan Port Layanan MikroTik Aktif & Bebas Restriksi IP
-:do { /ip/service/set winbox port=${winboxTarget} address="" disabled=no } on-error={}
-:do { /ip/service/set api port=${apiTarget} address="" disabled=no } on-error={}
-:do { /ip/service/set www port=${wwwTarget} address="" disabled=no } on-error={}
-:do { /ip/service/set ssh address="" disabled=no } on-error={}
+# 4. Pastikan Port Layanan MikroTik Aktif & Bebas Restriksi IP (Universal ROS 6 & 7)
+:do { /ip service set winbox port=${winboxTarget} address="" disabled=no } on-error={}
+:do { /ip service set api port=${apiTarget} address="" disabled=no } on-error={}
+:do { /ip service set www port=${wwwTarget} address="" disabled=no } on-error={}
+:do { /ip service set ssh address="" disabled=no } on-error={}
 
 # 5. Izinkan Akses Masuk VPN di Baris Teratas Firewall Filter MikroTik
-:do { /ip/firewall/filter/add chain=input action=accept in-interface=${ifaceName} place-before=0 comment="Allow EugineBill VPN Remote Access" } on-error={}
+:do { /ip firewall filter add chain=input action=accept in-interface=${ifaceName} place-before=0 comment="Allow EugineBill VPN Remote Access" } on-error={}
 
 # ============================================================
 # PANDUAN PENGGUNAAN:
@@ -877,14 +953,7 @@ ${vpnCmd}
 # ============================================================`.trim()
     }
 
-    const nasDisplayName = credentials.nasName || credentials.username
-    const l2tpIpsecSecret = credentials.ipsecPsk || 'EugineBill-vpn-secret'
-    if (selectedVpnType === 'l2tp') {
-      return scriptBase(
-        `add connect-to=${credentials.server} user=${credentials.username} password="${credentials.password}" disabled=no name=${toSafeIfaceName('l2tp', nasDisplayName)} use-ipsec=yes ipsec-secret="${l2tpIpsecSecret}" add-default-route=no allow=mschap2 comment="EugineBill VPN"`,
-        'l2tp-client'
-      )
-    } else if (selectedVpnType === 'sstp') {
+    if (selectedVpnType === 'sstp') {
       return scriptBase(
         `add connect-to=${credentials.server} port=992 user=${credentials.username} password=${credentials.password} disabled=no name=${toSafeIfaceName('sstp', nasDisplayName)} add-default-route=no authentication=mschap2 certificate=none comment="EugineBill VPN"`,
         'sstp-client'
@@ -1902,10 +1971,36 @@ ${vpnCmd}
 
                 {/* MikroTik Script */}
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                     <p className="text-sm font-medium text-[#00f7ff] uppercase tracking-wider">
                       {t('network.mikrotikConfigScript')}
                     </p>
+                    {selectedVpnType === 'l2tp' && (
+                      <div className="flex items-center gap-1.5 bg-slate-800/90 p-1 rounded-lg border border-slate-700 self-start sm:self-auto">
+                        <button
+                          type="button"
+                          onClick={() => setScriptMode('full')}
+                          className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all ${
+                            scriptMode === 'full'
+                              ? 'bg-[#bc13fe] text-white shadow-sm font-semibold'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          Script Lengkap (+Port & User)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScriptMode('quick')}
+                          className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all ${
+                            scriptMode === 'quick'
+                              ? 'bg-[#00f7ff] text-slate-950 font-bold shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          Script Singkat (UltraVPN Standard)
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <pre className="p-5 bg-gray-100 dark:bg-slate-950 text-green-700 dark:text-green-400 border border-[#bc13fe]/30 rounded-xl text-xs overflow-auto max-h-80 whitespace-pre font-mono">
                     {generateMikroTikScript()}

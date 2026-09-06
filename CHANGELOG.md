@@ -4,6 +4,33 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.7] — 2026-09-06
+### Added & Improved
+- **Standardisasi Generator Script MikroTik L2TP Client Mengadopsi Arsitektur UltraVPN**:
+  - *Context / User Request*:
+    Koneksi VPN L2TP MikroTik sebelumnya dirasa kurang handal dan sering mengalami kegagalan koneksi atau macet pada remote Winbox. Pengguna meminta arsitektur generator script L2TP disesuaikan dengan pola script UltraVPN (`vpn.billinghub.id`) yang terbukti stabil dan handal di lapangan, dengan tetap mempertahankan alokasi port publik remote, user API, dan firewall rules milik EugineBill.
+  - *Root Causes*:
+    1. Script lama memaksakan `use-ipsec=yes` dengan PSK acak kompleks, menyebabkan kegagalan negosiasi IKE (UDP 500) dan NAT-T (UDP 4500) di belakang CGNAT dan modem ISP.
+    2. Ketiadaan profil PPP khusus menyebabkan tidak adanya TCP MSS Clamping (`change-tcp-mss=yes`), sehingga paket TCP besar terfragmentasi dan Winbox/WebFig macet/freeze.
+    3. Autentikasi hanya mengizinkan `allow=mschap2` dan ketiadaan `dial-on-demand=no`.
+    4. Perintah terbagi dalam sub-menu `/interface l2tp-client` dan sintaks slash ROS 7 (`/ip/service/set`) yang rawan gagal pada RouterOS 6.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Formula Handal UltraVPN**:
+       - Beralih ke Pure L2TP (`use-ipsec=no`) yang hanya memerlukan port UDP 1701, tembus 100% di semua ISP, modem GPON/EPON, dan CGNAT seluler.
+       - Pembuatan otomatis PPP profile `ebvpn-remote` dengan parameter `use-encryption=no change-tcp-mss=yes only-one=no` untuk mencegah fragmentasi paket dan koneksi macet.
+       - Autentikasi universal `allow=chap,mschap2` dan `dial-on-demand=no` agar tunnel aktif 24 jam nonstop.
+       - Pembersihan idempoten aman terbungkus `:do { ... remove [find ...] } on-error={}`.
+    2. **Integrasi Penuh Remote Port & User EugineBill**:
+       - Konfigurasi port remote MikroTik (Winbox, API, WebFig, SSH) menggunakan sintaks universal spasi (`/ip service set ...`).
+       - Pembuatan grup dan user API/Winbox secara otomatis.
+       - Firewall filter input di baris paling atas (`place-before=0`) untuk mengizinkan trafik masuk dari interface VPN `ebl2-...`.
+    3. **Dukungan Dua Mode di Antarmuka Modal Admin (`src/app/admin/network/vpn-client/page.tsx`)**:
+       - **Script Lengkap (+Port & User)**: Menghasilkan konfigurasi penuh VPN + Port Remote + User API + Firewall.
+       - **Script Singkat (UltraVPN Standard)**: Menyediakan pilihan 5 baris script koneksi VPN murni yang persis seperti template UltraVPN.
+    4. **Sinkronisasi Generator API Endpoint**:
+       - Memperbarui `src/app/api/network/vpn-client/route.ts` dan `src/app/api/network/vps-l2tp-peer/route.ts` agar konsisten menghasilkan format UltraVPN standard.
+  - *Files*: `src/app/admin/network/vpn-client/page.tsx`, `src/app/api/network/vpn-client/route.ts`, `src/app/api/network/vps-l2tp-peer/route.ts`, `CHANGELOG.md`
+
 ## [2.37.6] — 2026-09-06
 ### Fixed & Hardened
 - **Perbaikan Pelanggan Sudah Bayar (Masa Aktif Oktober) Muncul di Filter "Belum Bayar" & Skrip Audit Menyeluruh**:

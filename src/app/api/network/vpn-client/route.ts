@@ -439,11 +439,67 @@ ${radiusSection}
 # /ip address print where interface=wg0-EugineBill
 # ============================================
 `.trim()
+    } else if (vpnType === 'l2tp') {
+      const safeLabel = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 12) || 'vpn'
+      const ifaceName = `ebl2-${safeLabel}`
+      nasSetupScript = `
+# ============================================
+# EugineBill L2TP VPN Client Setup Script (UltraVPN Standard)
+# NAS: ${name}
+# VPN Server: ${vpnServer.host}
+# VPN IP: ${vpnIp}
+# Generated: ${new Date().toISOString()}
+# ============================================
+
+# --- STEP 0: Hapus konfigurasi lama jika ada ---
+:do { /interface l2tp-client remove [find comment="euginebill-${username}"] } on-error={}
+:do { /interface l2tp-client remove [find comment~"EugineBill"] } on-error={}
+:do { /interface l2tp-client remove [find name="${ifaceName}"] } on-error={}
+:do { /interface l2tp-client remove [find name="l2tp-${safeLabel}"] } on-error={}
+:do { /interface l2tp-client remove [find name="l2tp-client-EugineBill"] } on-error={}
+:do { /user remove [find name="${apiUsername}"] } on-error={}
+:do { /user remove [find comment~"EugineBill"] } on-error={}
+
+# --- STEP 1: Profile PPP Khusus VPN Remote (MSS Clamping & Tanpa MPPE Encryption) ---
+:if ([:len [/ppp profile find name="ebvpn-remote"]] = 0) do={/ppp profile add name=ebvpn-remote use-encryption=no change-tcp-mss=yes only-one=no}
+
+# --- STEP 2: Setup L2TP Client (UltraVPN Standard) ---
+/interface l2tp-client add name=${ifaceName} connect-to=${vpnServer.host} user=${username} password="${password}" profile=ebvpn-remote use-ipsec=no allow=chap,mschap2 disabled=no add-default-route=no dial-on-demand=no comment="euginebill-${username}"
+
+# --- STEP 3: Create API & Winbox User Group & User ---
+:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="API & Winbox Access Group" } on-error={}
+/user add name=${apiUsername} group=api-users password="${apiPassword}" comment="API & Winbox User EugineBill"
+
+# --- STEP 4: Konfigurasi Port Layanan MikroTik Aktif & Bebas Restriksi IP ---
+:do { /ip service set winbox port=8291 address="" disabled=no } on-error={}
+:do { /ip service set api port=8728 address="" disabled=no } on-error={}
+:do { /ip service set www port=80 address="" disabled=no } on-error={}
+:do { /ip service set ssh address="" disabled=no } on-error={}
+
+# --- STEP 5: Izinkan Akses Masuk VPN di Baris Teratas Firewall Filter MikroTik ---
+:do { /ip firewall filter add chain=input action=accept in-interface=${ifaceName} place-before=0 comment="Allow EugineBill VPN Remote Access" } on-error={}
+
+# --- STEP 6: Tunggu koneksi (5 detik) ---
+:delay 5s
+
+# --- STEP 7: Verifikasi koneksi VPN ---
+:if ([/interface l2tp-client get [find name="${ifaceName}"] running] = true) do={
+    :put "VPN Connected! IP: ${vpnIp}"
+} else={
+    :put "VPN belum terkoneksi, cek log: /log print where topics~\\\"l2tp\\\""
+}
+${radiusSection}
+
+# ============================================
+# SELESAI! Verifikasi:
+# /interface l2tp-client print
+# /radius print
+# /ip firewall filter print where comment~"EugineBill"
+# ============================================
+`.trim()
     } else {
       const vpnTypeUpper = vpnType.toUpperCase()
-      const interfaceType = vpnType === 'pptp' ? 'pptp-client' : vpnType === 'sstp' ? 'sstp-client' : 'l2tp-client'
-      const ipsecLine = vpnType === 'l2tp' ? ' use-ipsec=yes ipsec-secret=EugineBill-vpn-secret' : ''
-      const authLine = vpnType === 'l2tp' ? ' allow=mschap2' : ' authentication=mschap2'
+      const interfaceType = vpnType === 'pptp' ? 'pptp-client' : 'sstp-client'
       const portLine = vpnType === 'sstp' ? ' port=992' : ''
 
       nasSetupScript = `
@@ -462,7 +518,7 @@ ${radiusSection}
 /user add name=${apiUsername} group=api-users password=${apiPassword} comment="API & Winbox User EugineBill"
 
 # --- STEP 3: Setup ${vpnTypeUpper} Client ---
-/interface ${interfaceType} add name=${interfaceType}-EugineBill connect-to=${vpnServer.host} user=${username} password=${password}${ipsecLine}${portLine} disabled=no${authLine} add-default-route=no comment="EugineBill VPN"
+/interface ${interfaceType} add name=${interfaceType}-EugineBill connect-to=${vpnServer.host} user=${username} password=${password}${portLine} disabled=no authentication=mschap2 add-default-route=no comment="EugineBill VPN"
 
 # --- STEP 4: Tunggu koneksi (10 detik) ---
 :delay 10s

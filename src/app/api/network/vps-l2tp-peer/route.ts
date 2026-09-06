@@ -387,7 +387,7 @@ export async function PATCH(req: NextRequest) {
 
 function toL2tpIfaceName(label: string): string {
   const safe = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 11)
-  return `vpn-${safe || 'vpn'}`
+  return `ebl2-${safe || 'vpn'}`
 }
 
 function generateL2tpScript({ serverIp, username, password, ipsecPsk, vpnIp, label, apiPassword, publicPorts, vpsPublicIp }: {
@@ -401,54 +401,78 @@ function generateL2tpScript({ serverIp, username, password, ipsecPsk, vpnIp, lab
   publicPorts?: { blockStart: number; services: Record<string, { public: number; target: number }> }
   vpsPublicIp?: string
 }): string {
-  const ifaceName = toL2tpIfaceName(label)
-  const safeApiUser = `api-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 16)}`
+  const safe = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 11)
+  const ifaceName = `ebl2-${safe || 'vpn'}`
+  const safeApiUser = `api-${safe.slice(0, 16) || 'vpn'}`
   const safeApiPass = apiPassword || 'EugineBillApi123!'
+  const vpsHost = vpsPublicIp || serverIp
 
-  // Bangun info port forwarding jika tersedia
-  let portInfo = ''
-  if (publicPorts && vpsPublicIp) {
-    const svc = publicPorts.services
-    const lines = []
-    if (svc.winbox)  lines.push(`# Winbox  : ${vpsPublicIp}:${svc.winbox.public}  (→ MikroTik:${svc.winbox.target})`)
-    if (svc.api)     lines.push(`# API     : ${vpsPublicIp}:${svc.api.public}  (→ MikroTik:${svc.api.target})`)
-    if (svc.apiSsl)  lines.push(`# API-SSL : ${vpsPublicIp}:${svc.apiSsl.public}  (→ MikroTik:${svc.apiSsl.target})`)
-    if (svc.www)     lines.push(`# WWW     : ${vpsPublicIp}:${svc.www.public}  (→ MikroTik:${svc.www.target})`)
-    if (svc.wwwSsl)  lines.push(`# WWW-SSL : ${vpsPublicIp}:${svc.wwwSsl.public}  (→ MikroTik:${svc.wwwSsl.target})`)
-    if (svc.ssh)     lines.push(`# SSH     : ${vpsPublicIp}:${svc.ssh.public}  (→ MikroTik:${svc.ssh.target})`)
-    portInfo = lines.length > 0 ? '\n' + lines.join('\n') : ''
-  }
+  const svc = publicPorts?.services || {}
+  const winboxPort = svc.winbox?.public || 10001
+  const winboxTarget = svc.winbox?.target || 8291
+  const apiPort = svc.api?.public || 10002
+  const apiTarget = svc.api?.target || 8728
+  const wwwPort = svc.www?.public || 10004
+  const wwwTarget = svc.www?.target || 80
+  const sshPort = svc.ssh?.public || 10006
+  const sshTarget = svc.ssh?.target || 22
 
-  // PENTING: Gunakan syntax spasi RouterOS 6 (bukan slash "/" RouterOS 7)
-  return `# ═══════════════════════════════════════════════════════
-# EugineBill — Script L2TP/IPsec ke VPS (RouterOS 6)
-# Server VPS : ${serverIp}
-# NAS IP VPN : ${vpnIp}
-# Interface  : ${ifaceName}
-# ═══════════════════════════════════════════════════════
+  return `# ============================================================
+# MikroTik L2TP VPN Client Setup Script (UltraVPN Standard)
+# NAS Name    : ${label}
+# NAS VPN IP  : ${vpnIp}
+# VPN Server  : ${vpsHost}
+#
+# ────────────────────────────────────────────────────────────
+# ALOKASI REMOTE AKSES PUBLIK (Akses dari Internet / Luar):
+# Host VPS    : ${vpsHost}
+# Winbox Port : ${vpsHost}:${winboxPort} -> MikroTik:${winboxTarget}
+# WebGUI Port : http://${vpsHost}:${wwwPort} -> MikroTik:${wwwTarget}
+# API Port    : ${vpsHost}:${apiPort} -> MikroTik:${apiTarget}
+# SSH Port    : ${vpsHost}:${sshPort} -> MikroTik:${sshTarget}
+#
+# KREDENSIAL REMOTE MIKROTIK (Khusus Sistem EugineBill & Winbox):
+# API & Winbox Username: ${safeApiUser}
+# API & Winbox Password: ${safeApiPass}
+# ============================================================
 
-# [0] Hapus setup lama jika ada (mencegah error duplicate / sisa config)
-:do { /interface l2tp-client remove [find where comment~"EugineBill" or name="${ifaceName}" or connect-to="${serverIp}"] } on-error={}
-:do { /ip route remove [find where comment~"EugineBill"] } on-error={}
-:do { /user remove [find where comment~"EugineBill" or name="${safeApiUser}"] } on-error={}
+# 0. Hapus konfigurasi lama jika ada (Idempoten & Bebas Error)
+:do { /interface l2tp-client remove [find comment="euginebill-${username}"] } on-error={}
+:do { /interface l2tp-client remove [find comment~"EugineBill"] } on-error={}
+:do { /interface l2tp-client remove [find name="${ifaceName}"] } on-error={}
+:do { /interface l2tp-client remove [find name="vpn-${safe}"] } on-error={}
+:do { /interface l2tp-client remove [find name="l2tp-${safe}"] } on-error={}
+:do { /interface l2tp-client remove [find name="l2tp-client-EugineBill"] } on-error={}
+:do { /user remove [find name="${safeApiUser}"] } on-error={}
+:do { /user remove [find comment~"EugineBill"] } on-error={}
 
-# [1] Tambah interface L2TP Client ke VPS
-/interface l2tp-client add name=${ifaceName} connect-to=${serverIp} user="${username}" password="${password}" use-ipsec=yes ipsec-secret="${ipsecPsk}" profile=default-encryption add-default-route=no disabled=no comment="EugineBill VPN"
+# 1. Profile PPP Khusus VPN Remote (MSS Clamping & Tanpa MPPE Encryption)
+:if ([:len [/ppp profile find name="ebvpn-remote"]] = 0) do={/ppp profile add name=ebvpn-remote use-encryption=no change-tcp-mss=yes only-one=no}
 
-# [2] Buat API & Winbox User untuk remote management
-:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="EugineBill API & Winbox Group" } on-error={}
+# 2. Setup L2TP Client (UltraVPN Standard)
+/interface l2tp-client add name=${ifaceName} connect-to=${vpsHost} user="${username}" password="${password}" profile=ebvpn-remote use-ipsec=no allow=chap,mschap2 disabled=no add-default-route=no dial-on-demand=no comment="euginebill-${username}"
+
+# 3. Buat API & Winbox User Group & User
+:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="API & Winbox Access Group" } on-error={}
 /user add name=${safeApiUser} group=api-users password="${safeApiPass}" comment="API & Winbox User EugineBill"
 
-# ═══════════════════════════════════════════════════════
-# INFO AKSES REMOTE (dari luar jaringan):
-# API & Winbox Username: ${safeApiUser}
-# API & Winbox Password: ${safeApiPass}${portInfo}
-#
-# LANGKAH SELANJUTNYA:
-# 1. Pergi ke menu Routers/NAS di dashboard
-# 2. Pilih router ini → klik tombol Setup RADIUS (ikon sinyal)
-# 3. Copy dan paste script RADIUS ke terminal MikroTik
-# 4. Setelah RADIUS selesai → klik tombol Setup Isolir (ikon gembok)
-# ═══════════════════════════════════════════════════════
-`
+# 4. Konfigurasi Port Layanan MikroTik Aktif & Bebas Restriksi IP (Universal ROS 6 & 7)
+:do { /ip service set winbox port=${winboxTarget} address="" disabled=no } on-error={}
+:do { /ip service set api port=${apiTarget} address="" disabled=no } on-error={}
+:do { /ip service set www port=${wwwTarget} address="" disabled=no } on-error={}
+:do { /ip service set ssh address="" disabled=no } on-error={}
+
+# 5. Izinkan Akses Masuk VPN di Baris Teratas Firewall Filter MikroTik
+:do { /ip firewall filter add chain=input action=accept in-interface=${ifaceName} place-before=0 comment="Allow EugineBill VPN Remote Access" } on-error={}
+
+# ============================================================
+# PANDUAN PENGGUNAAN:
+# 1. Remote Winbox  : Buka Winbox -> Connect To: ${vpsHost}:${winboxPort} (Login: ${safeApiUser} / Pass: ${safeApiPass} atau Admin Anda)
+# 2. Remote WebFig  : Buka Browser -> http://${vpsHost}:${wwwPort}
+# 3. Pengaturan NAS di EugineBill:
+#    - Host IP : ${vpnIp} (atau ${vpsHost})
+#    - API Port: ${apiTarget} (atau ${apiPort})
+#    - Username: ${safeApiUser}
+#    - Password: ${safeApiPass}
+# ============================================================`.trim()
 }
