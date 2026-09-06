@@ -175,11 +175,11 @@ ms-dns 8.8.8.8
 ms-dns 8.8.4.4
 noccp
 auth
-mtu 1280
-mru 1280
+require-chap
+refuse-pap
+mtu 1450
+mru 1450
 nodefaultroute
-persist
-lock
 proxyarp
 connect-delay 5000
 # LCP keepalive

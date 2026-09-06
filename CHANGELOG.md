@@ -19,15 +19,17 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
        - Beralih ke Pure L2TP (`use-ipsec=no`) yang hanya memerlukan port UDP 1701, tembus 100% di semua ISP, modem GPON/EPON, dan CGNAT seluler.
        - Pembuatan otomatis PPP profile `ebvpn-remote` dengan parameter `use-encryption=no change-tcp-mss=yes only-one=no` untuk mencegah fragmentasi paket dan koneksi macet.
        - Autentikasi universal `allow=chap,mschap2` dan `dial-on-demand=no` agar tunnel aktif 24 jam nonstop.
-       - Pembersihan idempoten aman terbungkus `:do { ... remove [find ...] } on-error={}`.
     2. **Integrasi Penuh Remote Port & User EugineBill**:
        - Konfigurasi port remote MikroTik (Winbox, API, WebFig, SSH) menggunakan sintaks universal spasi (`/ip service set ...`).
        - Pembuatan grup dan user API/Winbox secara otomatis.
        - Firewall filter input di baris paling atas (`place-before=0`) untuk mengizinkan trafik masuk dari interface VPN `ebl2-...`.
-    3. **Dukungan Dua Mode di Antarmuka Modal Admin (`src/app/admin/network/vpn-client/page.tsx`)**:
+    3. **Perbaikan Opsi `pppd` Server (`/etc/ppp/options.xl2tpd.server`)**:
+       - Menghapus opsi `lock` dan `persist` yang tidak dikenali oleh `pppd` versi modern pada koneksi L2TP (menyebabkan error `unrecognized option 'lock'` dan exit code 2).
+       - Menyesuaikan MTU/MRU ke 1450 dan menambahkan `require-chap refuse-pap`.
+    4. **Dukungan Dua Mode di Antarmuka Modal Admin (`src/app/admin/network/vpn-client/page.tsx`)**:
        - **Script Lengkap (+Port & User)**: Menghasilkan konfigurasi penuh VPN + Port Remote + User API + Firewall.
        - **Script Singkat (UltraVPN Standard)**: Menyediakan pilihan 5 baris script koneksi VPN murni yang persis seperti template UltraVPN.
-    4. **Sinkronisasi Generator API Endpoint**:
+    5. **Sinkronisasi Generator API Endpoint**:
        - Memperbarui `src/app/api/network/vpn-client/route.ts` dan `src/app/api/network/vps-l2tp-peer/route.ts` agar konsisten menghasilkan format UltraVPN standard.
   - *Files*: `src/app/admin/network/vpn-client/page.tsx`, `src/app/api/network/vpn-client/route.ts`, `src/app/api/network/vps-l2tp-peer/route.ts`, `CHANGELOG.md`
 
