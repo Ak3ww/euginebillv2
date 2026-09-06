@@ -467,7 +467,10 @@ ${radiusSection}
 /interface l2tp-client add name=${ifaceName} connect-to=${vpnServer.host} user=${username} password="${password}" profile=ebvpn-remote use-ipsec=no allow=chap,mschap2 disabled=no add-default-route=no dial-on-demand=no comment="euginebill-${username}"
 
 # --- STEP 3: Create API & Winbox User Group & User ---
-:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="API & Winbox Access Group" } on-error={}
+:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh comment="API & Winbox Access Group" } on-error={}
+:do { /user group set [find name="api-users"] policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh } on-error={}
+:do { /user remove [find name="${apiUsername}"] } on-error={}
+:do { /user remove [find comment~"EugineBill"] } on-error={}
 /user add name=${apiUsername} group=api-users password="${apiPassword}" comment="API & Winbox User EugineBill"
 
 # --- STEP 4: Konfigurasi Port Layanan MikroTik Aktif & Bebas Restriksi IP ---
@@ -511,11 +514,12 @@ ${radiusSection}
 # Generated: ${new Date().toISOString()}
 # ============================================
 
-# --- STEP 1: Create API & Winbox User Group ---
-/user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="API & Winbox Access Group"
-
-# --- STEP 2: Create API & Winbox User ---
-/user add name=${apiUsername} group=api-users password=${apiPassword} comment="API & Winbox User EugineBill"
+# --- STEP 1: Create API & Winbox User Group & User ---
+:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh comment="API & Winbox Access Group" } on-error={}
+:do { /user group set [find name="api-users"] policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh } on-error={}
+:do { /user remove [find name="${apiUsername}"] } on-error={}
+:do { /user remove [find comment~"EugineBill"] } on-error={}
+/user add name=${apiUsername} group=api-users password="${apiPassword}" comment="API & Winbox User EugineBill"
 
 # --- STEP 3: Setup ${vpnTypeUpper} Client ---
 /interface ${interfaceType} add name=${interfaceType}-EugineBill connect-to=${vpnServer.host} user=${username} password=${password}${portLine} disabled=no authentication=mschap2 add-default-route=no comment="EugineBill VPN"

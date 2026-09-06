@@ -122,6 +122,8 @@ export async function POST(req: NextRequest) {
     const username = `nas-${label.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Math.random().toString(36).substring(2, 6)}`
     const password = generatePassword(16)
     const apiPassword = generatePassword(16)
+    const safeLabel = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 16) || 'vpn'
+    const apiUsername = `api-${safeLabel}`
     const vpnIp = await getNextAvailableIp(info.subnet || '10.201.0.0/24', info.poolStart ?? 10, info.poolEnd ?? 254)
 
     // Add to chap-secrets via helper script
@@ -197,6 +199,7 @@ export async function POST(req: NextRequest) {
       serverIp: info.publicIp || '',
       username,
       password,
+      apiUsername,
       ipsecPsk: info.ipsecPsk || '',
       vpnIp,
       label,
@@ -243,7 +246,7 @@ export async function POST(req: NextRequest) {
           vpnIp,
           username,
           password,
-          apiUsername: `api-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 16)}`,
+          apiUsername,
           apiPassword,
           vpnType: 'L2TP',
           publicPorts: publicPorts ? (publicPorts as any) : undefined,
@@ -253,6 +256,7 @@ export async function POST(req: NextRequest) {
           name: label,
           username,
           password,
+          apiUsername,
           apiPassword,
           publicPorts: publicPorts ? (publicPorts as any) : undefined,
           isActive: true,
@@ -266,6 +270,7 @@ export async function POST(req: NextRequest) {
       success: true,
       username,
       password,
+      apiUsername,
       apiPassword,
       vpnIp,
       ipsecPsk: info.ipsecPsk || '',
@@ -390,10 +395,11 @@ function toL2tpIfaceName(label: string): string {
   return `ebl2-${safe || 'vpn'}`
 }
 
-function generateL2tpScript({ serverIp, username, password, ipsecPsk, vpnIp, label, apiPassword, publicPorts, vpsPublicIp }: {
+function generateL2tpScript({ serverIp, username, password, apiUsername, ipsecPsk, vpnIp, label, apiPassword, publicPorts, vpsPublicIp }: {
   serverIp: string
   username: string
   password: string
+  apiUsername?: string
   ipsecPsk: string
   vpnIp: string
   label: string
@@ -401,9 +407,9 @@ function generateL2tpScript({ serverIp, username, password, ipsecPsk, vpnIp, lab
   publicPorts?: { blockStart: number; services: Record<string, { public: number; target: number }> }
   vpsPublicIp?: string
 }): string {
-  const safe = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 11)
-  const ifaceName = `ebl2-${safe || 'vpn'}`
-  const safeApiUser = `api-${safe.slice(0, 16) || 'vpn'}`
+  const safe = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 16) || 'vpn'
+  const ifaceName = `ebl2-${safe.slice(0, 11)}`
+  const safeApiUser = apiUsername || `api-${safe}`
   const safeApiPass = apiPassword || 'EugineBillApi123!'
   const vpsHost = vpsPublicIp || serverIp
 
@@ -453,7 +459,10 @@ function generateL2tpScript({ serverIp, username, password, ipsecPsk, vpnIp, lab
 /interface l2tp-client add name=${ifaceName} connect-to=${vpsHost} user="${username}" password="${password}" profile=ebvpn-remote use-ipsec=no allow=chap,mschap2 disabled=no add-default-route=no dial-on-demand=no comment="euginebill-${username}"
 
 # 3. Buat API & Winbox User Group & User
-:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="API & Winbox Access Group" } on-error={}
+:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh comment="API & Winbox Access Group" } on-error={}
+:do { /user group set [find name="api-users"] policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh } on-error={}
+:do { /user remove [find name="${safeApiUser}"] } on-error={}
+:do { /user remove [find comment~"EugineBill"] } on-error={}
 /user add name=${safeApiUser} group=api-users password="${safeApiPass}" comment="API & Winbox User EugineBill"
 
 # 4. Konfigurasi Port Layanan MikroTik Aktif & Bebas Restriksi IP (Universal ROS 6 & 7)

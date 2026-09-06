@@ -148,25 +148,29 @@ export async function addIptablesRules(
     const { public: publicPort, target: targetPort } = entry
 
     try {
-      // Cek PREROUTING DNAT rule
+      // 1. Bersihkan seluruh rule lama pada port publik ini (mencegah bentrok dengan IP zombie / sisa peer lama)
       await exec(
-        `iptables -t nat -C PREROUTING -p tcp --dport ${publicPort} -j DNAT --to-destination ${vpnIp}:${targetPort} 2>/dev/null` +
-        ` || iptables -t nat -A PREROUTING -p tcp --dport ${publicPort} -j DNAT --to-destination ${vpnIp}:${targetPort}`,
+        `iptables -t nat -S PREROUTING 2>/dev/null | grep -- "--dport ${publicPort} " | sed 's/^-A/-D/' | while read -r r; do iptables -t nat $r 2>/dev/null || true; done`,
         { shell: '/bin/bash' }
       )
-      // Cek FORWARD rule
+      // 2. Insert PREROUTING DNAT rule di posisi nomor 1 (paling atas)
+      await exec(
+        `iptables -t nat -I PREROUTING 1 -p tcp --dport ${publicPort} -j DNAT --to-destination ${vpnIp}:${targetPort}`,
+        { shell: '/bin/bash' }
+      )
+      // 3. Pastikan FORWARD rule ada
       await exec(
         `iptables -C FORWARD -p tcp -d ${vpnIp} --dport ${targetPort} -j ACCEPT 2>/dev/null` +
-        ` || iptables -A FORWARD -p tcp -d ${vpnIp} --dport ${targetPort} -j ACCEPT`,
+        ` || iptables -I FORWARD 1 -p tcp -d ${vpnIp} --dport ${targetPort} -j ACCEPT`,
         { shell: '/bin/bash' }
       )
-      // Cek POSTROUTING SNAT/MASQUERADE rule (Wajib agar return traffic kembali lewat tunnel VPN ke VPS)
+      // 4. Pastikan POSTROUTING SNAT/MASQUERADE rule ada
       await exec(
         `iptables -t nat -C POSTROUTING -p tcp -d ${vpnIp} --dport ${targetPort} -j MASQUERADE 2>/dev/null` +
-        ` || iptables -t nat -A POSTROUTING -p tcp -d ${vpnIp} --dport ${targetPort} -j MASQUERADE`,
+        ` || iptables -t nat -I POSTROUTING 1 -p tcp -d ${vpnIp} --dport ${targetPort} -j MASQUERADE`,
         { shell: '/bin/bash' }
       )
-      // Buka port publik di ufw jika tersedia
+      // 5. Buka port publik di ufw jika tersedia
       await exec(`ufw allow ${publicPort}/tcp 2>/dev/null || true`, { shell: '/bin/bash' })
     } catch {
       // Non-fatal: VPS mungkin tidak punya iptables (dev environment)

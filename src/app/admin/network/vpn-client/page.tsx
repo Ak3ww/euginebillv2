@@ -874,7 +874,10 @@ export default function VpnClientPage() {
 /interface l2tp-client add name=${ifaceName} connect-to=${credentials.server} user=${credentials.username} password="${credentials.password}" profile=ebvpn-remote use-ipsec=no allow=chap,mschap2 disabled=no add-default-route=no dial-on-demand=no comment="euginebill-${credentials.username}"
 
 # 3. Buat API & Winbox User Group & User
-:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="API & Winbox Access Group" } on-error={}
+:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh comment="API & Winbox Access Group" } on-error={}
+:do { /user group set [find name="api-users"] policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh } on-error={}
+:do { /user remove [find name="${safeApiUsername}"] } on-error={}
+:do { /user remove [find comment~"EugineBill"] } on-error={}
 /user add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
 
 # 4. Konfigurasi Port Layanan MikroTik Aktif & Bebas Restriksi IP (Universal ROS 6 & 7)
@@ -924,9 +927,12 @@ export default function VpnClientPage() {
 :do { /user remove [find where name="${safeApiUsername}" or comment~"EugineBill"] } on-error={}
 
 # 1. Create API & Winbox User Group
-:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox comment="API & Winbox Access Group" } on-error={}
+:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh comment="API & Winbox Access Group" } on-error={}
+:do { /user group set [find name="api-users"] policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh } on-error={}
 
 # 2. Create API & Winbox User
+:do { /user remove [find name="${safeApiUsername}"] } on-error={}
+:do { /user remove [find comment~"EugineBill"] } on-error={}
 /user add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
 
 # 3. Setup ${(selectedVpnType as string).toUpperCase()} Client

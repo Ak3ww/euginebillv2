@@ -31,7 +31,11 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
        - **Script Singkat (UltraVPN Standard)**: Menyediakan pilihan 5 baris script koneksi VPN murni yang persis seperti template UltraVPN.
     5. **Sinkronisasi Generator API Endpoint**:
        - Memperbarui `src/app/api/network/vpn-client/route.ts` dan `src/app/api/network/vps-l2tp-peer/route.ts` agar konsisten menghasilkan format UltraVPN standard.
-  - *Files*: `src/app/admin/network/vpn-client/page.tsx`, `src/app/api/network/vpn-client/route.ts`, `src/app/api/network/vps-l2tp-peer/route.ts`, `CHANGELOG.md`
+    6. **Pembersihan Otomatis Rule Zombie Port Forwarding (`src/lib/vpn-port-allocator.ts`)**:
+       - Sebelum mendaftarkan alokasi port forward baru, sistem menyapu dan menghapus seluruh rule lama pada `--dport ${publicPort}` serta menyisipkan rule baru di posisi nomor 1 (`-I PREROUTING 1`). Mencegah traffic Winbox tersangkut ke IP peer lama.
+    7. **Kebijakan Lengkap User Group Winbox & WebFig (`api-users`)**:
+       - Menambahkan permission `password,local,web,ssh` ke policy grup `api-users` agar MikroTik mengizinkan login Winbox & WebFig langsung dengan user yang digenerate sistem tanpa pesan "wrong username".
+  - *Files*: `src/app/admin/network/vpn-client/page.tsx`, `src/app/api/network/vpn-client/route.ts`, `src/app/api/network/vps-l2tp-peer/route.ts`, `src/lib/vpn-port-allocator.ts`, `vps-install/install-l2tp-server.sh`, `CHANGELOG.md`
 
 ## [2.37.6] — 2026-09-06
 ### Fixed & Hardened
