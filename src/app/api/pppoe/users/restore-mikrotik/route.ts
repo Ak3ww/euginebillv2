@@ -4,6 +4,23 @@ import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
 import { RouterOSAPI } from 'node-routeros';
 
+export const dynamic = 'force-dynamic';
+
+const EXCLUDED_STATUSES = new Set([
+  'stop', 'stopped', 'inactive', 'dismantled', 'dismantle',
+  'terminated', 'cancelled', 'pending', 'pending_installation'
+]);
+
+function isUserOffOrInactive(user: any) {
+  if (!user) return true;
+  if (user.isDismantled) return true;
+  const username = (user.username || '').toUpperCase();
+  if (username.includes('-OFF-') || username.includes('_OFF_') || username.includes('(OFF)')) return true;
+  const status = (user.status || '').toLowerCase().trim();
+  if (EXCLUDED_STATUSES.has(status)) return true;
+  return false;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -17,7 +34,7 @@ export async function POST(request: NextRequest) {
     const company = await prisma.company.findFirst();
     const isolateProfileName = company?.isolateProfileName || 'isolir';
 
-    // Force turn off RADIUS for PPPoE to ensure safe isolation
+    // Force turn off RADIUS for PPPoE to ensure safe local authentication
     await prisma.company.updateMany({
       data: {
         radiusPppoeEnabled: false,
@@ -37,26 +54,11 @@ export async function POST(request: NextRequest) {
       include: { router: true, profile: true },
     });
 
-    let radcheckUsers: any[] = [];
-    try {
-      radcheckUsers = await prisma.radcheck.findMany({
-        where: { attribute: { in: ['Cleartext-Password', 'User-Password'] } },
-      });
-    } catch {
-      // ignore
-    }
-
-    let radgroups: any[] = [];
-    try {
-      radgroups = await prisma.radusergroup.findMany();
-    } catch {
-      // ignore
-    }
-    const radGroupMap = new Map(radgroups.map(g => [g.username, g.groupname]));
-
     const results: any[] = [];
 
     for (const router of routers) {
+      const isCiteureupRouter = router.name.toLowerCase().includes('citeureup') || router.name.toLowerCase().includes('ctp');
+
       const apiHost = router.ipAddress || router.nasname;
       const apiPort = router.port || 8728;
 
@@ -86,37 +88,74 @@ export async function POST(request: NextRequest) {
           // ignore
         }
 
-        // 3. Existing secrets on MikroTik
+        // 3. Strict router filtering
+        const routerUsers = allUsers.filter(u => {
+          if (isCiteureupRouter) {
+            const rName = (u.router?.name || '').toLowerCase();
+            return rName.includes('citeureup') || u.routerId === router.id || u.username.toUpperCase().startsWith('EMGC');
+          } else {
+            const rName = (u.router?.name || '').toLowerCase();
+            if (rName.includes('citeureup')) return false;
+            if (u.username.toUpperCase().startsWith('EMGC')) return false;
+            return u.routerId === router.id || (!u.routerId && u.username.toUpperCase().startsWith('EMG'));
+          }
+        });
+
+        // 4. Exclude OFF users
+        const validUsers = routerUsers.filter(u => !isUserOffOrInactive(u));
+        const offUsers = routerUsers.filter(u => isUserOffOrInactive(u));
+        const offUsernameSet = new Set(offUsers.map(u => u.username.toLowerCase()));
+
+        // 5. Clean up spurious secrets
         const existingSecrets = await api.write('/ppp/secret/print');
-        const existingMap = new Map();
+        let removedCount = 0;
+
         for (const s of existingSecrets) {
-          if (s.name) existingMap.set(s.name.toLowerCase(), s);
+          const sNameUpper = (s.name || '').toUpperCase().trim();
+          const sNameLower = (s.name || '').toLowerCase().trim();
+
+          let shouldRemove = false;
+          if (isCiteureupRouter) {
+            if (sNameUpper.startsWith('EMG') && !sNameUpper.startsWith('EMGC')) shouldRemove = true;
+          } else {
+            if (sNameUpper.startsWith('EMGC')) shouldRemove = true;
+          }
+
+          if (sNameUpper.includes('-OFF-') || sNameUpper.includes('_OFF_') || sNameUpper.includes('(OFF)')) {
+            shouldRemove = true;
+          }
+          if (offUsernameSet.has(sNameLower)) {
+            shouldRemove = true;
+          }
+
+          if (shouldRemove) {
+            await api.write(['/ppp/secret/remove', `=.id=${s['.id']}`]);
+            removedCount++;
+          }
         }
 
-        const targetUsers = routers.length === 1 
-          ? allUsers 
-          : allUsers.filter(u => u.routerId === router.id || !u.routerId);
+        // 6. Refresh secrets & sync valid users
+        const freshSecrets = await api.write('/ppp/secret/print');
+        const secretMap = new Map();
+        for (const s of freshSecrets) {
+          if (s.name) secretMap.set(s.name.toLowerCase(), s);
+        }
 
         let createdCount = 0;
         let updatedCount = 0;
         let skippedCount = 0;
-        let errorCount = 0;
 
-        for (const user of targetUsers) {
+        for (const user of validUsers) {
           try {
             const username = user.username.trim();
             const password = user.password || '123456';
             const isIsolated = user.status === 'isolated';
-            const isSuspended = user.status === 'suspended' || user.status === 'stop';
-            
             const profileName = isIsolated 
               ? isolateProfileName 
               : (user.profile?.mikrotikProfileName || user.profile?.name || 'default');
+            const comment = `${user.name || ''} - ${user.customerId || ''}`.trim();
 
-            const comment = `${user.name || ''} - ${user.customerId || ''} [RESTORED]`.trim();
-            const disabledParam = isSuspended ? 'yes' : 'no';
-
-            const existing = existingMap.get(username.toLowerCase());
+            const existing = secretMap.get(username.toLowerCase());
 
             if (!existing) {
               const addParams = [
@@ -126,7 +165,7 @@ export async function POST(request: NextRequest) {
                 `=profile=${profileName}`,
                 '=service=pppoe',
                 `=comment=${comment}`,
-                `=disabled=${disabledParam}`,
+                '=disabled=no',
               ];
               if (user.ipAddress) {
                 addParams.push(`=remote-address=${user.ipAddress}`);
@@ -134,48 +173,27 @@ export async function POST(request: NextRequest) {
               await api.write(addParams);
               createdCount++;
             } else {
-              const needProfileUpdate = isIsolated ? (existing.profile !== isolateProfileName) : (existing.profile === isolateProfileName);
-              const needPasswordUpdate = existing.password !== password;
+              let needUpdate = false;
+              if (isIsolated && existing.profile !== isolateProfileName) {
+                needUpdate = true;
+              } else if (!isIsolated && existing.profile === isolateProfileName) {
+                needUpdate = true;
+              }
 
-              if (needProfileUpdate || needPasswordUpdate) {
+              if (needUpdate) {
                 await api.write([
                   '/ppp/secret/set',
                   `=.id=${existing['.id']}`,
-                  `=password=${password}`,
                   `=profile=${profileName}`,
-                  `=disabled=${disabledParam}`,
+                  '=disabled=no',
                 ]);
                 updatedCount++;
               } else {
                 skippedCount++;
               }
             }
-          } catch {
-            errorCount++;
-          }
-        }
-
-        // 4. Recover any users present in radcheck but missing from pppoeUser
-        const userDbSet = new Set(allUsers.map(u => u.username.toLowerCase()));
-        for (const rc of radcheckUsers) {
-          const rcUser = rc.username.trim();
-          if (!userDbSet.has(rcUser.toLowerCase()) && !existingMap.has(rcUser.toLowerCase())) {
-            try {
-              const rcPass = rc.value || '123456';
-              const rcGroup = radGroupMap.get(rcUser) || 'default';
-              await api.write([
-                '/ppp/secret/add',
-                `=name=${rcUser}`,
-                `=password=${rcPass}`,
-                `=profile=${rcGroup}`,
-                '=service=pppoe',
-                '=comment=Restored from FreeRADIUS radcheck',
-                '=disabled=no',
-              ]);
-              createdCount++;
-            } catch {
-              errorCount++;
-            }
+          } catch (uErr: any) {
+            console.error(`[Restore API] Failed user ${user.username}:`, uErr.message);
           }
         }
 
@@ -183,35 +201,31 @@ export async function POST(request: NextRequest) {
         await api.close();
 
         results.push({
-          routerId: router.id,
-          routerName: router.name,
-          success: true,
+          router: router.name,
+          ip: router.ipAddress,
           totalSecrets: finalSecrets.length,
-          restored: createdCount,
+          removedSpurious: removedCount,
+          created: createdCount,
           updated: updatedCount,
           skipped: skippedCount,
-          errors: errorCount,
+          success: true,
         });
-      } catch (err: any) {
+      } catch (rErr: any) {
         results.push({
-          routerId: router.id,
-          routerName: router.name,
+          router: router.name,
+          error: rErr.message,
           success: false,
-          error: err.message,
         });
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Proses pemulihan secret MikroTik selesai',
+      message: 'Pemulihan dan pembersihan secret MikroTik selesai dengan aman.',
       results,
     });
   } catch (error: any) {
-    console.error('[Restore MikroTik Secrets] Error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Gagal memulihkan secret ke MikroTik' },
-      { status: 500 }
-    );
+    console.error('[Restore Mikrotik API Error]:', error);
+    return NextResponse.json({ error: error.message || 'Internal error' }, { status: 500 });
   }
 }

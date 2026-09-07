@@ -4,6 +4,34 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.14] — 2026-09-07
+### Fixed & Hardened
+- **Pembersihan Total Secret Nyasar, Pemisahan Ketat Router Cibinong vs Citeureup, & Pencegahan User OFF Masuk MikroTik**:
+  - *Context / User Request*:
+    Pengguna mendapati bahwa eksekusi skrip pemulihan sebelumnya memasukkan secret router Citeureup (`EMGC*`) ke router Cibinong, memasukkan akun-akun bertanda `-OFF-` / non-aktif ke dalam secret MikroTik, serta mengubah profil pelanggan di router Citeureup menjadi `isolir` akibat looping radcheck tanpa isolasi router. Pengguna meminta secret Cibinong dipulihkan/dibersihkan secara utuh dan secret nyasar di Citeureup dibersihkan.
+  - *Root Cause Analysis*:
+    1. Skrip pemulihan sebelumnya melakukan iterasi pada tabel `radcheck` (FreeRADIUS) tanpa memeriksa keterikatan `routerId` / kepemilikan router masing-masing pelanggan. Akibatnya, ~180+ user Cibinong terinjeksi ke MikroTik Citeureup, dan 3 user Citeureup (`EMGCAKEW`, `EMGCF002`, `EMGC024`) terinjeksi ke Cibinong.
+    2. Data pelanggan yang sudah dinonaktifkan / dicabut (`isDismantled`, `status: stopped/inactive/dismantled/terminated`, atau berakhiran `-OFF-`) tidak difilter saat query dari database, sehingga 21 akun `-OFF-` masuk kembali ke dalam secret MikroTik dengan status disabled.
+    3. Pada router Citeureup, profil pelanggan terupdate ke `isolir` jika status di DB terisolir saat sinkronisasi tanpa memperhatikan status riil site.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Pembersihan Live Router 1 (Cibinong)**:
+       - 21 secret bertanda `-OFF-` (`EMG298-OFF-00db`, dll.) dan 3 secret nyasar Citeureup (`EMGCAKEW`, `EMGCF002`, `EMGC024`) langsung dihapus via API live.
+       - Total secret Cibinong kembali utuh tepat **377 secret**, dengan **360 sesi PPPoE aktif berjalan normal**. Tidak ada satupun secret pelanggan Cibinong asli yang hilang.
+    2. **Script Khusus Pembersihan & Pemulihan Citeureup (`scripts/cleanup-citeureup-secrets.js`)**:
+       - Secara otomatis menghapus seluruh secret Cibinong (`EMG*` tanpa `C`) dan secret FreeRADIUS nyasar dari MikroTik Citeureup.
+       - Mengembalikan profil ~35 pelanggan asli Citeureup (`EMGC*`) ke profil paket aslinya dari database.
+    3. **Script Khusus Cibinong (`scripts/restore-cibinong-secrets.js`)**:
+       - Hanya menargetkan router Cibinong, memfilter ketat seluruh user `stop`, `stopped`, `inactive`, `dismantled`, `cancelled`, `pending`, dan `-OFF-`.
+    4. **Hardening Global (`scripts/restore-all-secrets-to-mikrotik.js` & API `/api/pppoe/users/restore-mikrotik`)**:
+       - Menghilangkan sepenuhnya inject dari `radcheck` yang tidak ter-scope per router.
+       - Menambahkan pengecualian mutlak untuk status `EXCLUDED_STATUSES` dan pola username `-OFF-`.
+  - *Files*:
+    - `scripts/restore-cibinong-secrets.js`
+    - `scripts/cleanup-citeureup-secrets.js`
+    - `scripts/restore-all-secrets-to-mikrotik.js`
+    - `src/app/api/pppoe/users/restore-mikrotik/route.ts`
+    - `CHANGELOG.md`
+
 ## [2.37.13] — 2026-09-07
 ### Fixed & Hardened
 - **Hard Isolation MikroTik PPPoE dari RADIUS & Script Pemulihan Darurat Secret MikroTik**:
