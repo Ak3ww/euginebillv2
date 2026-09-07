@@ -39,12 +39,6 @@
         .code-input { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 18px; font-weight: 700; text-align: center; letter-spacing: 2px; text-transform: uppercase; }
         .btn-submit { width: 100%; height: 46px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .btn-submit:hover { background: var(--primary-hover); }
-        .btn-scan { width: 100%; height: 42px; background: #F8FAFC; color: var(--primary); border: 1.5px dashed #CBD5E1; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; margin-bottom: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
-        .btn-scan:hover { background: #EFF6FF; border-color: var(--primary); }
-        .scanner-view { display: none; margin-bottom: 14px; background: #000; border-radius: 10px; overflow: hidden; position: relative; }
-        .scanner-view video { width: 100%; height: 210px; object-fit: cover; display: block; }
-        .scanner-close { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.65); color: #fff; border: none; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; }
-        .scan-target { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140px; height: 140px; border: 2px solid #00F0FF; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4); }
         .error-banner { background: var(--danger-bg); border: 1px solid #FECACA; color: var(--danger); padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 14px; line-height: 1.4; display: flex; align-items: flex-start; gap: 8px; }
         .footer { padding: 14px 20px; background: #F8FAFC; border-top: 1px solid var(--border); text-align: center; font-size: 11px; color: var(--text-muted); }
         .footer strong { color: var(--primary); font-weight: 600; }
@@ -92,18 +86,6 @@
                 <button type="button" class="tab-btn" id="tab-member" onclick="setMode('member')">Member / Langganan</button>
             </div>
 
-            <!-- Kamera Scanner Container -->
-            <button type="button" class="btn-scan" id="btn-scan-qr" onclick="startScanner()">
-                <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M4 4h3v2H4v3H2V4a2 2 0 0 1 2-2zm16 0a2 2 0 0 1 2 2v3h-2V6h-3V4h3zM4 20h3v2H4a2 2 0 0 1-2-2v-3h2v3zm16 0v-3h2v3a2 2 0 0 1-2 2h-3v-2h3zM7 8h4v4H7zm6 0h4v4h-4zm-6 6h4v4H7zm6 0h4v4h-4z"/></svg>
-                <span>Scan Barcode di Kertas Struk</span>
-            </button>
-
-            <div class="scanner-view" id="scanner-view">
-                <video id="qr-video" playsinline></video>
-                <div class="scan-target"></div>
-                <button type="button" class="scanner-close" onclick="stopScanner()">Tutup Kamera</button>
-            </div>
-
             <form name="login" action="$(link-login-only)" method="post" $(if chap-id) onSubmit="return doLogin()" $(endif)>
                 <input type="hidden" name="dst" value="$(link-orig)" />
                 <input type="hidden" name="popup" value="true" />
@@ -146,8 +128,6 @@
 
     <script>
         var currentMode = 'voucher';
-        var videoStream = null;
-        var scanTimer = null;
 
         function setMode(mode) {
             currentMode = mode;
@@ -155,15 +135,13 @@
             document.getElementById('tab-member').className = 'tab-btn' + (mode === 'member' ? ' active' : '');
             document.getElementById('section-voucher').style.display = mode === 'voucher' ? 'block' : 'none';
             document.getElementById('section-member').style.display = mode === 'member' ? 'block' : 'none';
-            document.getElementById('btn-scan-qr').style.display = mode === 'voucher' ? 'flex' : 'none';
-            stopScanner();
         }
 
         function prepareSubmit() {
             if (currentMode === 'voucher') {
                 var code = document.getElementById('v-code').value.trim();
                 if (!code) {
-                    alert('Silakan masukkan atau scan kode voucher pada struk.');
+                    alert('Silakan masukkan kode voucher Anda.');
                     return false;
                 }
                 document.getElementById('real-user').value = code;
@@ -181,80 +159,25 @@
             return true;
         }
 
-        async function startScanner() {
-            var view = document.getElementById('scanner-view');
-            var video = document.getElementById('qr-video');
-            view.style.display = 'block';
-
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert('Kamera tidak didukung di browser ini. Silakan ketik kode voucher manual.');
-                view.style.display = 'none';
-                return;
-            }
-
-            try {
-                videoStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' }
-                });
-                video.srcObject = videoStream;
-                await video.play();
-
-                if ('BarcodeDetector' in window) {
-                    var detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39'] });
-                    scanTimer = setInterval(async function() {
-                        try {
-                            var barcodes = await detector.detect(video);
-                            if (barcodes.length > 0) {
-                                handleScannedText(barcodes[0].rawValue);
-                            }
-                        } catch(e) {}
-                    }, 250);
-                } else {
-                    console.log('BarcodeDetector awaiting stream.');
-                }
-            } catch (err) {
-                alert('Izin kamera ditolak atau kamera sedang digunakan aplikasi lain.');
-                stopScanner();
-            }
-        }
-
-        function stopScanner() {
-            if (scanTimer) clearInterval(scanTimer);
-            if (videoStream) {
-                videoStream.getTracks().forEach(function(t) { t.stop(); });
-                videoStream = null;
-            }
-            document.getElementById('scanner-view').style.display = 'none';
-        }
-
-        function handleScannedText(text) {
-            stopScanner();
-            var clean = text.trim();
-            try {
-                if (clean.indexOf('http') === 0) {
-                    var url = new URL(clean);
-                    clean = url.searchParams.get('username') || url.searchParams.get('code') || clean;
-                }
-            } catch(e) {}
-
-            document.getElementById('v-code').value = clean;
-            prepareSubmit();
-            setTimeout(function() {
-                if (typeof doLogin === 'function') {
-                    doLogin();
-                } else {
-                    document.login.submit();
-                }
-            }, 100);
-        }
-
         // Auto Login from Query Parameters
         (function() {
             try {
                 var p = new URLSearchParams(window.location.search);
-                var code = p.get('username') || p.get('code');
-                if (code) {
-                    document.getElementById('v-code').value = code;
+                var code = p.get('code');
+                var u = p.get('username');
+                var pass = p.get('password');
+
+                if (u && pass) {
+                    setMode('member');
+                    document.getElementById('m-user').value = u;
+                    document.getElementById('m-pass').value = pass;
+                    prepareSubmit();
+                    setTimeout(function() {
+                        if (typeof doLogin === 'function') doLogin();
+                        else document.login.submit();
+                    }, 250);
+                } else if (code || u) {
+                    document.getElementById('v-code').value = code || u;
                     prepareSubmit();
                     setTimeout(function() {
                         if (typeof doLogin === 'function') doLogin();
