@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useTranslation } from '@/hooks/useTranslation';
-import { Building2, Mail, Phone, MapPin, Globe, Save, Loader2, RotateCcw, Upload, ImageIcon, X as XIcon, MessageSquare } from 'lucide-react';
+import { Building2, Mail, Phone, MapPin, Globe, Save, Loader2, RotateCcw, Upload, ImageIcon, X as XIcon, MessageSquare, Wifi, Radio, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { useAppStore } from '@/lib/store';
 import { setCurrentTimezone } from '@/lib/timezone';
@@ -31,6 +31,8 @@ interface CompanySettings {
   footerAgent: string;
   invoiceGenerateDays: number;
   radiusEnabled: boolean;
+  radiusHotspotEnabled: boolean;
+  radiusPppoeEnabled: boolean;
   enableProrate: boolean;
   fixedBillingDate: number;
   shiftBillingDateIfLate: boolean;
@@ -59,6 +61,8 @@ export default function CompanySettingsPage() {
     footerAgent: '',
     invoiceGenerateDays: 7,
     radiusEnabled: false,
+    radiusHotspotEnabled: false,
+    radiusPppoeEnabled: false,
     enableProrate: true,
     fixedBillingDate: 6,
     shiftBillingDateIfLate: false,
@@ -71,6 +75,7 @@ export default function CompanySettingsPage() {
   const [saving, setSaving] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [resyncingVouchers, setResyncingVouchers] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -99,6 +104,8 @@ export default function CompanySettingsPage() {
             footerAgent: data.footerAgent || '',
             invoiceGenerateDays: data.invoiceGenerateDays || 7,
             radiusEnabled: data.radiusEnabled || false,
+            radiusHotspotEnabled: data.radiusHotspotEnabled || false,
+            radiusPppoeEnabled: data.radiusPppoeEnabled || false,
             enableProrate: data.enableProrate ?? true,
             fixedBillingDate: data.fixedBillingDate || 6,
             shiftBillingDateIfLate: data.shiftBillingDateIfLate ?? false,
@@ -137,6 +144,42 @@ export default function CompanySettingsPage() {
     } finally {
       setUploadingLogo(false);
       e.target.value = '';
+    }
+  };
+
+  const handleResyncVouchers = async () => {
+    setResyncingVouchers(true);
+    try {
+      const res = await fetch('/api/hotspot/voucher/resync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: 'all' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        addToast({
+          type: 'success',
+          title: 'Sinkronisasi Berhasil',
+          description: data.message,
+          duration: 6000,
+        });
+      } else {
+        addToast({
+          type: 'error',
+          title: 'Sinkronisasi Gagal',
+          description: data.error || 'Gagal sinkronkan voucher',
+          duration: 6000,
+        });
+      }
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Error',
+        description: err.message || 'Gagal menghubungi server',
+        duration: 6000,
+      });
+    } finally {
+      setResyncingVouchers(false);
     }
   };
 
@@ -478,7 +521,7 @@ export default function CompanySettingsPage() {
                 
                 <div>
                   <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
-                    🗓️ Tanggal Jatuh Tempo Tetap
+                    Tanggal Jatuh Tempo Tetap
                   </label>
                   <input
                     type="number"
@@ -494,36 +537,118 @@ export default function CompanySettingsPage() {
                 </div>
               </div>
 
-              {/* RADIUS Settings */}
-              <div className="flex flex-col bg-card border border-border p-3 rounded-lg mt-3">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.radiusEnabled}
-                    onChange={(e) => setSettings({ ...settings, radiusEnabled: e.target.checked })}
-                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"
-                  />
-                  <span className="text-[12px] font-medium text-foreground">Aktifkan Add-on RADIUS (Opsional)</span>
-                </label>
-                <p className="mt-1 text-[10px] text-muted-foreground ml-6">
-                  Sistem beroperasi utama menggunakan <b>MikroTik Direct API</b> (/ppp/secret). Aktifkan opsi ini hanya jika Anda menggunakan server FreeRADIUS sebagai lapisan autentikasi tambahan.
-                </p>
-                
-                {!settings.radiusEnabled && (
-                  <div className="mt-3 ml-6">
-                    <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
-                      Profile Isolir (MikroTik)
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.isolateProfileName}
-                      onChange={(e) => setSettings({ ...settings, isolateProfileName: e.target.value })}
-                      className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-background focus:ring-1 focus:ring-ring focus:border-primary"
-                      placeholder="Contoh: ISOLIR"
-                    />
-                    <p className="mt-1 text-[10px] text-muted-foreground">Nama PPPoE Profile di MikroTik untuk pelanggan terisolir</p>
+              {/* Granular Authentication: PPPoE & Hotspot */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                {/* 1. PPPoE Authentication */}
+                <div className="flex flex-col bg-card border border-border p-3.5 rounded-lg">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <Radio className="w-4 h-4 text-primary" />
+                      <span className="text-[12px] font-semibold text-foreground">Autentikasi PPPoE</span>
+                    </div>
+                    <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${
+                      settings.radiusPppoeEnabled 
+                        ? 'bg-purple-500/15 text-purple-500 border border-purple-500/30' 
+                        : 'bg-blue-500/15 text-blue-500 border border-blue-500/30'
+                    }`}>
+                      {settings.radiusPppoeEnabled ? 'FreeRADIUS' : 'MikroTik Local'}
+                    </span>
                   </div>
-                )}
+                  
+                  <label className="flex items-center gap-2 cursor-pointer mt-1">
+                    <input
+                      type="checkbox"
+                      checked={settings.radiusPppoeEnabled}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setSettings({ 
+                          ...settings, 
+                          radiusPppoeEnabled: checked,
+                          radiusEnabled: checked || settings.radiusHotspotEnabled 
+                        });
+                      }}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"
+                    />
+                    <span className="text-[12px] font-medium text-foreground">Gunakan FreeRADIUS untuk PPPoE</span>
+                  </label>
+                  
+                  <p className="mt-1 text-[10px] text-muted-foreground ml-6">
+                    {settings.radiusPppoeEnabled 
+                      ? 'Autentikasi PPPoE dialihkan ke database FreeRADIUS (radcheck/radreply).' 
+                      : 'Pelanggan PPPoE diautentikasi 100% langsung oleh MikroTik (/ppp/secret).'}
+                  </p>
+                  
+                  {!settings.radiusPppoeEnabled && (
+                    <div className="mt-3 ml-6 pt-2 border-t border-border">
+                      <label className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1">
+                        Profile Isolir (MikroTik)
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.isolateProfileName}
+                        onChange={(e) => setSettings({ ...settings, isolateProfileName: e.target.value })}
+                        className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-background focus:ring-1 focus:ring-ring focus:border-primary"
+                        placeholder="Contoh: ISOLIR"
+                      />
+                      <p className="mt-1 text-[10px] text-muted-foreground">Nama PPP Profile di MikroTik saat pelanggan diisolir</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Hotspot Voucher Authentication */}
+                <div className="flex flex-col bg-card border border-border p-3.5 rounded-lg justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <Wifi className="w-4 h-4 text-primary" />
+                        <span className="text-[12px] font-semibold text-foreground">Autentikasi Hotspot Voucher</span>
+                      </div>
+                      <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${
+                        settings.radiusHotspotEnabled 
+                          ? 'bg-purple-500/15 text-purple-500 border border-purple-500/30' 
+                          : 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                      }`}>
+                        {settings.radiusHotspotEnabled ? 'FreeRADIUS' : 'MikroTik Local'}
+                      </span>
+                    </div>
+
+                    <label className="flex items-center gap-2 cursor-pointer mt-1">
+                      <input
+                        type="checkbox"
+                        checked={settings.radiusHotspotEnabled}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setSettings({ 
+                            ...settings, 
+                            radiusHotspotEnabled: checked,
+                            radiusEnabled: checked || settings.radiusPppoeEnabled 
+                          });
+                        }}
+                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"
+                      />
+                      <span className="text-[12px] font-medium text-foreground">Gunakan FreeRADIUS untuk Hotspot</span>
+                    </label>
+
+                    <p className="mt-1 text-[10px] text-muted-foreground ml-6">
+                      {settings.radiusHotspotEnabled 
+                        ? 'Voucher diautentikasi FreeRADIUS dengan fail-safe otomatis ke lokal MikroTik.' 
+                        : 'Voucher disimpan dan diautentikasi langsung di MikroTik (/ip/hotspot/user).'}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 ml-6 pt-2 border-t border-border">
+                    <button
+                      type="button"
+                      onClick={handleResyncVouchers}
+                      disabled={resyncingVouchers}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-muted hover:bg-muted/80 text-foreground border border-border rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${resyncingVouchers ? 'animate-spin' : ''}`} />
+                      {resyncingVouchers ? 'Menyinkronkan...' : 'Sinkronkan Ulang Voucher ke MikroTik'}
+                    </button>
+                    <p className="mt-1 text-[10px] text-muted-foreground">Fail-safe: impor seluruh voucher aktif dari database ke MikroTik.</p>
+                  </div>
+                </div>
               </div>
 
               {/* Prefix ID Pelanggan */}

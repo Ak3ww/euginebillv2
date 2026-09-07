@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { useEffect, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
@@ -799,6 +799,9 @@ export default function HotspotVoucherPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Pilih target router agar voucher terkunci pada router tersebut dan tidak bisa digunakan di site lain.
+                      </p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">{t('nav.agent')}</Label>

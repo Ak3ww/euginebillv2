@@ -8,6 +8,7 @@ import { logActivity } from '@/server/services/activity-log.service';
 import {
   removeVoucherFromRadius,
 } from '@/server/services/radius/hotspot-sync.service';
+import { HotspotUserService } from '@/server/services/mikrotik/hotspot-user.service';
 import { formatInTimeZone } from 'date-fns-tz';
 import { WIB_TIMEZONE } from '@/lib/timezone';
 import type { Session } from 'next-auth';
@@ -262,110 +263,198 @@ export async function generateVouchers(data: GenerateVouchersInput, session: Ses
     skipDuplicates: true,
   });
 
-  // RADIUS sync — batch mode (3 createMany instead of quantity × 7 queries)
-  let syncCount = 0;
-  try {
-    const profileName = profile.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const mikrotikProfile = profile.groupProfile || 'EugineBill';
-
-    let sessionTimeout = 0;
+    // 1. Dual-Storage Mirroring to MikroTik local database (/ip/hotspot/user)
+    // Ensures zero-downtime: vouchers always exist locally on MikroTik
+    const mikrotikProfile = profile.groupProfile || 'default';
+    let limitUptime: string | undefined;
     switch (profile.validityUnit) {
-      case 'MINUTES': sessionTimeout = profile.validityValue * 60; break;
-      case 'HOURS':   sessionTimeout = profile.validityValue * 3600; break;
-      case 'DAYS':    sessionTimeout = profile.validityValue * 86400; break;
-      case 'MONTHS':  sessionTimeout = profile.validityValue * 30 * 86400; break;
+      case 'MINUTES': limitUptime = `${profile.validityValue}m`; break;
+      case 'HOURS':   limitUptime = `${profile.validityValue}h`; break;
+      case 'DAYS':    limitUptime = `${profile.validityValue}d`; break;
+      case 'MONTHS':  limitUptime = `${profile.validityValue * 30}d`; break;
     }
 
-    const radcheckRows: { username: string; attribute: string; op: string; value: string }[] = [];
-    const radusergroupRows: { username: string; groupname: string; priority: number }[] = [];
-    const radgroupreplyRows: { groupname: string; attribute: string; op: string; value: string }[] = [];
+    const mikrotikSyncItems = voucherData.map(v => ({
+      code: v.code,
+      password: v.password || v.code,
+      profileName: mikrotikProfile,
+      limitUptime,
+      comment: `EugineBill:${batchCode}`,
+    }));
 
-    for (const v of voucherData) {
-      const uniqueGroup = `hotspot-${profileName}-${v.code}`;
-      const pwd = v.password || v.code;
-      radcheckRows.push({ username: v.code, attribute: 'Cleartext-Password', op: ':=', value: pwd });
-      radusergroupRows.push({ username: v.code, groupname: uniqueGroup, priority: 1 });
-      radgroupreplyRows.push(
-        { groupname: uniqueGroup, attribute: 'Mikrotik-Group',      op: ':=', value: mikrotikProfile },
-        { groupname: uniqueGroup, attribute: 'Mikrotik-Rate-Limit', op: ':=', value: profile.speed },
-        { groupname: uniqueGroup, attribute: 'Session-Timeout',     op: ':=', value: sessionTimeout.toString() },
-      );
+    if (routerId) {
+      HotspotUserService.syncVouchersToMikrotik(routerId, mikrotikSyncItems).catch(err => {
+        console.error(`[HotspotService] Failed to mirror vouchers to MikroTik router ${routerId}:`, err);
+      });
+    } else {
+      prisma.router.findMany({ where: { isActive: true }, select: { id: true } })
+        .then(routers => {
+          for (const r of routers) {
+            HotspotUserService.syncVouchersToMikrotik(r.id, mikrotikSyncItems).catch(err => {
+              console.error(`[HotspotService] Failed to mirror vouchers to MikroTik router ${r.id}:`, err);
+            });
+          }
+        })
+        .catch(err => console.error('[HotspotService] Failed to find active routers for mirroring:', err));
     }
 
-    await prisma.radcheck.createMany({ data: radcheckRows, skipDuplicates: true });
-    await prisma.radusergroup.createMany({ data: radusergroupRows, skipDuplicates: true });
-    await prisma.radgroupreply.createMany({ data: radgroupreplyRows, skipDuplicates: false });
-    syncCount = result.count;
-  } catch (syncError) {
-    console.error('RADIUS batch sync error:', syncError);
+    // 2. RADIUS sync if radiusHotspotEnabled is active
+    let syncCount = 0;
+    const company = await prisma.company.findFirst({ select: { radiusHotspotEnabled: true, radiusEnabled: true } });
+    const isRadiusHotspot = company?.radiusHotspotEnabled ?? false;
+
+    if (isRadiusHotspot) {
+      try {
+        const profileName = profile.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        let sessionTimeout = 0;
+        switch (profile.validityUnit) {
+          case 'MINUTES': sessionTimeout = profile.validityValue * 60; break;
+          case 'HOURS':   sessionTimeout = profile.validityValue * 3600; break;
+          case 'DAYS':    sessionTimeout = profile.validityValue * 86400; break;
+          case 'MONTHS':  sessionTimeout = profile.validityValue * 30 * 86400; break;
+        }
+
+        let routerNasName: string | null = null;
+        if (routerId) {
+          const rRecord = await prisma.router.findUnique({ where: { id: routerId }, select: { nasname: true } });
+          routerNasName = rRecord?.nasname || null;
+        }
+
+        const radcheckRows: { username: string; attribute: string; op: string; value: string }[] = [];
+        const radusergroupRows: { username: string; groupname: string; priority: number }[] = [];
+        const radgroupreplyRows: { groupname: string; attribute: string; op: string; value: string }[] = [];
+
+        for (const v of voucherData) {
+          const uniqueGroup = `hotspot-${profileName}-${v.code}`;
+          const pwd = v.password || v.code;
+          radcheckRows.push({ username: v.code, attribute: 'Cleartext-Password', op: ':=', value: pwd });
+          
+          // Router scoping in RADIUS: lock voucher to this router's NAS IP
+          if (routerNasName) {
+            radcheckRows.push({ username: v.code, attribute: 'NAS-IP-Address', op: '==', value: routerNasName });
+          }
+
+          radusergroupRows.push({ username: v.code, groupname: uniqueGroup, priority: 1 });
+          radgroupreplyRows.push(
+            { groupname: uniqueGroup, attribute: 'Mikrotik-Group',      op: ':=', value: mikrotikProfile },
+            { groupname: uniqueGroup, attribute: 'Mikrotik-Rate-Limit', op: ':=', value: profile.speed },
+            { groupname: uniqueGroup, attribute: 'Session-Timeout',     op: ':=', value: sessionTimeout.toString() },
+          );
+        }
+
+        await prisma.radcheck.createMany({ data: radcheckRows, skipDuplicates: true });
+        await prisma.radusergroup.createMany({ data: radusergroupRows, skipDuplicates: true });
+        await prisma.radgroupreply.createMany({ data: radgroupreplyRows, skipDuplicates: false });
+        syncCount = result.count;
+      } catch (syncError) {
+        console.error('RADIUS batch sync error:', syncError);
+      }
+    }
+
+    return { count: result.count, batchCode, syncCount };
   }
 
-  // Activity log
-  try {
-    await logActivity({
-      userId: (session?.user as never as { id: string })?.id,
-      username: (session?.user as never as { username: string })?.username || 'Admin',
-      userRole: (session?.user as never as { role: string })?.role,
-      action: 'GENERATE_VOUCHERS',
-      description: `Generated ${result.count} vouchers in batch ${batchCode}`,
-      module: 'hotspot',
-      status: 'success',
-      metadata: { batchCode, profileId, quantity: result.count },
-    });
-  } catch (logError) {
-    console.error('Activity log error:', logError);
-  }
+  // ─── Delete ───────────────────────────────────────────────────────────────────
 
-  // Notify agent if vouchers were assigned to one
-  if (agentId && result.count > 0) {
-    try {
-      await prisma.agentNotification.create({
-        data: {
-          agentId,
-          type: 'voucher_generated',
-          title: 'Voucher Ditambahkan Admin',
-          message: `Admin menambahkan ${result.count} voucher ${profile.name} ke akun Anda (batch: ${batchCode}).`,
+  export async function deleteVouchers(params: { id?: string; batchCode?: string }) {
+    const { id, batchCode } = params;
+
+    if (batchCode) {
+      const vouchersToDelete = await prisma.hotspotVoucher.findMany({
+        where: { batchCode },
+        select: {
+          code: true,
+          agentId: true,
+          routerId: true,
+          profile: { select: { name: true } },
         },
       });
-    } catch (notifError) {
-      console.error('Failed to notify agent about voucher generation:', notifError);
+
+      const result = await prisma.hotspotVoucher.deleteMany({ where: { batchCode } });
+
+      // Notify agents
+      const agentIds = [...new Set(vouchersToDelete.filter((v) => v.agentId).map((v) => v.agentId))];
+      for (const agentIdValue of agentIds) {
+        if (agentIdValue) {
+          const count = vouchersToDelete.filter((v) => v.agentId === agentIdValue).length;
+          const profileName = vouchersToDelete.find((v) => v.agentId === agentIdValue)?.profile.name ?? 'Unknown';
+          try {
+            await prisma.agentNotification.create({
+              data: {
+                id: Math.random().toString(36).substring(2, 15),
+                agentId: agentIdValue,
+                type: 'voucher_deleted',
+                title: 'Voucher Dihapus',
+                message: `Admin telah menghapus ${count} voucher ${profileName} dari batch ${batchCode}.`,
+                link: null,
+              },
+            });
+          } catch (err) {
+            console.error('Failed to create agent notification:', err);
+          }
+        }
+      }
+
+      // Cleanup from MikroTik /ip/hotspot/user
+      const byRouter: Record<string, string[]> = {};
+      const universalCodes: string[] = [];
+      for (const v of vouchersToDelete) {
+        if (v.routerId) {
+          if (!byRouter[v.routerId]) byRouter[v.routerId] = [];
+          byRouter[v.routerId].push(v.code);
+        } else {
+          universalCodes.push(v.code);
+        }
+      }
+
+      for (const [rId, codes] of Object.entries(byRouter)) {
+        HotspotUserService.removeVouchersFromMikrotik(rId, codes).catch(err => {
+          console.error(`Failed to remove vouchers from MikroTik router ${rId}:`, err);
+        });
+      }
+
+      if (universalCodes.length > 0) {
+        prisma.router.findMany({ where: { isActive: true }, select: { id: true } })
+          .then(routers => {
+            for (const r of routers) {
+              HotspotUserService.removeVouchersFromMikrotik(r.id, universalCodes).catch(err => {
+                console.error(`Failed to remove universal vouchers from MikroTik router ${r.id}:`, err);
+              });
+            }
+          })
+          .catch(err => console.error('Failed to query routers for voucher cleanup:', err));
+      }
+
+      // RADIUS cleanup - fire and forget so DB delete is not blocked
+      for (const v of vouchersToDelete) {
+        removeVoucherFromRadius(v.code).catch(err => {
+          console.error(`Failed to remove ${v.code} from RADIUS:`, err);
+        });
+      }
+
+      return { count: result.count };
     }
-  }
 
-  return { count: result.count, batchCode, syncCount };
-}
+    if (id) {
+      const voucher = await prisma.hotspotVoucher.findUnique({ where: { id } });
+      if (!voucher) throw Object.assign(new Error('Voucher not found'), { code: 'NOT_FOUND' });
 
-// ─── Delete ───────────────────────────────────────────────────────────────────
+      await prisma.hotspotVoucher.delete({ where: { id } });
 
-export async function deleteVouchers(params: { id?: string; batchCode?: string }) {
-  const { id, batchCode } = params;
-
-  if (batchCode) {
-    const vouchersToDelete = await prisma.hotspotVoucher.findMany({
-      where: { batchCode },
-      select: {
-        code: true,
-        agentId: true,
-        profile: { select: { name: true } },
-      },
-    });
-
-    const result = await prisma.hotspotVoucher.deleteMany({ where: { batchCode } });
-
-    // Notify agents
-    const agentIds = [...new Set(vouchersToDelete.filter((v) => v.agentId).map((v) => v.agentId))];
-    for (const agentIdValue of agentIds) {
-      if (agentIdValue) {
-        const count = vouchersToDelete.filter((v) => v.agentId === agentIdValue).length;
-        const profileName = vouchersToDelete.find((v) => v.agentId === agentIdValue)?.profile.name ?? 'Unknown';
+      // Notify agent
+      if (voucher.agentId) {
         try {
+          const withProfile = await prisma.hotspotVoucher
+            .findFirst({ where: { code: voucher.code }, include: { profile: { select: { name: true } } } })
+            .catch(() => null);
           await prisma.agentNotification.create({
             data: {
               id: Math.random().toString(36).substring(2, 15),
-              agentId: agentIdValue,
+              agentId: voucher.agentId,
               type: 'voucher_deleted',
               title: 'Voucher Dihapus',
-              message: `Admin telah menghapus ${count} voucher ${profileName} dari batch ${batchCode}.`,
+              message: `Admin telah menghapus voucher ${voucher.code} (${withProfile?.profile.name ?? 'Unknown'}).`,
               link: null,
             },
           });
@@ -373,57 +462,34 @@ export async function deleteVouchers(params: { id?: string; batchCode?: string }
           console.error('Failed to create agent notification:', err);
         }
       }
-    }
 
-    // RADIUS cleanup - fire and forget so DB delete is not blocked
-    for (const v of vouchersToDelete) {
-      removeVoucherFromRadius(v.code).catch(err => {
-        console.error(`Failed to remove ${v.code} from RADIUS:`, err);
-      });
-    }
-
-    return { count: result.count };
-  }
-
-  if (id) {
-    const voucher = await prisma.hotspotVoucher.findUnique({ where: { id } });
-    if (!voucher) throw Object.assign(new Error('Voucher not found'), { code: 'NOT_FOUND' });
-
-    await prisma.hotspotVoucher.delete({ where: { id } });
-
-    // Notify agent
-    if (voucher.agentId) {
-      try {
-        const withProfile = await prisma.hotspotVoucher
-          .findFirst({ where: { code: voucher.code }, include: { profile: { select: { name: true } } } })
-          .catch(() => null);
-        await prisma.agentNotification.create({
-          data: {
-            id: Math.random().toString(36).substring(2, 15),
-            agentId: voucher.agentId,
-            type: 'voucher_deleted',
-            title: 'Voucher Dihapus',
-            message: `Admin telah menghapus voucher ${voucher.code} (${withProfile?.profile.name ?? 'Unknown'}).`,
-            link: null,
-          },
+      // Cleanup from MikroTik
+      if (voucher.routerId) {
+        HotspotUserService.removeVouchersFromMikrotik(voucher.routerId, [voucher.code]).catch(err => {
+          console.error(`Failed to remove voucher ${voucher.code} from MikroTik router:`, err);
         });
-      } catch (err) {
-        console.error('Failed to create agent notification:', err);
+      } else {
+        prisma.router.findMany({ where: { isActive: true }, select: { id: true } })
+          .then(routers => {
+            for (const r of routers) {
+              HotspotUserService.removeVouchersFromMikrotik(r.id, [voucher.code]).catch(console.error);
+            }
+          })
+          .catch(console.error);
       }
+
+      // RADIUS cleanup
+      removeVoucherFromRadius(voucher.code).catch(err => {
+        console.error('Failed to remove from RADIUS:', err);
+      });
+
+      return { count: 1 };
     }
 
-    // RADIUS cleanup - fire and forget so DB delete is not blocked
-    removeVoucherFromRadius(voucher.code).catch(err => {
-      console.error('Failed to remove from RADIUS:', err);
-    });
-
-    return { count: 1 };
+    throw Object.assign(new Error('Voucher ID or Batch Code required'), { code: 'VALIDATION' });
   }
 
-  throw Object.assign(new Error('Voucher ID or Batch Code required'), { code: 'VALIDATION' });
-}
-
-// ─── Patch (bulk update) ──────────────────────────────────────────────────────
+  // ─── Patch (bulk update) ──────────────────────────────────────────────────────
 
 export async function patchVouchers(
   ids: string[],

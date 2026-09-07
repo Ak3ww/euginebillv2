@@ -4,6 +4,88 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.10] — 2026-09-07
+### Added & Architected
+- **Sistem Granular Autentikasi Hotspot/PPPoE, Fail-Safe Dual-Storage Zero-Downtime, Captive Portal DNS, dan Multi-Router Script Generator**:
+  - *Context / User Request*:
+    Pengguna meminta sistem pemisahan toggle autentikasi mandiri antara Hotspot dan PPPoE di mana PPPoE harus tetap 100% menggunakan autentikasi lokal MikroTik (`/ppp/secret`) sedangkan Hotspot dapat menggunakan RADIUS atau lokal MikroTik. Selain itu, pengguna meminta domain captive portal (`wifi.euginemediagroup.com`), integrasi pembayaran online e-voucher via Walled Garden, generator script Hotspot mandiri per router di UI billing untuk 2 router (Cibinong Site & Citeureup Site), penguncian voucher agar tidak melenceng antar-site (router-scoped), arsitektur fail-safe Zero-Downtime jika RADIUS sewaktu-waktu mati atau ditoggle off, serta pembersihan log spamming `dhcp,debug,packet` di MikroTik.
+  - *Root Causes & Analisis*:
+    1. Pengaturan RADIUS sebelumnya bersifat monolitik (`company.radiusEnabled`), sehingga jika diaktifkan maka PPPoE ikut terpengaruh ke RADIUS padahal pengguna menginginkan PPPoE tetap murni lokal `/ppp/secret`.
+    2. Jika suatu sistem Hotspot hanya menyimpan voucher di FreeRADIUS, matinya server RADIUS atau perubahan toggle OFF akan menyebabkan seluruh voucher tidak dikenali MikroTik (downtime massal).
+    3. Log MikroTik mengalami banjir ribuan baris `dhcp,debug,packet` setiap menit akibat aturan manual di `/system logging` dengan `topics=dhcp` yang mencatat setiap frame DHCP dari ONT TR-069.
+    4. Kebutuhan operasional di mana router Cibinong (`10.200.0.2`) dan router Citeureup (`10.201.0.15`) berada di lokasi terpisah sehingga voucher yang diterbitkan harus terkunci ke lokasi yang sesuai.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Pembersihan Log MikroTik**: Menghapus permanen aturan logging manual `topics=dhcp` (`.id=*5`) pada MikroTik Router 1 via API sehingga log sistem kembali bersih normal.
+    2. **Granular Database Schema & Settings UI**:
+       - Menambahkan field `radiusHotspotEnabled` dan `radiusPppoeEnabled` pada `model company` di Prisma Schema.
+       - Mendesain ulang antarmuka pengaturan RADIUS pada `/admin/settings/company` dengan 2 kartu switch independen sesuai standar Shadcn UI tanpa teks emoji.
+       - Menyediakan tombol *Sinkronkan Ulang Voucher ke MikroTik* untuk fail-safe instan.
+    3. **Arsitektur Fail-Safe "Active-Active Dual-Storage Mirroring" (Zero Downtime)**:
+       - Mengembangkan `HotspotUserService` (`src/server/services/mikrotik/hotspot-user.service.ts`) untuk mengelola `/ip/hotspot/user` via RouterOS API.
+       - Setiap kali voucher dibuat, data selalu disuntikkan ke MikroTik lokal **DAN** (jika RADIUS aktif) ke FreeRADIUS (`radcheck`/`radgroupreply`).
+       - Jika RADIUS gagal atau mati, fitur bawaan RouterOS secara otomatis memverifikasi ke `/ip/hotspot/user` dalam hitungan detik tanpa memutus koneksi pelanggan.
+    4. **Router-Scoped Voucher Locking**:
+       - Menambahkan pembatasan check attribute `NAS-IP-Address == router.nasname` di tabel `radcheck` ketika target router dipilih.
+       - Pada mode lokal MikroTik, voucher hanya disuntikkan ke router yang dipilih, sehingga mencegah voucher digunakan di router cabang lain.
+    5. **Multi-Router Hotspot Setup Generator di UI Billing**:
+       - Mengembangkan API route `/api/network/routers/[id]/setup-hotspot` dan modal `SetupHotspotModal` pada `/admin/network/routers`.
+       - Menghasilkan script RouterOS 6 & 7 lengkap: Interface VLAN 10 seragam, Gateway `10.50.10.1`, Subnet `10.50.10.0/24`, Pool `10.50.10.10-250`, DNS Name `wifi.euginemediagroup.com`, dan Walled Garden untuk domain EugineBill serta payment gateway (Midtrans, Xendit, Tripay, Duitku).
+       - Menyediakan opsi *Salin Script* dan tombol *Terapkan Otomatis via API*.
+    6. **Aktivasi DNS Captive Portal Langsung di MikroTik**:
+       - Mengupdate profil `hsprof-10` pada router produksi dengan `dns-name=wifi.euginemediagroup.com`.
+  - *Files*:
+    - `prisma/schema.prisma`
+    - `src/server/services/mikrotik/hotspot-user.service.ts`
+    - `src/server/services/hotspot.service.ts`
+    - `src/server/services/radius/hotspot-sync.service.ts`
+    - `src/app/api/company/route.ts`
+    - `src/app/api/hotspot/voucher/resync/route.ts`
+    - `src/app/api/network/routers/[id]/setup-hotspot/route.ts`
+    - `src/app/admin/settings/company/page.tsx`
+    - `src/app/admin/network/routers/page.tsx`
+    - `src/app/admin/hotspot/voucher/page.tsx`
+    - `docs/mikrotik/HOTSPOT_SETUP_GUIDE.md`
+    - `CHANGELOG.md`
+
+## [2.37.9] — 2026-09-07
+### Added & Configured
+- **Konfigurasi Hotspot MikroTik VLAN 10, Resolusi Konflik IP Subnet, & Panduan Teknis Komprehensif**:
+  - *Context / User Request*:
+    Pengguna berhasil menghubungkan perangkat PC dan smartphone ke Wi-Fi Access Point Hotspot (modem SK-D748S) via VLAN 10 yang terhubung ke OLT dan MikroTik, serta meminta dokumentasi teknis lengkap pengaturan Hotspot pada MikroTik dan panduan penyambungan ke billing EugineBill ("mantap bisa 2-2nya!! berarti tinggal kita sambungin nih ke billing :D sama bikinin documentasi cara setting hotspotnya juga ya. terutama di mikrotik kalo di modem si gakusah lah gampang.").
+  - *Root Causes & Analisis Routing*:
+    1. Subnet awal `192.168.10.0/24` pada `vlan10-hotspot` mengalami konflik *routing overlap* kritis dengan rute point-to-point uplink ISP SFP SMI (`192.168.10.106/30`). Berdasarkan kaidah *Longest Prefix Match*, paket Hotspot rentan tersedot ke interface uplink.
+    2. Server DHCP `dhcp-hs10` dan IP gateway sebelumnya terhapus dari MikroTik sehingga perangkat klien sempat mengalami status APIPA `169.254.x.x` dan error `ERR_CONNECTION_TIMED_OUT`.
+    3. Pada sisi modem ONT, mode jembatan harus diset ke `IP_Bridged` dengan `DHCP Pass-through: Enable` dan mematikan DHCP server lokal agar paket DHCP broadcast HP diteruskan ke VLAN 10 MikroTik.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Migrasi Subnet Steril**: Mengalokasikan subnet steril `10.50.10.0/24` (Gateway: `10.50.10.1`, Pool: `10.50.10.10 - 10.50.10.250`) di interface `vlan10-hotspot`.
+    2. **Aktivasi Layanan MikroTik**: Mengonfigurasi DHCP Server `dhcp-hs10`, Hotspot Server `hotspot-vlan10`, Hotspot Profile `hsprof-10` dengan integrasi RADIUS (`use-radius=yes`), NAT Masquerade, dan Walled Garden untuk domain EugineBill serta payment gateway (Midtrans, Tripay, Xendit).
+    3. **Dokumentasi Panduan Lengkap**: Menyusun panduan teknis mendalam di `docs/mikrotik/HOTSPOT_SETUP_GUIDE.md` yang mencakup topologi jaringan, tabel alokasi IP, script copy-paste Winbox, panduan setting modem, dan pemecahan masalah (troubleshooting).
+  - *Files*: `docs/mikrotik/HOTSPOT_SETUP_GUIDE.md`, `CHANGELOG.md`
+
+## [2.37.8] — 2026-09-07
+### Operational & Maintenance
+- **Pemeriksaan Sistem Auto-Isolir, Audit Status Pelanggan Jatuh Tempo, & Eksekusi Isolir MikroTik + WhatsApp**:
+  - *Context / User Request*:
+    Pengguna mengidentifikasi bahwa auto-isolir hari ini tidak terkirim via WhatsApp pada sebagian pelanggan dan ada pelanggan jatuh tempo yang belum berubah status sistemnya ("hari ini yang auto-isolir gak kirim WA kayanya deh, dan ada yang gak ke ubah sistemnya sepertinya.. Bantu saya coba yang belum bayar hari ini di isolir dan kirim WA jika belum kirim WA hari ini.").
+  - *Root Causes*:
+    1. Cron auto-isolir pada pukul 07:00:00 WIB (00:00:00 UTC) mengeksekusi isolir dan pengiriman WhatsApp hanya untuk pelanggan dengan flag `autoIsolationEnabled = true`.
+    2. Sebanyak 24 pelanggan jatuh tempo (22 di Kampung Tegal, 1 di Puri Nirwana 3, 1 di Kampung Muara Beres) memiliki flag `autoIsolationEnabled = false` akibat skrip pengecualian terdahulu (`set-kp-tegal-no-isolation.ts`), sehingga dilewati secara otomatis oleh cron engine.
+    3. Pada pukul 10:00 - 10:02 WIB, pengingat penangguhan layanan telah dikirimkan via WhatsApp ke nomor-nomor valid dari 24 pelanggan tersebut, namun profil MikroTik mereka belum diubah ke profil isolir dan status database masih `active`.
+  - *Solusi Arsitektural & Eksekusi Operasional*:
+    1. **Batch Isolation & Reconciliation Script**:
+       - Mengembangkan dan menjalankan skrip eksekusi isolir berbasis koneksi MikroTik langsung dengan proteksi event error socket timeout (`api.on('error', ...)`).
+       - Menghubungkan ke router MikroTik terkait, mengubah profil `/ppp/secret` menjadi profil `isolir`, dan memutuskan sesi aktif `/ppp/active/remove` agar pelanggan langsung terlempar ke jaringan isolir/captive portal.
+       - Memperbarui status database ke `status = 'isolated'` dan mengaktifkan kembali `autoIsolationEnabled = true` agar sinkron dengan siklus cron berikutnya.
+    2. **Logika Selektif WhatsApp Anti-Spam ("Kirim WA Jika Belum Kirim Hari Ini")**:
+       - Memeriksa riwayat `whatsapp_history` pada hari ini (`sentAt >= todayStart`).
+       - Pelanggan yang telah menerima notifikasi penangguhan layanan hari ini tidak dispam ulang (13 nomor di-skip dengan aman).
+       - Nomor dummy (seperti `0812345678`) dilewati tanpa memicu error pengiriman.
+       - Pelanggan yang belum menerima notifikasi diisolir dan dikirimkan template pesan isolir resmi beserta tautan pembayaran instan token tagihan.
+    3. **Hasil Audit Akhir**:
+       - Seluruh 24 pelanggan jatuh tempo telah 100% terisolir di MikroTik dan database.
+       - Tersisa 0 pelanggan kedaluwarsa/menunggak yang masih berstatus `active`.
+  - *Files*: `scripts/isolate-unpaid-today.js`, `CHANGELOG.md`
+
 ## [2.37.7] — 2026-09-06
 ### Added & Improved
 - **Standardisasi Generator Script MikroTik L2TP Client Mengadopsi Arsitektur UltraVPN**:

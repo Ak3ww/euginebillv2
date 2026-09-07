@@ -94,9 +94,7 @@ export async function syncVoucherToRadius(
     // Determine password: custom, voucher's separate password, or same as code
     const password = customPassword || voucher.password || voucher.code
 
-    // 1. Add to radcheck (password only)
-    // Note: NAS-IP-Address restriction via radcheck doesn't work in standard FreeRADIUS
-    // Router restriction is stored in database for reference/filtering but not enforced at RADIUS level
+    // 1. Add to radcheck (password)
     await prisma.radcheck.upsert({
       where: {
         username_attribute: {
@@ -114,6 +112,29 @@ export async function syncVoucherToRadius(
         value: password
       }
     })
+
+    // 1b. Router Scoping: Restrict authentication to target router's NAS IP
+    const targetNasIp = options?.nasIpAddress || voucher.router?.nasname
+    if (targetNasIp) {
+      await prisma.radcheck.upsert({
+        where: {
+          username_attribute: {
+            username: voucher.code,
+            attribute: 'NAS-IP-Address'
+          }
+        },
+        create: {
+          username: voucher.code,
+          attribute: 'NAS-IP-Address',
+          op: '==',
+          value: targetNasIp
+        },
+        update: {
+          op: '==',
+          value: targetNasIp
+        }
+      })
+    }
 
     // 2. Add to radusergroup (unique group per voucher)
     await prisma.radusergroup.upsert({

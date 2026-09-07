@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
+import { HotspotUserService } from '@/server/services/mikrotik/hotspot-user.service';
 
 export async function GET() {
   try {
@@ -24,6 +25,8 @@ export async function GET() {
         footerTechnician: 'Powered by EugineBill RADIUS',
         footerAgent: 'Powered by EugineBill RADIUS',
         radiusEnabled: false,
+        radiusHotspotEnabled: false,
+        radiusPppoeEnabled: false,
         enableProrate: true,
         fixedBillingDate: 6,
         shiftBillingDateIfLate: false,
@@ -87,6 +90,8 @@ export async function POST(request: Request) {
           bankAccounts: bankAccounts,
           invoiceGenerateDays: data.invoiceGenerateDays ? parseInt(data.invoiceGenerateDays) : undefined,
           radiusEnabled: data.radiusEnabled ?? false,
+          radiusHotspotEnabled: data.radiusHotspotEnabled ?? false,
+          radiusPppoeEnabled: data.radiusPppoeEnabled ?? false,
           enableProrate: data.enableProrate ?? true,
           fixedBillingDate: data.fixedBillingDate ? parseInt(data.fixedBillingDate) : 6,
           shiftBillingDateIfLate: data.shiftBillingDateIfLate ?? false,
@@ -94,6 +99,22 @@ export async function POST(request: Request) {
           psbWaGroupId: data.psbWaGroupId !== undefined ? (data.psbWaGroupId || null) : undefined,
         },
       });
+
+      // If radiusHotspotEnabled changed, update MikroTik routers instantly
+      if (data.radiusHotspotEnabled !== undefined && data.radiusHotspotEnabled !== existingCompany?.radiusHotspotEnabled) {
+        const newRadiusState = Boolean(data.radiusHotspotEnabled);
+        prisma.router.findMany({ where: { isActive: true }, select: { id: true } })
+          .then(async (routers) => {
+            for (const r of routers) {
+              await HotspotUserService.setHotspotRadiusUsage(r.id, newRadiusState);
+            }
+            if (!newRadiusState) {
+              // Switched to local auth: ensure all vouchers exist on MikroTik (Zero Downtime)
+              await HotspotUserService.reconcileAllVouchersToMikrotik();
+            }
+          })
+          .catch((err) => console.error('[API Company] Failed to sync radiusHotspot toggle to routers:', err));
+      }
     } else {
       // Create new
       company = await prisma.company.create({
@@ -116,6 +137,8 @@ export async function POST(request: Request) {
           bankAccounts: bankAccounts,
           invoiceGenerateDays: data.invoiceGenerateDays ? parseInt(data.invoiceGenerateDays) : 7,
           radiusEnabled: data.radiusEnabled ?? false,
+          radiusHotspotEnabled: data.radiusHotspotEnabled ?? false,
+          radiusPppoeEnabled: data.radiusPppoeEnabled ?? false,
           enableProrate: data.enableProrate ?? true,
           fixedBillingDate: data.fixedBillingDate ? parseInt(data.fixedBillingDate) : 6,
           shiftBillingDateIfLate: data.shiftBillingDateIfLate ?? false,

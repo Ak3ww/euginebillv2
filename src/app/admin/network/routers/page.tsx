@@ -90,11 +90,24 @@ export default function RouterPage() {
   const [testing, setTesting] = useState(false)
   const [creating, setCreating] = useState(false)
   const [settingUpRadius, setSettingUpRadius] = useState<string | null>(null)
+  const [settingUpHotspot, setSettingUpHotspot] = useState<string | null>(null)
   const [syncingPorts, setSyncingPorts] = useState<string | null>(null)
   const [showScriptModal, setShowScriptModal] = useState(false)
+  const [showHotspotModal, setShowHotspotModal] = useState(false)
   const [showTutorial, setShowTutorial] = useState(true)
   const [scriptModalData, setScriptModalData] = useState<{ script: string; scriptRos6?: string; scriptRos7?: string; config: any } | null>(null)
   const [scriptRosTab, setScriptRosTab] = useState<6 | 7>(7)
+  const [hotspotModalData, setHotspotModalData] = useState<{ router: Router; script: string; scriptRos6?: string; scriptRos7?: string; config: any } | null>(null)
+  const [hotspotRosTab, setHotspotRosTab] = useState<6 | 7>(7)
+  const [applyingHotspot, setApplyingHotspot] = useState(false)
+  const [hotspotForm, setHotspotForm] = useState({
+    vlanId: '10',
+    parentInterface: 'bridge-LAN',
+    hotspotAddress: '10.50.10.1',
+    hotspotSubnet: '10.50.10.0/24',
+    poolRange: '10.50.10.10-10.50.10.250',
+    dnsName: 'wifi.euginemediagroup.com',
+  })
 
   useEffect(() => {
     loadRouters()
@@ -372,6 +385,64 @@ export default function RouterPage() {
     }
   }
 
+  const handleSetupHotspot = async (routerData: Router, customParams?: any) => {
+    setSettingUpHotspot(routerData.id)
+    const payload = customParams || hotspotForm
+
+    try {
+      const response = await fetch(`/api/network/routers/${routerData.id}/setup-hotspot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const result = await response.json()
+
+      if (response.ok) {
+        setHotspotModalData({
+          router: routerData,
+          script: result.script,
+          scriptRos6: result.scriptRos6,
+          scriptRos7: result.scriptRos7,
+          config: result.config,
+        })
+        setHotspotRosTab(7)
+        setShowHotspotModal(true)
+      } else {
+        showError(result.error + (result.details ? '\n' + result.details : ''))
+      }
+    } catch (error) {
+      console.error('Setup Hotspot error:', error)
+      showError('Gagal generate script Hotspot')
+    } finally {
+      setSettingUpHotspot(null)
+    }
+  }
+
+  const handleApplyHotspotDirect = async () => {
+    if (!hotspotModalData) return
+    setApplyingHotspot(true)
+
+    try {
+      const response = await fetch(`/api/network/routers/${hotspotModalData.router.id}/setup-hotspot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...hotspotForm, applyToRouter: true }),
+      })
+      const result = await response.json()
+
+      if (result.applied) {
+        showSuccess(`Konfigurasi Hotspot berhasil diterapkan ke router ${hotspotModalData.router.name}!`)
+        setShowHotspotModal(false)
+      } else {
+        showError(`Gagal menerapkan langsung ke MikroTik: ${result.applyError || 'Koneksi API ditolak'}`)
+      }
+    } catch (error: any) {
+      showError('Gagal menerapkan konfigurasi: ' + error.message)
+    } finally {
+      setApplyingHotspot(false)
+    }
+  }
+
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
     showSuccess(t('network.copiedToClipboard').replace('{label}', label))
@@ -482,6 +553,176 @@ export default function RouterPage() {
                 navigator.clipboard.writeText(toCopy);
                 addToast({ type: 'success', title: `Script ROS ${scriptRosTab}.x disalin!` });
               }} className="flex-1 px-4 py-2 text-sm font-bold bg-[#00f7ff] text-[#1a0f35] rounded-lg">{t('network.copyScript')} (ROS {scriptRosTab})</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Hotspot Setup Modal */}
+      {showHotspotModal && hotspotModalData && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowHotspotModal(false)}>
+          <div className="bg-[#1e1b2e] border border-emerald-500/40 rounded-xl w-full max-w-3xl mx-4 max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-emerald-500/20">
+              <div className="flex items-center gap-2">
+                <Wifi className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <h2 className="font-bold text-emerald-400">Setup Hotspot Gateway & VLAN</h2>
+                  <p className="text-xs text-muted-foreground">{hotspotModalData.router.name} ({hotspotModalData.router.nasname})</p>
+                </div>
+              </div>
+              <button onClick={() => setShowHotspotModal(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 overflow-y-auto flex-1 space-y-4">
+              {/* Parameters Form */}
+              <div className="bg-[#0f0a1e] border border-[#334155] rounded-xl p-3.5">
+                <p className="text-xs font-semibold text-foreground mb-2.5">Parameter Hotspot (Standard Identik Cibinong & Citeureup)</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <label className="text-muted-foreground mb-1 block">VLAN ID</label>
+                    <input
+                      type="number"
+                      value={hotspotForm.vlanId}
+                      onChange={(e) => setHotspotForm({ ...hotspotForm, vlanId: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-[#1e1b2e] border border-[#334155] rounded-lg text-foreground text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted-foreground mb-1 block">Parent Interface</label>
+                    <input
+                      type="text"
+                      value={hotspotForm.parentInterface}
+                      onChange={(e) => setHotspotForm({ ...hotspotForm, parentInterface: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-[#1e1b2e] border border-[#334155] rounded-lg text-foreground text-xs"
+                      placeholder="bridge-LAN"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted-foreground mb-1 block">DNS Name (Captive)</label>
+                    <input
+                      type="text"
+                      value={hotspotForm.dnsName}
+                      onChange={(e) => setHotspotForm({ ...hotspotForm, dnsName: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-[#1e1b2e] border border-[#334155] rounded-lg text-foreground text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted-foreground mb-1 block">Gateway IP</label>
+                    <input
+                      type="text"
+                      value={hotspotForm.hotspotAddress}
+                      onChange={(e) => setHotspotForm({ ...hotspotForm, hotspotAddress: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-[#1e1b2e] border border-[#334155] rounded-lg text-foreground text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted-foreground mb-1 block">Subnet</label>
+                    <input
+                      type="text"
+                      value={hotspotForm.hotspotSubnet}
+                      onChange={(e) => setHotspotForm({ ...hotspotForm, hotspotSubnet: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-[#1e1b2e] border border-[#334155] rounded-lg text-foreground text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted-foreground mb-1 block">Pool Range</label>
+                    <input
+                      type="text"
+                      value={hotspotForm.poolRange}
+                      onChange={(e) => setHotspotForm({ ...hotspotForm, poolRange: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-[#1e1b2e] border border-[#334155] rounded-lg text-foreground text-xs font-mono"
+                    />
+                  </div>
+                </div>
+                <div className="mt-2.5 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => handleSetupHotspot(hotspotModalData.router, hotspotForm)}
+                    disabled={settingUpHotspot === hotspotModalData.router.id}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs transition-colors"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${settingUpHotspot === hotspotModalData.router.id ? 'animate-spin' : ''}`} />
+                    Perbarui Script
+                  </button>
+                </div>
+              </div>
+
+              {/* Version Tabs */}
+              <div className="flex gap-1 bg-[#0f0a1e] rounded-lg p-1 border border-[#334155]">
+                <button
+                  onClick={() => setHotspotRosTab(6)}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${
+                    hotspotRosTab === 6 ? 'bg-amber-500 text-black' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  RouterOS 6.x
+                </button>
+                <button
+                  onClick={() => setHotspotRosTab(7)}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${
+                    hotspotRosTab === 7 ? 'bg-emerald-500 text-black' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  RouterOS 7.x (Recommended)
+                </button>
+              </div>
+
+              {/* Script Output */}
+              <pre className="bg-[#0f0a1e] border border-[#334155] rounded-lg p-3 text-emerald-400 text-xs font-mono overflow-auto max-h-56 whitespace-pre-wrap break-words">
+                {hotspotRosTab === 6 && hotspotModalData.scriptRos6
+                  ? hotspotModalData.scriptRos6
+                  : (hotspotModalData.scriptRos7 || hotspotModalData.script)}
+              </pre>
+
+              {/* Walled Garden Info */}
+              <div className="bg-[#0f0a1e] border border-[#334155] rounded-lg p-3 text-xs">
+                <div className="font-semibold text-emerald-400 mb-1.5">Walled Garden Payment Gateway (Otomatis):</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {['*.euginemediagroup.com', '*.midtrans.com', '*.xendit.co', '*.tripay.co.id', '*.duitku.com'].map((d) => (
+                    <span key={d} className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-mono text-[11px]">
+                      {d}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-muted-foreground mt-2 text-[11px]">
+                  Pelanggan yang belum login dapat membuka link pembayaran e-voucher dan scan QRIS secara instan tanpa terblokir captive portal.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex flex-wrap gap-2 p-4 border-t border-emerald-500/20">
+              <button
+                onClick={() => setShowHotspotModal(false)}
+                className="px-4 py-2 text-sm border border-gray-600 rounded-lg text-muted-foreground hover:text-foreground"
+              >
+                {t('network.close')}
+              </button>
+              <button
+                onClick={() => {
+                  const toCopy = hotspotRosTab === 6 && hotspotModalData.scriptRos6
+                    ? hotspotModalData.scriptRos6
+                    : (hotspotModalData.scriptRos7 || hotspotModalData.script);
+                  navigator.clipboard.writeText(toCopy);
+                  addToast({ type: 'success', title: `Script Hotspot ROS ${hotspotRosTab}.x disalin!` });
+                }}
+                className="px-4 py-2 text-sm font-semibold bg-muted border border-border text-foreground hover:bg-accent rounded-lg"
+              >
+                Salin Script (ROS {hotspotRosTab})
+              </button>
+              <button
+                onClick={handleApplyHotspotDirect}
+                disabled={applyingHotspot}
+                className="flex-1 min-w-[200px] px-4 py-2 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-black rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {applyingHotspot ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                {applyingHotspot ? 'Menerapkan ke Router...' : 'Terapkan Otomatis via API'}
+              </button>
             </div>
           </div>
         </div>,
@@ -700,6 +941,14 @@ export default function RouterPage() {
                             title="Setup RADIUS Client"
                           >
                             <Radio className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleSetupHotspot(routerData)}
+                            disabled={settingUpHotspot === routerData.id}
+                            className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl hover:bg-emerald-500/20 transition-all disabled:opacity-50"
+                            title="Setup Hotspot Gateway & VLAN"
+                          >
+                            {settingUpHotspot === routerData.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wifi className="w-5 h-5" />}
                           </button>
                           {/* Tombol Sync Ports — hanya tampil jika router punya VPN client dengan publicPorts */}
                           {routerData.vpnClient?.publicPorts && (

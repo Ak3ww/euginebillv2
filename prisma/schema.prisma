@@ -131,7 +131,9 @@ model company {
   referralRewardType           String?  @default("FIRST_PAYMENT") // REGISTRATION or FIRST_PAYMENT
   
   // RADIUS Settings
-  radiusEnabled                Boolean? @default(false) // Toggle RADIUS features
+  radiusEnabled                Boolean? @default(false) // Toggle RADIUS master / legacy compatibility
+  radiusHotspotEnabled         Boolean? @default(false) // Toggle RADIUS for Hotspot (if false, uses MikroTik local /ip/hotspot/user)
+  radiusPppoeEnabled           Boolean? @default(false) // Toggle RADIUS for PPPoE (if false, uses MikroTik local /ppp/secret)
   fixedBillingDate             Int?     @default(6) // Tanggal jatuh tempo tetap per bulan
   enableProrate                Boolean  @default(true)
   shiftBillingDateIfLate       Boolean  @default(false)
