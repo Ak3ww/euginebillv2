@@ -1,6 +1,7 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/server/db/client'
 import { syncProfileToRadius } from '@/server/services/radius/hotspot-sync.service'
+import { HotspotUserService } from '@/server/services/mikrotik/hotspot-user.service'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/server/auth/config'
 
@@ -80,12 +81,17 @@ export async function POST(request: Request) {
       },
     })
 
-    // Auto-sync to RADIUS
+    // Auto-sync to RADIUS & MikroTik local
     try {
       await syncProfileToRadius(profile.id)
     } catch (syncError) {
       console.error('RADIUS sync error:', syncError)
-      // Don't fail the request if sync fails
+    }
+
+    try {
+      await HotspotUserService.syncUserProfileToMikrotik(profile)
+    } catch (mtkError) {
+      console.error('MikroTik user profile sync error:', mtkError)
     }
 
     return NextResponse.json({ profile }, { status: 201 })
@@ -147,11 +153,17 @@ export async function PUT(request: Request) {
       },
     })
 
-    // Auto-sync to RADIUS
+    // Auto-sync to RADIUS & MikroTik local
     try {
       await syncProfileToRadius(profile.id)
     } catch (syncError) {
       console.error('RADIUS sync error:', syncError)
+    }
+
+    try {
+      await HotspotUserService.syncUserProfileToMikrotik(profile)
+    } catch (mtkError) {
+      console.error('MikroTik user profile sync error:', mtkError)
     }
 
     return NextResponse.json({ profile })

@@ -56,6 +56,30 @@ export class HotspotUserService {
       await conn.connect()
       console.log(`[HotspotUserService] Connected to ${routerName} (${routerId}) for sync of ${vouchers.length} vouchers`)
 
+      // Ensure all distinct profiles exist in /ip/hotspot/user/profile first
+      const distinctProfiles = [...new Set(vouchers.map(v => v.profileName || 'default'))]
+      try {
+        const existingProfiles = await conn.execute('/ip/hotspot/user/profile/print')
+        const existingProfileNames = new Set(existingProfiles.map((p: any) => p.name))
+
+        for (const profName of distinctProfiles) {
+          if (profName && profName !== 'default' && !existingProfileNames.has(profName)) {
+            console.log(`[HotspotUserService] Auto-creating missing Hotspot User Profile on ${routerName}: ${profName}`)
+            try {
+              await conn.execute('/ip/hotspot/user/profile/add', [
+                `=name=${profName}`,
+                '=shared-users=1',
+              ])
+              existingProfileNames.add(profName)
+            } catch (pErr) {
+              console.error(`[HotspotUserService] Failed to create profile ${profName}:`, pErr)
+            }
+          }
+        }
+      } catch (profCheckErr) {
+        console.error(`[HotspotUserService] Profile check error on ${routerName}:`, profCheckErr)
+      }
+
       for (const v of vouchers) {
         try {
           const pwd = v.password || v.code
@@ -158,6 +182,12 @@ export class HotspotUserService {
     const targetRouters = await prisma.router.findMany({ where: routerWhere })
 
     for (const r of targetRouters) {
+      // 1. Sync all active hotspot profiles to MikroTik user profiles first
+      const allDbProfiles = await prisma.hotspotProfile.findMany()
+      for (const p of allDbProfiles) {
+        await this.syncUserProfileToMikrotik(p, r.id).catch(() => {})
+      }
+
       // Find vouchers belonging to this router or universal (routerId is null)
       const vouchers = await prisma.hotspotVoucher.findMany({
         where: {
@@ -319,4 +349,55 @@ export class HotspotUserService {
       return []
     }
   }
+
+  /**
+   * Sync a Hotspot Profile to MikroTik /ip/hotspot/user/profile across all active routers
+   */
+  static async syncUserProfileToMikrotik(profile: {
+    name: string
+    groupProfile?: string | null
+    speed?: string | null
+    sharedUsers?: number | null
+  }, routerId?: string): Promise<boolean> {
+    const profName = profile.groupProfile || profile.name
+    if (!profName) return false
+
+    const targetRouters = routerId
+      ? await prisma.router.findMany({ where: { id: routerId, isActive: true } })
+      : await prisma.router.findMany({ where: { isActive: true } })
+
+    for (const r of targetRouters) {
+      const routerInfo = await this.getRouterConnection(r.id)
+      if (!routerInfo) continue
+      const { conn, routerName } = routerInfo
+      try {
+        await conn.connect()
+        const existing = await conn.execute('/ip/hotspot/user/profile/print', [`?name=${profName}`])
+        
+        const params = [
+          `=name=${profName}`,
+          `=shared-users=${profile.sharedUsers || 1}`,
+        ]
+        if (profile.speed) {
+          params.push(`=rate-limit=${profile.speed}`)
+        }
+
+        if (existing && existing.length > 0) {
+          await conn.execute('/ip/hotspot/user/profile/set', [
+            `=.id=${existing[0]['.id']}`,
+            ...params.slice(1),
+          ])
+        } else {
+          await conn.execute('/ip/hotspot/user/profile/add', params)
+        }
+        console.log(`[HotspotUserService] Synced user profile ${profName} to ${routerName}`)
+        await conn.disconnect()
+      } catch (err) {
+        console.error(`[HotspotUserService] Failed to sync profile ${profName} to ${routerName}:`, err)
+        try { await conn.disconnect() } catch { /* ignore */ }
+      }
+    }
+    return true
+  }
 }
+
