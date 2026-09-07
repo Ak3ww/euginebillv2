@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { formatWIB } from '@/lib/timezone';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -54,6 +54,7 @@ interface Profile {
 interface Voucher {
   id: string;
   code: string;
+  password?: string | null;
   batchCode: string;
   status: string;
   profileName: string;
@@ -278,6 +279,7 @@ export default function AgentDashboardPage() {
         const profile = profiles.find(p => p.name === v.profileName);
         return {
           code: v.code,
+          password: v.password,
           profileName: v.profileName,
           price: profile?.sellingPrice || 0,
           validity: profile ? `${profile.validityValue} ${profile.validityUnit.toLowerCase()}` : '-'

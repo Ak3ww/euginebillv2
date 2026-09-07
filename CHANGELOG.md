@@ -4,6 +4,31 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.16] — 2026-09-07
+### Fixed & Improved
+- **Dukungan Dual Mode (Username & Password) Pesan WhatsApp Voucher & Hardening Opsi B (100% MikroTik Local Hotspot)**:
+  - *Context / User Request*:
+    1. Pengguna mendapati saat voucher mode dual (username != password) dikirim via WhatsApp, pesan hanya menyertakan kode voucher tanpa password, dan panduan login hanya mengarahkan ke input kode voucher tunggal.
+    2. Pengguna mengonfirmasi bahwa FreeRADIUS tidak terpasang sebagai service systemd pada VPS (`Unit freeradius.service not found`), dan Opsi B (100% MikroTik Local) yang diaktifkan belum tersinkron ke router sehingga memicu pesan *"RADIUS server is not responding"*.
+    3. Pengguna menanyakan penjelasan parameter `Shared Users` (30) dan hubungannya dengan `Rate Limit` 5 Mbps.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Format WhatsApp Dual Mode Cerdas & Fallback Database**:
+       - `src/app/api/hotspot/voucher/send-whatsapp/route.ts` & `src/app/api/hotspot/voucher/[id]/route.ts`: Menambahkan pengecekan apakah voucher memiliki password berbeda dari kode (`isDual = password && password !== code`). Jika ya, pesan menampilkan `👤 Username` dan `🔑 Password` secara jelas.
+       - Menambahkan fallback query Prisma DB (`hotspotVoucher.findMany`) di endpoint kirim WhatsApp agar password dan profile tetap akurat dan lengkap meskipun frontend versi lawas tidak menyertakannya.
+       - Panduan cara login otomatis menyesuaikan: mengarahkan ke tab *"Member / Langganan"* untuk voucher dual mode, atau tab *"Voucher"* untuk voucher single mode.
+       - Frontend `admin/hotspot/voucher` dan `agent/dashboard` kini memetakan `password` dan `voucherType` secara lengkap ke payload WhatsApp.
+    2. **Aktivasi Live Opsi B di Router 1 (100% MikroTik Local)**:
+       - Mengubah profil hotspot Router 1 (`hsprof-10`) menjadi `use-radius=no` secara live melalui RouterOS API, menghentikan timeout pencarian server FreeRADIUS.
+       - Membuat Hotspot User Profile `EugineBillradius` di Router 1 dengan `rate-limit=5M/5M` dan `shared-users=1`.
+    3. **Edukasi Teknis Shared Users vs Rate Limit**:
+       - Mengklarifikasi bahwa `Shared Users` di MikroTik mengatur batas jumlah gadget yang boleh login bersamaan menggunakan 1 voucher yang sama (untuk voucher retail perorangan wajib bernilai `1`).
+  - *Files*:
+    - `src/app/api/hotspot/voucher/send-whatsapp/route.ts`
+    - `src/app/api/hotspot/voucher/[id]/route.ts`
+    - `src/app/admin/hotspot/voucher/page.tsx`
+    - `src/app/agent/dashboard/page.tsx`
+    - `CHANGELOG.md`
+
 ## [2.37.15] — 2026-09-07
 ### Added & Improved
 - **Desain Baru Captive Portal Hotspot Standar Hallmark (Oceanic Blue) & Fitur Scanner QR Struk**:

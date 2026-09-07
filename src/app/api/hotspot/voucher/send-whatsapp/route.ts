@@ -25,25 +25,56 @@ export async function POST(request: Request) {
     const companyName = company?.name || 'EugineBill'
     const companyPhone = company?.phone || ''
 
+    // Fetch vouchers from DB to ensure passwords and profiles are accurate even if client omitted them
+    const codes = vouchers.map((v: any) => v.code).filter(Boolean)
+    const dbVouchers = codes.length > 0
+      ? await prisma.hotspotVoucher.findMany({
+          where: { code: { in: codes } },
+          include: { profile: true },
+        })
+      : []
+    const dbVoucherMap = new Map(dbVouchers.map((dv) => [dv.code, dv]))
+
+    let hasDualMode = false
+
     // Build voucher message
     let message = '🎟️ *Voucher Hotspot Internet*\n\n'
     message += `Halo! Berikut adalah voucher internet Anda:\n\n`
     message += `━━━━━━━━━━━━━━━━━━\n\n`
-    
+
     vouchers.forEach((v: any, idx: number) => {
+      const dbV = dbVoucherMap.get(v.code)
+      const password = v.password !== undefined ? v.password : dbV?.password
+      const isDual = Boolean(password && password !== v.code)
+      if (isDual) hasDualMode = true
+
+      const profileName = v.profileName || dbV?.profile?.name || '-'
+      const price = v.price !== undefined ? v.price : (dbV?.profile?.sellingPrice || 0)
+      const validity = v.validity || (dbV?.profile ? `${dbV.profile.validityValue} ${dbV.profile.validityUnit.toLowerCase()}` : '-')
+
       message += `*Voucher ${idx + 1}*\n`
-      message += `🔑 Code: *${v.code}*\n`
-      message += `📦 Paket: ${v.profileName}\n`
-      message += `💰 Harga: Rp ${v.price.toLocaleString('id-ID')}\n`
-      message += `⏳ Masa Aktif: ${v.validity}\n\n`
+      if (isDual) {
+        message += `👤 Username: *${v.code}*\n`
+        message += `🔑 Password: *${password}*\n`
+      } else {
+        message += `🔑 Kode Voucher: *${v.code}*\n`
+      }
+      message += `📦 Paket: ${profileName}\n`
+      message += `💰 Harga: Rp ${Number(price).toLocaleString('id-ID')}\n`
+      message += `⏳ Masa Aktif: ${validity}\n\n`
     })
 
     message += `━━━━━━━━━━━━━━━━━━\n\n`
     message += `📌 *Cara Menggunakan:*\n`
     message += `1. Hubungkan ke WiFi hotspot kami\n`
     message += `2. Buka browser, akan muncul halaman login\n`
-    message += `3. Masukkan kode voucher\n`
-    message += `4. Klik Login dan nikmati internet!\n\n`
+    if (hasDualMode) {
+      message += `3. Masuk ke tab *"Member / Langganan"*\n`
+      message += `4. Masukkan Username dan Password sesuai di atas\n`
+    } else {
+      message += `3. Masukkan kode voucher pada tab *"Voucher"*\n`
+    }
+    message += `5. Klik Login dan nikmati internet!\n\n`
     message += `⚠️ *Penting:*\n`
     message += `• Voucher akan aktif setelah login pertama\n`
     message += `• Simpan kode voucher dengan baik\n`

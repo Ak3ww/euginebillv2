@@ -311,7 +311,21 @@ export default function HotspotVoucherPage() {
     setSendingWhatsApp(true);
     try {
       const vouchersToSend = vouchers.filter(v => selectedVouchers.includes(v.id));
-      const res = await fetch('/api/hotspot/voucher/send-whatsapp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: whatsappPhone, vouchers: vouchersToSend.map(v => ({ code: v.code, profileName: v.profile.name, price: v.profile.sellingPrice, validity: `${v.profile.validityValue} ${v.profile.validityUnit.toLowerCase()}` })) }) });
+      const res = await fetch('/api/hotspot/voucher/send-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: whatsappPhone,
+          vouchers: vouchersToSend.map(v => ({
+            code: v.code,
+            password: v.password,
+            voucherType: v.voucherType,
+            profileName: v.profile.name,
+            price: v.profile.sellingPrice,
+            validity: `${v.profile.validityValue} ${v.profile.validityUnit.toLowerCase()}`
+          }))
+        })
+      });
       const data = await res.json();
       if (data.success) { await showSuccess(t('hotspot.sent')); setIsWhatsAppDialogOpen(false); setWhatsappPhone(''); setSelectedVouchers([]); }
       else { await showError(data.error); }
