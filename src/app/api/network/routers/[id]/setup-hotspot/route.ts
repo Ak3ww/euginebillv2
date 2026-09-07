@@ -253,6 +253,46 @@ export async function POST(
           }
         }
 
+        // 9. Auto-Patch hotspot/login.html for QR Code Auto-Login
+        try {
+          const loginFiles = await conn.execute('/file/print', ['?name=hotspot/login.html']);
+          if (loginFiles.length > 0) {
+            const loginFileId = loginFiles[0]['.id'];
+            const fileContents = await conn.execute('/file/get', [`=.id=${loginFileId}`, '=value-name=contents']);
+            const currentContent = fileContents[0]?.ret || '';
+            if (currentContent && (!currentContent.includes('URLSearchParams') || !currentContent.includes('p.get'))) {
+              const autoLoginScript = `
+    <script>
+        (function() {
+            try {
+                var p = new URLSearchParams(window.location.search);
+                var u = p.get('username') || p.get('code');
+                var pass = p.get('password') || p.get('secret') || u;
+                if (u && document.login) {
+                    if (document.login.username) document.login.username.value = u;
+                    if (document.login.password) document.login.password.value = pass;
+                    setTimeout(function() {
+                        if (typeof doLogin === 'function') {
+                            doLogin();
+                        } else {
+                            document.login.submit();
+                        }
+                    }, 200);
+                }
+            } catch(e) {}
+        })();
+    </script>
+</body>`;
+              if (currentContent.includes('</body>')) {
+                const patched = currentContent.replace('</body>', autoLoginScript);
+                await conn.execute('/file/set', [`=.id=${loginFileId}`, `=contents=${patched}`]);
+              }
+            }
+          }
+        } catch (fileErr) {
+          console.warn('Auto-patch login.html skipped or non-fatal:', fileErr);
+        }
+
         await conn.disconnect();
         applied = true;
       } catch (err: any) {

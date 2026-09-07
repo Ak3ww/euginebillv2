@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Plus, Loader2, Trash2, Ticket, Printer, Check, Download, Upload, FileSpreadsheet, MessageCircle, Wifi, Pencil } from "lucide-react"
-import { renderVoucherTemplate, getPrintableHtml } from '@/lib/utils/templateRenderer'
+import { renderVoucherTemplate, getPrintableHtml, DEFAULT_VOUCHER_TEMPLATE } from '@/lib/utils/templateRenderer'
 import { Switch } from "@/components/ui/switch"
 import { useTranslation } from '@/hooks/useTranslation'
 import { useSSE } from '@/hooks/useSSE'
@@ -320,8 +320,11 @@ export default function HotspotVoucherPage() {
 
   const handlePrintBatch = async () => { if (!filterBatch || filterBatch === 'all') { await showError(t('hotspot.filterByBatchFirst')); return; } const bv = vouchers.filter(v => v.batchCode === filterBatch && v.status === 'WAITING').map(v => v.id); setSelectedVouchers(bv); setIsPrintDialogOpen(true); }
   const handlePrint = async () => {
-    if (!selectedTemplate) { await showError(t('hotspot.selectTemplate')); return; }
-    const template = templates.find(t => t.id === selectedTemplate); if (!template) return;
+    let template = templates.find(t => t.id === selectedTemplate);
+    if (!template && templates.length > 0) {
+      template = templates.find(t => t.isDefault) || templates[0];
+    }
+    const templateHtml = template?.htmlTemplate || DEFAULT_VOUCHER_TEMPLATE;
     const vouchersToPrint = vouchers.filter(v => selectedVouchers.includes(v.id));
     const voucherData = vouchersToPrint.map(v => ({ 
       code: v.code, 
@@ -334,10 +337,16 @@ export default function HotspotVoucherPage() {
         usageQuota: v.profile.usageQuota,
         usageDuration: v.profile.usageDuration
       },
-      router: v.router ? { name: v.router.name, shortname: v.router.shortname } : undefined
+      router: v.router ? { name: v.router.name, shortname: v.router.shortname, dnsName: (v.router as any).dnsName } : undefined,
+      dnsName: (v.router as any)?.dnsName || 'wifi.euginemediagroup.com'
     }));
     const firstRouter = vouchersToPrint.find(v => v.router)?.router?.name || companyName;
-    const rendered = renderVoucherTemplate(template.htmlTemplate, voucherData, { currencyCode: 'Rp', companyName: firstRouter });
+    const dnsName = (vouchersToPrint.find(v => v.router)?.router as any)?.dnsName || 'wifi.euginemediagroup.com';
+    const rendered = renderVoucherTemplate(templateHtml, voucherData, { 
+      currencyCode: 'Rp', 
+      companyName: firstRouter,
+      dnsName 
+    });
     const printHtml = getPrintableHtml(rendered);
     const printWindow = window.open('', '_blank');
     if (printWindow) { printWindow.document.write(printHtml); printWindow.document.close(); printWindow.focus(); setTimeout(() => { printWindow.print(); }, 500); }
@@ -1228,8 +1237,7 @@ export default function HotspotVoucherPage() {
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle className="text-sm">{t('hotspot.printVoucher')}</DialogTitle><DialogDescription className="text-xs">{t('common.select')} {t('nav.template')} ({selectedVouchers.length} voucher)</DialogDescription></DialogHeader>
           <div><Label className="text-[10px]">{t('nav.template')}</Label><Select value={selectedTemplate} onValueChange={setSelectedTemplate}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder={t('common.select')} /></SelectTrigger><SelectContent>{templates.map(t => <SelectItem key={t.id} value={t.id}>{t.name} {t.isDefault && '(Default)'}</SelectItem>)}</SelectContent></Select></div>
-          {templates.length === 0 && <p className="text-xs text-warning">{t('common.noData')}</p>}
-          <DialogFooter className="gap-2"><Button variant="outline" size="sm" onClick={() => setIsPrintDialogOpen(false)} className="h-7 text-xs">{t('common.cancel')}</Button><Button size="sm" onClick={handlePrint} disabled={!selectedTemplate} className="h-7 text-xs"><Printer className="h-3 w-3 mr-1" />{t('common.print')}</Button></DialogFooter>
+          <DialogFooter className="gap-2"><Button variant="outline" size="sm" onClick={() => setIsPrintDialogOpen(false)} className="h-7 text-xs">{t('common.cancel')}</Button><Button size="sm" onClick={handlePrint} disabled={selectedVouchers.length === 0} className="h-7 text-xs"><Printer className="h-3 w-3 mr-1" />{t('common.print')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

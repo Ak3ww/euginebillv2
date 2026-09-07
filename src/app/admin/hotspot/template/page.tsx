@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
@@ -18,70 +18,139 @@ import {
   ModalButton,
 } from '@/components/cyberpunk';
 
-const DEFAULT_TEMPLATE = `{include file="rad-template-header.tpl"}
+const DEFAULT_CARD_TEMPLATE = `{include file="rad-template-header.tpl"}
 <style>
 @media (max-width: 640px) {
   .voucher-preview-container { display: flex !important; flex-direction: column !important; padding: 0 8px !important; gap: 10px !important; }
   .voucher-card { display: block !important; width: calc(100% - 16px) !important; max-width: none !important; margin: 0 auto 10px auto !important; }
-  .voucher-single { order: 1; }
-  .voucher-dual { order: 2; }
-  .voucher-header { font-size: 12px !important; padding: 6px 10px !important; }
-  .voucher-label { font-size: 9px !important; }
-  .voucher-code-single { font-size: 13px !important; }
-  .voucher-code-dual { font-size: 10px !important; }
-  .voucher-footer { font-size: 10px !important; padding: 6px 10px !important; }
 }
 @media (min-width: 641px) and (max-width: 1024px) {
-  .voucher-card { width: calc(33.33% - 8px) !important; }
+  .voucher-card { width: calc(50% - 12px) !important; }
 }
 @media (min-width: 1025px) {
-  .voucher-card { width: 155px !important; }
+  .voucher-card { width: 220px !important; }
+}
+@media print {
+  body { margin: 0; padding: 4mm; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .voucher-card { break-inside: avoid; page-break-inside: avoid; }
 }
 </style>
 {foreach $v as $vs}
 {if $vs['code'] eq $vs['secret']}
-<div class="voucher-card voucher-single" style="display: inline-block; width: 155px; height: auto; min-height: 115px; border: 1px solid #ccc; border-radius: 4px; font-family: Arial, sans-serif; margin: 4px; padding: 0; vertical-align: top; background: #fff; page-break-inside: avoid; box-sizing: border-box;">
-<div class="voucher-header" style="background: #ff8c00; color: #fff; padding: 6px 10px; font-size: 13px; font-weight: bold; border-radius: 3px 3px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-{$vs['router_name']}
-</div>
-<div style="padding: 8px 10px; min-height: 50px;">
-<div class="voucher-label" style="color: #ff8c00; font-size: 10px; font-weight: 600; margin-bottom: 3px;">Kode Voucher</div>
-<div class="voucher-code-single" style="font-family: 'Courier New', monospace; font-size: 14px; font-weight: bold; color: #000; line-height: 1.4; word-break: break-all;">{$vs['code']}</div>
-</div>
-<div class="voucher-footer" style="border-top: 1px dashed #ffa500; padding: 7px 10px; font-size: 11px; font-weight: bold; color: #333; background: #fffaf0;">
-{$vs['validity']} - {$_c['currency_code']}. {number_format($vs['total'], 0, ',', '.')}
-</div>
-<div style="padding: 5px 10px; font-size: 9px; color: #666; background: #f9f9f9; border-top: 1px solid #eee;">
-<div>📊 Kuota: {$vs['quota']}</div>
-<div>⏱️ Durasi: {$vs['duration']}</div>
-</div>
+<div class="voucher-card" style="display: inline-block; width: 220px; min-height: 120px; border: 1.5px solid #002c60; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 4px; padding: 0; vertical-align: top; background: #fff; page-break-inside: avoid; box-sizing: border-box; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+  <div style="background: #002c60; color: #fff; padding: 5px 8px; font-size: 11px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; border-radius: 4px 4px 0 0;">
+    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px;">{$vs['router_name']}</span>
+    <span style="font-size: 9px; background: rgba(255,255,255,0.2); padding: 1px 5px; border-radius: 3px; font-weight: 600;">HOTSPOT</span>
+  </div>
+  <div style="padding: 6px 8px; display: flex; gap: 6px; align-items: center;">
+    <div style="flex: 1; min-width: 0;">
+      <div style="color: #64748b; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Kode Voucher</div>
+      <div style="font-family: 'Courier New', Courier, monospace; font-size: 15px; font-weight: 800; color: #002c60; line-height: 1.2; word-break: break-all; margin: 2px 0 4px 0; letter-spacing: 0.5px;">{$vs['code']}</div>
+      <div style="font-size: 9px; color: #334155; line-height: 1.3;">
+        <div><strong>Masa Aktif:</strong> {$vs['validity']}</div>
+        <div><strong>Kuota:</strong> {$vs['quota']}</div>
+      </div>
+    </div>
+    <div style="flex-shrink: 0; text-align: center;">
+      <div style="width: 68px; height: 68px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 2px;">
+        {$vs['qrcode']}
+      </div>
+      <div style="font-size: 7.5px; color: #64748b; margin-top: 2px; font-weight: 600;">Scan utk Konek</div>
+    </div>
+  </div>
+  <div style="border-top: 1px dashed #cbd5e1; padding: 4px 8px; font-size: 10px; font-weight: 700; color: #002c60; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
+    <span>{$_c['currency_code']}. {number_format($vs['total'], 0, ',', '.')}</span>
+    <span style="font-size: 8px; color: #94a3b8; font-weight: normal;">{$vs['dns_name']}</span>
+  </div>
 </div>
 {else}
-<div class="voucher-card voucher-dual" style="display: inline-block; width: 155px; height: auto; min-height: 115px; border: 1px solid #ccc; border-radius: 4px; font-family: Arial, sans-serif; margin: 4px; padding: 0; vertical-align: top; background: #fff; page-break-inside: avoid; box-sizing: border-box;">
-<div class="voucher-header" style="background: #ff8c00; color: #fff; padding: 6px 10px; font-size: 13px; font-weight: bold; border-radius: 3px 3px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-{$vs['router_name']}
-</div>
-<div style="padding: 8px 10px; min-height: 50px; display: flex; gap: 6px;">
-<div style="flex: 1; min-width: 0;">
-<div class="voucher-label" style="color: #ff8c00; font-size: 10px; font-weight: 600; margin-bottom: 2px;">Username</div>
-<div class="voucher-code-dual" style="font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; color: #000; line-height: 1.3; word-break: break-all;">{$vs['code']}</div>
-</div>
-<div style="flex: 1; min-width: 0;">
-<div class="voucher-label" style="color: #ff8c00; font-size: 10px; font-weight: 600; margin-bottom: 2px;">Password</div>
-<div class="voucher-code-dual" style="font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; color: #000; line-height: 1.3; word-break: break-all;">{$vs['secret']}</div>
-</div>
-</div>
-<div class="voucher-footer" style="border-top: 1px dashed #ffa500; padding: 7px 10px; font-size: 11px; font-weight: bold; color: #333; background: #fffaf0;">
-{$vs['validity']} - {$_c['currency_code']}. {number_format($vs['total'], 0, ',', '.')}
-</div>
-<div style="padding: 5px 10px; font-size: 9px; color: #666; background: #f9f9f9; border-top: 1px solid #eee;">
-<div>📊 Kuota: {$vs['quota']}</div>
-<div>⏱️ Durasi: {$vs['duration']}</div>
-</div>
+<div class="voucher-card" style="display: inline-block; width: 220px; min-height: 120px; border: 1.5px solid #002c60; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 4px; padding: 0; vertical-align: top; background: #fff; page-break-inside: avoid; box-sizing: border-box; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+  <div style="background: #002c60; color: #fff; padding: 5px 8px; font-size: 11px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; border-radius: 4px 4px 0 0;">
+    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px;">{$vs['router_name']}</span>
+    <span style="font-size: 9px; background: rgba(255,255,255,0.2); padding: 1px 5px; border-radius: 3px; font-weight: 600;">HOTSPOT</span>
+  </div>
+  <div style="padding: 6px 8px; display: flex; gap: 6px; align-items: center;">
+    <div style="flex: 1; min-width: 0;">
+      <div style="display: flex; gap: 4px; margin-bottom: 2px;">
+        <div style="flex: 1;">
+          <div style="color: #64748b; font-size: 8px; font-weight: 600; text-transform: uppercase;">User</div>
+          <div style="font-family: 'Courier New', Courier, monospace; font-size: 11px; font-weight: 800; color: #002c60; word-break: break-all;">{$vs['code']}</div>
+        </div>
+        <div style="flex: 1;">
+          <div style="color: #64748b; font-size: 8px; font-weight: 600; text-transform: uppercase;">Pass</div>
+          <div style="font-family: 'Courier New', Courier, monospace; font-size: 11px; font-weight: 800; color: #002c60; word-break: break-all;">{$vs['secret']}</div>
+        </div>
+      </div>
+      <div style="font-size: 9px; color: #334155; line-height: 1.3;">
+        <div><strong>Masa Aktif:</strong> {$vs['validity']}</div>
+        <div><strong>Kuota:</strong> {$vs['quota']}</div>
+      </div>
+    </div>
+    <div style="flex-shrink: 0; text-align: center;">
+      <div style="width: 68px; height: 68px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 2px;">
+        {$vs['qrcode']}
+      </div>
+      <div style="font-size: 7.5px; color: #64748b; margin-top: 2px; font-weight: 600;">Scan utk Konek</div>
+    </div>
+  </div>
+  <div style="border-top: 1px dashed #cbd5e1; padding: 4px 8px; font-size: 10px; font-weight: 700; color: #002c60; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
+    <span>{$_c['currency_code']}. {number_format($vs['total'], 0, ',', '.')}</span>
+    <span style="font-size: 8px; color: #94a3b8; font-weight: normal;">{$vs['dns_name']}</span>
+  </div>
 </div>
 {/if}
 {/foreach}
 {include file="rad-template-footer.tpl"}`;
+
+const THERMAL_TEMPLATE = `{include file="rad-template-header.tpl"}
+<style>
+@media print {
+  @page { margin: 0; size: auto; }
+  body { margin: 0; padding: 2mm; width: 100%; }
+  .thermal-ticket { page-break-after: always; break-after: page; }
+}
+</style>
+{foreach $v as $vs}
+<div class="thermal-ticket" style="width: 200px; margin: 0 auto 16px auto; padding: 8px 4px; font-family: 'Courier New', Courier, monospace; text-align: center; color: #000; background: #fff; box-sizing: border-box;">
+  <div style="font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">{$vs['router_name']}</div>
+  <div style="font-size: 10px; font-weight: 600; margin-top: 2px;">HOTSPOT VOUCHER</div>
+  <div style="border-bottom: 1px dashed #000; margin: 6px 0;"></div>
+  
+  <div style="font-size: 11px; margin: 2px 0;"><strong>{$vs['validity']}</strong> | <strong>{$vs['quota']}</strong></div>
+  <div style="font-size: 13px; font-weight: 900; margin: 4px 0;">{$_c['currency_code']}. {number_format($vs['total'], 0, ',', '.')}</div>
+  
+  <div style="margin: 8px auto; display: flex; justify-content: center; align-items: center;">
+    <div style="padding: 4px; border: 1px solid #000; display: inline-block;">
+      {$vs['qrcode']}
+    </div>
+  </div>
+  <div style="font-size: 9px; font-weight: bold; margin-bottom: 6px;">SCAN LANGSUNG KONEK</div>
+  
+  {if $vs['code'] eq $vs['secret']}
+  <div style="border: 1px solid #000; padding: 4px 6px; margin: 4px 0; background: #f4f4f4;">
+    <div style="font-size: 8px; text-transform: uppercase;">Kode Voucher:</div>
+    <div style="font-size: 15px; font-weight: 900; letter-spacing: 1px; word-break: break-all;">{$vs['code']}</div>
+  </div>
+  {else}
+  <div style="border: 1px solid #000; padding: 4px 6px; margin: 4px 0; background: #f4f4f4; text-align: left;">
+    <div style="font-size: 9px;"><strong>User:</strong> <span style="font-size: 12px; font-weight: 900;">{$vs['code']}</span></div>
+    <div style="font-size: 9px;"><strong>Pass:</strong> <span style="font-size: 12px; font-weight: 900;">{$vs['secret']}</span></div>
+  </div>
+  {/if}
+
+  <div style="border-bottom: 1px dashed #000; margin: 6px 0;"></div>
+  <div style="font-size: 8px; line-height: 1.3; text-align: left; padding: 0 4px;">
+    1. Hubungkan ke Wi-Fi Hotspot<br/>
+    2. Scan QR Code di atas dengan kamera HP<br/>
+    Atau buka browser: <strong>{$vs['dns_name']}</strong>
+  </div>
+  <div style="border-bottom: 1px dashed #000; margin: 6px 0;"></div>
+  <div style="font-size: 9px; font-weight: 600;">Terima Kasih</div>
+</div>
+{/foreach}
+{include file="rad-template-footer.tpl"}`;
+
+const DEFAULT_TEMPLATE = DEFAULT_CARD_TEMPLATE;
 
 interface VoucherTemplate {
   id: string;
@@ -199,7 +268,8 @@ export default function VoucherTemplatesPage() {
         usageQuota: 5 * 1024 * 1024 * 1024, // 5GB
         usageDuration: 180 // 3 hours
       },
-      router: { name: 'test-mikrotik', shortname: 'TM' }
+      router: { name: 'Router Cibinong', shortname: 'CBG', dnsName: 'wifi.euginemediagroup.com' },
+      dnsName: 'wifi.euginemediagroup.com'
     },
     {
       code: 'USER5678',
@@ -212,14 +282,15 @@ export default function VoucherTemplatesPage() {
         usageQuota: 10 * 1024 * 1024 * 1024, // 10GB
         usageDuration: 1440 // 24 hours
       },
-      router: { name: 'test-mikrotik', shortname: 'TM' }
+      router: { name: 'Router Cibinong', shortname: 'CBG', dnsName: 'wifi.euginemediagroup.com' },
+      dnsName: 'wifi.euginemediagroup.com'
     }
   ];
 
   const previewHtml = renderVoucherTemplate(
     formData.htmlTemplate,
     sampleVouchers,
-    { currencyCode: 'Rp', companyName: 'test-mikrotik' }
+    { currencyCode: 'Rp', companyName: 'Router Cibinong', dnsName: 'wifi.euginemediagroup.com' }
   );
 
   return (
@@ -373,11 +444,30 @@ export default function VoucherTemplatesPage() {
                 <ModalInput type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required placeholder="e.g., Default Card" />
               </div>
               <div>
-                <ModalLabel>{t('hotspot.htmlTemplate')}</ModalLabel>
+                <div className="flex items-center justify-between mb-1.5">
+                  <ModalLabel className="mb-0">{t('hotspot.htmlTemplate')}</ModalLabel>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground">Muat Preset:</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, htmlTemplate: DEFAULT_CARD_TEMPLATE })}
+                      className="px-2 py-0.5 text-[10px] font-medium bg-muted hover:bg-muted/80 rounded border border-border text-foreground transition-colors"
+                    >
+                      Card + QR Auto-Login
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, htmlTemplate: THERMAL_TEMPLATE })}
+                      className="px-2 py-0.5 text-[10px] font-medium bg-muted hover:bg-muted/80 rounded border border-border text-foreground transition-colors"
+                    >
+                      Struk Kasir Thermal
+                    </button>
+                  </div>
+                </div>
                 <ModalTextarea value={formData.htmlTemplate} onChange={(e) => setFormData({ ...formData, htmlTemplate: e.target.value })} required rows={12} className="font-mono text-[10px]" placeholder="Enter HTML template..." />
-                <p className="text-[9px] text-muted-foreground mt-1">
-                  Use Smarty: {`{$vs['code']}, {$vs['secret']}, {$vs['total']}, {$_c['currency_code']}`}
-                </p>
+                <div className="text-[9px] text-muted-foreground mt-1.5 space-y-0.5">
+                  <div>Variabel: <code className="text-primary font-mono">{"{$vs['code']}"}</code>, <code className="text-primary font-mono">{"{$vs['secret']}"}</code>, <code className="text-primary font-mono">{"{$vs['qrcode']}"}</code> (QR Scan Konek), <code className="text-primary font-mono">{"{$vs['login_url']}"}</code>, <code className="text-primary font-mono">{"{$vs['dns_name']}"}</code>, <code className="text-primary font-mono">{"{$vs['total']}"}</code>, <code className="text-primary font-mono">{"{$vs['validity']}"}</code>, <code className="text-primary font-mono">{"{$vs['quota']}"}</code></div>
+                </div>
               </div>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">

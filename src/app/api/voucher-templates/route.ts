@@ -1,7 +1,8 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
+import { DEFAULT_CARD_TEMPLATE, THERMAL_TEMPLATE } from '@/lib/utils/templateRenderer';
 
 // GET all templates
 export async function GET(request: NextRequest) {
@@ -11,12 +12,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const templates = await prisma.voucherTemplate.findMany({
+    let templates = await prisma.voucherTemplate.findMany({
       orderBy: [
         { isDefault: 'desc' },
         { createdAt: 'desc' }
       ]
     });
+
+    // Auto-seed standard templates if none exist
+    if (templates.length === 0) {
+      await prisma.voucherTemplate.createMany({
+        data: [
+          {
+            id: crypto.randomUUID(),
+            name: 'Voucher Card (QR Auto-Login)',
+            htmlTemplate: DEFAULT_CARD_TEMPLATE,
+            isDefault: true,
+            isActive: true,
+          },
+          {
+            id: crypto.randomUUID(),
+            name: 'Struk Kasir Thermal (QR Auto-Login)',
+            htmlTemplate: THERMAL_TEMPLATE,
+            isDefault: false,
+            isActive: true,
+          }
+        ]
+      });
+
+      templates = await prisma.voucherTemplate.findMany({
+        orderBy: [
+          { isDefault: 'desc' },
+          { createdAt: 'desc' }
+        ]
+      });
+    }
 
     return NextResponse.json(templates);
   } catch (error) {

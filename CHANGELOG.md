@@ -4,6 +4,38 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.11] — 2026-09-07
+### Added & Enhanced
+- **Sistem Cetak Struk Voucher QR Code Auto-Login & Handler Captive Portal MikroTik**:
+  - *Context / User Request*:
+    Pengguna meminta penambahan fitur QR Code pada struk / kartu cetak voucher Hotspot agar pelanggan dapat melakukan pemindaian (scan) langsung dengan kamera smartphone mereka dan langsung terhubung/login otomatis tanpa harus mengetik kode atau kata sandi secara manual ("ini bisa scan langsung connect kah? di struk aja biar scan langsung konek ya. gas").
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Engine Generator QR Code Vektor SVG Sinkron (`src/lib/utils/templateRenderer.ts`)**:
+       - Menggunakan library `qrcode` dengan metode `QRCode.toString(..., { type: 'svg', margin: 0, width: size })` yang dieksekusi secara sinkron murni tanpa latency atau dependensi CDN eksternal.
+       - Menghasilkan markup SVG vektor murni yang tajam di kertas printer mini thermal maupun printer inkjet A4.
+       - Menyediakan token Smarty: `{$vs['qrcode']}`, `{$vs['qr_code']}`, `{$vs['login_url']}`, `{$vs['dns_name']}`, `{$vs['ssid']}`, dan `{$vs['wifi_qr']}`.
+       - Format URL standar auto-login: `http://${dnsName}/login?username=${code}&password=${secret}`.
+    2. **JavaScript Handler Auto-Login pada Captive Portal MikroTik (`hotspot/login.html`)**:
+       - Mengembangkan script handler cerdas pada `login.html` MikroTik yang mendeteksi parameter query `?username=...&password=...`.
+       - Jika terdeteksi saat halaman dimuat, script otomatis mengisi field form dan mengeksekusi autentikasi via `doLogin()` (CHAP MD5) atau `document.login.submit()` (PAP) dalam 200 milidetik.
+       - Telah diaplikasikan dan diverifikasi langsung pada Router 1 (Cibinong Site).
+       - Diintegrasikan ke endpoint `/api/network/routers/[id]/setup-hotspot` (Step 9) agar router baru yang di-setup via API otomatis dipatch captive portalnya.
+    3. **Desain Ulang Template Voucher & Preset Struk Thermal Kasir**:
+       - Merombak `DEFAULT_CARD_TEMPLATE` dengan gaya profesional Oceanic Blue (`#002c60`), layout 2 kolom responsif (kiri rincian voucher, kanan kotak QR Code "Scan utk Konek"), dan 100% bebas teks emoji.
+       - Mengembangkan `THERMAL_TEMPLATE` khusus printer struk kasir thermal POS (58mm / 80mm) yang monokrom, hemat kertas, dan dilengkapi panduan scan yang jelas.
+       - Menambahkan tombol pemuat preset cepat ("Card + QR Auto-Login" dan "Struk Kasir Thermal") pada dialog editor template di `/admin/hotspot/template`.
+    4. **Auto-Seeding & Fail-Safe Fallback**:
+       - Endpoint `GET /api/voucher-templates` secara otomatis men-seed template kartu dan thermal ber-QR Code jika tabel template di database masih kosong.
+       - Fitur cetak pada `/admin/hotspot/voucher` dilengkapi fail-safe fallback ke `DEFAULT_VOUCHER_TEMPLATE` jika admin belum memilih template secara eksplisit.
+  - *Files*:
+    - `src/lib/utils/templateRenderer.ts`
+    - `src/app/admin/hotspot/template/page.tsx`
+    - `src/app/admin/hotspot/voucher/page.tsx`
+    - `src/app/api/voucher-templates/route.ts`
+    - `src/app/api/network/routers/[id]/setup-hotspot/route.ts`
+    - `docs/mikrotik/HOTSPOT_SETUP_GUIDE.md`
+    - `CHANGELOG.md`
+
 ## [2.37.10] — 2026-09-07
 ### Added & Architected
 - **Sistem Granular Autentikasi Hotspot/PPPoE, Fail-Safe Dual-Storage Zero-Downtime, Captive Portal DNS, dan Multi-Router Script Generator**:

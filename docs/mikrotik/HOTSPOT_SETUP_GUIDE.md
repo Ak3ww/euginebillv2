@@ -175,16 +175,66 @@ Untuk modem ONT AP (Skyworth SK-D748S, ZTE F609/F670, atau Huawei HG8245H):
 
 ---
 
-## 7. Pemecahan Masalah (Troubleshooting)
+## 7. Fitur QR Code Auto-Login pada Struk & Kartu Voucher
+
+Pelanggan dapat terhubung ke internet tanpa perlu mengetik kode voucher maupun kata sandi secara manual. Sistem EugineBill menyediakan kode QR pintar yang dicetak langsung pada struk thermal maupun kartu voucher A4.
+
+### A. Alur Kerja (User Flow)
+1. Pelanggan menghubungkan smartphone / perangkat ke sinyal Wi-Fi Hotspot (misal `EUGINE-WIFI`).
+2. Pelanggan membuka aplikasi kamera bawaan smartphone atau Google Lens lalu mengarahkan ke **QR Code** pada struk voucher.
+3. Kamera mendeteksi tautan:  
+   `http://wifi.euginemediagroup.com/login?username=KODE&password=PASS`
+4. Pelanggan mengetuk link tersebut. Browser membuka captive portal MikroTik.
+5. Skrip otomatis di dalam `login.html` membaca kredensial dari URL lalu melakukan auto-submit ke form login MikroTik via metode CHAP MD5 atau PAP dalam 200ms.
+6. Internet langsung aktif seketika tanpa input manual!
+
+### B. JavaScript Handler pada Captive Portal MikroTik (`hotspot/login.html`)
+Skrip auto-login berikut disuntikkan secara otomatis oleh EugineBill pada saat melakukan "Terapkan Otomatis via API" di menu Router:
+
+```html
+<script>
+(function() {
+    try {
+        var p = new URLSearchParams(window.location.search);
+        var u = p.get('username') || p.get('code');
+        var pass = p.get('password') || p.get('secret') || u;
+        if (u && document.login) {
+            if (document.login.username) document.login.username.value = u;
+            if (document.login.password) document.login.password.value = pass;
+            setTimeout(function() {
+                if (typeof doLogin === 'function') {
+                    doLogin();
+                } else {
+                    document.login.submit();
+                }
+            }, 200);
+        }
+    } catch(e) {}
+})();
+</script>
+```
+
+### C. Pilihan Template Voucher yang Didukung
+- **Voucher Card (QR Auto-Login)**: Desain kartu modern 220px dengan palet warna Oceanic Blue (`#002c60`), layout 2 kolom (rincian kuota/masa aktif di kiri, QR Code di kanan), ideal untuk pencetakan massal di kertas A4.
+- **Struk Kasir Thermal (58mm / 80mm)**: Desain monokrom vertikal dengan QR Code berukuran 100px di tengah, teks kode voucher besar berbingkai, serta petunjuk pemindaian yang jelas, ideal untuk printer kasir mini thermal.
+
+---
+
+## 8. Pemecahan Masalah (Troubleshooting)
 
 ### A. Klien Membuka Browser Tapi Tidak Muncul Login Page
 - **Penyebab**: Browser membuka situs HTTPS sebelum captive portal sempat membajak HTTP.
 - **Solusi**: Akses `http://wifi.euginemediagroup.com` atau `http://10.50.10.1` secara manual.
 
-### B. DHCP Debug Packet Spam di Log MikroTik
+### B. Kamera HP Scan QR Code Tapi Tidak Mengarah ke Login
+- **Penyebab**: Smartphone belum terhubung ke jaringan Wi-Fi Hotspot sehingga tidak dapat me-resolve DNS lokal `wifi.euginemediagroup.com`.
+- **Solusi**: Pastikan smartphone sudah terhubung ke SSID Hotspot terlebih dahulu sebelum memindai QR Code.
+
+### C. DHCP Debug Packet Spam di Log MikroTik
 - **Penyebab**: Terdapat aturan manual logging di `/system logging` dengan `topics=dhcp`.
 - **Solusi**: Hapus aturan tersebut dengan `/system logging remove [find where topics~"dhcp"]`. Log MikroTik hanya boleh berisi `info`, `error`, `warning`, dan `critical`.
 
-### C. Gagal Login Hotspot saat RADIUS Dimatikan
+### D. Gagal Login Hotspot saat RADIUS Dimatikan
 - **Penyebab**: Voucher belum tersinkronisasi ke lokal router.
 - **Solusi**: Buka menu **Pengaturan Perusahaan** (`/admin/settings/company`) lalu klik tombol **"Sinkronkan Ulang Voucher ke MikroTik"** untuk mengimpor seluruh voucher aktif ke `/ip/hotspot/user`.
+
