@@ -49,6 +49,7 @@ export async function PUT(request: Request) {
         phone: true,
         email: true,
         expiredAt: true,
+        billingDay: true,
         routerId: true,
         profile: { select: { groupName: true, mikrotikProfileName: true, name: true } },
         router: { select: { id: true, nasname: true } },
@@ -71,12 +72,30 @@ export async function PUT(request: Request) {
       newUsername = `${user.username}-OFF-${user.id.slice(-4)}`;
     }
 
+    // 🛡️ When manually activating an overdue or unexpired user, advance expiredAt to next billing cycle at 23:59:59 WIB
+    const now = new Date();
+    let nextExpiry: Date | undefined;
+    if (status === 'active' && (!currentUser.expiredAt || new Date(currentUser.expiredAt) <= now)) {
+      const bd = (currentUser as any).billingDay || company?.fixedBillingDate || 6;
+      let nextYear = now.getUTCFullYear();
+      let nextMonth = now.getUTCMonth() + 1;
+      if (nextMonth > 11) {
+        nextYear += 1;
+        nextMonth = 0;
+      }
+      const maxDaysInNextMonth = new Date(Date.UTC(nextYear, nextMonth + 1, 0)).getUTCDate();
+      const validDay = Math.min(bd, maxDaysInNextMonth);
+      nextExpiry = new Date(Date.UTC(nextYear, nextMonth, validDay, 16, 59, 59, 999));
+      console.log(`[Status Change] 🛡️ Advanced expiredAt for ${user.username} to ${nextExpiry.toISOString()} (protected from re-isolation)`);
+    }
+
     // Update user status in database
     const updatedUser = await prisma.pppoeUser.update({
       where: { id: userId },
       data: { 
         status,
         username: newUsername,
+        ...(nextExpiry ? { expiredAt: nextExpiry } : {}),
       },
     });
 
@@ -179,7 +198,7 @@ export async function PUT(request: Request) {
         const { MikroTikConnection } = await import('@/server/services/mikrotik/client');
         const router = await prisma.router.findUnique({ where: { id: routerId } });
         if (router) {
-          const port = router.port || 8728;
+          const port = (router as any).apiPort || router.port || 8728;
           const conn = new MikroTikConnection({
             host: router.ipAddress,
             username: router.username,

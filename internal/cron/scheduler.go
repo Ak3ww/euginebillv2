@@ -226,11 +226,9 @@ func (s *Scheduler) jobAutoIsolate() {
 
 	var users []models.PppoeUser
 	s.db.Table("pppoe_users").
-		Joins("LEFT JOIN pppoe_areas ON pppoe_users.areaId = pppoe_areas.id").
-		Where(`pppoe_users.subscriptionType = 'POSTPAID' AND pppoe_users.status = 'active' 
-		AND pppoe_users.autoIsolationEnabled = true
-		AND (LOWER(pppoe_areas.name) NOT LIKE '%tegal%' OR pppoe_areas.name IS NULL)
-		AND pppoe_users.expiredAt IS NOT NULL AND pppoe_users.expiredAt < ?`, cutoff).
+		Where(`subscriptionType = 'POSTPAID' AND status = 'active' 
+		AND autoIsolationEnabled = true
+		AND expiredAt IS NOT NULL AND expiredAt < ?`, cutoff).
 		Find(&users)
 
 	count := 0

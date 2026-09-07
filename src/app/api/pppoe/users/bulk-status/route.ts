@@ -10,13 +10,30 @@ export async function PUT(request: Request) {
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const { userIds, status } = await request.json();
+    const { userIds, status, autoIsolationEnabled, action } = await request.json();
 
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
       return NextResponse.json(
         { error: 'Missing or invalid userIds' },
         { status: 400 }
       );
+    }
+
+    // 1. Dedicated Bulk Action: Set Auto-Isolation Policy ("Tetap Terhubung" vs "Isolir Otomatis")
+    if (action === 'set_isolation_policy' || (autoIsolationEnabled !== undefined && (!status || status === 'keep_current'))) {
+      const isEnabled = Boolean(autoIsolationEnabled);
+      await prisma.pppoeUser.updateMany({
+        where: { id: { in: userIds } },
+        data: { autoIsolationEnabled: isEnabled },
+      });
+
+      console.log(`[Bulk Status Change] Set autoIsolationEnabled=${isEnabled} for ${userIds.length} users`);
+      return NextResponse.json({
+        success: true,
+        updated: userIds.length,
+        autoIsolationEnabled: isEnabled,
+        message: `Berhasil mengubah aksi jatuh tempo untuk ${userIds.length} pelanggan menjadi ${isEnabled ? 'Isolir Otomatis' : 'Tetap Terhubung (Tanpa Isolir)'}`,
+      });
     }
 
     if (!status || !['active', 'isolated', 'blocked', 'stop'].includes(status)) {
@@ -26,7 +43,7 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Get company settings to determine mode
+    // Get company settings to determine mode & fixedBillingDate
     const company = await prisma.company.findFirst();
     const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
@@ -35,7 +52,7 @@ export async function PUT(request: Request) {
       where: { id: { in: userIds } },
       include: { 
         profile: { select: { groupName: true, mikrotikProfileName: true, name: true } },
-        router: { select: { id: true, ipAddress: true, username: true, password: true, apiPort: true } },
+        router: { select: { id: true, ipAddress: true, username: true, password: true, apiPort: true, port: true } },
       },
     });
 
@@ -46,16 +63,45 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Update all users status in DB (and archive username if status is stop to release clean username)
+    const now = new Date();
+
+    // Helper: calculate next billing expiry at 23:59:59 WIB (16:59:59 UTC)
+    const calcNextExpiry = (billingDay?: number | null) => {
+      const bd = billingDay || company?.fixedBillingDate || 6;
+      let nextYear = now.getUTCFullYear();
+      let nextMonth = now.getUTCMonth() + 1;
+      if (nextMonth > 11) {
+        nextYear += 1;
+        nextMonth = 0;
+      }
+      const maxDaysInNextMonth = new Date(Date.UTC(nextYear, nextMonth + 1, 0)).getUTCDate();
+      const validDay = Math.min(bd, maxDaysInNextMonth);
+      return new Date(Date.UTC(nextYear, nextMonth, validDay, 16, 59, 59, 999));
+    };
+
+    // Update all users status in DB (and advance expiredAt if activating overdue users)
     for (const user of users) {
       let newUsername = user.username;
       if (status === 'stop' && !user.username.includes('-OFF-')) {
         newUsername = `${user.username}-OFF-${user.id.slice(-4)}`;
       }
+
+      const isOverdueOrNoExpiry = !user.expiredAt || new Date(user.expiredAt) <= now;
+      const nextExpiry = (status === 'active' && isOverdueOrNoExpiry) ? calcNextExpiry(user.billingDay) : undefined;
+
       await prisma.pppoeUser.update({
         where: { id: user.id },
-        data: { status, username: newUsername },
+        data: {
+          status,
+          username: newUsername,
+          ...(nextExpiry ? { expiredAt: nextExpiry } : {}),
+          ...(autoIsolationEnabled !== undefined ? { autoIsolationEnabled: Boolean(autoIsolationEnabled) } : {}),
+        },
       });
+
+      if (nextExpiry) {
+        console.log(`[Bulk Status Change] 🛡️ Advanced expiredAt for ${user.username} to ${nextExpiry.toISOString()} (protected from re-isolation)`);
+      }
     }
 
     // If status is stop, auto-delete only current/future unpaid invoices (keep past months in history)
@@ -135,7 +181,7 @@ export async function PUT(request: Request) {
       // ========== ALWAYS SYNC MIKROTIK DIRECT API (PPP Secret & Active Session) ==========
       if (user.router) {
         const { MikroTikConnection } = await import('@/server/services/mikrotik/client');
-        const port = (user.router as any).port || 8728;
+        const port = (user.router as any).apiPort || (user.router as any).port || 8728;
         const conn = new MikroTikConnection({
           host: user.router.ipAddress,
           username: user.router.username,

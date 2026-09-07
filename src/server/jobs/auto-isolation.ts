@@ -30,7 +30,7 @@ export async function autoIsolateExpiredUsers() {
     const isolateProfileName = company?.isolateProfileName || 'isolir';
     console.log(`[AUTO-ISOLATE] Starting auto-isolation check (RADIUS: ${isRadius})...`);
 
-    // Find users that should be isolated (respect per-user autoIsolationEnabled setting and exclude Kampung Tegal / No-Action areas)
+    // Find users that should be isolated (strictly respect per-user autoIsolationEnabled setting)
     const expiredUsers = await prisma.pppoeUser.findMany({
       where: {
         expiredAt: {
@@ -40,18 +40,6 @@ export async function autoIsolateExpiredUsers() {
           notIn: ['isolated', 'suspended', 'blocked', 'stop'], // not already isolated
         },
         autoIsolationEnabled: true,
-        OR: [
-          { areaId: null },
-          {
-            area: {
-              name: {
-                not: {
-                  contains: 'tegal',
-                },
-              },
-            },
-          },
-        ],
       },
       select: {
         id: true,
@@ -358,33 +346,59 @@ export async function sendIsolationNotification(user: {
     const isWaEnabled = dbUser ? dbUser.waNotificationEnabled !== false : true;
     if (company.isolationNotifyWhatsapp && user.phone && isWaEnabled) {
       try {
-        // Prefer DB isolation template; fall back to plain message
-        const waTemplate = await prisma.isolationTemplate.findFirst({
-          where: { type: 'whatsapp', isActive: true },
+        // 🛑 STRICT IDEMPOTENCY GUARD: Guarantee isolation WhatsApp is sent at most 1X across ALL routers & cron runs in 24 hours
+        const rawPhone = user.phone.trim();
+        const digitsOnly = rawPhone.replace(/[^0-9]/g, '');
+        const phone62 = digitsOnly.startsWith('0') ? `62${digitsOnly.slice(1)}` : (digitsOnly.startsWith('62') ? digitsOnly : `62${digitsOnly}`);
+        const phone08 = digitsOnly.startsWith('62') ? `0${digitsOnly.slice(2)}` : digitsOnly;
+        const phoneCandidates = Array.from(new Set([rawPhone, digitsOnly, phone62, phone08]));
+
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const existingIsoWa = await prisma.whatsapp_history.findFirst({
+          where: {
+            phone: { in: phoneCandidates },
+            status: 'sent',
+            sentAt: { gte: twentyFourHoursAgo },
+            OR: [
+              { message: { contains: 'isolir' } },
+              { message: { contains: 'diisolir' } },
+              { message: { contains: 'Layanan Internet Diisolir' } },
+            ],
+          },
+          orderBy: { sentAt: 'desc' },
         });
 
-        let message: string;
-        if (waTemplate?.message) {
-          message = waTemplate.message;
-          for (const [key, val] of Object.entries(templateVars)) {
-            message = message.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'gi'), val);
-            message = message.replace(new RegExp(`\\{${key}\\}`, 'gi'), val);
-          }
+        if (existingIsoWa) {
+          console.log(`[sendIsolationNotification] 🛑 SKIPPED duplicate isolation WA for ${user.username} (${user.phone}). Already sent within 24h at ${existingIsoWa.sentAt.toISOString()} (Log ID: ${existingIsoWa.id}). Max 1X rule enforced.`);
         } else {
-          message =
-            `⚠️ *Layanan Internet Diisolir*\n\n` +
-            `Halo ${templateVars.customerName},\n\n` +
-            `Akun internet Anda (*${realCustomerId}*) telah diisolir karena masa berlangganan habis.\n\n` +
-            `📅 Expired: ${expiredDate}\n\n` +
-            `Untuk mengaktifkan kembali, buka halaman berikut dan lakukan pembayaran:\n🔗 ${paymentLink}\n\n` +
-            `Butuh bantuan?\n📞 ${company.phone || '-'}\n\n` +
-            `Terima kasih,\n*${company.name}*`;
-        }
+          // Prefer DB isolation template; fall back to plain message
+          const waTemplate = await prisma.isolationTemplate.findFirst({
+            where: { type: 'whatsapp', isActive: true },
+          });
 
-        await WhatsAppService.sendMessage({ phone: user.phone, message });
-        console.log(`[Isolation] ? WhatsApp sent to ${user.username} (${user.phone})`);
+          let message: string;
+          if (waTemplate?.message) {
+            message = waTemplate.message;
+            for (const [key, val] of Object.entries(templateVars)) {
+              message = message.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'gi'), val);
+              message = message.replace(new RegExp(`\\{${key}\\}`, 'gi'), val);
+            }
+          } else {
+            message =
+              `⚠️ *Layanan Internet Diisolir*\n\n` +
+              `Halo ${templateVars.customerName},\n\n` +
+              `Akun internet Anda (*${realCustomerId}*) telah diisolir karena masa berlangganan habis.\n\n` +
+              `📅 Expired: ${expiredDate}\n\n` +
+              `Untuk mengaktifkan kembali, buka halaman berikut dan lakukan pembayaran:\n🔗 ${paymentLink}\n\n` +
+              `Butuh bantuan?\n📞 ${company.phone || '-'}\n\n` +
+              `Terima kasih,\n*${company.name}*`;
+          }
+
+          await WhatsAppService.sendMessage({ phone: user.phone, message });
+          console.log(`[Isolation] ✓ WhatsApp sent to ${user.username} (${user.phone})`);
+        }
       } catch (err: any) {
-        console.error(`[Isolation] ?? WhatsApp failed for ${user.username}:`, err.message);
+        console.error(`[Isolation] ✗ WhatsApp failed for ${user.username}:`, err.message);
       }
     }
 

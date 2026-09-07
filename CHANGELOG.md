@@ -4,6 +4,37 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.18] — 2026-09-07
+### Critical Architecture & Global Hardening
+- **Arsitektur Global Auto-Isolir, Deduplikasi WA Isolir Maks 1X per 24 Jam, & Proteksi Kebal Isolir Ulang saat Aktivasi Manual**:
+  - *Context / User Request*:
+    Pengguna mengkritisi penggunaan skrip ad-hoc per wilayah dan meminta sistem berjalan murni secara global. Pengguna juga meminta jaminan mutlak bahwa:
+    1. Pesan isolir WhatsApp HANYA terkirim 1x untuk semua router (tidak boleh ada dobel pesan dalam satu hari/siklus).
+    2. Jika admin mengubah status pelanggan secara manual ke *Active* (massal maupun individual), sistem cron dilarang keras mengubahnya kembali menjadi terisolir.
+    3. Seluruh hardcode wilayah dihapus dan digantikan oleh kontrol kebijakan global murni.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Pembersihan Total Hardcode Wilayah**:
+       - Menghapus seluruh filter hardcode nama wilayah (`tegal` / `LIKE '%tegal%'`) dari `src/server/jobs/pppoe-sync.ts`, `src/server/jobs/auto-isolation.ts`, dan `internal/cron/scheduler.go`.
+       - Sistem kini 100% murni mengandalkan flag global `autoIsolationEnabled` (Aksi Jatuh Tempo: *Isolir Otomatis* vs *Tetap Terhubung*).
+    2. **Deduplikasi Pesan Isolir WhatsApp (Strict 24-Hour Idempotency)**:
+       - Pada `src/server/jobs/auto-isolation.ts` (`sendIsolationNotification`), ditambahkan pengecekan riwayat pengiriman pada tabel `whatsapp_history` dalam kurun 24 jam terakhir untuk seluruh varian nomor telepon pelanggan (`08...`, `62...`).
+       - Jika pesan isolir sudah pernah terkirim dalam 24 jam terakhir, pengiriman pesan WhatsApp berikutnya otomatis di-*skip*, menjamin pelanggan tidak pernah menerima spam notifikasi isolir ganda di hari yang sama.
+    3. **Proteksi Kebal Re-Isolasi pada Aktivasi Manual Admin**:
+       - `src/app/api/pppoe/users/bulk-status/route.ts`: Saat admin mengaktifkan pelanggan yang telah jatuh tempo/kedaluwarsa, sistem otomatis memajukan `expiredAt` ke siklus tagihan berikutnya (bulan depan pukul 23:59:59 WIB).
+       - `src/app/api/pppoe/users/status/route.ts` & `src/server/services/pppoe.service.ts`: Logika perpanjangan `expiredAt` otomatis juga diterapkan pada toggle status single-user dan form edit user, sehingga cron auto-isolir tidak akan pernah mengisolir kembali pelanggan yang diaktifkan manual.
+       - Memperbaiki pembacaan port MikroTik API (`apiPort || port || 8728`) agar router dengan custom API port (seperti Router 1 di port 10002) langsung tersinkron tanpa timeout.
+    4. **Fitur Aksi Massal Baru di UI Web**:
+       - Menambahkan tombol aksi massal **"Tetap Terhubung"** (`Globe` icon) dan **"Isolir Otomatis"** (`AlertTriangle` icon) pada toolbar seleksi tabel pelanggan PPPoE (`src/app/admin/pppoe/users/page.tsx`), sehingga admin dapat menetapkan kebijakan isolasi untuk wilayah manapun dalam satu klik langsung dari dashboard tanpa bantuan skrip backend.
+  - *Files*:
+    - `src/server/jobs/auto-isolation.ts`
+    - `src/server/jobs/pppoe-sync.ts`
+    - `src/app/api/pppoe/users/bulk-status/route.ts`
+    - `src/app/api/pppoe/users/status/route.ts`
+    - `src/server/services/pppoe.service.ts`
+    - `src/app/admin/pppoe/users/page.tsx`
+    - `internal/cron/scheduler.go`
+    - `CHANGELOG.md`
+
 ## [2.37.17] — 2026-09-07
 ### Critical Bugfix & Hardening
 - **Proteksi Mutlak Wilayah Kampung Tegal dari Auto-Isolir, Perbaikan Flag Kebal Isolir, & Penghentian WA Isolir Berulang**:

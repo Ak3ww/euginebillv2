@@ -925,6 +925,38 @@ export default function PppoeUsersPage() {
     } catch (error) { console.error('Bulk error:', error); await showError(t('common.failed')); }
   };
 
+  const handleBulkIsolationPolicy = async (autoIsolationEnabled: boolean) => {
+    if (selectedUsers.size === 0) return;
+    const policyName = autoIsolationEnabled ? 'Isolir Otomatis' : 'Tetap Terhubung (Tanpa Isolir)';
+    const confirmed = await showConfirm(
+      `Ubah aksi jatuh tempo untuk ${selectedUsers.size} pelanggan yang dipilih menjadi "${policyName}"?`,
+      'Konfirmasi Kebijakan Isolasi'
+    );
+    if (!confirmed) return;
+    try {
+      const res = await fetch('/api/pppoe/users/bulk-status', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userIds: Array.from(selectedUsers),
+          action: 'set_isolation_policy',
+          autoIsolationEnabled,
+        }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        await showSuccess(result.message || `Kebijakan berhasil diperbarui untuk ${selectedUsers.size} pelanggan.`);
+        setSelectedUsers(new Set());
+        loadData();
+      } else {
+        await showError(result.error || t('common.failed'));
+      }
+    } catch (error) {
+      console.error('Bulk isolation policy error:', error);
+      await showError(t('common.failed'));
+    }
+  };
+
   const toggleSelectUser = (userId: string) => { const n = new Set(selectedUsers); if (n.has(userId)) { n.delete(userId); } else { n.add(userId); } setSelectedUsers(n); };
   const toggleSelectAll = () => { if (selectedUsers.size === filteredUsers.length && filteredUsers.length > 0) { setSelectedUsers(new Set()); } else { setSelectedUsers(new Set(filteredUsers.map(u => u.id))); } };
 
@@ -1512,6 +1544,8 @@ export default function PppoeUsersPage() {
                 <button onClick={() => handleBulkStatusChange('active')} className="px-1.5 py-0.5 text-[10px] bg-success text-white rounded flex items-center gap-0.5"><Shield className="h-2.5 w-2.5" />{t('pppoe.active')}</button>
                 <button onClick={() => handleBulkStatusChange('isolated')} className="px-1.5 py-0.5 text-[10px] bg-warning text-white rounded flex items-center gap-0.5"><ShieldOff className="h-2.5 w-2.5" />{t('pppoe.isolir')}</button>
                 <button onClick={() => handleBulkStatusChange('blocked')} className="px-1.5 py-0.5 text-[10px] bg-destructive text-destructive-foreground rounded flex items-center gap-0.5"><Ban className="h-2.5 w-2.5" />{t('pppoe.block')}</button>
+                <button onClick={() => handleBulkIsolationPolicy(false)} title="Jangan isolir otomatis saat jatuh tempo (TETAP TERHUBUNG)" className="px-1.5 py-0.5 text-[10px] bg-sky-600 hover:bg-sky-700 text-white rounded flex items-center gap-0.5"><Globe className="h-2.5 w-2.5" />Tetap Terhubung</button>
+                <button onClick={() => handleBulkIsolationPolicy(true)} title="Isolir otomatis saat jatuh tempo lewat" className="px-1.5 py-0.5 text-[10px] bg-amber-600 hover:bg-amber-700 text-white rounded flex items-center gap-0.5"><AlertTriangle className="h-2.5 w-2.5" />Isolir Otomatis</button>
                 <button onClick={handleExportSelected} className="px-1.5 py-0.5 text-[10px] bg-teal-600 text-white rounded flex items-center gap-0.5"><Download className="h-2.5 w-2.5" />{t('common.export')}</button>
                 <button onClick={handleBulkDelete} className="px-1.5 py-0.5 text-[10px] bg-muted text-foreground rounded flex items-center gap-0.5"><Trash2 className="h-2.5 w-2.5" />{t('common.delete')}</button>
               </div>

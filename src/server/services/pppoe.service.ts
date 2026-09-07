@@ -639,13 +639,31 @@ export async function updatePppoeUser(
       // Date-only string (YYYY-MM-DD) ? end of day WIB (23:59:59 WIB = 16:59:59 UTC).
       // No longer auto-recalculate expiredAt from billingDay on every edit �
       // that was the bug causing expiredAt to silently reset to "next month" on any save.
-      ...(data.expiredAt && (() => {
-        const expStr = String(data.expiredAt);
-        if (/^\d{4}-\d{2}-\d{2}$/.test(expStr)) {
-          const [y, m, d] = expStr.split('-').map(Number);
-          return { expiredAt: new Date(Date.UTC(y, m - 1, d, 16, 59, 59, 999)) };
+      ...((() => {
+        if (data.expiredAt) {
+          const expStr = String(data.expiredAt);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(expStr)) {
+            const [y, m, d] = expStr.split('-').map(Number);
+            return { expiredAt: new Date(Date.UTC(y, m - 1, d, 16, 59, 59, 999)) };
+          }
+          return { expiredAt: new Date(expStr) };
         }
-        return { expiredAt: new Date(expStr) };
+        if (data.status === 'active' && currentUser.expiredAt && new Date(currentUser.expiredAt) <= new Date()) {
+          const now = new Date();
+          const bd = Number(data.billingDay ?? currentUser.billingDay ?? 6);
+          let nextYear = now.getUTCFullYear();
+          let nextMonth = now.getUTCMonth() + 1;
+          if (nextMonth > 11) {
+            nextYear += 1;
+            nextMonth = 0;
+          }
+          const maxDays = new Date(Date.UTC(nextYear, nextMonth + 1, 0)).getUTCDate();
+          const validDay = Math.min(bd, maxDays);
+          const nextExp = new Date(Date.UTC(nextYear, nextMonth, validDay, 16, 59, 59, 999));
+          console.log(`[updatePPPoEUser] 🛡️ Auto-advanced expiredAt for ${currentUser.username} to ${nextExp.toISOString()} on manual reactivation`);
+          return { expiredAt: nextExp };
+        }
+        return {};
       })()),
       ...(data.autoRenewal !== undefined && { autoRenewal: data.autoRenewal }),
       ...(data.autoIsolationEnabled !== undefined && { autoIsolationEnabled: data.autoIsolationEnabled }),
