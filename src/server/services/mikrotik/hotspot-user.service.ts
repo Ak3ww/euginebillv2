@@ -253,6 +253,12 @@ export class HotspotUserService {
           await conn.execute('/radius/set', [
             `=.id=${r['.id']}`,
             `=service=${services.join(',')}`,
+            '=disabled=no',
+          ]);
+        } else {
+          await conn.execute('/radius/set', [
+            `=.id=${r['.id']}`,
+            '=disabled=yes',
           ]);
         }
       }

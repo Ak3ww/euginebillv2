@@ -707,7 +707,7 @@ export default function PPPoEProfilesPage() {
 
               {/* Group Name */}
               <div>
-                <ModalLabel required>{company?.radiusEnabled ? t('pppoe.radiusGroup') : 'Nama Group'}</ModalLabel>
+                <ModalLabel required>{company?.radiusPppoeEnabled ? t('pppoe.radiusGroup') : 'Nama Group'}</ModalLabel>
                 <ModalInput
                   type="text"
                   value={formData.groupName}
@@ -718,7 +718,7 @@ export default function PPPoEProfilesPage() {
                 <p className="text-[9px] text-muted-foreground mt-1">
                   {formData.groupName && formData.groupName === getAutoGroupName(formData.name)
                     ? <span>Auto-generate · <button type="button" className="text-primary hover:underline" onClick={() => setFormData(prev => ({...prev, groupName: ''}))}>Edit untuk kustomisasi</button></span>
-                    : company?.radiusEnabled ? 'Dipakai sebagai Group RADIUS dan otomatis jadi nama PPP Profile MikroTik' : 'Otomatis dipakai sebagai nama PPP Profile di MikroTik'
+                    : company?.radiusPppoeEnabled ? 'Dipakai sebagai Group RADIUS dan otomatis jadi nama PPP Profile MikroTik' : 'Otomatis dipakai sebagai nama PPP Profile di MikroTik'
                   }
                 </p>
               </div>
@@ -1071,12 +1071,14 @@ export default function PPPoEProfilesPage() {
                         : <CheckCircle2 className="h-3.5 w-3.5 text-[#00f7ff]" />}
                       <span className="text-muted-foreground">Shared User</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {detailProfile.syncedToRadius
-                        ? <CheckCircle2 className="h-3.5 w-3.5 text-blue-400" />
-                        : <XCircle className="h-3.5 w-3.5 text-muted-foreground" />}
-                      <span className="text-muted-foreground">RADIUS Synced</span>
-                    </div>
+                    {company?.radiusPppoeEnabled && (
+                      <div className="flex items-center gap-2">
+                        {detailProfile.syncedToRadius
+                          ? <CheckCircle2 className="h-3.5 w-3.5 text-blue-400" />
+                          : <XCircle className="h-3.5 w-3.5 text-muted-foreground" />}
+                        <span className="text-muted-foreground">RADIUS Synced</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="text-muted-foreground">{detailProfile.userCount ?? 0} Pelanggan</span>
@@ -1089,14 +1091,16 @@ export default function PPPoEProfilesPage() {
                 </div>
 
                 {/* Sync Actions */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    onClick={() => { handleSyncRadius(detailProfile); setDetailProfile(null); }}
-                    disabled={syncingRadiusId === detailProfile.id}
-                    className="flex items-center justify-center gap-2 px-3 py-2 text-xs border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
-                  >
-                    <Radio className="h-3.5 w-3.5" />Sync FreeRADIUS
-                  </button>
+                <div className={`grid ${company?.radiusPppoeEnabled ? 'grid-cols-2' : 'grid-cols-1'} gap-2 pt-1`}>
+                  {company?.radiusPppoeEnabled && (
+                    <button
+                      onClick={() => { handleSyncRadius(detailProfile); setDetailProfile(null); }}
+                      disabled={syncingRadiusId === detailProfile.id}
+                      className="flex items-center justify-center gap-2 px-3 py-2 text-xs border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                    >
+                      <Radio className="h-3.5 w-3.5" />Sync FreeRADIUS
+                    </button>
+                  )}
                   <button
                     onClick={() => { setDetailProfile(null); handleSyncMikrotik(detailProfile); }}
                     disabled={syncingMikrotikId === detailProfile.id}
