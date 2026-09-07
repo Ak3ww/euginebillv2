@@ -26,7 +26,7 @@ import { ensureHttpsUrl } from '@/lib/utils';
 export async function autoIsolateExpiredUsers() {
   try {
     const company = await prisma.company.findFirst();
-    const isRadius = company?.radiusEnabled !== false;
+    const isRadius = company?.radiusPppoeEnabled ?? false;
     const isolateProfileName = company?.isolateProfileName || 'isolir';
     console.log(`[AUTO-ISOLATE] Starting auto-isolation check (RADIUS: ${isRadius})...`);
 
@@ -472,7 +472,7 @@ export async function isolateUser(username: string, reason?: string) {
     }
 
     const company = await prisma.company.findFirst();
-    const isRadius = company?.radiusEnabled ?? false;
+    const isRadius = company?.radiusPppoeEnabled ?? false;
     const isolateProfileName = company?.isolateProfileName || 'isolir';
 
     // Same isolation logic as auto-isolate

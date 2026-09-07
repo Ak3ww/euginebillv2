@@ -307,7 +307,7 @@ export async function PATCH(
       try {
         const company = await prisma.company.findFirst();
         
-        if (company?.radiusEnabled) {
+        if (company?.radiusPppoeEnabled) {
           const activeProfile = newProfileData;
           if (activeProfile && 'groupName' in activeProfile) {
             // Update password in radcheck

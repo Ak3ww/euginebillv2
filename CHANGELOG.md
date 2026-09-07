@@ -4,6 +4,61 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.12] — 2026-09-07
+### Fixed & Refactored
+- **Dekopling Total PPPoE dari RADIUS & Perbaikan Un-Isolir Otomatis Webhook Pembayaran (QRIN/Manual/QRIS)**:
+  - *Context / User Request*:
+    Pengguna melaporkan bahwa pelanggan atas nama Nendar (username `EMG015`) yang baru saja membayar tagihan melalui gateway QRIN tidak langsung berubah statusnya dari profil `isolir` ke profil paket langganannya di MikroTik (`/ppp/secret`). Selain itu, pengguna menanyakan mengapa pada halaman Data Pelanggan PPPoE muncul tombol "Sync ke RADIUS" dan pergantian status isolir pelanggan di MikroTik tidak berjalan padahal toggle RADIUS PPPoE telah dinonaktifkan (hanya Hotspot yang aktif). Pengguna juga meminta penjelasan mengenai menu `https://admin.euginemediagroup.com/admin/freeradius/`.
+  - *Root Cause Analysis*:
+    1. Pada versi sebelumnya, field `radiusEnabled` pada model `company` diubah menjadi komposit (`radiusEnabled = radiusHotspotEnabled || radiusPppoeEnabled`). Ketika Hotspot RADIUS dinyalakan, `radiusEnabled` bernilai `true`.
+    2. Lebih dari 20 endpoint dan service backend PPPoE (termasuk webhook pembayaran QRIN `src/app/api/payment/webhook/route.ts`, router status change `src/app/api/pppoe/users/status/route.ts`, mark-paid, auto-isolation, invoices, dll.) masih memeriksa kondisi legacy `if (company?.radiusEnabled)`.
+    3. Akibatnya, saat webhook menerima pembayaran QRIN dari Nendar, sistem mendeteksi `radiusEnabled: true`, sehingga hanya memperbarui tabel database FreeRADIUS (`radcheck`, `radusergroup`) dan mengirim CoA disconnect, namun sama sekali **MELEWATI (SKIP)** eksekusi sinkronisasi MikroTik `/ppp/secret` (`PPPSecretService.setProfileAndDisconnect`). Di MikroTik, secret pengguna tetap berada pada profile `isolir`!
+    4. Pada antarmuka Data Pelanggan (`src/app/admin/pppoe/users/page.tsx`) dan Paket PPPoE (`src/app/admin/pppoe/profiles/page.tsx`), tombol dan kolom "Sync ke RADIUS" diperiksa dengan `company.radiusEnabled`, sehingga muncul meskipun PPPoE RADIUS dimatikan.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Dekopling Total Backend PPPoE**:
+       - Mengganti seluruh pemeriksaan `company?.radiusEnabled` pada seluruh alur kerja PPPoE menjadi pemeriksaan granular `company?.radiusPppoeEnabled ?? false`.
+       - Berlaku pada: Webhook QRIN (`/api/payment/webhook`), QRIS Notify (`/api/payment/qris-notify`), Pembayaran Invoice Admin (`/api/invoices`), Manual Payment Approval (`/api/manual-payments/[id]`), Ubah Status PPPoE (`/api/pppoe/users/status`), Bulk Status (`/api/pppoe/users/bulk-status`), Unisolate All (`/api/pppoe/users/unisolate-all`), Perpanjangan Manual (`/api/pppoe/users/[id]/extend`), Mark Paid (`/api/pppoe/users/[id]/mark-paid`), Persetujuan Registrasi (`/api/admin/registrations/[id]/approve`), dan Aktivasi (`activation.service.ts`).
+       - Memastikan saat `radiusPppoeEnabled === false`, seluruh pengaktifan dan un-isolir langsung mengeksekusi `PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, normalProfile)` dan menghapus IP pelanggan dari address-list `isolir` MikroTik secara instan.
+    2. **Pembersihan Antarmuka Pelanggan & Profil**:
+       - Memperbarui Zustand store (`src/lib/store.ts`) dan layout admin (`src/app/admin/AdminClientLayout.tsx`) untuk menyimpan state `radiusHotspotEnabled` dan `radiusPppoeEnabled`.
+       - Mengubah kondisi tombol "Sync ke RADIUS", kolom header, dan cell RADIUS pada `/admin/pppoe/users` dan `/admin/pppoe/profiles` agar hanya tampil jika `company.radiusPppoeEnabled` aktif.
+       - Menghapus text emoji pada action button tooltip (`🔧`) agar 100% patuh terhadap aturan workspace.
+    3. **Dukungan Hybrid Mode pada Dashboard & Sesi**:
+       - Memperbarui endpoint statistik dashboard (`/api/dashboard/stats`, `/api/dashboard/traffic`, `/api/dashboard/analytics`) dan endpoint sesi (`/api/sessions`) agar mampu menangani Hybrid Mode (Hotspot menggunakan RADIUS, PPPoE menggunakan Lokal MikroTik) dengan menggabungkan sesi aktif dari `radacct` dan live MikroTik `/ppp/active` tanpa saling menimpa.
+    4. **Verifikasi Pelanggan Nendar (`EMG015`)**:
+       - Memverifikasi status secret pada MikroTik Router 1: secret `EMG015` berada pada profil `50 Mbps`, session aktif terhubung normal di pool subnet utama (`192.168.21.215`), dan tidak terdaftar di firewall address list `isolir`.
+  - *Files*:
+    - `src/lib/store.ts`
+    - `src/app/admin/AdminClientLayout.tsx`
+    - `src/app/admin/pppoe/users/page.tsx`
+    - `src/app/admin/pppoe/profiles/page.tsx`
+    - `src/app/api/payment/webhook/route.ts`
+    - `src/app/api/payment/qris-notify/route.ts`
+    - `src/app/api/invoices/route.ts`
+    - `src/app/api/manual-payments/[id]/route.ts`
+    - `src/app/api/pppoe/users/status/route.ts`
+    - `src/app/api/pppoe/users/bulk-status/route.ts`
+    - `src/app/api/pppoe/users/unisolate-all/route.ts`
+    - `src/app/api/pppoe/users/[id]/mark-paid/route.ts`
+    - `src/app/api/pppoe/users/[id]/extend/route.ts`
+    - `src/app/api/pppoe/users/[id]/activity/route.ts`
+    - `src/app/api/pppoe/profiles/route.ts`
+    - `src/app/api/customer/dashboard/route.ts`
+    - `src/app/api/customer/usage/route.ts`
+    - `src/app/api/technician/sessions/route.ts`
+    - `src/app/api/dashboard/stats/route.ts`
+    - `src/app/api/dashboard/traffic/route.ts`
+    - `src/app/api/dashboard/analytics/route.ts`
+    - `src/app/api/sessions/route.ts`
+    - `src/server/jobs/auto-isolation.ts`
+    - `src/server/jobs/auto-renewal.ts`
+    - `src/server/jobs/pppoe-sync.ts`
+    - `src/server/services/activation.service.ts`
+    - `src/server/services/pppoe.service.ts`
+    - `src/server/services/mikrotik/ont-remote.service.ts`
+    - `src/server/services/radius/coa-handler.service.ts`
+    - `CHANGELOG.md`
+
 ## [2.37.11] — 2026-09-07
 ### Added & Enhanced
 - **Sistem Cetak Struk Voucher QR Code Auto-Login & Handler Captive Portal MikroTik**:

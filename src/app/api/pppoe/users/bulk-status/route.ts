@@ -28,7 +28,7 @@ export async function PUT(request: Request) {
 
     // Get company settings to determine mode
     const company = await prisma.company.findFirst();
-    const isRadiusEnabled = company?.radiusEnabled ?? false;
+    const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
     // Get all users with router info
     const users = await prisma.pppoeUser.findMany({

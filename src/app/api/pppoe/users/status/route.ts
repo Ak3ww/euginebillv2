@@ -30,9 +30,9 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Get company settings to check radiusEnabled
+    // Get company settings to check radiusPppoeEnabled
     const company = await prisma.company.findFirst();
-    const isRadiusEnabled = company?.radiusEnabled ?? false;
+    const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
     // Get current user data for comparison
     const currentUser = await prisma.pppoeUser.findUnique({
@@ -203,10 +203,11 @@ export async function PUT(request: Request) {
                   `=profile=${normalProfile}`,
                 ]);
               } else if (status === 'isolated') {
+                const isolateProfile = company?.isolateProfileName || 'isolir';
                 await conn.execute('/ppp/secret/set', [
                   `=.id=${existing[0]['.id']}`,
                   `=disabled=no`,
-                  `=profile=isolir`,
+                  `=profile=${isolateProfile}`,
                 ]);
               }
             }
@@ -217,6 +218,15 @@ export async function PUT(request: Request) {
             }
             await conn.disconnect();
             console.log(`[Status Change] MikroTik API sync complete for ${user.username} (status: ${status}, port: ${port})`);
+
+            // If active, also ensure cleaned from firewall address list
+            if (status === 'active') {
+              try {
+                const { removeUserFromMikrotikAddressList } = await import('@/server/services/radius/coa-handler.service');
+                removeUserFromMikrotikAddressList(user.username, user.routerId, 'isolir')
+                  .catch(err => console.error('[Status Change] Address-list un-isolir error:', err?.message));
+              } catch { /* ignore */ }
+            }
           } catch (err) {
             console.error(`[Status Change] MikroTik API sync error for ${user.username} on port ${port}:`, err);
             try { await conn.disconnect(); } catch { /* ignore */ }

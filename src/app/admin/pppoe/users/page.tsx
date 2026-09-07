@@ -1662,7 +1662,7 @@ export default function PppoeUsersPage() {
                     </div>
 
                     <div className="flex items-center gap-1 pt-1 flex-wrap">
-                      {company.radiusEnabled && (
+                      {company.radiusPppoeEnabled && (
                         <button onClick={() => handleSyncToRadius(user)} className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Sync RADIUS" title="Sync RADIUS"><RefreshCw className="h-3.5 w-3.5 pointer-events-none" /></button>
                       )}
                       <button
@@ -1717,7 +1717,7 @@ export default function PppoeUsersPage() {
                     <div className="flex items-center gap-1">Status <ArrowUpDown className="w-3 h-3" /></div>
                   </th>
                   <th className="px-3 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase">Sesi</th>
-                  {company.radiusEnabled && (
+                  {company.radiusPppoeEnabled && (
                     <th className="px-3 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase hidden md:table-cell">RADIUS</th>
                   )}
                   <th className="px-3 py-2 text-right text-[10px] font-medium text-muted-foreground uppercase">Aksi</th>
@@ -1725,7 +1725,7 @@ export default function PppoeUsersPage() {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {filteredUsers.length === 0 ? (
-                  <tr><td colSpan={12} className="px-3 py-8 text-center text-muted-foreground text-xs">{users.length === 0 ? t('pppoe.noUsers') : t('pppoe.noMatch')}</td></tr>
+                  <tr><td colSpan={company.radiusPppoeEnabled ? 12 : 11} className="px-3 py-8 text-center text-muted-foreground text-xs">{users.length === 0 ? t('pppoe.noUsers') : t('pppoe.noMatch')}</td></tr>
                 ) : (
                   filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-muted/50">
@@ -1807,7 +1807,7 @@ export default function PppoeUsersPage() {
                         }
                       </td>
                       {/* RADIUS */}
-                      {company.radiusEnabled && (
+                      {company.radiusPppoeEnabled && (
                         <td className="px-3 py-2 hidden md:table-cell">
                           {user.syncedToRadius ? (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-accent/20 text-accent dark:bg-purple-900/30"><CheckCircle2 className="h-2 w-2 mr-0.5" />Synced</span>
@@ -1855,13 +1855,13 @@ export default function PppoeUsersPage() {
                               onClick={() => handleCompleteInstallation(user)}
                               className="compact-action p-1.5 text-emerald-500 hover:bg-emerald-500/10 rounded cursor-pointer focus:outline-none"
                               aria-label="Selesaikan Pemasangan & Kirim WA Tagihan"
-                              title="🔧 Selesaikan Pemasangan & Kirim WA Tagihan"
+                              title="Selesaikan Pemasangan & Kirim WA Tagihan"
                             >
                               <Wrench className="h-3.5 w-3.5 pointer-events-none" />
                             </button>
                           )}
                           {/* Sync ke RADIUS */}
-                          {company.radiusEnabled && (
+                          {company.radiusPppoeEnabled && (
                             <button
                               onClick={() => handleSyncToRadius(user)}
                               className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer focus:outline-none"

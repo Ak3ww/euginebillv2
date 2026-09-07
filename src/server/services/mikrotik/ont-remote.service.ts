@@ -69,7 +69,7 @@ export async function resolveOntIpFromMikrotik(params: {
           },
         },
       }),
-      prisma.company.findFirst({ select: { radiusEnabled: true } }),
+      prisma.company.findFirst({ select: { radiusPppoeEnabled: true } }),
     ])
 
     if (user) {
@@ -79,7 +79,7 @@ export async function resolveOntIpFromMikrotik(params: {
       routerName = user.router?.name || ''
       routerVpnIp = user.router?.ipAddress || user.router?.nasname || null
 
-      const radiusEnabled = company?.radiusEnabled ?? false
+      const radiusEnabled = company?.radiusPppoeEnabled ?? false
 
       // 2. RADIUS mode: fast DB lookup via radacct
       //    framedipaddress = IP assigned to PPPoE client = ONT IP

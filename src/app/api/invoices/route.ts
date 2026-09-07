@@ -823,7 +823,7 @@ export async function PUT(request: NextRequest) {
           // Restore RADIUS to active profile
           try {
             const company = await prisma.company.findFirst();
-            const isRadius = company?.radiusEnabled !== false;
+            const isRadius = company?.radiusPppoeEnabled ?? false;
 
             if (!isRadius) {
               if (user.routerId) {

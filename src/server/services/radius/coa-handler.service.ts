@@ -672,8 +672,8 @@ export async function removeUserFromMikrotikAddressList(
       return false
     }
 
-    const company = await prisma.company.findFirst({ select: { radiusEnabled: true } })
-    const isRadius = company?.radiusEnabled ?? false
+    const company = await prisma.company.findFirst({ select: { radiusPppoeEnabled: true } })
+    const isRadius = company?.radiusPppoeEnabled ?? false
 
     const candidateIps = new Set<string>()
     if (user?.ipAddress) candidateIps.add(user.ipAddress)

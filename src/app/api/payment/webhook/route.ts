@@ -1679,7 +1679,8 @@ export async function handleInvoicePayment(
 
           try {
             const company = await prisma.company.findFirst();
-            if (company?.radiusEnabled) {
+            const isRadiusPppoe = company?.radiusPppoeEnabled ?? false;
+            if (isRadiusPppoe) {
               // Remove forced reject (if any) from previous SUSPENDED state
               await prisma.radcheck.deleteMany({
                 where: {

@@ -222,7 +222,9 @@ export async function GET(request: NextRequest) {
 
     // ── 2. Query active sessions (RADIUS or Live MikroTik) ───────────────────
     const company = await prisma.company.findFirst();
-    const radiusEnabled = company?.radiusEnabled ?? false;
+    const isRadiusPppoe = company?.radiusPppoeEnabled ?? false;
+    const isRadiusHotspot = company?.radiusHotspotEnabled ?? false;
+    const radiusEnabled = isRadiusPppoe || isRadiusHotspot;
 
     let activeSessions: any[] = [];
 
@@ -241,8 +243,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // If non-RADIUS OR radacct returned 0 sessions, query live from MikroTik router(s)
-    if (!radiusEnabled || activeSessions.length === 0) {
+    // If non-RADIUS for PPPoE/Hotspot OR radacct returned 0 sessions, query live from MikroTik router(s)
+    if (!isRadiusPppoe || !isRadiusHotspot || activeSessions.length === 0) {
       const targetRouters = selectedRouter ? [selectedRouter] : allRouters;
       const liveSessionsList: any[] = [];
       const cacheKey = selectedRouter ? selectedRouter.id : 'all';
@@ -363,13 +365,19 @@ export async function GET(request: NextRequest) {
       }
 
       if (liveSessionsList.length > 0) {
-        activeSessions = liveSessionsList;
+        if (activeSessions.length > 0) {
+          const existingUsernames = new Set(activeSessions.map(s => s.username?.toLowerCase()));
+          const newLive = liveSessionsList.filter(s => !existingUsernames.has(s.username?.toLowerCase()));
+          activeSessions = [...activeSessions, ...newLive];
+        } else {
+          activeSessions = liveSessionsList;
+        }
         if (search) {
           const sLower = search.toLowerCase();
           activeSessions = activeSessions.filter(s =>
-            s.username.toLowerCase().includes(sLower) ||
-            s.framedipaddress.includes(sLower) ||
-            s.callingstationid.toLowerCase().includes(sLower)
+            s.username?.toLowerCase().includes(sLower) ||
+            s.framedipaddress?.includes(sLower) ||
+            s.callingstationid?.toLowerCase().includes(sLower)
           );
         }
       } else if (!radiusEnabled) {

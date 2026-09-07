@@ -155,7 +155,7 @@ export async function POST(
 
     // 2. SECONDARY: Restore RADIUS tables if RADIUS mode is enabled
     const company = await prisma.company.findFirst();
-    if (company?.radiusEnabled && userRecord.profile) {
+    if (company?.radiusPppoeEnabled && userRecord.profile) {
       try {
         // Remove any old rejection/suspension markers
         await prisma.radcheck.deleteMany({

@@ -119,7 +119,7 @@ export async function listPppoeUsers(params: { status?: string | null }) {
   });
 
   const company = await prisma.company.findFirst();
-  const isRadiusEnabled = company?.radiusEnabled ?? false;
+  const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
   // Batch fetch all active sessions in ONE query instead of N queries (N+1 fix)
   const usernames = users.map(u => u.username);
@@ -188,7 +188,7 @@ export async function getPppoeUserById(id: string) {
   if (!user) return null;
 
   const company = await prisma.company.findFirst();
-  const isRadiusEnabled = company?.radiusEnabled ?? false;
+  const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
   let activeSession: any = null;
   
@@ -271,7 +271,7 @@ export async function createPppoeUser(
   // Generate unique customer ID (with company prefix if configured)
   const company = await prisma.company.findFirst();
   const prefix = company?.customerIdPrefix?.trim() || '';
-  const isRadiusEnabled = company?.radiusEnabled ?? false;
+  const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
   let customerId = '';
   let isUnique = false;
   while (!isUnique) {
@@ -591,7 +591,7 @@ export async function updatePppoeUser(
   if (!currentUser) throw Object.assign(new Error('User not found'), { code: 'NOT_FOUND' });
 
   const company = await prisma.company.findFirst();
-  const isRadiusEnabled = company?.radiusEnabled ?? false;
+  const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
   // Duplicate username check
   if (data.username && data.username !== currentUser.username) {
@@ -909,7 +909,7 @@ export async function deletePppoeUser(
 
   const shouldDeleteSecret = options?.deleteSecretFromMikrotik !== false;
   const company = await prisma.company.findFirst();
-  const isRadiusEnabled = company?.radiusEnabled ?? false;
+  const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
   // RADIUS or MikroTik cleanup (only if requested)
   if (shouldDeleteSecret) {

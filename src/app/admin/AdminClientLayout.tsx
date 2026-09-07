@@ -807,6 +807,8 @@ function AdminLayoutContent({
             adminPhone: data.phone,
             logo: data.logo || '',
             radiusEnabled: data.radiusEnabled,
+            radiusHotspotEnabled: data.radiusHotspotEnabled,
+            radiusPppoeEnabled: data.radiusPppoeEnabled,
           });
         }
       })

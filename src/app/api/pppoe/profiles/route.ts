@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     });
 
     const company = await prisma.company.findFirst();
-    const isRadiusEnabled = company?.radiusEnabled ?? false;
+    const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
     // Sync to FreeRADIUS in background — don't block the HTTP response
     if (isRadiusEnabled) {
@@ -259,7 +259,7 @@ export async function PUT(request: NextRequest) {
     });
 
     const company = await prisma.company.findFirst();
-    const isRadiusEnabled = company?.radiusEnabled ?? false;
+    const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
     // Return immediately — RADIUS re-sync + MikroTik CoA run in background
     if (normalizedGroupName || normalizedMikrotikProfileName !== undefined || parsedFromRateLimit || bodyRateLimit || sharedUser !== undefined) {
@@ -389,7 +389,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const company = await prisma.company.findFirst();
-    const isRadiusEnabled = company?.radiusEnabled ?? false;
+    const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
     // Delete RADIUS entries
     if (isRadiusEnabled) {

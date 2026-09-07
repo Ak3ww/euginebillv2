@@ -254,7 +254,7 @@ async function payInvoiceFromBalance(user: any, invoice: any) {
     if (user.status === 'isolated') {
       try {
         const company = await prisma.company.findFirst()
-        const isRadius = company?.radiusEnabled !== false
+        const isRadius = company?.radiusPppoeEnabled ?? false
         if (!isRadius) {
           if (user.routerId) {
             const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service')

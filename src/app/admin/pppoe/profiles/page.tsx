@@ -484,7 +484,7 @@ export default function PPPoEProfilesPage() {
               <CheckCircle2 className="h-7 w-7 text-green-400 drop-shadow-[0_0_15px_rgba(34,197,94,0.6)]" />
             </div>
           </div>
-          {company?.radiusEnabled && (
+          {company?.radiusPppoeEnabled && (
             <div className="bg-card rounded-lg border border-border p-3">
               <div className="flex items-center justify-between">
                 <div><p className="text-[10px] text-muted-foreground uppercase">{t('pppoe.synced')}</p><p className="text-base font-bold text-primary">{profiles.filter(p => p.syncedToRadius).length}</p></div>
@@ -506,7 +506,7 @@ export default function PPPoEProfilesPage() {
                     <p className="font-medium text-sm text-foreground">{profile.name}</p>
                     {profile.description && <p className="text-xs text-muted-foreground mt-0.5">{profile.description}</p>}
                   </div>
-                  {company?.radiusEnabled && (
+                  {company?.radiusPppoeEnabled && (
                     profile.syncedToRadius ? (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-success/10 text-success"><CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />{t('pppoe.synced')}</span>
                     ) : (
@@ -545,14 +545,14 @@ export default function PPPoEProfilesPage() {
                   <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Harga</th>
                   <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Pelanggan</th>
                   <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                  {company?.radiusEnabled && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">RADIUS</th>}
+                  {company?.radiusPppoeEnabled && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">RADIUS</th>}
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {profiles.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-12 text-center">
+                    <td colSpan={company?.radiusPppoeEnabled ? 8 : 7} className="px-3 py-12 text-center">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <FileText className="h-8 w-8 opacity-30" />
                         <p className="text-xs">Belum ada paket PPPoE</p>
@@ -623,7 +623,7 @@ export default function PPPoEProfilesPage() {
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-medium bg-muted text-muted-foreground border border-border"><XCircle className="h-2.5 w-2.5 mr-1" />Nonaktif</span>
                         )}
                       </td>
-                      {company?.radiusEnabled && (
+                      {company?.radiusPppoeEnabled && (
                         <td className="px-3 py-2.5 text-center">
                           {profile.syncedToRadius ? (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20"><CheckCircle2 className="h-2.5 w-2.5 mr-1" />Sync</span>
@@ -634,7 +634,7 @@ export default function PPPoEProfilesPage() {
                       )}
                       <td className="px-3 py-2.5 text-right">
                         <div className="flex justify-end items-center gap-0.5">
-                          {company?.radiusEnabled && (
+                          {company?.radiusPppoeEnabled && (
                             <button
                               title="Sync ke RADIUS"
                               onClick={() => handleSyncRadius(profile)}

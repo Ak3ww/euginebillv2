@@ -182,7 +182,9 @@ export async function GET(request: NextRequest) {
     // ==================== SESSION MONITORING ====================
     if (type === 'all' || type === 'sessions') {
       const company = await prisma.company.findFirst();
-      const radiusEnabled = company?.radiusEnabled ?? false;
+      const isRadiusPppoe = company?.radiusPppoeEnabled ?? false;
+      const isRadiusHotspot = company?.radiusHotspotEnabled ?? false;
+      const radiusEnabled = isRadiusPppoe || isRadiusHotspot;
 
       // Session counts for last 24 hours (hourly)
       const sessionsData = [];
@@ -196,7 +198,7 @@ export async function GET(request: NextRequest) {
         let pppoeCount = 0;
         let hotspotCount = 0;
 
-        if (radiusEnabled) {
+        if (isRadiusPppoe) {
           pppoeCount = await prisma.radacct.count({
             where: {
               acctstarttime: { lte: hourEnd },
@@ -207,17 +209,6 @@ export async function GET(request: NextRequest) {
               groupname: { not: 'hotspot' },
             },
           });
-
-          hotspotCount = await prisma.radacct.count({
-            where: {
-              acctstarttime: { lte: hourEnd },
-              OR: [
-                { acctstoptime: null },
-                { acctstoptime: { gte: hourStart } },
-              ],
-              groupname: 'hotspot',
-            },
-          });
         } else {
           pppoeCount = await prisma.mikrotikSession.count({
             where: {
@@ -226,6 +217,19 @@ export async function GET(request: NextRequest) {
                 { stopTime: null },
                 { stopTime: { gte: hourStart } },
               ],
+            },
+          });
+        }
+
+        if (isRadiusHotspot) {
+          hotspotCount = await prisma.radacct.count({
+            where: {
+              acctstarttime: { lte: hourEnd },
+              OR: [
+                { acctstoptime: null },
+                { acctstoptime: { gte: hourStart } },
+              ],
+              groupname: 'hotspot',
             },
           });
         }

@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
     // 1. Dapatkan Pengaturan Company & Update fixedBillingDate = 6
     const company = await prisma.company.findFirst();
-    const isRadiusEnabled = company?.radiusEnabled ?? false;
+    const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
     await prisma.company.updateMany({
       data: { fixedBillingDate: 6 }

@@ -35,7 +35,7 @@ export async function GET(
 
     if (type === 'sessions') {
       const company = await prisma.company.findFirst();
-      const radiusEnabled = company?.radiusEnabled ?? false;
+      const radiusEnabled = company?.radiusPppoeEnabled ?? false;
       let formattedSessions;
 
       const formatBytes = (bytes: number) => {

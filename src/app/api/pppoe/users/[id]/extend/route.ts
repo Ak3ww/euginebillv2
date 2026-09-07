@@ -70,7 +70,7 @@ export async function POST(
     // 2. SECONDARY: Restore RADIUS tables if RADIUS mode is enabled
     try {
       const company = await prisma.company.findFirst();
-      if (company?.radiusEnabled) {
+      if (company?.radiusPppoeEnabled) {
         // Remove any old rejection / suspension markers
         await prisma.radcheck.deleteMany({
           where: { username: user.username, attribute: 'Auth-Type' },

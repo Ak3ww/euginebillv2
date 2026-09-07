@@ -13,6 +13,8 @@ interface CompanySettings {
   timezone: string;
   poweredBy?: string;
   radiusEnabled?: boolean;
+  radiusHotspotEnabled?: boolean;
+  radiusPppoeEnabled?: boolean;
 }
 
 interface AppState {

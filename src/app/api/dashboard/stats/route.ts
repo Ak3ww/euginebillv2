@@ -67,17 +67,32 @@ export async function GET(request: NextRequest) {
       // Sama dengan halaman Sesi: if username ada di pppoeUser → PPPoE, else → Hotspot.
       const normalizeUsername = (u: string) => u.includes('@') ? u.split('@')[0] : u;
 
-      let activeRadacctSessions;
-      if (radiusEnabled) {
+      const radiusPppoeEnabled = company?.radiusPppoeEnabled ?? false;
+      const radiusHotspotEnabled = company?.radiusHotspotEnabled ?? false;
+
+      let activeRadacctSessions: Array<{ username: string | null }> = [];
+      if (radiusPppoeEnabled && radiusHotspotEnabled) {
         activeRadacctSessions = await prisma.radacct.findMany({
           where: { acctstoptime: null },
           select: { username: true },
         });
-      } else {
+      } else if (!radiusPppoeEnabled && !radiusHotspotEnabled) {
         activeRadacctSessions = await prisma.mikrotikSession.findMany({
           where: { stopTime: null },
           select: { username: true },
         });
+      } else {
+        const [radSessions, mkSessions] = await Promise.all([
+          prisma.radacct.findMany({
+            where: { acctstoptime: null },
+            select: { username: true },
+          }),
+          prisma.mikrotikSession.findMany({
+            where: { stopTime: null },
+            select: { username: true },
+          }),
+        ]);
+        activeRadacctSessions = [...radSessions, ...mkSessions];
       }
 
       const onlineUsernames = new Set<string>(
@@ -148,7 +163,8 @@ export async function GET(request: NextRequest) {
         const candidateCodes = activeCandidates.map(v => v.code);
         // Find the latest stopped session per voucher code
         const latestStopMap = new Map<string, Date>();
-        if (radiusEnabled) {
+        const isRadiusHotspot = company?.radiusHotspotEnabled ?? false;
+        if (isRadiusHotspot) {
           const stoppedRows = await prisma.radacct.findMany({
             where: {
               username: { in: candidateCodes },

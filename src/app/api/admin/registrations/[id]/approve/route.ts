@@ -210,7 +210,7 @@ export async function POST(
     }
 
     // Sync to RADIUS or Mikrotik
-    if (companyInfo?.radiusEnabled) {
+    if (companyInfo?.radiusPppoeEnabled) {
       // Password
       await prisma.radcheck.upsert({
         where: { username_attribute: { username, attribute: 'Cleartext-Password' } },

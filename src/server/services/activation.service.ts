@@ -19,7 +19,7 @@ export async function activateAndBillUser(userId: string) {
   const companyInfo = await prisma.company.findFirst();
 
   // Push updated status to Mikrotik if needed
-  if (!companyInfo?.radiusEnabled) {
+  if (!companyInfo?.radiusPppoeEnabled) {
     const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
     await PPPSecretService.syncSecret(user.id);
   }

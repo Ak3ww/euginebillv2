@@ -39,8 +39,8 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(100, parseInt(searchParams.get('limit') || '50', 10));
 
   // Check if RADIUS mode or Non-RADIUS mode is enabled
-  const company = await prisma.company.findFirst({ select: { radiusEnabled: true } });
-  const isRadius = company?.radiusEnabled ?? false;
+  const company = await prisma.company.findFirst({ select: { radiusPppoeEnabled: true } });
+  const isRadius = company?.radiusPppoeEnabled ?? false;
 
   let onlineSessions: Array<{
     radacctid: bigint | number;

@@ -172,9 +172,9 @@ export async function autoIsolatePPPoEUsers(): Promise<{
     return { success: true, isolated: 0 }
   }
 
-  // Get company settings to check radiusEnabled
+  // Get company settings to check radiusPppoeEnabled
   const company = await prisma.company.findFirst()
-  const isRadiusEnabled = company?.radiusEnabled ?? false
+  const isRadiusEnabled = company?.radiusPppoeEnabled ?? false
 
   let history: { id: string } | undefined
 
@@ -190,39 +190,41 @@ export async function autoIsolatePPPoEUsers(): Promise<{
     })
     console.log(`[PPPoE Auto-Isolir] Checking for expired users (gracePeriod=${gracePeriodDays} days)...`)
 
-    // Enforce: all manually blocked/stop users must be rejected by RADIUS
+    // Enforce: all manually blocked/stop users must be rejected by RADIUS (only if RADIUS PPPoE is enabled)
     // Prevent login by setting Auth-Type=Reject
     // NOTE: isolated users are NOT rejected here - they can login with restricted access
-    try {
-      await prisma.$executeRaw`
-        DELETE rc
-        FROM radcheck rc
-        INNER JOIN pppoe_users pu ON pu.username = rc.username
-        WHERE pu.status IN ('blocked', 'stop')
-          AND rc.attribute = 'Auth-Type'
-      `
-      await prisma.$executeRaw`
-        INSERT INTO radcheck (username, attribute, op, value)
-        SELECT pu.username, 'Auth-Type', ':=', 'Reject'
-        FROM pppoe_users pu
-        WHERE pu.status IN ('blocked', 'stop')
-      `
+    if (isRadiusEnabled) {
+      try {
+        await prisma.$executeRaw`
+          DELETE rc
+          FROM radcheck rc
+          INNER JOIN pppoe_users pu ON pu.username = rc.username
+          WHERE pu.status IN ('blocked', 'stop')
+            AND rc.attribute = 'Auth-Type'
+        `
+        await prisma.$executeRaw`
+          INSERT INTO radcheck (username, attribute, op, value)
+          SELECT pu.username, 'Auth-Type', ':=', 'Reject'
+          FROM pppoe_users pu
+          WHERE pu.status IN ('blocked', 'stop')
+        `
 
-      await prisma.$executeRaw`
-        DELETE rr
-        FROM radreply rr
-        INNER JOIN pppoe_users pu ON pu.username = rr.username
-        WHERE pu.status IN ('blocked', 'stop')
-          AND rr.attribute = 'Reply-Message'
-      `
-      await prisma.$executeRaw`
-        INSERT INTO radreply (username, attribute, op, value)
-        SELECT pu.username, 'Reply-Message', ':=', 'Akun Diblokir - Hubungi Admin'
-        FROM pppoe_users pu
-        WHERE pu.status IN ('blocked', 'stop')
-      `
-    } catch (enforceErr: any) {
-      console.error('[PPPoE Auto-Isolir] Failed to enforce blocked/stop reject rules:', enforceErr?.message)
+        await prisma.$executeRaw`
+          DELETE rr
+          FROM radreply rr
+          INNER JOIN pppoe_users pu ON pu.username = rr.username
+          WHERE pu.status IN ('blocked', 'stop')
+            AND rr.attribute = 'Reply-Message'
+        `
+        await prisma.$executeRaw`
+          INSERT INTO radreply (username, attribute, op, value)
+          SELECT pu.username, 'Reply-Message', ':=', 'Akun Diblokir - Hubungi Admin'
+          FROM pppoe_users pu
+          WHERE pu.status IN ('blocked', 'stop')
+        `
+      } catch (enforceErr: any) {
+        console.error('[PPPoE Auto-Isolir] Failed to enforce blocked/stop reject rules:', enforceErr?.message)
+      }
     }
 
     // Best-effort: disconnect any PPPoE sessions that are still active for blocked/stop users
