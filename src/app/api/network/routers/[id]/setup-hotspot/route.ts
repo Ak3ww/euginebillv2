@@ -100,6 +100,21 @@ export async function POST(
 /ip hotspot walled-garden add dst-host="*.xendit.co" action=allow comment="EugineBill Xendit Payment"
 /ip hotspot walled-garden add dst-host="*.tripay.co.id" action=allow comment="EugineBill Tripay Payment"
 /ip hotspot walled-garden add dst-host="*.duitku.com" action=allow comment="EugineBill Duitku Payment"
+/ip hotspot walled-garden add dst-host="*.nicepay.co.id" action=allow comment="EugineBill Nicepay Payment"
+/ip hotspot walled-garden add dst-host="*.oyindonesia.com" action=allow comment="EugineBill OY Indonesia"
+/ip hotspot walled-garden add dst-host="*.flip.id" action=allow comment="EugineBill Flip Payment"
+/ip hotspot walled-garden add dst-host="*.ipaymu.com" action=allow comment="EugineBill iPaymu Payment"
+/ip hotspot walled-garden add dst-host="*.gojek.com" action=allow comment="EugineBill Gojek API"
+/ip hotspot walled-garden add dst-host="*.gopay.co.id" action=allow comment="EugineBill GoPay"
+/ip hotspot walled-garden add dst-host="*.dana.id" action=allow comment="EugineBill DANA E-Wallet"
+/ip hotspot walled-garden add dst-host="*.ovo.id" action=allow comment="EugineBill OVO E-Wallet"
+/ip hotspot walled-garden add dst-host="*.airpay.co.id" action=allow comment="EugineBill ShopeePay API"
+/ip hotspot walled-garden add dst-host="*.shopee.co.id" action=allow comment="EugineBill ShopeePay"
+/ip hotspot walled-garden add dst-host="*.klikbca.com" action=allow comment="EugineBill BCA Virtual Account"
+/ip hotspot walled-garden add dst-host="*.bri.co.id" action=allow comment="EugineBill BRI Virtual Account"
+/ip hotspot walled-garden add dst-host="*.qris.id" action=allow comment="EugineBill QRIS Central"
+/ip hotspot walled-garden add dst-host="*.qrin.id" action=allow comment="EugineBill QRIN Gateway"
+/ip hotspot walled-garden add dst-host="*.qrin.web.id" action=allow comment="EugineBill QRIN Web"
 
 # ============================================
 # SELESAI! Verifikasi:
@@ -241,6 +256,21 @@ export async function POST(
           '*.xendit.co',
           '*.tripay.co.id',
           '*.duitku.com',
+          '*.nicepay.co.id',
+          '*.oyindonesia.com',
+          '*.flip.id',
+          '*.ipaymu.com',
+          '*.gojek.com',
+          '*.gopay.co.id',
+          '*.dana.id',
+          '*.ovo.id',
+          '*.airpay.co.id',
+          '*.shopee.co.id',
+          '*.klikbca.com',
+          '*.bri.co.id',
+          '*.qris.id',
+          '*.qrin.id',
+          '*.qrin.web.id',
         ];
         for (const dom of wgDomains) {
           const existingWg = await conn.execute('/ip/hotspot/walled-garden/print', [`?dst-host=${dom}`]);

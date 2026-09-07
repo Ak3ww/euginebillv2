@@ -27,12 +27,19 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     4. **Auto-Seeding & Fail-Safe Fallback**:
        - Endpoint `GET /api/voucher-templates` secara otomatis men-seed template kartu dan thermal ber-QR Code jika tabel template di database masih kosong.
        - Fitur cetak pada `/admin/hotspot/voucher` dilengkapi fail-safe fallback ke `DEFAULT_VOUCHER_TEMPLATE` jika admin belum memilih template secara eksplisit.
+    5. **Pencegahan Peringatan Palsu FreeRADIUS Health Check (`src/server/jobs/freeradius-health.ts`)**:
+       - Menambahkan pengecekan toggle RADIUS pada pengaturan perusahaan (`company.radiusEnabled`, `radiusHotspotEnabled`, `radiusPppoeEnabled`). Jika seluruh toggle RADIUS nonaktif (mode lokal MikroTik), cron job `freeradius_health` otomatis melewati (skip) pemeriksaan status tanpa mengirim notifikasi error palsu.
+       - Menambahkan penangkapan log detail `journalctl -u freeradius -n 15` saat restart gagal untuk mempermudah diagnosa admin.
+    6. **Penyelarasan Walled Garden Hotspot dengan IP Address List PPPoE Isolir (`src/app/api/network/routers/[id]/setup-hotspot/route.ts`)**:
+       - Menambahkan seluruh 21 domain payment gateways, e-wallets, bank transfer, dan QRIS nasional (Midtrans, Xendit, Tripay, Duitku, Nicepay, OY!, Flip, iPaymu, GoPay, DANA, OVO, ShopeePay, BCA VA, BRI VA, QRIS, QRIN) ke dalam aturan Walled Garden Hotspot dengan format wildcard `*.` agar pelanggan yang membeli voucher secara online tidak terblokir.
+       - Telah disinkronkan dan diaplikasikan langsung ke Router 1 secara real-time via API.
   - *Files*:
     - `src/lib/utils/templateRenderer.ts`
     - `src/app/admin/hotspot/template/page.tsx`
     - `src/app/admin/hotspot/voucher/page.tsx`
     - `src/app/api/voucher-templates/route.ts`
     - `src/app/api/network/routers/[id]/setup-hotspot/route.ts`
+    - `src/server/jobs/freeradius-health.ts`
     - `docs/mikrotik/HOTSPOT_SETUP_GUIDE.md`
     - `CHANGELOG.md`
 

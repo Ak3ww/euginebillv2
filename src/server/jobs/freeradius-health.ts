@@ -155,9 +155,20 @@ async function restartFreeRADIUS(): Promise<{ success: boolean; error?: string }
         const { stdout } = await execAsync('systemctl is-active freeradius 2>/dev/null || echo inactive');
         const isRunning = stdout.trim() === 'active';
         
+        if (!isRunning) {
+            let detail = '';
+            try {
+                const { stdout: journal } = await execAsync('journalctl -u freeradius -n 15 --no-pager 2>/dev/null');
+                detail = journal.trim();
+            } catch {}
+            return {
+                success: false,
+                error: detail ? `Service failed to start. Logs:\n${detail.slice(-300)}` : 'Service failed to start after restart'
+            };
+        }
+
         return {
-            success: isRunning,
-            error: isRunning ? undefined : 'Service failed to start after restart'
+            success: true
         };
     } catch (error: any) {
         return {
@@ -228,6 +239,28 @@ export async function freeradiusHealthCheck(autoRestart = true): Promise<{
     const startTime = Date.now();
     
     try {
+        // Check if RADIUS is actually enabled in company settings
+        const company = await prisma.company.findFirst({
+            select: {
+                radiusEnabled: true,
+                radiusHotspotEnabled: true,
+                radiusPppoeEnabled: true,
+            }
+        });
+
+        const isRadiusInUse = !!(company?.radiusEnabled || company?.radiusHotspotEnabled || company?.radiusPppoeEnabled);
+        if (!isRadiusInUse) {
+            console.log('[FreeRADIUS Health] RADIUS is disabled in Company Settings. Skipping health check.');
+            return {
+                success: true,
+                status: {
+                    running: false,
+                    disabled: true,
+                    message: 'RADIUS is disabled in Company Settings (Local MikroTik Mode Active)'
+                }
+            };
+        }
+
         const healthCheck = await checkFreeRADIUSHealth();
 
         // Log the check
