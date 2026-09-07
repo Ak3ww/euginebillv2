@@ -27,9 +27,14 @@ export async function POST(request: NextRequest) {
   try {
     const results: Record<string, any> = {};
 
+    const company = await prisma.company.findFirst({
+      select: { radiusPppoeEnabled: true, radiusHotspotEnabled: true },
+    });
+    const isRadiusPppoe = company?.radiusPppoeEnabled ?? false;
+    const isRadiusHotspot = company?.radiusHotspotEnabled ?? false;
+
     if (!type || type === 'pppoe') {
-      const company = await prisma.company.findFirst()
-      if (company?.radiusEnabled === false) {
+      if (!isRadiusPppoe) {
         const { pollMikrotikSessions } = await import('@/server/jobs/mikrotik-poller');
         const mkResult = await pollMikrotikSessions();
         results.pppoe = mkResult;
@@ -40,8 +45,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (!type || type === 'hotspot') {
-      const hotspotResult = await syncHotspotWithRadius();
-      results.hotspot = hotspotResult;
+      if (isRadiusHotspot) {
+        const hotspotResult = await syncHotspotWithRadius();
+        results.hotspot = hotspotResult;
+      }
     }
 
     return NextResponse.json({ success: true, results });

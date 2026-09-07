@@ -89,7 +89,7 @@ export async function POST(request: Request) {
           footerAgent: data.footerAgent,
           bankAccounts: bankAccounts,
           invoiceGenerateDays: data.invoiceGenerateDays ? parseInt(data.invoiceGenerateDays) : undefined,
-          radiusEnabled: data.radiusEnabled ?? false,
+          radiusEnabled: Boolean(data.radiusPppoeEnabled),
           radiusHotspotEnabled: data.radiusHotspotEnabled ?? false,
           radiusPppoeEnabled: data.radiusPppoeEnabled ?? false,
           enableProrate: data.enableProrate ?? true,
@@ -100,20 +100,33 @@ export async function POST(request: Request) {
         },
       });
 
-      // If radiusHotspotEnabled changed, update MikroTik routers instantly
-      if (data.radiusHotspotEnabled !== undefined && data.radiusHotspotEnabled !== existingCompany?.radiusHotspotEnabled) {
-        const newRadiusState = Boolean(data.radiusHotspotEnabled);
+      // Synchronize RADIUS isolation & services on MikroTik routers when toggles change
+      const radiusPppoe = data.radiusPppoeEnabled !== undefined 
+        ? Boolean(data.radiusPppoeEnabled) 
+        : Boolean(existingCompany?.radiusPppoeEnabled);
+      const radiusHotspot = data.radiusHotspotEnabled !== undefined 
+        ? Boolean(data.radiusHotspotEnabled) 
+        : Boolean(existingCompany?.radiusHotspotEnabled);
+
+      const togglesChanged = 
+        (data.radiusHotspotEnabled !== undefined && data.radiusHotspotEnabled !== existingCompany?.radiusHotspotEnabled) ||
+        (data.radiusPppoeEnabled !== undefined && data.radiusPppoeEnabled !== existingCompany?.radiusPppoeEnabled);
+
+      if (togglesChanged) {
         prisma.router.findMany({ where: { isActive: true }, select: { id: true } })
           .then(async (routers) => {
             for (const r of routers) {
-              await HotspotUserService.setHotspotRadiusUsage(r.id, newRadiusState);
+              await HotspotUserService.syncRadiusConfiguration(r.id, {
+                radiusPppoe,
+                radiusHotspot,
+              });
             }
-            if (!newRadiusState) {
+            if (!radiusHotspot) {
               // Switched to local auth: ensure all vouchers exist on MikroTik (Zero Downtime)
               await HotspotUserService.reconcileAllVouchersToMikrotik();
             }
           })
-          .catch((err) => console.error('[API Company] Failed to sync radiusHotspot toggle to routers:', err));
+          .catch((err) => console.error('[API Company] Failed to sync radius toggles to routers:', err));
       }
     } else {
       // Create new
@@ -136,7 +149,7 @@ export async function POST(request: Request) {
           footerAgent: data.footerAgent || 'Powered by EugineBill RADIUS',
           bankAccounts: bankAccounts,
           invoiceGenerateDays: data.invoiceGenerateDays ? parseInt(data.invoiceGenerateDays) : 7,
-          radiusEnabled: data.radiusEnabled ?? false,
+          radiusEnabled: Boolean(data.radiusPppoeEnabled),
           radiusHotspotEnabled: data.radiusHotspotEnabled ?? false,
           radiusPppoeEnabled: data.radiusPppoeEnabled ?? false,
           enableProrate: data.enableProrate ?? true,

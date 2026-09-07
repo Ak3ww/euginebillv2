@@ -564,7 +564,7 @@ export default function CompanySettingsPage() {
                         setSettings({ 
                           ...settings, 
                           radiusPppoeEnabled: checked,
-                          radiusEnabled: checked || settings.radiusHotspotEnabled 
+                          radiusEnabled: checked,
                         });
                       }}
                       className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"
@@ -621,7 +621,6 @@ export default function CompanySettingsPage() {
                           setSettings({ 
                             ...settings, 
                             radiusHotspotEnabled: checked,
-                            radiusEnabled: checked || settings.radiusPppoeEnabled 
                           });
                         }}
                         className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"

@@ -75,6 +75,20 @@ export async function POST(
 
     const comment = 'EugineBill RADIUS - Auto Setup';
 
+    // Check company RADIUS settings to strictly isolate PPPoE from Hotspot
+    const company = await prisma.company.findFirst({
+      select: { radiusPppoeEnabled: true, radiusHotspotEnabled: true },
+    });
+    const pppoeEnabled = Boolean(company?.radiusPppoeEnabled);
+    const hotspotEnabled = Boolean(company?.radiusHotspotEnabled);
+
+    // Build services dynamically (NEVER include ppp if radiusPppoeEnabled is false)
+    const servicesList: string[] = [];
+    if (pppoeEnabled) servicesList.push('ppp');
+    if (hotspotEnabled) servicesList.push('hotspot');
+    if (servicesList.length === 0) servicesList.push('hotspot');
+    const radiusServices = servicesList.join(',');
+
     // src-address selalu di-set (VPN maupun non-VPN) agar FreeRADIUS bisa match nasname
     const srcAddressParam = nasSrcAddress ? ` src-address=${nasSrcAddress}` : '';
     const srcAddressNote = router.vpnClientId
@@ -91,13 +105,13 @@ export async function POST(
 # 2b. Tambah entry untuk VPN Gateway (CoA masquerade)
 # PENTING: Saat VPS mengirim CoA Disconnect, paket di-masquerade melalui gateway VPN
 # MikroTik melihat src-address=${gatewayIp} (gateway) bukan ${radiusServerIp} (VPS)
-/radius add address=${gatewayIp} secret=${radiusSecret} service=ppp,hotspot,login,wireless src-address=${nasSrcAddress} timeout=1100ms comment="CoA from VPS via gateway masquerade"
+/radius add address=${gatewayIp} secret=${radiusSecret} service=${radiusServices} src-address=${nasSrcAddress} timeout=1100ms comment="CoA from VPS via gateway masquerade"
 ` : '';
     const gatewayRadiusEntryRos7 = isVpnSetup ? `
 # 2b. Tambah entry untuk VPN Gateway (CoA masquerade)
 # PENTING: Saat VPS mengirim CoA Disconnect, paket di-masquerade melalui gateway VPN
 # MikroTik melihat src-address=${gatewayIp} (gateway) bukan ${radiusServerIp} (VPS)
-/radius add address=${gatewayIp} secret=${radiusSecret} service=ppp,hotspot,login,wireless src-address=${nasSrcAddress} timeout=1100ms require-message-auth=no comment="CoA from VPS via gateway masquerade"
+/radius add address=${gatewayIp} secret=${radiusSecret} service=${radiusServices} src-address=${nasSrcAddress} timeout=1100ms require-message-auth=no comment="CoA from VPS via gateway masquerade"
 ` : '';
 
     const gatewayFirewallRule = isVpnSetup ? `
@@ -108,8 +122,8 @@ export async function POST(
     // Generate MikroTik script — two versions: ROS 6 (no require-message-auth) and ROS 7
     const buildScript = (rosVersion: 6 | 7) => {
       const mainRadiusLine = rosVersion === 7
-        ? `/radius add address=${radiusServerIp} secret=${radiusSecret}${srcAddressParam} service=ppp,hotspot,login,wireless authentication-port=${radiusAuthPort} accounting-port=${radiusAcctPort} timeout=3s require-message-auth=no comment="${comment}"`
-        : `/radius add address=${radiusServerIp} secret=${radiusSecret}${srcAddressParam} service=ppp,hotspot,login,wireless authentication-port=${radiusAuthPort} accounting-port=${radiusAcctPort} timeout=3s comment="${comment}"`;
+        ? `/radius add address=${radiusServerIp} secret=${radiusSecret}${srcAddressParam} service=${radiusServices} authentication-port=${radiusAuthPort} accounting-port=${radiusAcctPort} timeout=3s require-message-auth=no comment="${comment}"`
+        : `/radius add address=${radiusServerIp} secret=${radiusSecret}${srcAddressParam} service=${radiusServices} authentication-port=${radiusAuthPort} accounting-port=${radiusAcctPort} timeout=3s comment="${comment}"`;
       const gatewayRadiusEntry = rosVersion === 7 ? gatewayRadiusEntryRos7 : gatewayRadiusEntryRos6;
 
       return `
@@ -120,6 +134,7 @@ export async function POST(
 # RADIUS Server: ${radiusServerIp}
 # VPN Gateway: ${isVpnSetup ? gatewayIp : 'N/A (Public IP mode)'}
 # Connection: ${router.vpnClientId ? 'VPN Tunnel' : 'Public IP'}
+# RADIUS Services: ${radiusServices} (PPPoE: ${pppoeEnabled ? 'ON' : 'OFF'}, Hotspot: ${hotspotEnabled ? 'ON' : 'OFF'})
 # Generated: ${new Date().toISOString()}
 # ============================================
 
@@ -130,12 +145,15 @@ export async function POST(
 ${srcAddressNote}
 ${mainRadiusLine}
 ${gatewayRadiusEntry}
-# 3. Enable RADIUS untuk PPP + Interim-Update setiap 5 menit
-/ppp aaa set use-radius=yes accounting=yes interim-update=5m
+# 3. Konfigurasi PPP AAA (Hanya jika PPPoE RADIUS diaktifkan)
+${pppoeEnabled 
+  ? '/ppp aaa set use-radius=yes accounting=yes interim-update=5m' 
+  : '/ppp aaa set use-radius=no accounting=no'}
 
 # 4. Enable RADIUS Incoming (CoA/Disconnect)
 /radius incoming set accept=yes port=${radiusCOAPort}
 
+${pppoeEnabled ? `
 # 5. Buat IP Pool untuk PPP (jika belum ada)
 :if ([:len [/ip pool find name="pool-radius-default"]] = 0) do={
     /ip pool add name=pool-radius-default ranges=10.10.10.2-10.10.10.254 comment="EugineBill RADIUS"
@@ -145,9 +163,12 @@ ${gatewayRadiusEntry}
 :if ([:len [/ppp profile find name="EugineBill"]] = 0) do={
     /ppp profile add name=EugineBill local-address=10.10.10.1 remote-address=pool-radius-default use-compression=no use-encryption=no comment="EugineBill Profile"
 }
+` : `# 5. PPPoE RADIUS OFF — MikroTik local /ppp/secret tetap digunakan`}
 
-# 7. Enable RADIUS untuk semua Hotspot Server Profile
-/ip hotspot profile set [find] use-radius=yes
+# 7. Hotspot Server Profile RADIUS
+${hotspotEnabled 
+  ? '/ip hotspot profile set [find] use-radius=yes' 
+  : '/ip hotspot profile set [find] use-radius=no'}
 
 # ============================================
 # FIREWALL RULES — RADIUS & CoA

@@ -201,6 +201,73 @@ export class HotspotUserService {
   }
 
   /**
+   * Strictly synchronize RADIUS services and PPP AAA on MikroTik to enforce hard isolation.
+   * If radiusPppoe is false:
+   *   - /ppp/aaa is set to use-radius=no accounting=no
+   *   - /radius entries have 'ppp' stripped (set to 'hotspot' or disabled)
+   * If radiusHotspot is false:
+   *   - /ip/hotspot/profile use-radius=no
+   */
+  static async syncRadiusConfiguration(
+    routerId: string,
+    options: { radiusPppoe: boolean; radiusHotspot: boolean }
+  ): Promise<boolean> {
+    const routerInfo = await this.getRouterConnection(routerId);
+    if (!routerInfo) return false;
+
+    const { conn, routerName } = routerInfo;
+    try {
+      await conn.connect();
+
+      // 1. PPP AAA Isolation
+      if (!options.radiusPppoe) {
+        await conn.execute('/ppp/aaa/set', [
+          '=use-radius=no',
+          '=accounting=no',
+        ]);
+      } else {
+        await conn.execute('/ppp/aaa/set', [
+          '=use-radius=yes',
+          '=accounting=yes',
+          '=interim-update=5m',
+        ]);
+      }
+
+      // 2. Hotspot profile use-radius
+      const hsProfiles = await conn.execute('/ip/hotspot/profile/print');
+      for (const p of hsProfiles) {
+        await conn.execute('/ip/hotspot/profile/set', [
+          `=.id=${p['.id']}`,
+          `=use-radius=${options.radiusHotspot ? 'yes' : 'no'}`,
+        ]);
+      }
+
+      // 3. Clean /radius entries service
+      const services: string[] = [];
+      if (options.radiusPppoe) services.push('ppp');
+      if (options.radiusHotspot) services.push('hotspot');
+
+      const radiusEntries = await conn.execute('/radius/print');
+      for (const r of radiusEntries) {
+        if (services.length > 0) {
+          await conn.execute('/radius/set', [
+            `=.id=${r['.id']}`,
+            `=service=${services.join(',')}`,
+          ]);
+        }
+      }
+
+      console.log(`[HotspotUserService] Synchronized RADIUS isolation on ${routerName}: pppoe=${options.radiusPppoe}, hotspot=${options.radiusHotspot}`);
+      await conn.disconnect();
+      return true;
+    } catch (err) {
+      console.error(`[HotspotUserService] Failed to sync RADIUS configuration on ${routerName}:`, err);
+      try { await conn.disconnect(); } catch { /* ignore */ }
+      return false;
+    }
+  }
+
+  /**
    * Set use-radius flag on Hotspot Profiles on the specified router.
    */
   static async setHotspotRadiusUsage(routerId: string, useRadius: boolean): Promise<boolean> {

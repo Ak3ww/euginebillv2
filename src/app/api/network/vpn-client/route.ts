@@ -376,13 +376,25 @@ export async function POST(request: Request) {
       console.error('NAS auto-create error (non-fatal):', nasErr)
     }
 
+    // Check company RADIUS settings for service separation
+    const company = await prisma.company.findFirst({
+      select: { radiusPppoeEnabled: true, radiusHotspotEnabled: true },
+    });
+    const pppoeEnabled = Boolean(company?.radiusPppoeEnabled);
+    const hotspotEnabled = Boolean(company?.radiusHotspotEnabled);
+    const servicesList: string[] = [];
+    if (pppoeEnabled) servicesList.push('ppp');
+    if (hotspotEnabled) servicesList.push('hotspot');
+    if (servicesList.length === 0) servicesList.push('hotspot');
+    const radiusServices = servicesList.join(',');
+
     const radiusSection = radiusServerVpnIp ? `
 # --- Setup RADIUS Server via VPN ---
 /radius remove [find where comment~"EugineBill"]
-/radius add address=${radiusServerVpnIp} secret=${nasSecret} service=ppp,hotspot src-address=${vpnIp} authentication-port=1812 accounting-port=1813 timeout=3s comment="EugineBill RADIUS via VPN"
+/radius add address=${radiusServerVpnIp} secret=${nasSecret} service=${radiusServices} src-address=${vpnIp} authentication-port=1812 accounting-port=1813 timeout=3s comment="EugineBill RADIUS via VPN"
 
-# --- Enable RADIUS ---
-/ppp aaa set use-radius=yes accounting=yes
+# --- Konfigurasi AAA & RADIUS ---
+${pppoeEnabled ? '/ppp aaa set use-radius=yes accounting=yes interim-update=5m' : '/ppp aaa set use-radius=no accounting=no'}
 /radius incoming set accept=yes port=3799
 
 # --- Firewall - Allow CoA dari RADIUS Server via VPN ---
@@ -390,12 +402,12 @@ export async function POST(request: Request) {
 /ip firewall filter add chain=input protocol=udp src-address=${radiusServerVpnIp} dst-port=3799 action=accept comment="EugineBill-RADIUS CoA" place-before=0
 /ip firewall filter add chain=input protocol=udp src-address=${radiusServerVpnIp} dst-port=1812,1813 action=accept comment="EugineBill-RADIUS Auth" place-before=0
 
-# --- Enable RADIUS untuk Hotspot ---
-/ip hotspot profile set [find] use-radius=yes` : `
+# --- Konfigurasi Hotspot Profile ---
+${hotspotEnabled ? '/ip hotspot profile set [find] use-radius=yes' : '/ip hotspot profile set [find] use-radius=no'}` : `
 # --- RADIUS Server belum dikonfigurasi ---
 # Tandai salah satu VPN Client sebagai "RADIUS Server" di panel admin
 # kemudian setup RADIUS manual:
-# /radius add address=<RADIUS_VPN_IP> secret=${nasSecret} service=ppp,hotspot src-address=${vpnIp}`
+# /radius add address=<RADIUS_VPN_IP> secret=${nasSecret} service=${radiusServices} src-address=${vpnIp}`
 
     // Get server public key for WireGuard
     const serverWgPublicKey = (vpnServer as any).wgPublicKey || ''

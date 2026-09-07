@@ -54,22 +54,36 @@ export async function POST(request: NextRequest) {
     console.log('[CRON API] Received job type:', jobType, 'Body:', body)
 
     const { prisma: dbPrisma } = await import('@/server/db/client')
-    const company = await dbPrisma.company.findFirst({ select: { radiusEnabled: true } })
-    const radiusEnabled = company?.radiusEnabled ?? false
+    const company = await dbPrisma.company.findFirst({ 
+      select: { radiusEnabled: true, radiusHotspotEnabled: true, radiusPppoeEnabled: true } 
+    })
+    const isRadiusPppoe = company?.radiusPppoeEnabled ?? false
+    const isRadiusHotspot = company?.radiusHotspotEnabled ?? false
 
-    const radiusOnlyJobs = [
-      'hotspot_sync', 
-      'voucher_sync', 
-      'freeradius_health', 
-      'session_recovery',
-      'pppoe_session_sync',
-      'disconnect_sessions'
-    ]
-    if (!radiusEnabled && radiusOnlyJobs.includes(jobType)) {
-      console.log(`[CRON API] Skipping job '${jobType}' because RADIUS is disabled.`)
+    const pppoeRadiusJobs = ['session_recovery', 'pppoe_session_sync', 'disconnect_sessions']
+    const hotspotRadiusJobs = ['hotspot_sync', 'voucher_sync']
+
+    if (!isRadiusPppoe && pppoeRadiusJobs.includes(jobType)) {
+      console.log(`[CRON API] Skipping job '${jobType}' because PPPoE RADIUS is disabled.`)
       return NextResponse.json({
         success: true,
-        message: `Job '${jobType}' skipped because RADIUS is disabled.`
+        message: `Job '${jobType}' skipped because PPPoE RADIUS is disabled.`
+      })
+    }
+
+    if (!isRadiusHotspot && hotspotRadiusJobs.includes(jobType)) {
+      console.log(`[CRON API] Skipping job '${jobType}' because Hotspot RADIUS is disabled.`)
+      return NextResponse.json({
+        success: true,
+        message: `Job '${jobType}' skipped because Hotspot RADIUS is disabled.`
+      })
+    }
+
+    if (!isRadiusPppoe && !isRadiusHotspot && jobType === 'freeradius_health') {
+      console.log(`[CRON API] Skipping job '${jobType}' because RADIUS is completely disabled.`)
+      return NextResponse.json({
+        success: true,
+        message: `Job '${jobType}' skipped because RADIUS is completely disabled.`
       })
     }
     

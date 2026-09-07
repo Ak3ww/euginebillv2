@@ -39,7 +39,9 @@ export async function GET(request: NextRequest) {
     const result = await (async () => {
     const now = nowWIB();
     const company = await prisma.company.findFirst();
-    const radiusEnabled = company?.radiusEnabled ?? false;
+    const isRadiusPppoe = company?.radiusPppoeEnabled ?? false;
+    const isRadiusHotspot = company?.radiusHotspotEnabled ?? false;
+    const radiusEnabled = isRadiusPppoe || isRadiusHotspot;
     const startOfMonth = new Date(Date.UTC(selectedYear, selectedMonth, 1));
     const startOfNextMonth = new Date(Date.UTC(selectedYear, selectedMonth + 1, 1));
     // last day of selected month (handles 28/29/30/31 days correctly)
@@ -483,7 +485,7 @@ export async function GET(request: NextRequest) {
     const apiStatus = true;
 
     try {
-      if (radiusEnabled) {
+      if (isRadiusPppoe) {
         const recentRadacct = await prisma.radacct.findFirst({
           where: {
             acctstarttime: { gte: new Date(now.getTime() - 3600000) },

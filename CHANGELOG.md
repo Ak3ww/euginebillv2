@@ -4,6 +4,43 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.13] — 2026-09-07
+### Fixed & Hardened
+- **Hard Isolation MikroTik PPPoE dari RADIUS & Script Pemulihan Darurat Secret MikroTik**:
+  - *Context / User Request*:
+    Pengguna melaporkan bahwa saat toggle FreeRADIUS untuk Hotspot dinyalakan, pelanggan PPPoE mengalami latensi tinggi / lag massal. Selain itu pengguna melaporkan kekhawatiran secret di MikroTik hilang atau berpindah ke RADIUS, meminta langkah paling aman untuk menonaktifkan RADIUS PPPoE, solusi pemulihan secret, serta strategi migrasi zero-lag di kemudian hari.
+  - *Root Cause Analysis*:
+    1. Generator script RADIUS MikroTik (`/setup-radius` & `/vpn-client`) secara statis meng-generate rule `/radius add ... service=ppp,hotspot,login,wireless` dan `/ppp aaa set use-radius=yes accounting=yes interim-update=5m`.
+    2. Saat FreeRADIUS tidak memiliki secret PPPoE (atau service FreeRADIUS sedang down), setiap request autentikasi dan accounting berkala (interim-update 5m) dari MikroTik menunggu timeout RADIUS selama 3 detik per paket, menimbulkan packet drop, koneksi berulang (reconnect loop), dan latensi berat pada pelanggan PPPoE.
+    3. Pada panel pengaturan perusahaan (`src/app/admin/settings/company/page.tsx`), checkbox Hotspot sebelumnya memperbarui `radiusEnabled: checked || settings.radiusPppoeEnabled`. Karena VPS belum di-pull, cron job backend lama di VPS mendeteksi `radiusEnabled: true` dan memproses PPPoE seolah-olah RADIUS aktif.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Hard Isolation MikroTik AAA & Dynamic Services**:
+       - `setup-radius/route.ts` & `vpn-client/route.ts`: Layanan `/radius` di MikroTik kini di-generate secara dinamis (`service=hotspot` jika PPPoE non-RADIUS, dan `service=ppp,hotspot` hanya jika keduanya aktif).
+       - Jika `radiusPppoeEnabled === false`, skrip MikroTik secara eksplisit mengeksekusi `/ppp aaa set use-radius=no accounting=no`.
+    2. **Sinkronisasi Otomatis Router saat Toggle Berubah**:
+       - Menambahkan method `HotspotUserService.syncRadiusConfiguration` yang otomatis dipanggil oleh `/api/company` setiap kali pengaturan disimpan. Sistem langsung menghubungi seluruh router aktif via API untuk memastikan `/ppp/aaa` disetel `use-radius=no accounting=no` dan entri `/radius` dibersihkan dari service `ppp`.
+    3. **Pemisahan Cron Job Granular (`/api/cron`)**:
+       - Memisahkan daftar cron job RADIUS menjadi `pppoeRadiusJobs` (`session_recovery`, `pppoe_session_sync`, `disconnect_sessions`) dan `hotspotRadiusJobs` (`hotspot_sync`, `voucher_sync`).
+    4. **Script & Endpoint Pemulihan Darurat Secret MikroTik**:
+       - Menambahkan script CLI mandiri `scripts/restore-all-secrets-to-mikrotik.js` & `scripts/restore-all-secrets-to-mikrotik.mjs` serta route API `POST /api/pppoe/users/restore-mikrotik`.
+       - Skrip ini memverifikasi seluruh data di tabel `pppoeUser` dan `radcheck`, membandingkannya dengan `/ppp/secret` live di MikroTik, lalu memulihkan/menambahkan kembali seluruh secret yang belum terdaftar dengan profil dan password yang sesuai secara otomatis.
+    5. **Verifikasi & Pembersihan Router 1 Live**:
+       - Memverifikasi Router 1: terdapat 377 secret utuh dan 360 sesi PPPoE aktif berjalan normal.
+       - Menyetel `/ppp/aaa use-radius=no accounting=no` dan mengubah seluruh entri `/radius` menjadi `service=hotspot`.
+  - *Files*:
+    - `src/server/services/mikrotik/hotspot-user.service.ts`
+    - `src/app/api/company/route.ts`
+    - `src/app/api/cron/route.ts`
+    - `src/app/api/dashboard/stats/route.ts`
+    - `src/app/api/sessions/sync/route.ts`
+    - `src/app/api/network/routers/[id]/setup-radius/route.ts`
+    - `src/app/api/network/vpn-client/route.ts`
+    - `src/app/admin/settings/company/page.tsx`
+    - `src/app/api/pppoe/users/restore-mikrotik/route.ts`
+    - `scripts/restore-all-secrets-to-mikrotik.js`
+    - `scripts/restore-all-secrets-to-mikrotik.mjs`
+    - `CHANGELOG.md`
+
 ## [2.37.12] — 2026-09-07
 ### Fixed & Refactored
 - **Dekopling Total PPPoE dari RADIUS & Perbaikan Un-Isolir Otomatis Webhook Pembayaran (QRIN/Manual/QRIS)**:
