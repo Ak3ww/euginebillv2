@@ -4,6 +4,35 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.15] — 2026-09-07
+### Added & Improved
+- **Desain Baru Captive Portal Hotspot Standar Hallmark (Oceanic Blue) & Fitur Scanner QR Struk**:
+  - *Context / User Request*:
+    Pengguna meminta peningkatan tampilan halaman login Hotspot MikroTik agar profesional, modern, dan tidak menggunakan template bawaan pabrik MikroTik yang kaku/jadul. Selain itu, pengguna menanyakan implementasi pemindaian struk barcode voucher dan verifikasi domain Cloudflare `wifi.euginemediagroup.com`.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Penerapan Standar Desain Hallmark (Oceanic Blue Enterprise)**:
+       - Merancang ulang file captive portal `hotspot/login.html` dengan tema warna Oceanic Blue (`#002C60` & `#1B437C`), latar belakang terang (`#F8FAFC`), card elevasi halus, dan tipografi modern (mobile-first responsive).
+       - Zero external CDN dependencies: seluruh CSS, inline SVG icons (tanpa text emojis sesuai standar UI workspace), dan JavaScript dibuat self-contained agar pop-up login HP terbuka instan dalam 0.1 detik di dalam walled garden.
+    2. **Fitur Pemindai Kamera QR Struk (In-Browser Camera Scanner)**:
+       - Dilengkapi tombol pemindai barcode kamera dengan icon kamera SVG (`#btn-scan-qr`).
+       - Memanfaatkan native `BarcodeDetector` API dengan viewfinder target visual. Saat pelanggan menyorot QR pada struk, kode voucher otomatis terdeteksi, mengisi input, dan langsung mengeksekusi login tanpa ketik manual.
+    3. **Dukungan Dual Login (Voucher & Member)**:
+       - Tab 1: **Kode Voucher** (Input tunggal 1 kode huruf kapital tebal otomatis).
+       - Tab 2: **Member / Langganan** (Username & Password terpisah).
+       - Preservasi penuh enkripsi CHAP MD5 MikroTik RouterOS (`hexMD5`) dan auto-login via URL query parameter (`?code=...` / `?username=...`).
+    4. **Sinkronisasi Otomatis Profil Hotspot ke MikroTik**:
+       - `HotspotUserService.syncUserProfileToMikrotik`: Menambahkan sinkronisasi otomatis profil Hotspot ke `/ip/hotspot/user/profile` di semua router aktif setiap kali profil dibuat/diedit di panel admin, termasuk batas kecepatan (*rate-limit*) dan *shared-users*.
+       - Memperbaiki `syncVouchersToMikrotik` agar secara otomatis membuatkan *user profile* terlebih dahulu di MikroTik jika belum terdaftar, mencegah kegagalan pembuatan voucher lokal.
+    5. **Deploy Live ke Router 1**:
+       - File `hotspot/login.html` pada Router 1 (Cibinong) telah berhasil diperbarui dan diverifikasi live.
+       - Disimpan di repository `templates/hotspot/login.html` dan script deploy multi-router `scripts/deploy-hotspot-template.js`.
+  - *Files*:
+    - `templates/hotspot/login.html`
+    - `scripts/deploy-hotspot-template.js`
+    - `src/server/services/mikrotik/hotspot-user.service.ts`
+    - `src/app/api/hotspot/profiles/route.ts`
+    - `CHANGELOG.md`
+
 ## [2.37.14] — 2026-09-07
 ### Fixed & Hardened
 - **Pembersihan Total Secret Nyasar, Pemisahan Ketat Router Cibinong vs Citeureup, & Pencegahan User OFF Masuk MikroTik**:
