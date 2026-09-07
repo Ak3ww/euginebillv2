@@ -106,11 +106,24 @@ async function main() {
   console.log('Execution Time (UTC):', now.toISOString());
   console.log('Start of Day (UTC):', startOfToday.toISOString());
 
-  // Target users: expiredAt <= NOW, status is active, and have unpaid invoices
+  // Target users: expiredAt <= NOW, status is active, and have unpaid invoices (respect autoIsolationEnabled and exclude Kampung Tegal)
   const unpaidUsers = await prisma.pppoeUser.findMany({
     where: {
       expiredAt: { lte: now },
       status: { notIn: ['isolated', 'suspended', 'blocked', 'stop'] },
+      autoIsolationEnabled: true,
+      OR: [
+        { areaId: null },
+        {
+          area: {
+            name: {
+              not: {
+                contains: 'tegal'
+              }
+            }
+          }
+        }
+      ]
     },
     include: {
       area: true,
@@ -192,16 +205,15 @@ async function main() {
     }
 
     try {
-      // 1. Update DB: Set status to isolated and enable autoIsolationEnabled
+      // 1. Update DB: Set status to isolated
       await prisma.pppoeUser.update({
         where: { id: user.id },
         data: {
           status: 'isolated',
-          autoIsolationEnabled: true,
         },
       });
       dbSuccessCount++;
-      console.log(`✓ DB: Status updated to 'isolated' & autoIsolationEnabled = true`);
+      console.log(`✓ DB: Status updated to 'isolated'`);
 
       // 2. Direct MikroTik isolation
       if (user.router) {

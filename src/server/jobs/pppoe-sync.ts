@@ -274,13 +274,16 @@ export async function autoIsolatePPPoEUsers(): Promise<{
       expiredAt: Date
       profileId: string
       routerId: string | null
+      waNotificationEnabled: any
     }>>`
-      SELECT id, username, name, phone, email, password, status, expiredAt, profileId, routerId
-      FROM pppoe_users
-      WHERE status NOT IN ('isolated', 'suspended', 'blocked', 'stop')
-        AND expiredAt IS NOT NULL
-        AND expiredAt <= DATE_SUB(NOW(), INTERVAL ${gracePeriodDays} DAY)
-        AND (autoIsolationEnabled = 1 OR autoIsolationEnabled IS NULL OR autoIsolationEnabled = true)
+      SELECT u.id, u.username, u.name, u.phone, u.email, u.password, u.status, u.expiredAt, u.profileId, u.routerId, u.waNotificationEnabled
+      FROM pppoe_users u
+      LEFT JOIN pppoe_areas a ON u.areaId = a.id
+      WHERE u.status NOT IN ('isolated', 'suspended', 'blocked', 'stop')
+        AND u.expiredAt IS NOT NULL
+        AND u.expiredAt <= DATE_SUB(NOW(), INTERVAL ${gracePeriodDays} DAY)
+        AND u.autoIsolationEnabled = 1
+        AND (LOWER(a.name) NOT LIKE '%tegal%' OR a.name IS NULL)
     `
 
     if (expiredUsers.length === 0) {
@@ -485,19 +488,23 @@ export async function autoIsolatePPPoEUsers(): Promise<{
           console.error(`[PPPoE Auto-Isolir] Failed to create notification for ${user.username}:`, notifError.message)
         }
 
-        // Send customer notification via WhatsApp, Email, and Push
-        try {
-          await sendIsolationNotification({
-            id: user.id,
-            username: user.username,
-            customerId: (user as any).customerId || (user as any).pppoeCustomerId,
-            name: user.name || user.username,
-            phone: user.phone,
-            email: user.email,
-            expiredAt: user.expiredAt,
-          })
-        } catch (customerNotifError: any) {
-          console.error(`[PPPoE Auto-Isolir] Customer notification failed for ${user.username}:`, customerNotifError.message)
+        // Send customer notification via WhatsApp, Email, and Push (respect waNotificationEnabled)
+        if (user.waNotificationEnabled === 0 || user.waNotificationEnabled === false) {
+          console.log(`[PPPoE Auto-Isolir] Skipping customer WA notification for ${user.username} (waNotificationEnabled = false)`);
+        } else {
+          try {
+            await sendIsolationNotification({
+              id: user.id,
+              username: user.username,
+              customerId: (user as any).customerId || (user as any).pppoeCustomerId,
+              name: user.name || user.username,
+              phone: user.phone,
+              email: user.email,
+              expiredAt: user.expiredAt,
+            })
+          } catch (customerNotifError: any) {
+            console.error(`[PPPoE Auto-Isolir] Customer notification failed for ${user.username}:`, customerNotifError.message)
+          }
         }
       } catch (error: any) {
         console.error(`? [PPPoE Auto-Isolir] Failed to isolate ${user.username}:`, error.message)

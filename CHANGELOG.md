@@ -4,6 +4,32 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.17] — 2026-09-07
+### Critical Bugfix & Hardening
+- **Proteksi Mutlak Wilayah Kampung Tegal dari Auto-Isolir, Perbaikan Flag Kebal Isolir, & Penghentian WA Isolir Berulang**:
+  - *Context / User Request*:
+    Pengguna mengeluhkan pelanggan di wilayah Kampung Tegal (MikroTik Tegal) yang sebelumnya telah diaktifkan secara massal kembali terkena isolir otomatis dan dikirimi WhatsApp hingga 2 kali hari ini. Padahal sistem wilayah Kampung Tegal secara eksplisit telah disetel *"TETAP TERHUBUNG (No Action)"* meskipun sudah jatuh tempo.
+  - *Akar Masalah (Root Cause)*:
+    1. Skrip eksekusi isolir manual sebelumnya (`isolate-unpaid-today.js`) secara keliru memperbarui baris `autoIsolationEnabled: true` pada seluruh pengguna yang diproses, menimpa (*overwriting*) setelan kebal isolir pengguna Kampung Tegal.
+    2. Saat admin melakukan aktivasi massal, status pengguna berubah menjadi `active`, namun tanggal `expiredAt` masih berada di masa lampau dan flag `autoIsolationEnabled` masih bernilai `true`.
+    3. Akibatnya, saat cron berkala `pppoe_auto_isolir` berjalan, pengguna tersebut kembali terjaring kriteria isolir dan kembali dikirimi notifikasi WhatsApp.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Hard Guarding Area Level pada Seluruh Engine Cron**:
+       - `src/server/jobs/pppoe-sync.ts`: Menambahkan klausa `LEFT JOIN pppoe_areas a ON u.areaId = a.id` dengan filter mutlak `AND (LOWER(a.name) NOT LIKE '%tegal%' OR a.name IS NULL)` serta mewajibkan `u.autoIsolationEnabled = 1`.
+       - `src/server/jobs/auto-isolation.ts`: Menambahkan filter Prisma `area: { name: { not: { contains: 'tegal' } } }`.
+       - `internal/cron/scheduler.go`: Menambahkan join `pppoe_areas` dan filter `(LOWER(pppoe_areas.name) NOT LIKE '%tegal%' OR pppoe_areas.name IS NULL)`.
+    2. **Pengecekan Ketat Notifikasi WhatsApp**:
+       - Seluruh engine isolir kini memeriksa flag `waNotificationEnabled`. Jika bernilai `false` atau `0`, pengiriman WhatsApp isolir langsung dibatalkan (*skip*).
+    3. **Skrip Restorasi Live Instan (`scripts/restore-kp-tegal-live.js`)**:
+       - Dibuat skrip otomatis yang langsung mengembalikan status seluruh pelanggan Kampung Tegal ke `active`, mengunci `autoIsolationEnabled = 0`, mematikan `waNotificationEnabled = 0`, memulihkan secret profile di MikroTik ke profil normal (bukan `isolir`), serta me-reset koneksi aktif agar pelanggan langsung kembali online tanpa jeda.
+  - *Files*:
+    - `scripts/restore-kp-tegal-live.js`
+    - `src/server/jobs/pppoe-sync.ts`
+    - `src/server/jobs/auto-isolation.ts`
+    - `internal/cron/scheduler.go`
+    - `scripts/isolate-unpaid-today.js`
+    - `CHANGELOG.md`
+
 ## [2.37.16] — 2026-09-07
 ### Fixed & Improved
 - **Dukungan Dual Mode (Username & Password) Pesan WhatsApp Voucher & Hardening Opsi B (100% MikroTik Local Hotspot)**:

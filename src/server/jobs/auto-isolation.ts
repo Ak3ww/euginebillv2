@@ -30,7 +30,7 @@ export async function autoIsolateExpiredUsers() {
     const isolateProfileName = company?.isolateProfileName || 'isolir';
     console.log(`[AUTO-ISOLATE] Starting auto-isolation check (RADIUS: ${isRadius})...`);
 
-    // Find users that should be isolated (respect per-user autoIsolationEnabled setting)
+    // Find users that should be isolated (respect per-user autoIsolationEnabled setting and exclude Kampung Tegal / No-Action areas)
     const expiredUsers = await prisma.pppoeUser.findMany({
       where: {
         expiredAt: {
@@ -39,9 +39,18 @@ export async function autoIsolateExpiredUsers() {
         status: {
           notIn: ['isolated', 'suspended', 'blocked', 'stop'], // not already isolated
         },
+        autoIsolationEnabled: true,
         OR: [
-          { autoIsolationEnabled: true },
-          { autoIsolationEnabled: { not: false } },
+          { areaId: null },
+          {
+            area: {
+              name: {
+                not: {
+                  contains: 'tegal',
+                },
+              },
+            },
+          },
         ],
       },
       select: {
@@ -53,6 +62,7 @@ export async function autoIsolateExpiredUsers() {
         email: true,
         expiredAt: true,
         routerId: true,
+        waNotificationEnabled: true,
       },
     });
 
@@ -228,11 +238,15 @@ export async function autoIsolateExpiredUsers() {
         isolatedCount++;
         console.log(`[AUTO-ISOLATE] ? Successfully isolated ${user.username}`);
 
-        // 8. Send notification (optional)
-        try {
-          await sendIsolationNotification(user);
-        } catch (notifError) {
-          console.log(`[AUTO-ISOLATE] ?? Notification failed for ${user.username}`);
+        // 8. Send notification (respect waNotificationEnabled)
+        if (user.waNotificationEnabled === false) {
+          console.log(`[AUTO-ISOLATE] Skipping notification for ${user.username} (waNotificationEnabled = false)`);
+        } else {
+          try {
+            await sendIsolationNotification(user);
+          } catch (notifError) {
+            console.log(`[AUTO-ISOLATE] ?? Notification failed for ${user.username}`);
+          }
         }
 
       } catch (userError: any) {
