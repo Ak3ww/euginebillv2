@@ -101,7 +101,7 @@ export default async function ManualInvoicePage({
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8 pb-32 flex justify-center text-gray-900 font-sans text-[11px] leading-relaxed print:p-0 print:bg-white">
-      <style dangerouslySetInnerHTML={{ __html: '@media print { @page { size: A4; margin: 0; } .no-print { display: none !important; } }' }} />
+      <style dangerouslySetInnerHTML={{ __html: '@media print { @page { size: A4; margin: 0; } .no-print { display: none !important; } } #invoice-capture-area th { background-color: #000000 !important; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }' }} />
 
       <InvoiceTemplate data={inv} />
 

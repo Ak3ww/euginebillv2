@@ -167,11 +167,31 @@ export default function InvoiceTemplate({ data }: { data: InvoiceTemplateData })
             <div className="w-full mb-8">
               <table className="w-full border-collapse table-fixed">
                 <thead>
-                  <tr>
-                    <th className="bg-black text-white px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider rounded-tl-lg" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Deskripsi</th>
-                    <th className="bg-black text-white px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider w-20" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Qty</th>
-                    <th className="bg-black text-white px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider w-36" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Harga</th>
-                    <th className="bg-black text-white px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider w-40 rounded-tr-lg" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>Total</th>
+                  <tr style={{ backgroundColor: '#000000', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                    <th 
+                      className="bg-black text-white px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider rounded-tl-lg" 
+                      style={{ backgroundColor: '#000000', color: '#ffffff', WebkitTextFillColor: '#ffffff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+                    >
+                      Deskripsi
+                    </th>
+                    <th 
+                      className="bg-black text-white px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider w-20" 
+                      style={{ backgroundColor: '#000000', color: '#ffffff', WebkitTextFillColor: '#ffffff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+                    >
+                      Qty
+                    </th>
+                    <th 
+                      className="bg-black text-white px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider w-36" 
+                      style={{ backgroundColor: '#000000', color: '#ffffff', WebkitTextFillColor: '#ffffff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+                    >
+                      Harga
+                    </th>
+                    <th 
+                      className="bg-black text-white px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider w-40 rounded-tr-lg" 
+                      style={{ backgroundColor: '#000000', color: '#ffffff', WebkitTextFillColor: '#ffffff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+                    >
+                      Total
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

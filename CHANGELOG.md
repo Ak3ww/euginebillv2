@@ -21,14 +21,21 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
        - Menghapus tombol *Download PDF* yang redundant dan mengadopsi tombol tunggal **Cetak** (`ManualInvoicePrintButton`) dengan styling Oceanic Blue (`#002C60`) yang langsung memicu dialog cetak bawaan browser (`window.print()`).
        - Pengguna dapat langsung memilih opsi printer atau "Save as PDF" di browser yang merender DOM 100% identik pixel-perfect sesuai tampilan layar tanpa dependensi font server.
        - Menambahkan dukungan auto-print via URL query `?print=true` serta memperbarui tombol aksi di tabel invoice admin (`/admin/manual-invoices`) dengan ikon cetak yang langsung membuka dialog print.
+    4. **Perbaikan Kontras Font Header Tabel Rincian Layanan (`InvoiceTemplate.tsx`)**:
+       - Mengatasi isu teks header tabel (`Deskripsi`, `Qty`, `Harga`, `Total`) yang tidak terlihat akibat aturan global light mode `:root:not(.dark) .text-white` yang sebelumnya menimpa warna teks menjadi gelap (`var(--foreground)` / hitam).
+       - Menambahkan pengecualian kelas `.text-white[class*="bg-black"]`, `.text-white[class*="bg-[#000"]`, `#invoice-capture-area th` dengan `-webkit-text-fill-color: #ffffff !important` pada `globals.css`.
+       - Memberikan inline styles eksplisit (`backgroundColor: '#000000'`, `color: '#ffffff'`, `-webkit-text-fill-color: '#ffffff'`, `printColorAdjust: 'exact'`) pada tag `<th>` di `InvoiceTemplate.tsx` serta style override di halaman faktur manual dan internet.
   - *Files*:
     - `src/lib/manual-invoice-pdf.ts`
     - `src/app/api/manual-invoices/[id]/pdf/route.ts`
     - `src/app/invoice/[id]/pdf/route.ts`
     - `src/app/invoice/manual/[id]/page.tsx`
     - `src/app/invoice/manual/[id]/PrintButton.tsx`
+    - `src/app/invoice/[id]/page.tsx`
     - `src/app/admin/manual-invoices/page.tsx`
+    - `src/components/InvoiceTemplate.tsx`
     - `src/components/DownloadPdfButton.tsx`
+    - `src/app/globals.css`
     - `CHANGELOG.md`
 
 ## [2.38.0] — 2026-09-08

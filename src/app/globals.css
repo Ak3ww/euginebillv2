@@ -770,8 +770,13 @@ html.theme-transitioning *::after {
 :root:not(.dark) .text-white[class*="bg-warning"],
 :root:not(.dark) .text-white[class*="bg-info"],
 :root:not(.dark) .text-white[class*="bg-accent"],
+:root:not(.dark) .text-white[class*="bg-black"],
+:root:not(.dark) .text-white[class*="bg-[#000"],
+:root:not(.dark) #invoice-capture-area th,
+:root:not(.dark) #invoice-capture-area .text-white,
 :root:not(.dark) .text-white[class*="bg-["] {
   color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 /* text-white with opacity variants */
