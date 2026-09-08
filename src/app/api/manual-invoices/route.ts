@@ -14,10 +14,44 @@ interface InvoiceItem {
   total: number;
 }
 
+// Auto-heal / Ensure manual_invoices table exists
+async function ensureManualInvoiceTable() {
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS \`manual_invoices\` (
+        \`id\` VARCHAR(191) NOT NULL,
+        \`invoiceNumber\` VARCHAR(191) NOT NULL,
+        \`recipientName\` VARCHAR(191) NOT NULL,
+        \`recipientPhone\` VARCHAR(191) NULL,
+        \`recipientAddress\` TEXT NULL,
+        \`items\` JSON NOT NULL,
+        \`subtotal\` INT NOT NULL,
+        \`discountAmount\` INT NOT NULL DEFAULT 0,
+        \`totalAmount\` INT NOT NULL,
+        \`status\` ENUM('PENDING', 'PAID', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+        \`notes\` TEXT NULL,
+        \`paidAt\` DATETIME(3) NULL,
+        \`transactionId\` VARCHAR(191) NULL,
+        \`createdBy\` VARCHAR(191) NULL,
+        \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (\`id\`),
+        UNIQUE INDEX \`manual_invoices_invoiceNumber_key\` (\`invoiceNumber\`),
+        INDEX \`manual_invoices_status_idx\` (\`status\`),
+        INDEX \`manual_invoices_createdAt_idx\` (\`createdAt\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+  } catch (e: any) {
+    console.error('[ensureManualInvoiceTable] warning:', e?.message);
+  }
+}
+
 // GET - List all manual invoices
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return unauthorized();
+
+  await ensureManualInvoiceTable();
 
   try {
     const { searchParams } = new URL(request.url);
@@ -82,11 +116,11 @@ export async function GET(request: NextRequest) {
     ]);
 
     const stats = {
-      pendingCount: pendingStats._count.id,
+      pendingCount: pendingStats._count.id || 0,
       pendingAmount: pendingStats._sum.totalAmount || 0,
-      paidCount: paidStats._count.id,
+      paidCount: paidStats._count.id || 0,
       paidAmount: paidStats._sum.totalAmount || 0,
-      cancelledCount: cancelledStats._count.id,
+      cancelledCount: cancelledStats._count.id || 0,
     };
 
     return ok({
@@ -96,9 +130,9 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
       stats,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('GET /api/manual-invoices error:', error);
-    return serverError('Failed to fetch manual invoices');
+    return serverError(error?.message || 'Failed to fetch manual invoices');
   }
 }
 
@@ -106,6 +140,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return unauthorized();
+
+  await ensureManualInvoiceTable();
 
   try {
     const body = await request.json();
@@ -122,19 +158,20 @@ export async function POST(request: NextRequest) {
       return badRequest('Nama penerima wajib diisi');
     }
 
-    if (!Array.isArray(items) || items.length === 0) {
-      return badRequest('Minimal 1 item harus diisi');
+    const rawItems = Array.isArray(items) ? items : [];
+    // Lenient filter: ignore completely empty rows instead of failing
+    const validRawItems = rawItems.filter(
+      (item: any) => item && typeof item.description === 'string' && item.description.trim() !== ''
+    );
+
+    if (validRawItems.length === 0) {
+      return badRequest('Minimal 1 item dengan nama / deskripsi harus diisi');
     }
 
     // Validate items and compute totals
-    const parsedItems: InvoiceItem[] = items.map((item: any, idx: number) => {
-      const qty = Number(item.qty);
-      const unitPrice = Number(item.unitPrice);
-      if (!item.description?.trim()) {
-        throw new Error(`Item ${idx + 1}: deskripsi wajib diisi`);
-      }
-      if (isNaN(qty) || qty <= 0) throw new Error(`Item ${idx + 1}: qty tidak valid`);
-      if (isNaN(unitPrice) || unitPrice < 0) throw new Error(`Item ${idx + 1}: harga tidak valid`);
+    const parsedItems: InvoiceItem[] = validRawItems.map((item: any) => {
+      const qty = Math.max(1, parseInt(String(item.qty)) || 1);
+      const unitPrice = Math.max(0, parseInt(String(item.unitPrice)) || 0);
       return {
         description: item.description.trim(),
         qty,
@@ -144,7 +181,7 @@ export async function POST(request: NextRequest) {
     });
 
     const subtotal = parsedItems.reduce((sum, i) => sum + i.total, 0);
-    const discount = Math.max(0, Number(discountAmount) || 0);
+    const discount = Math.max(0, parseInt(String(discountAmount)) || 0);
     const totalAmount = Math.max(0, subtotal - discount);
 
     const invoiceNumber = generateManualInvoiceNumber();
@@ -169,7 +206,7 @@ export async function POST(request: NextRequest) {
     return created({ invoice });
   } catch (error: any) {
     console.error('POST /api/manual-invoices error:', error);
-    if (error?.message) return badRequest(error.message);
-    return serverError('Failed to create manual invoice');
+    return badRequest(error?.message || 'Gagal menyimpan invoice');
   }
 }
+

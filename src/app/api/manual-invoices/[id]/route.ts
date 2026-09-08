@@ -69,20 +69,23 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     } = body;
 
     if (!recipientName?.trim()) return badRequest('Nama penerima wajib diisi');
-    if (!Array.isArray(items) || items.length === 0) return badRequest('Minimal 1 item harus diisi');
 
-    const parsedItems = items.map((item: any, idx: number) => {
-      const qty = Number(item.qty);
-      const unitPrice = Number(item.unitPrice);
-      if (!item.description?.trim()) throw new Error(`Item ${idx + 1}: deskripsi wajib diisi`);
-      if (isNaN(qty) || qty <= 0) throw new Error(`Item ${idx + 1}: qty tidak valid`);
-      if (isNaN(unitPrice) || unitPrice < 0) throw new Error(`Item ${idx + 1}: harga tidak valid`);
+    const rawItems = Array.isArray(items) ? items : [];
+    const validRawItems = rawItems.filter(
+      (item: any) => item && typeof item.description === 'string' && item.description.trim() !== ''
+    );
+    if (validRawItems.length === 0) return badRequest('Minimal 1 item dengan nama / deskripsi harus diisi');
+
+    const parsedItems = validRawItems.map((item: any) => {
+      const qty = Math.max(1, parseInt(String(item.qty)) || 1);
+      const unitPrice = Math.max(0, parseInt(String(item.unitPrice)) || 0);
       return { description: item.description.trim(), qty, unitPrice, total: qty * unitPrice };
     });
 
     const subtotal = parsedItems.reduce((sum: number, i: any) => sum + i.total, 0);
-    const discount = Math.max(0, Number(discountAmount) || 0);
+    const discount = Math.max(0, parseInt(String(discountAmount)) || 0);
     const totalAmount = Math.max(0, subtotal - discount);
+
 
     const updated = await prisma.manualInvoice.update({
       where: { id },

@@ -1,20 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -46,6 +38,10 @@ import {
   X,
   ExternalLink,
   Download,
+  Receipt,
+  ArrowUpRight,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { formatWIB } from '@/lib/timezone';
@@ -90,22 +86,11 @@ function formatRp(amount: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 }
 
-function formatRpInput(value: string) {
-  const num = parseInt(value.replace(/\D/g, '')) || 0;
-  return num === 0 ? '' : num.toLocaleString('id-ID');
-}
-
-function parseRpInput(value: string) {
-  return parseInt(value.replace(/\D/g, '')) || 0;
-}
-
 const statusConfig = {
   PENDING: { label: 'Menunggu', variant: 'outline' as const, icon: Clock, class: 'text-amber-600 border-amber-300 bg-amber-50' },
   PAID: { label: 'Lunas', variant: 'outline' as const, icon: CheckCircle2, class: 'text-emerald-600 border-emerald-300 bg-emerald-50' },
   CANCELLED: { label: 'Dibatalkan', variant: 'outline' as const, icon: XCircle, class: 'text-slate-500 border-slate-300 bg-slate-50' },
 };
-
-// ─── Empty Item ───────────────────────────────────────────────────────────────
 
 function emptyItem(): InvoiceItem {
   return { description: '', qty: 1, unitPrice: 0, total: 0 };
@@ -126,58 +111,56 @@ function ItemRow({
   onRemove: (idx: number) => void;
   canRemove: boolean;
 }) {
-  const [unitPriceDisplay, setUnitPriceDisplay] = useState(
-    item.unitPrice > 0 ? item.unitPrice.toLocaleString('id-ID') : ''
-  );
-
   return (
-    <tr className="border-b border-border">
-      <td className="py-2 pr-2 w-8 text-center text-muted-foreground text-sm">{idx + 1}</td>
-      <td className="py-2 pr-2">
+    <tr className="border-b border-border/60 hover:bg-muted/10 transition-colors">
+      <td className="py-3 px-3 text-center text-muted-foreground text-xs font-semibold w-10">
+        {idx + 1}
+      </td>
+      <td className="py-3 px-2">
         <Input
-          placeholder="Nama / deskripsi item"
+          placeholder="Contoh: OLT GPON 1 PON / Kabel Dropcore 4 Core..."
           value={item.description}
           onChange={(e) => onChange(idx, 'description', e.target.value)}
-          className="h-8 text-sm"
+          className="h-9 text-sm"
         />
       </td>
-      <td className="py-2 pr-2 w-20">
+      <td className="py-3 px-2 w-28">
         <Input
           type="number"
           min={1}
           placeholder="1"
-          value={item.qty}
+          value={item.qty || ''}
           onChange={(e) => onChange(idx, 'qty', parseInt(e.target.value) || 1)}
-          className="h-8 text-sm text-right"
+          className="h-9 text-sm text-right"
         />
       </td>
-      <td className="py-2 pr-2 w-40">
+      <td className="py-3 px-2 w-52">
         <div className="relative">
-          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rp</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">Rp</span>
           <Input
             placeholder="0"
-            value={unitPriceDisplay}
+            value={item.unitPrice > 0 ? item.unitPrice.toLocaleString('id-ID') : ''}
             onChange={(e) => {
               const raw = e.target.value.replace(/\D/g, '');
               const num = parseInt(raw) || 0;
-              setUnitPriceDisplay(num > 0 ? num.toLocaleString('id-ID') : '');
               onChange(idx, 'unitPrice', num);
             }}
-            className="h-8 text-sm text-right pl-8"
+            className="h-9 text-sm text-right pl-9 font-medium"
           />
         </div>
       </td>
-      <td className="py-2 pr-2 w-36 text-right text-sm font-medium text-foreground">
+      <td className="py-3 px-3 w-48 text-right font-semibold text-foreground text-sm">
         {formatRp(item.total)}
       </td>
-      <td className="py-2 w-8 text-center">
+      <td className="py-3 px-2 w-12 text-center">
         {canRemove && (
           <button
             type="button"
             onClick={() => onRemove(idx)}
-            className="text-muted-foreground hover:text-destructive transition-colors"
+            className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            title="Hapus baris ini"
           >
-            <X className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" />
           </button>
         )}
       </td>
@@ -185,7 +168,7 @@ function ItemRow({
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Main Page Component ──────────────────────────────────────────────────────
 
 export default function ManualInvoicesPage() {
   const [invoices, setInvoices] = useState<ManualInvoice[]>([]);
@@ -194,21 +177,22 @@ export default function ManualInvoicesPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Dialog state
+  // Inline Form State (NO MODAL POPUP)
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<ManualInvoice | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Form state
+  // Form Fields
   const [formName, setFormName] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formAddress, setFormAddress] = useState('');
   const [formItems, setFormItems] = useState<InvoiceItem[]>([emptyItem()]);
-  const [formDiscount, setFormDiscount] = useState('');
-  const [formDiscountDisplay, setFormDiscountDisplay] = useState('');
+  const [formDiscount, setFormDiscount] = useState<number>(0);
   const [formNotes, setFormNotes] = useState('');
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // ── Fetch Invoices ─────────────────────────────────────────────────────────
 
   const fetchInvoices = useCallback(async () => {
     setLoading(true);
@@ -232,15 +216,14 @@ export default function ManualInvoicesPage() {
 
   useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
 
-  // ── Form Helpers ───────────────────────────────────────────────────────────
+  // ── Form Actions ───────────────────────────────────────────────────────────
 
   function resetForm() {
     setFormName('');
     setFormPhone('');
     setFormAddress('');
     setFormItems([emptyItem()]);
-    setFormDiscount('');
-    setFormDiscountDisplay('');
+    setFormDiscount(0);
     setFormNotes('');
     setEditingInvoice(null);
   }
@@ -248,6 +231,9 @@ export default function ManualInvoicesPage() {
   function openCreate() {
     resetForm();
     setIsFormOpen(true);
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   }
 
   function openEdit(inv: ManualInvoice) {
@@ -256,18 +242,24 @@ export default function ManualInvoicesPage() {
     setFormPhone(inv.recipientPhone || '');
     setFormAddress(inv.recipientAddress || '');
     setFormItems(inv.items.length > 0 ? [...inv.items] : [emptyItem()]);
-    const disc = inv.discountAmount > 0 ? inv.discountAmount : 0;
-    setFormDiscount(disc.toString());
-    setFormDiscountDisplay(disc > 0 ? disc.toLocaleString('id-ID') : '');
+    setFormDiscount(inv.discountAmount || 0);
     setFormNotes(inv.notes || '');
     setIsFormOpen(true);
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }
+
+  function closeForm() {
+    setIsFormOpen(false);
+    resetForm();
   }
 
   function updateItem(idx: number, field: keyof InvoiceItem, value: string | number) {
     setFormItems((prev) => {
       const updated = [...prev];
       const item = { ...updated[idx], [field]: value };
-      item.total = item.qty * item.unitPrice;
+      item.total = Math.max(0, (item.qty || 0) * (item.unitPrice || 0));
       updated[idx] = item;
       return updated;
     });
@@ -281,16 +273,26 @@ export default function ManualInvoicesPage() {
     setFormItems((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  const subtotal = formItems.reduce((s, i) => s + i.total, 0);
-  const discountVal = parseInt(formDiscount.replace(/\D/g, '')) || 0;
-  const total = Math.max(0, subtotal - discountVal);
+  const subtotal = formItems.reduce((s, i) => s + (i.total || 0), 0);
+  const total = Math.max(0, subtotal - formDiscount);
 
-  // ── Save ───────────────────────────────────────────────────────────────────
+  // ── Save Invoice ───────────────────────────────────────────────────────────
 
   async function handleSave() {
-    if (!formName.trim()) { showError('Nama penerima wajib diisi'); return; }
-    const invalidItem = formItems.find(i => !i.description.trim());
-    if (invalidItem) { showError('Semua item harus memiliki deskripsi'); return; }
+    if (!formName.trim()) {
+      showError('Nama penerima wajib diisi');
+      return;
+    }
+
+    // Lenient: filter out empty items automatically so user doesn't get error
+    const validItems = formItems.filter(
+      (item) => item.description && item.description.trim() !== ''
+    );
+
+    if (validItems.length === 0) {
+      showError('Minimal 1 item dengan nama / deskripsi harus diisi');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -298,27 +300,35 @@ export default function ManualInvoicesPage() {
         recipientName: formName.trim(),
         recipientPhone: formPhone.trim() || null,
         recipientAddress: formAddress.trim() || null,
-        items: formItems.map(i => ({ ...i, total: i.qty * i.unitPrice })),
-        discountAmount: discountVal,
+        items: validItems.map((i) => ({
+          description: i.description.trim(),
+          qty: Math.max(1, Number(i.qty) || 1),
+          unitPrice: Math.max(0, Number(i.unitPrice) || 0),
+          total: Math.max(1, Number(i.qty) || 1) * Math.max(0, Number(i.unitPrice) || 0),
+        })),
+        discountAmount: formDiscount,
         notes: formNotes.trim() || null,
       };
 
       const url = editingInvoice ? `/api/manual-invoices/${editingInvoice.id}` : '/api/manual-invoices';
       const method = editingInvoice ? 'PUT' : 'POST';
 
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
       const data = await res.json();
 
       if (data.success) {
-        showSuccess(editingInvoice ? 'Invoice berhasil diperbarui' : 'Invoice berhasil dibuat');
-        setIsFormOpen(false);
-        resetForm();
+        showSuccess(editingInvoice ? 'Invoice berhasil diperbarui' : 'Invoice berhasil dibuat & diterbitkan');
+        closeForm();
         fetchInvoices();
       } else {
         showError(data.error || 'Gagal menyimpan invoice');
       }
-    } catch {
-      showError('Terjadi kesalahan saat menyimpan');
+    } catch (err: any) {
+      showError(err?.message || 'Terjadi kesalahan saat menyimpan');
     } finally {
       setSaving(false);
     }
@@ -328,7 +338,7 @@ export default function ManualInvoicesPage() {
 
   async function handleMarkPaid(inv: ManualInvoice) {
     const confirmed = await showConfirm(
-      `Tandai invoice ${inv.invoiceNumber} sebagai LUNAS?\n\nPermasukan sebesar ${formatRp(inv.totalAmount)} akan dicatat ke sistem keuangan.`,
+      `Tandai invoice ${inv.invoiceNumber} sebagai LUNAS?\n\nPemasukan sebesar ${formatRp(inv.totalAmount)} akan otomatis dicatat ke sistem keuangan.`,
       'Tandai Lunas'
     );
     if (!confirmed) return;
@@ -343,7 +353,7 @@ export default function ManualInvoicesPage() {
         showError(data.error || 'Gagal menandai lunas');
       }
     } catch {
-      showError('Terjadi kesalahan');
+      showError('Terjadi kesalahan saat menandai lunas');
     }
   }
 
@@ -351,7 +361,7 @@ export default function ManualInvoicesPage() {
 
   async function handleDelete(inv: ManualInvoice) {
     const confirmed = await showConfirm(
-      `Hapus invoice ${inv.invoiceNumber}?\nData yang sudah dihapus tidak bisa dipulihkan.`,
+      `Hapus invoice ${inv.invoiceNumber}?\nData yang sudah dihapus tidak dapat dipulihkan.`,
       'Hapus'
     );
     if (!confirmed) return;
@@ -366,27 +376,209 @@ export default function ManualInvoicesPage() {
         showError(data.error || 'Gagal menghapus invoice');
       }
     } catch {
-      showError('Terjadi kesalahan');
+      showError('Terjadi kesalahan saat menghapus');
     }
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── Render Page ──────────────────────────────────────────────────────────
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Invoice Manual</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Buat invoice one-time untuk penjualan perangkat, jasa, atau proyek
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Receipt className="h-6 w-6 text-[#002C60]" />
+            Invoice Manual
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Buat invoice one-time untuk penjualan perangkat (OLT, kabel, ODP, splitter, precon) atau jasa proyek
           </p>
         </div>
-        <Button onClick={openCreate} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Buat Invoice
-        </Button>
+        {!isFormOpen && (
+          <Button onClick={openCreate} className="gap-2 bg-[#002C60] hover:bg-[#1b437c] text-white">
+            <Plus className="h-4 w-4" />
+            Buat Invoice Baru
+          </Button>
+        )}
       </div>
+
+      {/* ─── INLINE FORM CARD (NO POPUP MODAL) ─────────────────────────────── */}
+      {isFormOpen && (
+        <div ref={formRef} className="scroll-mt-6">
+          <Card className="border-2 border-[#002C60]/30 shadow-md bg-card">
+            <CardHeader className="bg-[#002C60]/5 border-b border-border/80 px-6 py-4 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-bold text-[#002C60] flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  {editingInvoice ? `Edit Invoice: ${editingInvoice.invoiceNumber}` : 'Form Pembuatan Invoice Manual'}
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  Isi data penerima dan daftar rincian barang. Kolom di bawah ini luas dan langsung tampil di halaman.
+                </CardDescription>
+              </div>
+              <Button variant="ghost" size="icon" onClick={closeForm} title="Tutup Form">
+                <X className="h-5 w-5" />
+              </Button>
+            </CardHeader>
+
+            <CardContent className="p-6 space-y-6">
+              {/* Bagian 1: Data Penerima */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">
+                    Nama Penerima / Perusahaan <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    placeholder="Contoh: PT. Sumber Daya Mandiri / Bapak H. Ahmad"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    className="h-10"
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Nomor Telepon / WhatsApp (opsional)</Label>
+                  <Input
+                    placeholder="Contoh: 081234567890"
+                    value={formPhone}
+                    onChange={(e) => setFormPhone(e.target.value)}
+                    className="h-10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Alamat Penerima / Lokasi Pengiriman (opsional)</Label>
+                <Textarea
+                  placeholder="Jl. Raya No. 123, RT 01/RW 02, Kelurahan, Kecamatan..."
+                  value={formAddress}
+                  onChange={(e) => setFormAddress(e.target.value)}
+                  rows={2}
+                />
+              </div>
+
+              {/* Bagian 2: Daftar Item / Rincian Barang */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">
+                    Daftar Item / Rincian Barang & Jasa <span className="text-destructive">*</span>
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    Baris kosong otomatis diabaikan sistem saat simpan
+                  </span>
+                </div>
+
+                <div className="border border-border rounded-lg overflow-hidden bg-background">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 border-b border-border text-xs font-semibold text-muted-foreground uppercase">
+                      <tr>
+                        <th className="py-3 px-3 text-center w-10">No</th>
+                        <th className="py-3 px-2 text-left">Nama / Deskripsi Item</th>
+                        <th className="py-3 px-2 text-right w-28">Qty</th>
+                        <th className="py-3 px-2 text-right w-52">Harga Satuan (Rp)</th>
+                        <th className="py-3 px-3 text-right w-48">Total</th>
+                        <th className="py-3 px-2 text-center w-12" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {formItems.map((item, idx) => (
+                        <ItemRow
+                          key={idx}
+                          item={item}
+                          idx={idx}
+                          onChange={updateItem}
+                          onRemove={removeItem}
+                          canRemove={formItems.length > 1}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-between items-center pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addItem}
+                    className="gap-2 border-dashed border-primary/50 text-primary hover:bg-primary/5"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Tambah Baris Item
+                  </Button>
+                </div>
+              </div>
+
+              {/* Bagian 3: Kalkulasi & Diskon */}
+              <div className="flex justify-end pt-2 border-t border-border">
+                <div className="w-full max-w-md space-y-3 bg-muted/20 p-4 rounded-lg border border-border">
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Subtotal ({formItems.filter(i => i.description.trim()).length} item)</span>
+                    <span className="font-semibold text-foreground">{formatRp(subtotal)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <Label className="text-sm text-muted-foreground shrink-0">Potongan / Diskon (Rp)</Label>
+                    <div className="relative w-48">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rp</span>
+                      <Input
+                        placeholder="0"
+                        value={formDiscount > 0 ? formDiscount.toLocaleString('id-ID') : ''}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, '');
+                          setFormDiscount(parseInt(raw) || 0);
+                        }}
+                        className="h-9 text-sm text-right pl-9 font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-baseline border-t-2 border-[#002C60] pt-3">
+                    <span className="font-bold text-foreground text-base">Total Tagihan</span>
+                    <span className="text-2xl font-black text-[#002C60]">{formatRp(total)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bagian 4: Catatan Tambahan */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Catatan / Keterangan Pembayaran (opsional)</Label>
+                <Textarea
+                  placeholder="Contoh: Garansi perangkat 1 bulan. Pembayaran via transfer BCA/Mandiri sesuai invoice."
+                  value={formNotes}
+                  onChange={(e) => setFormNotes(e.target.value)}
+                  rows={2}
+                />
+              </div>
+
+              {/* Bagian 5: Tombol Aksi */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+                <Button variant="outline" onClick={closeForm} disabled={saving} className="px-5">
+                  Batal / Tutup Form
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="gap-2 px-6 bg-[#002C60] hover:bg-[#1b437c] text-white"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      {editingInvoice ? 'Simpan Perubahan Invoice' : 'Terbitkan Invoice Sekarang'}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -446,12 +638,12 @@ export default function ManualInvoicesPage() {
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Search & Filter Bar */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-52">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Cari nama, nomor invoice..."
+            placeholder="Cari nama pelanggan, nomor invoice..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-9"
@@ -474,8 +666,8 @@ export default function ManualInvoicesPage() {
         </Button>
       </div>
 
-      {/* Table */}
-      <div className="border border-border rounded-lg overflow-hidden">
+      {/* Invoice Table */}
+      <div className="border border-border rounded-lg overflow-hidden bg-card">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30">
@@ -498,7 +690,11 @@ export default function ManualInvoicesPage() {
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                   <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">Belum ada invoice manual</p>
+                  <p className="text-sm">Belum ada invoice manual yang dibuat</p>
+                  <Button variant="outline" size="sm" onClick={openCreate} className="mt-3 gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />
+                    Buat Invoice Pertama
+                  </Button>
                 </TableCell>
               </TableRow>
             ) : (
@@ -519,7 +715,7 @@ export default function ManualInvoicesPage() {
                       </a>
                     </TableCell>
                     <TableCell>
-                      <p className="font-medium text-sm">{inv.recipientName}</p>
+                      <p className="font-medium text-sm text-foreground">{inv.recipientName}</p>
                       {inv.recipientPhone && (
                         <p className="text-xs text-muted-foreground">{inv.recipientPhone}</p>
                       )}
@@ -527,7 +723,7 @@ export default function ManualInvoicesPage() {
                     <TableCell>
                       <p className="text-sm">{formatWIB(inv.createdAt, 'date')}</p>
                       {inv.paidAt && (
-                        <p className="text-xs text-emerald-600">Lunas: {formatWIB(inv.paidAt, 'date')}</p>
+                        <p className="text-xs text-emerald-600 font-medium">Lunas: {formatWIB(inv.paidAt, 'date')}</p>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -552,7 +748,7 @@ export default function ManualInvoicesPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Lihat Invoice">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Lihat Invoice Publik">
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
                         </a>
@@ -568,7 +764,7 @@ export default function ManualInvoicesPage() {
                           </Button>
                         </a>
 
-                        {/* Edit */}
+                        {/* Edit (only if PENDING) */}
                         {inv.status === 'PENDING' && (
                           <Button
                             variant="ghost"
@@ -581,13 +777,13 @@ export default function ManualInvoicesPage() {
                           </Button>
                         )}
 
-                        {/* Mark Paid */}
+                        {/* Mark Paid (only if PENDING) */}
                         {inv.status === 'PENDING' && (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                            title="Tandai Lunas"
+                            title="Tandai Lunas & Catat Pemasukan"
                             onClick={() => handleMarkPaid(inv)}
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -613,149 +809,7 @@ export default function ManualInvoicesPage() {
           </TableBody>
         </Table>
       </div>
-
-      {/* Create/Edit Dialog */}
-      <Dialog open={isFormOpen} onOpenChange={(open) => { if (!open) { setIsFormOpen(false); resetForm(); } }}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingInvoice ? 'Edit Invoice Manual' : 'Buat Invoice Manual'}</DialogTitle>
-            <DialogDescription>
-              {editingInvoice
-                ? `Ubah detail invoice ${editingInvoice.invoiceNumber}`
-                : 'Buat invoice one-time untuk transaksi di luar sistem billing PPPoE'}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-5 py-2">
-            {/* Recipient */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>
-                  Nama Penerima <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  placeholder="Contoh: PT. XYZ / Bapak Ahmad"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Nomor Telepon</Label>
-                <Input
-                  placeholder="08xxxxxxxxxx"
-                  value={formPhone}
-                  onChange={(e) => setFormPhone(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Alamat Penerima</Label>
-              <Textarea
-                placeholder="Jl. Contoh No. 123, Kota..."
-                value={formAddress}
-                onChange={(e) => setFormAddress(e.target.value)}
-                rows={2}
-              />
-            </div>
-
-            {/* Items */}
-            <div className="space-y-2">
-              <Label>
-                Item / Deskripsi Pekerjaan <span className="text-destructive">*</span>
-              </Label>
-              <div className="border border-border rounded-md overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/40">
-                    <tr>
-                      <th className="py-2 px-3 text-left text-xs font-medium text-muted-foreground w-8">No</th>
-                      <th className="py-2 px-2 text-left text-xs font-medium text-muted-foreground">Deskripsi</th>
-                      <th className="py-2 px-2 text-left text-xs font-medium text-muted-foreground w-20">Qty</th>
-                      <th className="py-2 px-2 text-left text-xs font-medium text-muted-foreground w-44">Harga Satuan</th>
-                      <th className="py-2 px-2 text-right text-xs font-medium text-muted-foreground w-36">Total</th>
-                      <th className="w-8" />
-                    </tr>
-                  </thead>
-                  <tbody className="px-3 divide-y divide-border">
-                    {formItems.map((item, idx) => (
-                      <ItemRow
-                        key={idx}
-                        item={item}
-                        idx={idx}
-                        onChange={updateItem}
-                        onRemove={removeItem}
-                        canRemove={formItems.length > 1}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addItem}
-                className="gap-1.5 h-8 text-xs"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Tambah Item
-              </Button>
-            </div>
-
-            {/* Totals */}
-            <div className="flex justify-end">
-              <div className="w-72 space-y-2">
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Subtotal</span>
-                  <span>{formatRp(subtotal)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <Label className="text-sm text-muted-foreground shrink-0">Diskon</Label>
-                  <div className="relative w-40">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rp</span>
-                    <Input
-                      placeholder="0"
-                      value={formDiscountDisplay}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/\D/g, '');
-                        const num = parseInt(raw) || 0;
-                        setFormDiscountDisplay(num > 0 ? num.toLocaleString('id-ID') : '');
-                        setFormDiscount(num.toString());
-                      }}
-                      className="h-8 text-sm text-right pl-8"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-between border-t border-border pt-2 font-semibold">
-                  <span>Total</span>
-                  <span className="text-[#002C60] text-base">{formatRp(total)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-1.5">
-              <Label>Catatan (opsional)</Label>
-              <Textarea
-                placeholder="Catatan tambahan untuk penerima invoice..."
-                value={formNotes}
-                onChange={(e) => setFormNotes(e.target.value)}
-                rows={2}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsFormOpen(false); resetForm(); }}>
-              Batal
-            </Button>
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {editingInvoice ? 'Simpan Perubahan' : 'Buat Invoice'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
+
