@@ -2,7 +2,6 @@ import { prisma } from '@/server/db/client';
 import { notFound } from 'next/navigation';
 import InvoiceTemplate, { InvoiceTemplateData } from '@/components/InvoiceTemplate';
 import ManualInvoicePrintButton from './PrintButton';
-import DownloadPdfButton from '@/components/DownloadPdfButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,8 +19,16 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 }
 
-export default async function ManualInvoicePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ManualInvoicePage({ 
+  params,
+  searchParams,
+}: { 
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ print?: string }>;
+}) {
   const { id } = await params;
+  const search = searchParams ? await searchParams : {};
+  const autoPrint = search.print === 'true';
 
   // Search by either nanoid ID or invoiceNumber (e.g. MINV-...)
   const invoice = await prisma.manualInvoice.findFirst({
@@ -100,9 +107,8 @@ export default async function ManualInvoicePage({ params }: { params: Promise<{ 
 
       {/* Floating Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-200 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-50 flex justify-center no-print">
-        <div className="w-full max-w-[210mm] flex gap-3 justify-end items-center">
-          <ManualInvoicePrintButton />
-          <DownloadPdfButton invoiceNumber={invoice.invoiceNumber} variant="primary" label="Download PDF" />
+        <div className="w-full max-w-[210mm] flex justify-end">
+          <ManualInvoicePrintButton autoPrint={autoPrint} />
         </div>
       </div>
     </div>

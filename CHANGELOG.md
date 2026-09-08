@@ -17,13 +17,17 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     2. **Refaktor Endpoint PDF Manual (`/api/manual-invoices/[id]/pdf`) & Fallback Route (`/invoice/[id]/pdf`)**:
        - Mengganti pemanggilan `generateInvoicePDF` lama di `/api/manual-invoices/[id]/pdf/route.ts` dengan `generateManualInvoicePdfBuffer` beresolusi tinggi.
        - Menambahkan fallback di `/invoice/[id]/pdf/route.ts` sehingga query pencarian faktur manual otomatis ter-resolve jika invoice billing standar tidak ditemukan.
-    3. **Komponen Unduh PDF Interaktif (`src/components/DownloadPdfButton.tsx`)**:
-       - Memperbarui tombol unduh PDF pada halaman publik faktur manual (`/invoice/manual/[id]/page.tsx`) agar menggunakan `DownloadPdfButton` dengan state loading dan DOM-capture fallback otomatis (`downloadVisibleInvoiceAsPdf`) bila server render tertunda.
+    3. **Penyederhanaan Aksi Cetak / Simpan PDF Langsung (`/invoice/manual/[id]`)**:
+       - Menghapus tombol *Download PDF* yang redundant dan mengadopsi tombol tunggal **Cetak** (`ManualInvoicePrintButton`) dengan styling Oceanic Blue (`#002C60`) yang langsung memicu dialog cetak bawaan browser (`window.print()`).
+       - Pengguna dapat langsung memilih opsi printer atau "Save as PDF" di browser yang merender DOM 100% identik pixel-perfect sesuai tampilan layar tanpa dependensi font server.
+       - Menambahkan dukungan auto-print via URL query `?print=true` serta memperbarui tombol aksi di tabel invoice admin (`/admin/manual-invoices`) dengan ikon cetak yang langsung membuka dialog print.
   - *Files*:
     - `src/lib/manual-invoice-pdf.ts`
     - `src/app/api/manual-invoices/[id]/pdf/route.ts`
     - `src/app/invoice/[id]/pdf/route.ts`
     - `src/app/invoice/manual/[id]/page.tsx`
+    - `src/app/invoice/manual/[id]/PrintButton.tsx`
+    - `src/app/admin/manual-invoices/page.tsx`
     - `src/components/DownloadPdfButton.tsx`
     - `CHANGELOG.md`
 

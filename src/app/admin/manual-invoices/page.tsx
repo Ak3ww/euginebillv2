@@ -38,6 +38,7 @@ import {
   X,
   ExternalLink,
   Download,
+  Printer,
   Receipt,
   ArrowUpRight,
   ChevronDown,
@@ -755,14 +756,14 @@ export default function ManualInvoicesPage() {
                           </Button>
                         </a>
 
-                        {/* Download PDF */}
+                        {/* Cetak / Simpan PDF */}
                         <a
-                          href={`/api/manual-invoices/${inv.id}/pdf`}
+                          href={`/invoice/manual/${inv.id}?print=true`}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Download PDF">
-                            <Download className="h-3.5 w-3.5" />
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Cetak / Simpan PDF">
+                            <Printer className="h-3.5 w-3.5" />
                           </Button>
                         </a>
 
