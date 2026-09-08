@@ -1,5 +1,5 @@
 import { prisma } from '@/server/db/client';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Printer, CreditCard } from 'lucide-react';
 import DownloadPdfButton from '@/components/DownloadPdfButton';
@@ -35,7 +35,17 @@ export default async function PublicInvoicePage({
     }
   });
 
-  if (!rawInvoice) notFound();
+  if (!rawInvoice) {
+    const manualInv = await prisma.manualInvoice.findFirst({
+      where: { OR: [{ id }, { invoiceNumber: id }] },
+      select: { id: true },
+    });
+    if (manualInv) {
+      redirect(`/invoice/manual/${manualInv.id}`);
+    }
+    notFound();
+  }
+
 
   const companyRaw = await prisma.company.findFirst();
 
