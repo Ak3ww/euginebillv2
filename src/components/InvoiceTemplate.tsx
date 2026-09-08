@@ -256,7 +256,7 @@ export default function InvoiceTemplate({ data }: { data: InvoiceTemplateData })
               Dokumen ini diterbitkan secara elektronik &amp; sah tanpa memerlukan tanda tangan basah.
             </p>
             <p className="font-mono text-[9px] uppercase tracking-wider text-gray-400">
-              &copy; 2026 {data.company.name} &bull; All Rights Reserved {data.company.poweredBy ? `&bull; Powered by ${data.company.poweredBy}` : ''}
+              © 2026 {data.company.name} • All Rights Reserved{data.company.poweredBy ? ` • Powered by ${data.company.poweredBy}` : ''}
             </p>
           </div>
         </div>

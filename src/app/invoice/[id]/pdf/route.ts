@@ -452,7 +452,7 @@ export async function GET(
           Dokumen ini diterbitkan secara elektronik &amp; sah tanpa memerlukan tanda tangan basah.
         </div>
         <div style="font-family: monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #9ca3af;">
-          &copy; 2026 ${companyName} &bull; All Rights Reserved ${poweredBy ? `&bull; Powered by ${poweredBy}` : ''}
+          &copy; 2026 ${companyName} • All Rights Reserved ${poweredBy ? `• Powered by ${poweredBy}` : ''}
         </div>
       </div>
     </div>
