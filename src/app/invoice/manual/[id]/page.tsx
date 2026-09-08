@@ -212,14 +212,16 @@ export default async function ManualInvoicePage({ params }: { params: Promise<{ 
       </div>
 
       {/* Print Styles */}
-      <style jsx global>{`
-        @media print {
-          body { background: white !important; }
-          .print\\:hidden { display: none !important; }
-          .print\\:shadow-none { box-shadow: none !important; }
-          .print\\:rounded-none { border-radius: 0 !important; }
-        }
-      `}</style>
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @media print {
+              body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
+          `,
+        }}
+      />
     </div>
+
   );
 }
