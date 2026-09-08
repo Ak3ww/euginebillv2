@@ -101,13 +101,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       },
     });
 
-    return ok({ invoice: updated });
+    return ok({ success: true, invoice: updated });
   } catch (error: any) {
     console.error('PUT /api/manual-invoices/[id] error:', error);
     if (error?.message) return badRequest(error.message);
     return serverError('Failed to update invoice');
   }
 }
+
 
 // DELETE - Delete invoice
 export async function DELETE(_req: NextRequest, { params }: RouteParams) {

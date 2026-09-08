@@ -124,6 +124,7 @@ export async function GET(request: NextRequest) {
     };
 
     return ok({
+      success: true,
       invoices,
       total,
       page,
@@ -203,10 +204,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return created({ invoice });
+    return created({ success: true, invoice });
   } catch (error: any) {
     console.error('POST /api/manual-invoices error:', error);
     return badRequest(error?.message || 'Gagal menyimpan invoice');
   }
 }
+
 

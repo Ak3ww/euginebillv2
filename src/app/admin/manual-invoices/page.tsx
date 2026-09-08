@@ -202,10 +202,10 @@ export default function ManualInvoicesPage() {
       if (search.trim()) params.set('search', search.trim());
 
       const res = await fetch(`/api/manual-invoices?${params}`);
-      const data = await res.json();
-      if (data.success) {
-        setInvoices(data.data.invoices || []);
-        setStats(data.data.stats || {});
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setInvoices(data.invoices || data.data?.invoices || []);
+        setStats(data.stats || data.data?.stats || { pendingCount: 0, pendingAmount: 0, paidCount: 0, paidAmount: 0, cancelledCount: 0 });
       }
     } catch {
       showError('Gagal memuat data invoice manual');
@@ -213,6 +213,7 @@ export default function ManualInvoicesPage() {
       setLoading(false);
     }
   }, [search, statusFilter]);
+
 
   useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
 
@@ -318,14 +319,14 @@ export default function ManualInvoicesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
-      if (data.success) {
+      if (res.ok && (data.success || data.invoice || !data.error)) {
         showSuccess(editingInvoice ? 'Invoice berhasil diperbarui' : 'Invoice berhasil dibuat & diterbitkan');
         closeForm();
         fetchInvoices();
       } else {
-        showError(data.error || 'Gagal menyimpan invoice');
+        showError(data.error || `HTTP ${res.status}: Gagal menyimpan invoice`);
       }
     } catch (err: any) {
       showError(err?.message || 'Terjadi kesalahan saat menyimpan');
@@ -345,12 +346,12 @@ export default function ManualInvoicesPage() {
 
     try {
       const res = await fetch(`/api/manual-invoices/${inv.id}/mark-paid`, { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        showSuccess(data.data?.message || 'Invoice berhasil ditandai LUNAS');
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showSuccess(data.message || data.data?.message || 'Invoice berhasil ditandai LUNAS');
         fetchInvoices();
       } else {
-        showError(data.error || 'Gagal menandai lunas');
+        showError(data.error || `HTTP ${res.status}: Gagal menandai lunas`);
       }
     } catch {
       showError('Terjadi kesalahan saat menandai lunas');
@@ -368,17 +369,18 @@ export default function ManualInvoicesPage() {
 
     try {
       const res = await fetch(`/api/manual-invoices/${inv.id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        showSuccess('Invoice berhasil dihapus');
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showSuccess(data.message || 'Invoice berhasil dihapus');
         fetchInvoices();
       } else {
-        showError(data.error || 'Gagal menghapus invoice');
+        showError(data.error || `HTTP ${res.status}: Gagal menghapus invoice`);
       }
     } catch {
       showError('Terjadi kesalahan saat menghapus');
     }
   }
+
 
   // ─── Render Page ──────────────────────────────────────────────────────────
 
