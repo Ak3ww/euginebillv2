@@ -4,6 +4,44 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.38.2] — 2026-09-08
+### Major Feature & Anti-Spam Architecture
+- **Aturan Ketat Maksimal 3 Pesan WhatsApp per Siklus Billing (2 Tagihan + 1 Isolasi H+7)**:
+  - *Context / User Request*:
+    Pengguna meminta jaminan ketat bahwa mulai bulan depan, pesan WhatsApp yang dikirimkan ke pelanggan dibatasi **maksimal 3 pesan total per siklus penagihan**:
+    1. **Pesan 1 & 2:** Tepat 2 pesan pengingat tagihan invoice sebelum jatuh tempo sesuai set `-X` hari (default: H-6 dan H-1, yaitu sekitar tanggal 29-30 setiap bulan dan 1 hari sebelum jatuh tempo/isolasi).
+    2. **Pesan 3:** Tepat 1 pesan isolasi yang dikirim pada **H+7 setelah pelanggan diisolir**.
+    3. **"No more than that"**: Tidak boleh ada spamming pengingat beruntun harian setelah jatuh tempo.
+    4. **Dinamis & Tidak Hardcoded**: Seluruh batas dan jadwal pengingat harus tersimpan di database dan dapat dikonfigurasi melalui Admin UI dengan nilai default yang sesuai.
+    5. **Akuntansi Pengiriman**: Pesan yang gagal terkirim (`status === 'failed'`) tidak memotong kuota limit dan diizinkan untuk dicoba ulang (retry) otomatis oleh cron hingga berhasil. Begitu sukses terkirim, pesan tersebut dicatat permanen dan dihitung ke kuota limit.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Ekstensi Skema Database (`whatsapp_reminder_settings`) & Migrasi SQL**:
+       - Menambahkan kolom `isolationDelayDays` (default: 7), `maxInvoiceReminders` (default: 2), dan `maxTotalMessagesPerCycle` (default: 3) pada tabel `whatsapp_reminder_settings`.
+       - Disediakan script migrasi SQL aman `prisma/migrations/add_wa_reminder_limits.sql` (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`).
+       - Kode Next.js dilengkapi fallback default otomatis sehingga aman dijalankan sebelum migrasi fisik dieksekusi di database server.
+    2. **Pembersihan Array Overdue & Penegakan Kuota Tagihan (`src/server/jobs/voucher-sync.ts`)**:
+       - Menghapus array hardcoded overdue `[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 21, 28]` yang sebelumnya memicu pengiriman pesan harian beruntun.
+       - Membatasi jadwal pengingat invoice hanya memproses hari negatif (`reminderDays <= 0`) sebanyak maksimal `maxInvoiceReminders` (default: 2).
+       - Menambahkan dua lapis verifikasi kuota sebelum pengiriman: kuota invoice (`sentReminders.length < maxInvoiceReminders`) dan kuota siklus pelanggan (`successfulCycleMessages < maxTotalMessages`).
+       - Mempertahankan proteksi rollback: jika pengiriman WA gagal (`status === 'failed'`), `sentReminders` dikembalikan ke status awal sehingga slot pengingat tidak terpakai dan cron berikutnya dapat mencoba ulang.
+    3. **Pemisahan Eksekusi Isolasi Teknis vs Notifikasi WhatsApp & Penjadwalan H+7 (`src/server/jobs/auto-isolation.ts` & `src/server/jobs/pppoe-sync.ts`)**:
+       - Pelanggan yang telah expired tetap langsung diisolasi secara teknis pada hari jatuh tempo (kick session + isolate profile di MikroTik/RADIUS).
+       - Pada fungsi `sendIsolationNotification`, ditambahkan pengecekan jeda hari `isolationDelayDays`: jika pelanggan belum mencapai H+7 (selisih hari < 7), notifikasi WA ditahan (*deferred*) dan tidak dikirimkan.
+       - Membangun fungsi baru `sendPendingIsolationNotifications()` yang otomatis memeriksa seluruh pelanggan berstatus `isolated` pada setiap putaran cron hourly (`auto_isolir` / `pppoe_auto_isolir`). Pelanggan yang telah mencapai H+7 dan belum pernah menerima notifikasi isolasi pada siklus ini akan dikirimkan pesan WhatsApp isolasi (tepat pesan ke-3).
+       - Idempotensi siklus diperkuat: pemeriksaan riwayat pengiriman isolasi diperluas ke seluruh siklus tagihan aktif (`cycleStart`), menjamin pesan isolasi hanya terkirim 1x dan total pesan siklus tidak melebihi 3.
+    4. **Pembaruan API & Admin UI (`/admin/whatsapp/notifications`)**:
+       - Rute API `/api/whatsapp/reminder-settings` kini memvalidasi bahwa `reminderDays` tidak boleh melebihi `maxInvoiceReminders` (maksimal 2 slot jadwal) dan menyimpan konfigurasi `isolationDelayDays`.
+       - Halaman Admin UI dilengkapi banner informasi kebijakan batas 3 pesan, pembatasan input jadwal pengingat tagihan maksimal 2 item dengan nilai awal H-6 dan H-1, serta kartu pengaturan dedicated untuk *Pemberitahuan Isolir WhatsApp (Pesan Ke-3)* dengan field input hari jeda isolasi (default: 7 hari setelah isolasi / H+7).
+  - *Files*:
+    - `prisma/schema.prisma`
+    - `prisma/migrations/add_wa_reminder_limits.sql`
+    - `src/app/api/whatsapp/reminder-settings/route.ts`
+    - `src/app/admin/whatsapp/notifications/page.tsx`
+    - `src/server/jobs/voucher-sync.ts`
+    - `src/server/jobs/auto-isolation.ts`
+    - `src/server/jobs/pppoe-sync.ts`
+    - `CHANGELOG.md`
+
 ## [2.38.1] — 2026-09-08
 ### Bug Fix & High-Fidelity UI Alignment
 - **High-Fidelity PDF Engine & Standar Layout 1:1 untuk Invoice Manual**:

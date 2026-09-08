@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -14,6 +14,9 @@ interface ReminderSettings {
   batchSize: number;
   batchDelay: number;
   randomize: boolean;
+  isolationDelayDays?: number;
+  maxInvoiceReminders?: number;
+  maxTotalMessagesPerCycle?: number;
   updatedAt: string;
 }
 
@@ -23,13 +26,16 @@ export default function NotificationSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<ReminderSettings | null>(null);
   const [enabled, setEnabled] = useState(true);
-  const [reminderDays, setReminderDays] = useState<number[]>([-7, -5, -3, 0]);
+  const [reminderDays, setReminderDays] = useState<number[]>([-6, -1]);
   const [reminderTime, setReminderTime] = useState('09:00');
   const [otpEnabled, setOtpEnabled] = useState(true);
   const [otpExpiry, setOtpExpiry] = useState(5);
   const [batchSize, setBatchSize] = useState(10);
   const [batchDelay, setBatchDelay] = useState(60);
   const [randomize, setRandomize] = useState(true);
+  const [isolationDelayDays, setIsolationDelayDays] = useState(7);
+  const [maxInvoiceReminders, setMaxInvoiceReminders] = useState(2);
+  const [maxTotalMessages, setMaxTotalMessages] = useState(3);
   const [newDay, setNewDay] = useState('');
 
   useEffect(() => {
@@ -44,13 +50,16 @@ export default function NotificationSettingsPage() {
       if (data.success && data.settings) {
         setSettings(data.settings);
         setEnabled(data.settings.enabled);
-        setReminderDays(data.settings.reminderDays);
+        setReminderDays(data.settings.reminderDays ?? [-6, -1]);
         setReminderTime(data.settings.reminderTime);
         setOtpEnabled(data.settings.otpEnabled ?? true);
         setOtpExpiry(data.settings.otpExpiry ?? 5);
         setBatchSize(data.settings.batchSize ?? 10);
         setBatchDelay(data.settings.batchDelay ?? 60);
         setRandomize(data.settings.randomize ?? true);
+        setIsolationDelayDays(data.settings.isolationDelayDays ?? 7);
+        setMaxInvoiceReminders(data.settings.maxInvoiceReminders ?? 2);
+        setMaxTotalMessages(data.settings.maxTotalMessagesPerCycle ?? 3);
       }
     } catch (error) {
       console.error('Load settings error:', error);
@@ -73,6 +82,10 @@ export default function NotificationSettingsPage() {
       showError(t('whatsapp.dayAlreadyInList'));
       return;
     }
+    if (reminderDays.length >= maxInvoiceReminders) {
+      showError(`Maksimal ${maxInvoiceReminders} jadwal pengingat invoice sebelum jatuh tempo (aturan batas 2 tagihan + 1 isolasi)`);
+      return;
+    }
     
     const newDays = [...reminderDays, day].sort((a, b) => a - b);
     setReminderDays(newDays);
@@ -89,8 +102,18 @@ export default function NotificationSettingsPage() {
       return;
     }
 
+    if (reminderDays.length > maxInvoiceReminders) {
+      await showError(`Maksimal ${maxInvoiceReminders} jadwal pengingat invoice.`);
+      return;
+    }
+
     if (otpExpiry < 1 || otpExpiry > 60) {
       await showError(t('whatsapp.otpExpiryRange'));
+      return;
+    }
+
+    if (isolationDelayDays < 0) {
+      await showError('Jeda hari isolir tidak boleh negatif.');
       return;
     }
 
@@ -107,7 +130,10 @@ export default function NotificationSettingsPage() {
           otpExpiry,
           batchSize,
           batchDelay,
-          randomize
+          randomize,
+          isolationDelayDays,
+          maxInvoiceReminders,
+          maxTotalMessagesPerCycle: maxTotalMessages,
         })
       });
 
@@ -160,6 +186,24 @@ export default function NotificationSettingsPage() {
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('whatsapp.notificationsSubtitle')}</p>
         </div>
 
+        {/* Strict 3-WA Message Rule Banner */}
+        <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg space-y-1.5">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h4 className="text-xs font-semibold text-blue-900 dark:text-blue-200">
+              Aturan Ketat Pengiriman WhatsApp (Maksimal 3 Pesan / Siklus)
+            </h4>
+          </div>
+          <p className="text-[11px] text-blue-800 dark:text-blue-300 leading-relaxed">
+            Sistem membatasi pengiriman WhatsApp maksimal <strong>3 pesan per siklus penagihan</strong>:
+            <br />• <strong>Pesan 1 & 2:</strong> Pengingat tagihan invoice sebelum jatuh tempo (default: H-6 dan H-1).
+            <br />• <strong>Pesan 3:</strong> Notifikasi isolasi dikirim tepat pada <strong>H+{isolationDelayDays} setelah isolasi</strong>.
+            <br />• <em>Catatan:</em> Pesan gagal tidak memotong kuota dan otomatis dicoba ulang oleh cron hingga berhasil.
+          </p>
+        </div>
+
         {/* Invoice Reminder Card */}
         <div className="bg-card rounded-lg border border-border">
           <div className="px-3 py-2.5 border-b border-border">
@@ -168,8 +212,8 @@ export default function NotificationSettingsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
               <div>
-                <h3 className="text-sm font-semibold text-foreground">{t('whatsapp.invoiceReminder')}</h3>
-                <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('whatsapp.invoiceReminderDesc')}</p>
+                <h3 className="text-sm font-semibold text-foreground">{t('whatsapp.invoiceReminder')} (Pesan 1 & 2)</h3>
+                <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">Maksimal 2 pengingat sebelum jatuh tempo (cth: H-6 dan H-1)</p>
               </div>
             </div>
           </div>
@@ -208,10 +252,10 @@ export default function NotificationSettingsPage() {
             {/* Reminder Days */}
             <div>
               <label className="block text-[10px] font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider mb-1.5">
-                {t('whatsapp.reminderSchedule')}
+                {t('whatsapp.reminderSchedule')} (Maksimal {maxInvoiceReminders} Jadwal)
               </label>
               <p className="text-[10px] text-muted-foreground dark:text-muted-foreground mb-2">
-                {t('whatsapp.reminderScheduleDesc')}
+                Pilih maksimal {maxInvoiceReminders} jadwal pengingat sebelum jatuh tempo. Sistem tidak lagi mengirim pengingat beruntun harian setelah jatuh tempo.
               </p>
 
               <div className="flex flex-wrap gap-1.5 mb-2">
@@ -237,27 +281,72 @@ export default function NotificationSettingsPage() {
                 )}
               </div>
 
-              <div className="flex gap-2">
+              {reminderDays.length < maxInvoiceReminders ? (
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    placeholder="-6"
+                    value={newDay}
+                    onChange={(e) => setNewDay(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addReminderDay()}
+                    className="w-24 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:ring-1 focus:ring-primary focus:border-teal-500 text-foreground"
+                  />
+                  <button
+                    onClick={addReminderDay}
+                    className="h-8 px-3 text-xs font-medium text-foreground bg-card border border-border rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1.5"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    {t('whatsapp.addSchedule')}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                  Sudah mencapai batas maksimal {maxInvoiceReminders} jadwal pengingat invoice. Hapus salah satu jadwal jika ingin mengganti.
+                </p>
+              )}
+              <p className="text-[9px] text-muted-foreground dark:text-muted-foreground mt-1">
+                Contoh rekomendasi: <strong>-6</strong> (H-6) dan <strong>-1</strong> (H-1 sehari sebelum jatuh tempo).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Isolation Notification Card */}
+        <div className="bg-card rounded-lg border border-border">
+          <div className="px-3 py-2.5 border-b border-border">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Pemberitahuan Isolir WhatsApp (Pesan Ke-3)</h3>
+                <p className="text-[10px] text-muted-foreground">Pengaturan jadwal pengiriman pesan isolasi ke pelanggan</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-3 space-y-3">
+            <div>
+              <label className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Jeda Hari Kirim Notifikasi Isolir (H+X Setelah Isolasi)
+              </label>
+              <div className="flex items-center gap-2">
                 <input
                   type="number"
-                  placeholder="-7"
-                  value={newDay}
-                  onChange={(e) => setNewDay(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addReminderDay()}
+                  min="0"
+                  max="30"
+                  value={isolationDelayDays}
+                  onChange={(e) => setIsolationDelayDays(parseInt(e.target.value) || 0)}
                   className="w-24 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:ring-1 focus:ring-primary focus:border-teal-500 text-foreground"
                 />
-                <button
-                  onClick={addReminderDay}
-                  className="h-8 px-3 text-xs font-medium text-foreground bg-card border border-border rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1.5"
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  {t('whatsapp.addSchedule')}
-                </button>
+                <span className="text-xs text-muted-foreground">Hari setelah pelanggan diisolir (Default: 7 = H+7)</span>
               </div>
-              <p className="text-[9px] text-muted-foreground dark:text-muted-foreground mt-1">
-                {t('whatsapp.exampleSchedule')}
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Pelanggan langsung diisolasi teknis pada hari jatuh tempo, namun notifikasi WhatsApp isolasi baru akan dikirimkan tepat pada <strong>H+{isolationDelayDays}</strong> (1x saja).
               </p>
             </div>
           </div>

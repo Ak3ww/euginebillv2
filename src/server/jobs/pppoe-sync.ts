@@ -318,6 +318,14 @@ export async function autoIsolatePPPoEUsers(): Promise<{
       }
 
       console.log(`[PPPoE Auto-Isolir] ${diagMsg}`);
+
+      // Check and send pending H+X isolation notifications for all currently isolated users
+      try {
+        const { sendPendingIsolationNotifications } = await import('@/server/jobs/auto-isolation');
+        await sendPendingIsolationNotifications();
+      } catch (pendingErr: any) {
+        console.error('[PPPoE Auto-Isolir] Pending isolation notification check error:', pendingErr?.message);
+      }
       
       const duration = new Date().getTime() - startedAt.getTime()
       await prisma.cronHistory.update({
@@ -523,6 +531,14 @@ export async function autoIsolatePPPoEUsers(): Promise<{
     })
 
     console.log(`[PPPoE Auto-Isolir] ? Completed: ${message}`)
+
+    // Check and send pending H+X isolation notifications for all currently isolated users
+    try {
+      const { sendPendingIsolationNotifications } = await import('@/server/jobs/auto-isolation');
+      await sendPendingIsolationNotifications();
+    } catch (pendingErr: any) {
+      console.error('[PPPoE Auto-Isolir] Pending isolation notification check error:', pendingErr?.message);
+    }
 
     // Create bulk isolation notification
     if (isolatedCount > 0) {

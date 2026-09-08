@@ -895,17 +895,20 @@ model whatsapp_templates {
 }
 
 model whatsapp_reminder_settings {
-  id           String   @id
-  enabled      Boolean  @default(true)
-  reminderDays String   @db.Text // JSON array: "[-7, -5, -3, 0]" where 0 = H-day, -3 = H-3, etc
-  reminderTime String   @default("09:00") // Time in HH:mm format (WIB)
-  otpEnabled   Boolean  @default(true) // Enable/disable customer OTP login
-  otpExpiry    Int      @default(5) // OTP expiry in minutes
-  batchSize    Int      @default(10) // Number of messages per batch
-  batchDelay   Int      @default(60) // Delay between batches in seconds
-  randomize    Boolean  @default(true) // Randomize message order to avoid pattern detection
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                      String   @id
+  enabled                 Boolean  @default(true)
+  reminderDays            String   @db.Text // JSON array: "[-6, -1]" where -6 = H-6, -1 = H-1
+  reminderTime            String   @default("09:00") // Time in HH:mm format (WIB)
+  otpEnabled              Boolean  @default(true) // Enable/disable customer OTP login
+  otpExpiry               Int      @default(5) // OTP expiry in minutes
+  batchSize               Int      @default(10) // Number of messages per batch
+  batchDelay              Int      @default(60) // Delay between batches in seconds
+  randomize               Boolean  @default(true) // Randomize message order to avoid pattern detection
+  isolationDelayDays      Int      @default(7) // Hari setelah isolasi sebelum kirim notifikasi isolasi (default: 7 = H+7)
+  maxInvoiceReminders     Int      @default(2) // Maksimal pengingat tagihan invoice per siklus (default: 2)
+  maxTotalMessagesPerCycle Int     @default(3) // Maksimal total WA per pelanggan per siklus (default: 3)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }
 
 model customerSession {

@@ -23,8 +23,11 @@ export async function GET(request: NextRequest) {
         data: {
           id: nanoid(),
           enabled: true,
-          reminderDays: JSON.stringify([-7, -1]), // Default: H-7 and H-1
-          reminderTime: '09:00' // Default: 9 AM WIB
+          reminderDays: JSON.stringify([-6, -1]), // Default: H-6 and H-1
+          reminderTime: '09:00', // Default: 9 AM WIB
+          isolationDelayDays: 7,
+          maxInvoiceReminders: 2,
+          maxTotalMessagesPerCycle: 3,
         }
       })
     }
@@ -41,6 +44,9 @@ export async function GET(request: NextRequest) {
         batchSize: settings.batchSize,
         batchDelay: settings.batchDelay,
         randomize: settings.randomize,
+        isolationDelayDays: (settings as any).isolationDelayDays ?? 7,
+        maxInvoiceReminders: (settings as any).maxInvoiceReminders ?? 2,
+        maxTotalMessagesPerCycle: (settings as any).maxTotalMessagesPerCycle ?? 3,
         createdAt: settings.createdAt,
         updatedAt: settings.updatedAt
       }
@@ -60,7 +66,19 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { enabled, reminderDays, reminderTime, otpEnabled, otpExpiry, batchSize, batchDelay, randomize } = body
+    const {
+      enabled,
+      reminderDays,
+      reminderTime,
+      otpEnabled,
+      otpExpiry,
+      batchSize,
+      batchDelay,
+      randomize,
+      isolationDelayDays,
+      maxInvoiceReminders,
+      maxTotalMessagesPerCycle,
+    } = body
     
     // Validation
     if (typeof enabled !== 'boolean') {
@@ -76,13 +94,21 @@ export async function PUT(request: NextRequest) {
         error: 'reminderDays must be an array'
       }, { status: 400 })
     }
+
+    const maxRemindersAllowed = typeof maxInvoiceReminders === 'number' && maxInvoiceReminders > 0 ? maxInvoiceReminders : 2;
+    if (reminderDays.length > maxRemindersAllowed) {
+      return NextResponse.json({
+        success: false,
+        error: `Maksimal ${maxRemindersAllowed} jadwal pengingat invoice sebelum jatuh tempo (cth: H-6 dan H-1)`
+      }, { status: 400 })
+    }
     
     // Validate reminderDays values (must be negative or 0)
     for (const day of reminderDays) {
       if (typeof day !== 'number' || day > 0) {
         return NextResponse.json({
           success: false,
-          error: 'reminderDays must contain numbers <= 0 (e.g., -7, -5, -3, 0)'
+          error: 'reminderDays must contain numbers <= 0 (e.g., -6, -1)'
         }, { status: 400 })
       }
     }
@@ -103,6 +129,16 @@ export async function PUT(request: NextRequest) {
       enabled,
       reminderDays: JSON.stringify(reminderDays),
       reminderTime
+    }
+
+    if (typeof isolationDelayDays === 'number' && isolationDelayDays >= 0) {
+      updateData.isolationDelayDays = Math.round(isolationDelayDays)
+    }
+    if (typeof maxInvoiceReminders === 'number' && maxInvoiceReminders > 0) {
+      updateData.maxInvoiceReminders = Math.round(maxInvoiceReminders)
+    }
+    if (typeof maxTotalMessagesPerCycle === 'number' && maxTotalMessagesPerCycle > 0) {
+      updateData.maxTotalMessagesPerCycle = Math.round(maxTotalMessagesPerCycle)
     }
     
     // Add OTP fields if provided
@@ -150,6 +186,9 @@ export async function PUT(request: NextRequest) {
         reminderTime: settings.reminderTime,
         otpEnabled: settings.otpEnabled,
         otpExpiry: settings.otpExpiry,
+        isolationDelayDays: (settings as any).isolationDelayDays ?? 7,
+        maxInvoiceReminders: (settings as any).maxInvoiceReminders ?? 2,
+        maxTotalMessagesPerCycle: (settings as any).maxTotalMessagesPerCycle ?? 3,
         updatedAt: settings.updatedAt
       }
     })
