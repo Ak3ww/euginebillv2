@@ -4,6 +4,29 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.38.1] — 2026-09-08
+### Bug Fix & High-Fidelity UI Alignment
+- **High-Fidelity PDF Engine & Standar Layout 1:1 untuk Invoice Manual**:
+  - *Context / User Request*:
+    Pengguna menyukai layout invoice manual berbasis web (`/invoice/manual/[id]`), namun saat mengklik tombol *Download PDF* atau membuka URL PDF API (`/api/manual-invoices/[id]/pdf`), layout PDF yang dihasilkan kembali ke tampilan tabel jspdf lama/sederhana. Selain itu pengguna menegaskan aturan: pada invoice manual **TIDAK boleh ada tanggal jatuh tempo**, dan logo perusahaan harus tampil sempurna identik dengan invoice billing internet.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **High-Fidelity PDF Generator (`src/lib/manual-invoice-pdf.ts`)**:
+       - Membangun generator PDF presisi tinggi khusus invoice manual dengan layout 1:1 identik dengan `InvoiceTemplate.tsx`.
+       - Render berbasis Chromium/Puppeteer (HTML-to-PDF pixel-perfect A4) dengan fallback otomatis ke vector jsPDF + autoTable styling modern.
+       - Menyertakan banner Oceanic Blue (`#002C60`), logo perusahaan via base64 data URI resolver (dengan path fallback multi-direktori termasuk persistent uploads `/var/data/EugineBill/uploads/`), grid DARI vs KEPADA, DETAIL INVOICE (tanpa tanggal jatuh tempo) vs STATUS PEMBAYARAN, tabel rincian layanan bergaris elegan dengan total box merah, stempel LUNAS hijau jika sudah dibayar, serta footer dokumen resmi.
+    2. **Refaktor Endpoint PDF Manual (`/api/manual-invoices/[id]/pdf`) & Fallback Route (`/invoice/[id]/pdf`)**:
+       - Mengganti pemanggilan `generateInvoicePDF` lama di `/api/manual-invoices/[id]/pdf/route.ts` dengan `generateManualInvoicePdfBuffer` beresolusi tinggi.
+       - Menambahkan fallback di `/invoice/[id]/pdf/route.ts` sehingga query pencarian faktur manual otomatis ter-resolve jika invoice billing standar tidak ditemukan.
+    3. **Komponen Unduh PDF Interaktif (`src/components/DownloadPdfButton.tsx`)**:
+       - Memperbarui tombol unduh PDF pada halaman publik faktur manual (`/invoice/manual/[id]/page.tsx`) agar menggunakan `DownloadPdfButton` dengan state loading dan DOM-capture fallback otomatis (`downloadVisibleInvoiceAsPdf`) bila server render tertunda.
+  - *Files*:
+    - `src/lib/manual-invoice-pdf.ts`
+    - `src/app/api/manual-invoices/[id]/pdf/route.ts`
+    - `src/app/invoice/[id]/pdf/route.ts`
+    - `src/app/invoice/manual/[id]/page.tsx`
+    - `src/components/DownloadPdfButton.tsx`
+    - `CHANGELOG.md`
+
 ## [2.38.0] — 2026-09-08
 ### New Feature & Critical Hardening
 - **Sistem Invoice Manual One-Time & Penguatan Idempotensi Notifikasi Isolir Maksimal 1X**:

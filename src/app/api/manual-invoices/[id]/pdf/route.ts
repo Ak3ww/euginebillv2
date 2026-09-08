@@ -1,55 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
-import { formatCurrencyExport, formatDateExport, getCompanyExportInfo, generateInvoicePDF } from '@/lib/utils/export';
+import { generateManualInvoicePdfBuffer } from '@/lib/manual-invoice-pdf';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-// GET - Generate and return PDF for a manual invoice (no auth - public by ID)
+// GET - Generate and return PDF for a manual invoice (public by ID or invoiceNumber)
 export async function GET(_req: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
 
-    const invoice = await prisma.manualInvoice.findUnique({ where: { id } });
+    const invoice = await prisma.manualInvoice.findFirst({
+      where: { OR: [{ id }, { invoiceNumber: id }] },
+    });
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
-    const companyInfo = await getCompanyExportInfo();
+    const company = await prisma.company.findFirst();
 
-    const items = (() => {
-      try {
-        const raw = invoice.items as any;
-        return Array.isArray(raw) ? raw : JSON.parse(raw);
-      } catch { return []; }
-    })() as Array<{ description: string; qty: number; unitPrice: number; total: number }>;
+    const pdfBuffer = await generateManualInvoicePdfBuffer(invoice, company);
 
-    // Build line items for generateInvoicePDF (description + amount)
-    const lineItems = items.map((item) => ({
-      description: item.qty > 1
-        ? `${item.description} (${item.qty} x ${formatCurrencyExport(item.unitPrice)})`
-        : item.description,
-      amount: item.total,
-    }));
-
-    // generateInvoicePDF expects Uint8Array — use it and send as binary PDF
-    const pdfBuffer = generateInvoicePDF({
-      invoiceNumber: invoice.invoiceNumber,
-      customerName: invoice.recipientName,
-      customerAddress: invoice.recipientAddress || '',
-      customerPhone: invoice.recipientPhone || '',
-      items: lineItems,
-      subtotal: invoice.subtotal,
-      discount: invoice.discountAmount > 0 ? invoice.discountAmount : undefined,
-      total: invoice.totalAmount,
-      dueDate: invoice.createdAt,
-      status: invoice.status,
-      companyInfo,
-    });
-
-    return new NextResponse(Buffer.from(pdfBuffer), {
+    return new NextResponse(pdfBuffer as any, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="${invoice.invoiceNumber}.pdf"`,
+        'Content-Disposition': `inline; filename="Invoice-${invoice.invoiceNumber}.pdf"`,
       },
     });
 

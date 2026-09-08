@@ -1,8 +1,8 @@
 import { prisma } from '@/server/db/client';
 import { notFound } from 'next/navigation';
-import { Download } from 'lucide-react';
 import InvoiceTemplate, { InvoiceTemplateData } from '@/components/InvoiceTemplate';
 import ManualInvoicePrintButton from './PrintButton';
+import DownloadPdfButton from '@/components/DownloadPdfButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,18 +100,9 @@ export default async function ManualInvoicePage({ params }: { params: Promise<{ 
 
       {/* Floating Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-200 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-50 flex justify-center no-print">
-        <div className="w-full max-w-[210mm] flex gap-3 justify-end">
+        <div className="w-full max-w-[210mm] flex gap-3 justify-end items-center">
           <ManualInvoicePrintButton />
-          
-          <a
-            href={`/api/manual-invoices/${invoice.id}/pdf`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 max-w-[160px] bg-[#002C60] text-white font-bold text-[13px] py-3 rounded-xl hover:bg-[#1b437c] transition-colors flex items-center justify-center gap-2 shadow-md"
-          >
-            <Download className="w-4 h-4" />
-            Download PDF
-          </a>
+          <DownloadPdfButton invoiceNumber={invoice.invoiceNumber} variant="primary" label="Download PDF" />
         </div>
       </div>
     </div>

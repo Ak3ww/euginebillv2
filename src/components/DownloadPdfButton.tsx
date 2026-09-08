@@ -6,10 +6,14 @@ import { downloadVisibleInvoiceAsPdf } from '@/lib/client-pdf-downloader';
 
 export default function DownloadPdfButton({ 
   invoiceNumber, 
-  autoTrigger = false 
+  autoTrigger = false,
+  variant = 'default',
+  label = 'Unduh PDF',
 }: { 
   invoiceNumber: string;
   autoTrigger?: boolean;
+  variant?: 'default' | 'primary';
+  label?: string;
 }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,22 +70,28 @@ export default function DownloadPdfButton({
     }
   }, [autoTrigger, handleDownload]);
 
+  const isPrimary = variant === 'primary';
+
   return (
     <div className="flex flex-col items-center flex-1 max-w-[170px]">
       <button 
         onClick={handleDownload}
         disabled={isDownloading}
-        className="w-full bg-white text-gray-800 border border-gray-300 font-bold text-[13px] py-3 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm cursor-pointer"
+        className={`w-full font-bold text-[13px] py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm cursor-pointer ${
+          isPrimary
+            ? 'bg-[#002C60] text-white hover:bg-[#1b437c] border border-transparent shadow-md'
+            : 'bg-white text-gray-800 border border-gray-300 hover:bg-gray-50'
+        }`}
       >
         {isDownloading ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin text-blue-600 shrink-0" />
-            <span className="text-blue-600">Membuat PDF...</span>
+            <Loader2 className={`w-4 h-4 animate-spin shrink-0 ${isPrimary ? 'text-white' : 'text-blue-600'}`} />
+            <span className={isPrimary ? 'text-white' : 'text-blue-600'}>Membuat PDF...</span>
           </>
         ) : (
           <>
-            <Download className="w-4 h-4 text-gray-700 shrink-0" />
-            <span>Unduh PDF</span>
+            <Download className={`w-4 h-4 shrink-0 ${isPrimary ? 'text-white' : 'text-gray-700'}`} />
+            <span>{label}</span>
           </>
         )}
       </button>

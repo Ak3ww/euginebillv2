@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import fs from 'fs';
 import path from 'path';
+import { generateManualInvoicePdfBuffer } from '@/lib/manual-invoice-pdf';
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
@@ -176,6 +177,19 @@ export async function GET(
     });
 
     if (!invoice) {
+      const manualInvoice = await prisma.manualInvoice.findFirst({
+        where: { OR: [{ id }, { invoiceNumber: id }] },
+      });
+      if (manualInvoice) {
+        const company = await prisma.company.findFirst();
+        const pdfBuffer = await generateManualInvoicePdfBuffer(manualInvoice, company);
+        return new NextResponse(pdfBuffer as any, {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="Invoice-${manualInvoice.invoiceNumber}.pdf"`,
+          },
+        });
+      }
       return new NextResponse('Invoice not found', { status: 404 });
     }
 
