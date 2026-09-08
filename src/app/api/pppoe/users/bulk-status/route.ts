@@ -95,13 +95,18 @@ export async function PUT(request: Request) {
           status,
           username: newUsername,
           ...(nextExpiry ? { expiredAt: nextExpiry } : {}),
-          ...(autoIsolationEnabled !== undefined ? { autoIsolationEnabled: Boolean(autoIsolationEnabled) } : {}),
+          ...(autoIsolationEnabled !== undefined
+            ? { autoIsolationEnabled: Boolean(autoIsolationEnabled) }
+            : status === 'active'
+            ? { autoIsolationEnabled: false }
+            : {}),
         },
       });
 
-      if (nextExpiry) {
-        console.log(`[Bulk Status Change] 🛡️ Advanced expiredAt for ${user.username} to ${nextExpiry.toISOString()} (protected from re-isolation)`);
+      if (status === 'active') {
+        console.log(`[Bulk Status Change] 🛡️ Activated ${user.username}: autoIsolationEnabled=false, nextExpiry=${nextExpiry?.toISOString() || 'unchanged'} (permanently protected from re-isolation)`);
       }
+
     }
 
     // If status is stop, auto-delete only current/future unpaid invoices (keep past months in history)

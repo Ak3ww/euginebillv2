@@ -90,14 +90,17 @@ export async function PUT(request: Request) {
     }
 
     // Update user status in database
+    // 🛡️ When manually activated, permanently protect from auto-isolation (autoIsolationEnabled = false)
     const updatedUser = await prisma.pppoeUser.update({
       where: { id: userId },
       data: { 
         status,
         username: newUsername,
         ...(nextExpiry ? { expiredAt: nextExpiry } : {}),
+        ...(status === 'active' ? { autoIsolationEnabled: false } : {}),
       },
     });
+
 
     // If status is stop, auto-delete only current/future unpaid invoices (keep past months in history)
     if (status === 'stop') {

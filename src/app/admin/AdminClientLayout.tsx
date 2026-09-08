@@ -146,6 +146,12 @@ const menuGroups: MenuGroup[] = [
         requiredPermission: 'invoices.view',
       },
       {
+        titleKey: 'nav.manualInvoices',
+        icon: <FileText className="w-4 h-4" />,
+        href: '/admin/manual-invoices',
+        requiredPermission: 'invoices.view',
+      },
+      {
         titleKey: 'nav.payment',
         icon: <CreditCard className="w-4 h-4" />,
         requiredPermission: 'settings.payment',
@@ -155,6 +161,7 @@ const menuGroups: MenuGroup[] = [
           { titleKey: 'nav.bankAccounts', href: '/admin/payment/bank-accounts', requiredPermission: 'settings.payment' },
         ],
       },
+
       {
         titleKey: 'nav.transaksi',
         icon: <Wallet className="w-4 h-4" />,

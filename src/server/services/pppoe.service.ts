@@ -666,8 +666,13 @@ export async function updatePppoeUser(
         return {};
       })()),
       ...(data.autoRenewal !== undefined && { autoRenewal: data.autoRenewal }),
-      ...(data.autoIsolationEnabled !== undefined && { autoIsolationEnabled: data.autoIsolationEnabled }),
+      ...(data.autoIsolationEnabled !== undefined
+        ? { autoIsolationEnabled: data.autoIsolationEnabled }
+        : data.status === 'active'
+        ? { autoIsolationEnabled: false }
+        : {}),
       ...(data.idCardNumber !== undefined && { idCardNumber: data.idCardNumber }),
+
       ...(data.idCardPhoto !== undefined && { idCardPhoto: data.idCardPhoto }),
       ...(data.installationPhotos !== undefined && { installationPhotos: data.installationPhotos }),
       ...(data.followRoad !== undefined && { followRoad: !!data.followRoad }),

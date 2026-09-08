@@ -16,6 +16,21 @@ export function generateInvoiceNumber(): string {
 }
 
 /**
+ * Generate manual invoice number dengan format: MINV-YYYYMMDD-XXXXXX
+ * Contoh: MINV-20260908-A3F9B2
+ * Prefix 'MINV' membedakannya dari invoice billing PPPoE reguler
+ */
+export function generateManualInvoiceNumber(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const random = randomBytes(3).toString('hex').toUpperCase();
+  return `MINV-${year}${month}${day}-${random}`;
+}
+
+
+/**
  * Generate transaction ID dengan format: TRX-YYYYMMDD-HHMMSS-XXXX
  * Contoh: TRX-20251219-153045-0001
  */

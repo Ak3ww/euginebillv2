@@ -4,6 +4,58 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.38.0] — 2026-09-08
+### New Feature & Critical Hardening
+- **Sistem Invoice Manual One-Time & Penguatan Idempotensi Notifikasi Isolir Maksimal 1X**:
+  - *Context / User Request*:
+    1. Pengguna membutuhkan sistem invoice manual one-time untuk pesanan perangkat (contoh: OLT GPON, kabel dropcore, box ODP, splitter, precon) dan jasa yang terpisah dari sistem billing PPPoE/Hotspot, dengan penomoran otomatis `MINV-`, dapat dilihat sebelum lunas (print-ready / PDF), dapat ditandai lunas secara manual, dan saat lunas otomatis tercatat ke buku kas pemasukan (keuangan).
+    2. Pengguna menegaskan kembali bahwa pesan WhatsApp isolir HANYA boleh terkirim 1x saja dan pelanggan yang diaktifkan manual tidak boleh kembali diisolir oleh cron.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Model & Tabel `manualInvoice` Baru**:
+       - Menambahkan model `manualInvoice` pada `prisma/schema.prisma` dan skrip migrasi SQL `prisma/migrations/add_manual_invoices.sql`.
+       - Field: `invoiceNumber` (unik, format `MINV-YYYYMMDD-XXXXXX`), `recipientName`, `recipientPhone`, `recipientAddress`, `items` (JSON multi-line: description, qty, unitPrice, total), `subtotal`, `discountAmount`, `totalAmount`, `status` (`PENDING`, `PAID`, `CANCELLED`), `notes`, `paidAt`, `transactionId`.
+       - Generator nomor faktur: `generateManualInvoiceNumber()` di `src/server/services/billing/invoice.service.ts`.
+    2. **API Routes Manual Invoices**:
+       - `GET /api/manual-invoices`: List invoice dengan filter status, pencarian, dan kalkulasi ringkasan statistik (Pending, Lunas, Dibatalkan, Total Nilai).
+       - `POST /api/manual-invoices`: Pembuatan invoice baru dengan validasi item dan kalkulasi otomatis.
+       - `GET /api/manual-invoices/[id]`: Detail invoice publik (tanpa login admin).
+       - `PUT /api/manual-invoices/[id]`: Edit invoice (selama masih berstatus `PENDING`).
+       - `DELETE /api/manual-invoices/[id]`: Hapus invoice.
+       - `POST /api/manual-invoices/[id]/mark-paid`: Menandai status invoice menjadi `PAID`, mencatat waktu `paidAt`, dan secara otomatis menyuntikkan data transaksi pemasukan (`INCOME`) pada tabel `transactions` dengan kategori `"Penjualan Manual"`.
+       - `GET /api/manual-invoices/[id]/pdf`: Export PDF resmi berbasis `generateInvoicePDF` dengan layout enterprise Oceanic Blue (`#002C60`).
+    3. **Halaman Dashboard Admin (`/admin/manual-invoices`)**:
+       - Dibangun sesuai standar Clean SaaS Shadcn UI + Lucide React icons.
+       - 4 Summary Cards interaktif: Total Invoice, Menunggu Pembayaran, Lunas, dan Total Nilai Transaksi.
+       - Tabel data dengan aksi: Lihat Faktur, Unduh PDF, Edit, Tandai Lunas, dan Hapus.
+       - Dialog pembuatan & pengeditan invoice multi-baris dinamis dengan input nominal rupiah terformat otomatis dan kalkulasi diskon.
+       - Ditambahkan ke navigasi sidebar admin (`AdminClientLayout.tsx`) di bawah seksi Penagihan & Transaksi.
+    4. **Halaman Faktur Publik Siap Cetak (`/invoice/manual/[id]`)**:
+       - Dapat diakses oleh pembeli/pelanggan tanpa login admin, baik sebelum lunas maupun setelah lunas.
+       - Desain profesional mencakup logo dan identitas perusahaan, status badge terformat, tabel rincian barang, total biaya, catatan, rekening transfer pembayaran resmi, serta tombol *Download PDF* dan *Print*.
+    5. **Penguatan Mutlak Idempotensi WA Isolir (Pencegahan Dobel Pesan)**:
+       - Pada `src/server/jobs/auto-isolation.ts`, query deduplikasi 24 jam diperluas mencakup varian nomor telepon internasional (`+62...`, `08...`, digits only) dan referensi username.
+       - Pengecekan teks isolasi kini dilakukan murni di layer JavaScript secara *case-insensitive* bebas dari sensitivitas collation database MySQL (memeriksa kata kunci: `isolir`, `diisolir`, `terisolir`, `dibatasi`, `habis`, `penangguhan`, `suspend`, `layanan internet`).
+       - Menghapus restriksi ketat `status: 'sent'`, sehingga pesan dengan status `'delivered'`, `'success'`, dsb. juga dihitung sebagai sudah terkirim dalam 24 jam terakhir.
+       - Pada saat admin melakukan aktivasi manual pelanggan (baik single-user di `status/route.ts`, massal di `bulk-status/route.ts`, maupun via `pppoe.service.ts`), flag `autoIsolationEnabled` otomatis disetel ke `false` (*Tetap Terhubung*) dan `expiredAt` diperpanjang ke siklus tagihan berikutnya sehingga cron tidak akan pernah mengisolir kembali.
+  - *Files*:
+    - `prisma/schema.prisma`
+    - `prisma/migrations/add_manual_invoices.sql`
+    - `src/server/services/billing/invoice.service.ts`
+    - `src/app/api/manual-invoices/route.ts`
+    - `src/app/api/manual-invoices/[id]/route.ts`
+    - `src/app/api/manual-invoices/[id]/mark-paid/route.ts`
+    - `src/app/api/manual-invoices/[id]/pdf/route.ts`
+    - `src/app/admin/manual-invoices/page.tsx`
+    - `src/app/invoice/manual/[id]/page.tsx`
+    - `src/app/invoice/manual/[id]/PrintButton.tsx`
+    - `src/app/admin/AdminClientLayout.tsx`
+    - `src/locales/id.json`
+    - `src/server/jobs/auto-isolation.ts`
+    - `src/app/api/pppoe/users/status/route.ts`
+    - `src/app/api/pppoe/users/bulk-status/route.ts`
+    - `src/server/services/pppoe.service.ts`
+    - `CHANGELOG.md`
+
 ## [2.37.18] — 2026-09-07
 ### Critical Architecture & Global Hardening
 - **Arsitektur Global Auto-Isolir, Deduplikasi WA Isolir Maks 1X per 24 Jam, & Proteksi Kebal Isolir Ulang saat Aktivasi Manual**:

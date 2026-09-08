@@ -334,6 +334,8 @@
     "agent": "Agen",
     "evoucher": "E-Voucher",
     "invoices": "Tagihan",
+    "manualInvoices": "Invoice Manual",
+
     "agentDeposits": "Deposit Agen",
     "payment": "Pembayaran",
     "paymentGateway": "Payment Gateway",

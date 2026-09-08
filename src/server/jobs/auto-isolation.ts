@@ -351,25 +351,46 @@ export async function sendIsolationNotification(user: {
         const digitsOnly = rawPhone.replace(/[^0-9]/g, '');
         const phone62 = digitsOnly.startsWith('0') ? `62${digitsOnly.slice(1)}` : (digitsOnly.startsWith('62') ? digitsOnly : `62${digitsOnly}`);
         const phone08 = digitsOnly.startsWith('62') ? `0${digitsOnly.slice(2)}` : digitsOnly;
-        const phoneCandidates = Array.from(new Set([rawPhone, digitsOnly, phone62, phone08]));
+        const phonePlus62 = `+${phone62}`;
+        const phoneCandidates = Array.from(new Set([rawPhone, digitsOnly, phone62, phone08, phonePlus62, `+${digitsOnly}`]));
 
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const existingIsoWa = await prisma.whatsapp_history.findFirst({
+
+        // Query all messages sent to any phone candidate or referencing this username within the last 24h
+        const recentMessages = await prisma.whatsapp_history.findMany({
           where: {
-            phone: { in: phoneCandidates },
-            status: 'sent',
             sentAt: { gte: twentyFourHoursAgo },
             OR: [
-              { message: { contains: 'isolir' } },
-              { message: { contains: 'diisolir' } },
-              { message: { contains: 'Layanan Internet Diisolir' } },
+              { phone: { in: phoneCandidates } },
+              ...(user.username ? [{ message: { contains: user.username } }] : []),
             ],
           },
           orderBy: { sentAt: 'desc' },
+          take: 30,
         });
 
+        // Collation-independent case-insensitive check in JavaScript for isolation keywords
+        const isIsolationMessage = (msg: string) => {
+          const lower = (msg || '').toLowerCase();
+          return (
+            lower.includes('isolir') ||
+            lower.includes('diisolir') ||
+            lower.includes('terisolir') ||
+            lower.includes('dibatasi') ||
+            lower.includes('habis') ||
+            lower.includes('penangguhan') ||
+            lower.includes('suspend') ||
+            lower.includes('layanan internet') ||
+            lower.includes('akses internet dibatasi')
+          );
+        };
+
+        const existingIsoWa = recentMessages.find(
+          (m) => m.status !== 'failed' && isIsolationMessage(m.message)
+        ) || recentMessages.find((m) => isIsolationMessage(m.message));
+
         if (existingIsoWa) {
-          console.log(`[sendIsolationNotification] 🛑 SKIPPED duplicate isolation WA for ${user.username} (${user.phone}). Already sent within 24h at ${existingIsoWa.sentAt.toISOString()} (Log ID: ${existingIsoWa.id}). Max 1X rule enforced.`);
+          console.log(`[sendIsolationNotification] 🛑 SKIPPED duplicate isolation WA for ${user.username} (${user.phone}). Already sent within 24h at ${existingIsoWa.sentAt.toISOString()} (Log ID: ${existingIsoWa.id}, Status: ${existingIsoWa.status}). Max 1X rule enforced.`);
         } else {
           // Prefer DB isolation template; fall back to plain message
           const waTemplate = await prisma.isolationTemplate.findFirst({
@@ -401,6 +422,7 @@ export async function sendIsolationNotification(user: {
         console.error(`[Isolation] ✗ WhatsApp failed for ${user.username}:`, err.message);
       }
     }
+
 
     // -- Email ---------------------------------------------------------------
     if (company.isolationNotifyEmail && user.email) {

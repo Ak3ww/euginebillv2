@@ -289,6 +289,39 @@ enum InvoiceType {
   RENEWAL      // Perpanjangan (prepaid)
 }
 
+// ============================================================
+// Manual Invoice — Invoice terpisah dari billing PPPoE/Hotspot
+// Digunakan untuk tagihan proyek, penjualan perangkat, dll
+// ============================================================
+model manualInvoice {
+  id               String              @id @default(cuid())
+  invoiceNumber    String              @unique // Format: MINV-YYYYMMDD-XXXXXX
+  recipientName    String
+  recipientPhone   String?
+  recipientAddress String?             @db.Text
+  items            Json                // [{description, qty, unitPrice, total}]
+  subtotal         Int
+  discountAmount   Int                 @default(0)
+  totalAmount      Int
+  status           ManualInvoiceStatus @default(PENDING)
+  notes            String?             @db.Text
+  paidAt           DateTime?
+  transactionId    String?             // Referensi ke transactions table (setelah lunas)
+  createdBy        String?             // Admin user ID
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("manual_invoices")
+}
+
+enum ManualInvoiceStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
 model vpnServer {
   id             String      @id @default(uuid())
   name           String
