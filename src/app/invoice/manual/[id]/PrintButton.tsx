@@ -6,10 +6,11 @@ export default function ManualInvoicePrintButton() {
   return (
     <button
       onClick={() => window.print()}
-      className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+      className="flex-1 max-w-[120px] bg-white text-gray-700 border border-gray-300 font-bold text-[13px] py-3 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 shadow-sm"
     >
-      <Printer className="h-4 w-4" />
-      Print
+      <Printer className="w-4 h-4" />
+      Cetak
     </button>
+
   );
 }

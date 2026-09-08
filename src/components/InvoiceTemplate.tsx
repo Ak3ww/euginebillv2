@@ -21,8 +21,9 @@ export interface InvoiceTemplateData {
   invoice: {
     number: string;
     date: string;
-    dueDate: string;
+    dueDate?: string | null;
     paidAt?: string | null;
+
     status: string;
   };
   paidVia?: string | null;
@@ -77,9 +78,14 @@ export default function InvoiceTemplate({ data }: { data: InvoiceTemplateData })
                 {data.company.logo && (
                   <div className="w-20 h-20 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center p-2.5 shadow-sm shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={data.company.logo} className="max-h-16 max-w-16 w-auto object-contain" alt="Logo" />
+                    <img
+                      src={data.company.logo.startsWith('/') || data.company.logo.startsWith('http') || data.company.logo.startsWith('data:') ? data.company.logo : `/${data.company.logo}`}
+                      className="max-h-16 max-w-16 w-auto object-contain"
+                      alt="Logo"
+                    />
                   </div>
                 )}
+
                 <div>
                   <div className="text-2xl font-extrabold text-gray-900 leading-tight">{data.company.name}</div>
                   <div className="text-gray-500 mt-1 text-xs leading-relaxed">
@@ -138,8 +144,11 @@ export default function InvoiceTemplate({ data }: { data: InvoiceTemplateData })
                 <div className="font-bold text-[10px] text-gray-400 uppercase tracking-widest mb-1.5">Detail Invoice</div>
                 <div className="mb-1 text-gray-700 text-xs"><span className="text-gray-400">No Invoice: </span><strong>{data.invoice.number}</strong></div>
                 <div className="mb-1 text-gray-700 text-xs"><span className="text-gray-400">Tanggal: </span>{data.invoice.date}</div>
-                <div className="mb-1 text-gray-700 text-xs"><span className="text-gray-400">Jatuh Tempo: </span>{data.invoice.dueDate}</div>
+                {data.invoice.dueDate && (
+                  <div className="mb-1 text-gray-700 text-xs"><span className="text-gray-400">Jatuh Tempo: </span>{data.invoice.dueDate}</div>
+                )}
                 {data.invoice.paidAt && <div className="mb-1 text-gray-700 text-xs"><span className="text-gray-400">Tgl Bayar: </span>{data.invoice.paidAt}</div>}
+
               </div>
               <div className="bg-[#f9fafb] border border-gray-200 rounded-xl p-4.5">
                 <div className="font-bold text-[10px] text-gray-400 uppercase tracking-widest mb-1.5">Status Pembayaran</div>
