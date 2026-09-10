@@ -164,7 +164,11 @@ export default function StoppedSubscriptionsPage() {
   };
 
   const handleDelete = async (userId: string) => {
-    const confirmed = await showConfirm(t('common.deleteConfirmPermanent'));
+    const target = users.find(u => u.id === userId);
+    const reuseNotice = target?.isUsernameReused
+      ? `\n\nPerhatian: Akun PPPoE (${target.baseUsername || target.username}) sudah digunakan oleh pelanggan aktif lain. Secret MikroTik dan RADIUS pelanggan aktif akan otomatis dijaga aman dan tidak dihapus.`
+      : '';
+    const confirmed = await showConfirm(t('common.deleteConfirmPermanent') + reuseNotice);
     if (!confirmed) return;
 
     try {

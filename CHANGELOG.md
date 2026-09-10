@@ -26,12 +26,17 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
          - **ODP & Jaringan Optik (`odpCustomerAssignment`, `oltOnuStatus`)**: Menghapus alokasi port ODP dan melepaskan relasi ONU pada OLT (`customerId = null`).
          - **TR-069 GenieACS (`acsDevice`)**: Melepaskan relasi perangkat modem ONT (`pppoeUserId = null`).
          - **Sistem Referral (`referralReward`, `referredById`)**: Menghapus hadiah referral dan memutuskan rantai referensi referral.
-         - **MikroTik & RADIUS**: Menghapus secret ppp, koneksi aktif di router MikroTik, sesi pada tabel `mikrotikSession`, dan data RADIUS (`radcheck`, `radreply`, `radusergroup`, `radacct`).
+         - **Proteksi Ketat PPPoE Reuse (MikroTik & RADIUS Shield)**:
+            - Sistem otomatis mendeteksi apakah username PPPoE (atau base username) sedang digunakan ulang oleh pelanggan aktif lain (`activeReuser`).
+            - Jika terdeteksi sedang digunakan oleh pelanggan lain, sistem **DILARANG KERAS** menghapus secret di MikroTik, memutus koneksi aktif, atau menghapus record RADIUS (`radcheck`, `radreply`, dll) agar pelanggan aktif tidak terputus internetnya.
+            - Pengaturan default penghapusan secret MikroTik diubah menjadi `false` (safe mode) agar secret di router tetap aman dan bisa di-reuse bebas oleh tim lapangan.
+         - **Isolasi Ketat Berbasis `userId` (Anti Cross-Customer Data Leak)**:
+            - Seluruh query pembersihan tagihan, sesi jaringan, dan sesi portal menggunakan `where: { userId: id }` secara mutlak, bukan berdasarkan `username`. Hal ini menjamin tagihan dan sesi pelanggan baru yang me-reuse username PPPoE tersebut tidak akan pernah tersentuh atau terhapus.
          - **Pembersihan Induk Pelanggan Yatim (`pppoeCustomer`)**: Pengecekan otomatis dan penghapusan data induk pelanggan jika tidak memiliki akun PPPoE aktif lainnya.
     2. **Endpoint Baru Bulk Delete (`src/app/api/pppoe/users/bulk-delete/route.ts`)**:
        - Menyediakan endpoint handler `DELETE` & `POST` untuk multi-select / bulk deletion pelanggan yang dipanggil oleh tombol hapus massal di UI `/admin/pppoe/stopped`.
-    3. **Peningkatan Error Output (`src/app/api/pppoe/users/route.ts`)**:
-       - Menyampaikan pesan error spesifik dari database atau sistem ke antarmuka pengguna agar admin mendapatkan umpan balik yang informatif jika terjadi anomali.
+    3. **Peningkatan Error Output & Peringatan UI (`src/app/api/pppoe/users/route.ts` & `src/app/admin/pppoe/stopped/page.tsx`)**:
+       - Menambahkan notifikasi konfirmasi pada UI jika akun PPPoE yang akan dihapus terdeteksi sudah dipakai oleh pelanggan aktif lain, memastikan admin yakin bahwa secret router pelanggan aktif tetap terjaga.
   - *Files*:
     - `src/server/services/pppoe.service.ts`
     - `src/app/api/pppoe/users/bulk-delete/route.ts`

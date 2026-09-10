@@ -13,7 +13,7 @@ async function handleBulkDelete(request: NextRequest) {
   try {
     const body = await request.json();
     const userIds: string[] = body.userIds || body.ids;
-    const deleteSecretFromMikrotik = body.deleteSecret !== false;
+    const deleteSecretFromMikrotik = body.deleteSecret === true;
 
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
       return badRequest('User IDs are required');

@@ -930,11 +930,46 @@ export async function deletePppoeUser(
   const user = await prisma.pppoeUser.findUnique({ where: { id } });
   if (!user) throw Object.assign(new Error('User not found'), { code: 'NOT_FOUND' });
 
-  const shouldDeleteSecret = options?.deleteSecretFromMikrotik !== false;
+  const baseUsername = user.username
+    .replace(/-OFF-.*$/i, '')
+    .replace(/-STOP-.*$/i, '')
+    .replace(/-CABUT-.*$/i, '')
+    .trim();
+
+  // Safety Shield: Check if this PPPoE username or baseUsername is currently reused by any active/existing customer
+  const activeReuser = await prisma.pppoeUser.findFirst({
+    where: {
+      id: { not: id },
+      status: { notIn: ['stop', 'stopped', 'suspended', 'blocked', 'cabut'] },
+      OR: [
+        { username: user.username },
+        { username: baseUsername },
+        { username: { startsWith: `${baseUsername}-` } },
+      ],
+    },
+    select: { id: true, name: true, username: true, status: true },
+  });
+
+  const isUsernameReused = !!activeReuser;
+
+  // Safe default: only delete secret from MikroTik/RADIUS if explicitly requested (default: false),
+  // AND NEVER delete if the username is reused by another customer!
+  const shouldDeleteSecret = options?.deleteSecretFromMikrotik === true && !isUsernameReused;
+
+  if (isUsernameReused) {
+    console.warn(
+      `[PPPoE Delete Shield] Username '${user.username}' (base: '${baseUsername}') is REUSED by customer '${activeReuser.name}' (${activeReuser.username}, status: ${activeReuser.status}). MikroTik secret & RADIUS are preserved untouched.`
+    );
+  } else if (!shouldDeleteSecret) {
+    console.log(
+      `[PPPoE Delete Shield] Keeping MikroTik secret and RADIUS for '${user.username}' (safe mode: secret preserved for reuse).`
+    );
+  }
+
   const company = await prisma.company.findFirst();
   const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
-  // 1. RADIUS or MikroTik cleanup (only if requested)
+  // 1. RADIUS or MikroTik cleanup (ONLY if explicitly requested and NOT reused by others)
   if (shouldDeleteSecret) {
     if (isRadiusEnabled) {
       try {
@@ -967,18 +1002,14 @@ export async function deletePppoeUser(
     console.error('Clean up suspendRequest error:', suspendErr);
   }
 
-  // 3. Invoice cleanup:
+  // 3. Invoice cleanup (STRICT ISOLATION: match ONLY by userId: id):
   // - PAID invoices are PRESERVED so admin has permanent record of when the customer last paid.
   //   userId is set to null so foreign key constraints are released, and customer snapshot info is preserved.
   // - UNPAID invoices (PENDING, OVERDUE, CANCELLED) are deleted along with their payments/qris/requests.
+  // - NEVER match by customerUsername to avoid touching invoices of new customers who reused this PPPoE username!
   try {
     const userInvoices = await prisma.invoice.findMany({
-      where: {
-        OR: [
-          { userId: id },
-          { customerUsername: user.username },
-        ],
-      },
+      where: { userId: id },
       select: { id: true, status: true },
     });
 
@@ -1055,10 +1086,10 @@ export async function deletePppoeUser(
     console.error('Clean up workOrder error:', woErr);
   }
 
-  // 8. Sessions (radius/accounting sessions & customer portal sessions)
+  // 8. Sessions (radius/accounting sessions & customer portal sessions for this user ID only)
   try {
     await prisma.sessions.deleteMany({
-      where: { OR: [{ userId: id }, { username: user.username }] },
+      where: { userId: id },
     });
   } catch (sessErr) {
     console.error('Clean up sessions error:', sessErr);
@@ -1066,7 +1097,7 @@ export async function deletePppoeUser(
 
   try {
     await prisma.customerSession.deleteMany({
-      where: { OR: [{ userId: id }, { phone: user.phone }] },
+      where: { userId: id },
     });
   } catch (custSessErr) {
     console.error('Clean up customerSession error:', custSessErr);
