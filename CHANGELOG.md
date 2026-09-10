@@ -13,7 +13,9 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     1. **Cascade Cleanup Komprehensif pada `deletePppoeUser` (`src/server/services/pppoe.service.ts`)**:
        - Mengeliminasi error Foreign Key Constraint (MySQL 1451 / Prisma P2003) dengan membersihkan seluruh dependensi data yang mereferensikan akun pelanggan:
          - **Permintaan Penangguhan (`suspendRequest`)**: Menghapus seluruh permohonan suspend yang dibuat oleh pelanggan.
-         - **Invoices & Anak Relasinya (`invoice`, `payment`, `manualPayment`, `qrisPending`)**: Menghapus seluruh invoice baik yang masih pending maupun berstatus lunas (`PAID`), beserta anak relasi pembayaran dan pelepasan link pendaftaran (`registrationRequest.invoiceId = null`).
+         - **Preservasi Invoice Lunas & Pembersihan Invoice Belum Lunas**:
+           - **Invoice Lunas (`PAID`)**: **TIDAK DIHAPUS**. Foreign key `userId` dilepaskan (`userId = null`) agar constraint database terpenuhi, sementara detail snapshot pelanggan (`customerName`, `customerUsername`, `customerPhone`, `customerEmail`) dan tanggal pelunasan (`paidAt`) tetap dipertahankan permanen sebagai bukti histori kapan pelanggan terakhir bayar sebelum berhenti.
+           - **Invoice Belum Lunas (`PENDING`, `OVERDUE`, `CANCELLED`)**: Dihapus permanen beserta anak relasi pembayaran dan pelepasan link pendaftaran (`registrationRequest.invoiceId = null`).
          - **Pembayaran Manual Mandiri (`manualPayment`)**: Menghapus record pembayaran manual yang terkait langsung dengan `userId`.
          - **Permohonan Registrasi (`registrationRequest`)**: Melepaskan kaitan `pppoeUserId` menjadi `null`.
          - **Tiket Aduan & Pesan Tiket (`ticket`, `ticketMessage`)**: Menghapus semua tiket dan pesan percakapan pelanggan.

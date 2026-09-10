@@ -967,7 +967,10 @@ export async function deletePppoeUser(
     console.error('Clean up suspendRequest error:', suspendErr);
   }
 
-  // 3. Clean up all invoices and their associated records (payments, qris, manual payments, etc.)
+  // 3. Invoice cleanup:
+  // - PAID invoices are PRESERVED so admin has permanent record of when the customer last paid.
+  //   userId is set to null so foreign key constraints are released, and customer snapshot info is preserved.
+  // - UNPAID invoices (PENDING, OVERDUE, CANCELLED) are deleted along with their payments/qris/requests.
   try {
     const userInvoices = await prisma.invoice.findMany({
       where: {
@@ -976,22 +979,41 @@ export async function deletePppoeUser(
           { customerUsername: user.username },
         ],
       },
-      select: { id: true },
+      select: { id: true, status: true },
     });
-    const invoiceIds = userInvoices.map((i) => i.id);
 
-    if (invoiceIds.length > 0) {
-      await prisma.qrisPending.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
-      await prisma.manualPayment.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
-      await prisma.payment.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+    const paidInvoices = userInvoices.filter((i) => i.status === 'PAID');
+    const unpaidInvoices = userInvoices.filter((i) => i.status !== 'PAID');
+
+    // Retain PAID invoices & detach from deleted user
+    if (paidInvoices.length > 0) {
+      const paidIds = paidInvoices.map((i) => i.id);
+      await prisma.invoice.updateMany({
+        where: { id: { in: paidIds } },
+        data: {
+          userId: null,
+          customerName: user.name || undefined,
+          customerPhone: user.phone || undefined,
+          customerUsername: user.username,
+          customerEmail: user.email || undefined,
+        },
+      });
+    }
+
+    // Delete UNPAID invoices & their child records
+    if (unpaidInvoices.length > 0) {
+      const unpaidIds = unpaidInvoices.map((i) => i.id);
+      await prisma.qrisPending.deleteMany({ where: { invoiceId: { in: unpaidIds } } });
+      await prisma.manualPayment.deleteMany({ where: { invoiceId: { in: unpaidIds } } });
+      await prisma.payment.deleteMany({ where: { invoiceId: { in: unpaidIds } } });
       await prisma.registrationRequest.updateMany({
-        where: { invoiceId: { in: invoiceIds } },
+        where: { invoiceId: { in: unpaidIds } },
         data: { invoiceId: null },
       });
-      await prisma.invoice.deleteMany({ where: { id: { in: invoiceIds } } });
+      await prisma.invoice.deleteMany({ where: { id: { in: unpaidIds } } });
     }
   } catch (invErr) {
-    console.error('Clean up invoices and invoice dependents error:', invErr);
+    console.error('Clean up invoices error:', invErr);
   }
 
   // 4. Standalone manual payments
