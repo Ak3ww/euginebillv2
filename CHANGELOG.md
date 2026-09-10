@@ -4,6 +4,23 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.38.5] — 2026-09-10
+### Architecture Audit & Master Blueprint Roadmap
+- **Master Blueprint: Komparasi Arsitektur Salfanet-Radius vs EugineBill & Roadmap Upgrade**:
+  - *Context / User Request*:
+    Pengguna menginstruksikan re-clone repositori Salfanet-Radius (`https://github.com/s4lfanet/salfanet-radius.git`), melakukan audit mendalam sistem RADIUS & Local Auth menggunakan subagent otonom pada kedua codebase, serta menyusun dokumentasi komparasi obyektif dan roadmap fitur apa yang perlu dikejar vs apa yang harus dihindari.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Dual Subagent Codebase Audit**:
+       - Mengoperasikan subagent auditor independen pada `C:\salfanet-radius` (`v5.20.0`) dan `C:\EugineBill` untuk membedah seluruh layer: FreeRADIUS configuration, REST hook authorize/post-auth, skema database, alur CoA disconnect, cron session sync, hingga Transactional Outbox.
+    2. **Penyusunan Master Blueprint Document (`docs/architecture/RADIUS_LOCAL_AUTH_COMPARISON_AND_ROADMAP.md`)**:
+       - Menganalisis 14 parameter teknis komparasi antara Salfanet dan EugineBill.
+       - Menetapkan daftar fitur unggulan Salfanet yang **WAJIB DIKEJAR** (Per-Router `authMode`, migrasi router 1-klik, Transactional Outbox `external_task`, rekapitulasi voucher terpakai `firstLoginAt`, dynamic interim-update 300s).
+       - Menetapkan daftar anti-pattern Salfanet yang **HARUS DITOLAK** demi stabilitas produksi (modul FreeRADIUS REST hook yang rawan mass-outage saat web server restart, serta pencemaran tabel `radacct` via sesi palsu *synthetic radacct*).
+       - Merancang 5 fase eksekusi bertahap yang 100% backward-compatible dan bebas risiko downtime.
+  - *Files*:
+    - `docs/architecture/RADIUS_LOCAL_AUTH_COMPARISON_AND_ROADMAP.md`
+    - `CHANGELOG.md`
+
 ## [2.38.4] — 2026-09-10
 ### Bug Fix & Comprehensive Cascade Customer Deletion
 - **Perbaikan Hapus Pelanggan & Pembersihan Riwayat Permanen (/admin/pppoe/stopped)**:
