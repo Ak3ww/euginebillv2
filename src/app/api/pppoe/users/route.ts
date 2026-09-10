@@ -94,6 +94,6 @@ export async function DELETE(request: NextRequest) {
     const err = error as { code?: string; message?: string };
     if (err.code === 'NOT_FOUND') return notFound(err.message);
     console.error('Delete PPPoE user error:', error);
-    return serverError();
+    return serverError(err.message || 'Failed to delete PPPoE user');
   }
 }

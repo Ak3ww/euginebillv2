@@ -4,6 +4,38 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.38.4] — 2026-09-10
+### Bug Fix & Comprehensive Cascade Customer Deletion
+- **Perbaikan Hapus Pelanggan & Pembersihan Riwayat Permanen (/admin/pppoe/stopped)**:
+  - *Context / User Request*:
+    Pengguna melaporkan kegagalan saat menghapus pelanggan yang berhenti berlangganan di https://admin.euginemediagroup.com/admin/pppoe/stopped ("SAYA INGIN MENGHAPUS PELANGGAN YG ADA DI SINI https://admin.euginemediagroup.com/admin/pppoe/stopped tapi gagal. Karna saya pengen hapus karna sudah yakin dia gak akan lanjut, dan akan buang semua historinya.").
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Cascade Cleanup Komprehensif pada `deletePppoeUser` (`src/server/services/pppoe.service.ts`)**:
+       - Mengeliminasi error Foreign Key Constraint (MySQL 1451 / Prisma P2003) dengan membersihkan seluruh dependensi data yang mereferensikan akun pelanggan:
+         - **Permintaan Penangguhan (`suspendRequest`)**: Menghapus seluruh permohonan suspend yang dibuat oleh pelanggan.
+         - **Invoices & Anak Relasinya (`invoice`, `payment`, `manualPayment`, `qrisPending`)**: Menghapus seluruh invoice baik yang masih pending maupun berstatus lunas (`PAID`), beserta anak relasi pembayaran dan pelepasan link pendaftaran (`registrationRequest.invoiceId = null`).
+         - **Pembayaran Manual Mandiri (`manualPayment`)**: Menghapus record pembayaran manual yang terkait langsung dengan `userId`.
+         - **Permohonan Registrasi (`registrationRequest`)**: Melepaskan kaitan `pppoeUserId` menjadi `null`.
+         - **Tiket Aduan & Pesan Tiket (`ticket`, `ticketMessage`)**: Menghapus semua tiket dan pesan percakapan pelanggan.
+         - **Surat Perintah Kerja (`workOrder`)**: Menghapus data SPK yang tertaut (`linkedUserId`).
+         - **Sesi Pengguna (`sessions` & `customerSession`)**: Menghapus sesi akuntansi jaringan dan sesi login OTP portal pelanggan.
+         - **Web Push & Notifikasi (`pushSubscription`, `customerNotification`)**: Menghapus pendaftaran push token browser dan inbox notifikasi.
+         - **Permohonan Ubah Paket (`packageChangeRequest`)**: Menghapus antrean request upgrade/downgrade paket.
+         - **ODP & Jaringan Optik (`odpCustomerAssignment`, `oltOnuStatus`)**: Menghapus alokasi port ODP dan melepaskan relasi ONU pada OLT (`customerId = null`).
+         - **TR-069 GenieACS (`acsDevice`)**: Melepaskan relasi perangkat modem ONT (`pppoeUserId = null`).
+         - **Sistem Referral (`referralReward`, `referredById`)**: Menghapus hadiah referral dan memutuskan rantai referensi referral.
+         - **MikroTik & RADIUS**: Menghapus secret ppp, koneksi aktif di router MikroTik, sesi pada tabel `mikrotikSession`, dan data RADIUS (`radcheck`, `radreply`, `radusergroup`, `radacct`).
+         - **Pembersihan Induk Pelanggan Yatim (`pppoeCustomer`)**: Pengecekan otomatis dan penghapusan data induk pelanggan jika tidak memiliki akun PPPoE aktif lainnya.
+    2. **Endpoint Baru Bulk Delete (`src/app/api/pppoe/users/bulk-delete/route.ts`)**:
+       - Menyediakan endpoint handler `DELETE` & `POST` untuk multi-select / bulk deletion pelanggan yang dipanggil oleh tombol hapus massal di UI `/admin/pppoe/stopped`.
+    3. **Peningkatan Error Output (`src/app/api/pppoe/users/route.ts`)**:
+       - Menyampaikan pesan error spesifik dari database atau sistem ke antarmuka pengguna agar admin mendapatkan umpan balik yang informatif jika terjadi anomali.
+  - *Files*:
+    - `src/server/services/pppoe.service.ts`
+    - `src/app/api/pppoe/users/bulk-delete/route.ts`
+    - `src/app/api/pppoe/users/route.ts`
+    - `CHANGELOG.md`
+
 ## [2.38.3] — 2026-09-10
 ### Major Feature & Financial Privacy Mode
 - **Fitur Sembunyikan Saldo Rupiah (Hide Balance / Privacy Mode Bintang-Bintang)**:

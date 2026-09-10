@@ -924,7 +924,7 @@ export async function updatePppoeUser(
 export async function deletePppoeUser(
   id: string,
   session: Session | null,
-  request: NextRequest,
+  request?: NextRequest,
   options?: { deleteSecretFromMikrotik?: boolean }
 ) {
   const user = await prisma.pppoeUser.findUnique({ where: { id } });
@@ -934,39 +934,200 @@ export async function deletePppoeUser(
   const company = await prisma.company.findFirst();
   const isRadiusEnabled = company?.radiusPppoeEnabled ?? false;
 
-  // RADIUS or MikroTik cleanup (only if requested)
+  // 1. RADIUS or MikroTik cleanup (only if requested)
   if (shouldDeleteSecret) {
     if (isRadiusEnabled) {
       try {
         await prisma.radcheck.deleteMany({ where: { username: user.username } });
         await prisma.radreply.deleteMany({ where: { username: user.username } });
         await prisma.radusergroup.deleteMany({ where: { username: user.username } });
+        await prisma.radacct.deleteMany({ where: { username: user.username } });
       } catch (syncError) {
         console.error('RADIUS cleanup error:', syncError);
       }
     }
     if (user.routerId) {
-      await PPPSecretService.removeSecret(user.routerId, user.username);
+      try {
+        await PPPSecretService.removeSecret(user.routerId, user.username);
+      } catch (mikrotikError) {
+        console.error('MikroTik removeSecret error:', mikrotikError);
+      }
+    }
+    try {
+      await prisma.mikrotikSession.deleteMany({ where: { username: user.username } });
+    } catch (sessionErr) {
+      console.error('Clean up mikrotikSession error:', sessionErr);
     }
   }
 
-  // Clean up any unpaid / pending / overdue invoices of this deleted user
+  // 2. Suspend Requests (critical for stopped users)
   try {
-    await prisma.invoice.deleteMany({
-      where: {
-        OR: [
-          { userId: id, status: { in: ['PENDING', 'OVERDUE'] } },
-          { customerUsername: user.username, status: { in: ['PENDING', 'OVERDUE'] } },
-        ],
-      },
-    });
-  } catch (invErr) {
-    console.error('Clean up user unpaid invoices error:', invErr);
+    await prisma.suspendRequest.deleteMany({ where: { userId: id } });
+  } catch (suspendErr) {
+    console.error('Clean up suspendRequest error:', suspendErr);
   }
 
+  // 3. Clean up all invoices and their associated records (payments, qris, manual payments, etc.)
+  try {
+    const userInvoices = await prisma.invoice.findMany({
+      where: {
+        OR: [
+          { userId: id },
+          { customerUsername: user.username },
+        ],
+      },
+      select: { id: true },
+    });
+    const invoiceIds = userInvoices.map((i) => i.id);
+
+    if (invoiceIds.length > 0) {
+      await prisma.qrisPending.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+      await prisma.manualPayment.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+      await prisma.payment.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+      await prisma.registrationRequest.updateMany({
+        where: { invoiceId: { in: invoiceIds } },
+        data: { invoiceId: null },
+      });
+      await prisma.invoice.deleteMany({ where: { id: { in: invoiceIds } } });
+    }
+  } catch (invErr) {
+    console.error('Clean up invoices and invoice dependents error:', invErr);
+  }
+
+  // 4. Standalone manual payments
+  try {
+    await prisma.manualPayment.deleteMany({ where: { userId: id } });
+  } catch (manPayErr) {
+    console.error('Clean up manualPayment error:', manPayErr);
+  }
+
+  // 5. Unlink registration request
+  try {
+    await prisma.registrationRequest.updateMany({
+      where: { pppoeUserId: id },
+      data: { pppoeUserId: null },
+    });
+  } catch (regErr) {
+    console.error('Clean up registrationRequest error:', regErr);
+  }
+
+  // 6. Tickets & messages
+  try {
+    const userTickets = await prisma.ticket.findMany({
+      where: { customerId: id },
+      select: { id: true },
+    });
+    const ticketIds = userTickets.map((t) => t.id);
+    if (ticketIds.length > 0) {
+      await prisma.ticketMessage.deleteMany({ where: { ticketId: { in: ticketIds } } });
+      await prisma.ticket.deleteMany({ where: { id: { in: ticketIds } } });
+    }
+  } catch (ticketErr) {
+    console.error('Clean up tickets error:', ticketErr);
+  }
+
+  // 7. Work orders (SPK)
+  try {
+    await prisma.workOrder.deleteMany({ where: { linkedUserId: id } });
+  } catch (woErr) {
+    console.error('Clean up workOrder error:', woErr);
+  }
+
+  // 8. Sessions (radius/accounting sessions & customer portal sessions)
+  try {
+    await prisma.sessions.deleteMany({
+      where: { OR: [{ userId: id }, { username: user.username }] },
+    });
+  } catch (sessErr) {
+    console.error('Clean up sessions error:', sessErr);
+  }
+
+  try {
+    await prisma.customerSession.deleteMany({
+      where: { OR: [{ userId: id }, { phone: user.phone }] },
+    });
+  } catch (custSessErr) {
+    console.error('Clean up customerSession error:', custSessErr);
+  }
+
+  // 9. Push subscriptions & notifications
+  try {
+    await prisma.pushSubscription.deleteMany({ where: { userId: id } });
+  } catch (pushErr) {
+    console.error('Clean up pushSubscription error:', pushErr);
+  }
+
+  try {
+    await prisma.customerNotification.deleteMany({ where: { userId: id } });
+  } catch (notifErr) {
+    console.error('Clean up customerNotification error:', notifErr);
+  }
+
+  // 10. Package change requests
+  try {
+    await prisma.packageChangeRequest.deleteMany({ where: { userId: id } });
+  } catch (pkgErr) {
+    console.error('Clean up packageChangeRequest error:', pkgErr);
+  }
+
+  // 11. ODP customer assignment
+  try {
+    await prisma.odpCustomerAssignment.deleteMany({ where: { customerId: id } });
+  } catch (odpErr) {
+    console.error('Clean up odpCustomerAssignment error:', odpErr);
+  }
+
+  // 12. OLT ONU status (unlink customer)
+  try {
+    await prisma.oltOnuStatus.updateMany({
+      where: { customerId: id },
+      data: { customerId: null },
+    });
+  } catch (oltErr) {
+    console.error('Unlink oltOnuStatus error:', oltErr);
+  }
+
+  // 13. ACS / TR-069 Devices (unlink user)
+  try {
+    await prisma.acsDevice.updateMany({
+      where: { pppoeUserId: id },
+      data: { pppoeUserId: null },
+    });
+  } catch (acsErr) {
+    console.error('Unlink acsDevice error:', acsErr);
+  }
+
+  // 14. Referrals
+  try {
+    await prisma.referralReward.deleteMany({
+      where: { OR: [{ referrerId: id }, { referredId: id }] },
+    });
+    await prisma.pppoeUser.updateMany({
+      where: { referredById: id },
+      data: { referredById: null },
+    });
+  } catch (refErr) {
+    console.error('Clean up referrals error:', refErr);
+  }
+
+  // 15. Delete the PPPoE user record
   await prisma.pppoeUser.delete({ where: { id } });
 
-  // Activity log
+  // 16. Clean up orphan pppoeCustomer if no other users remain
+  if (user.pppoeCustomerId) {
+    try {
+      const remainingCount = await prisma.pppoeUser.count({
+        where: { pppoeCustomerId: user.pppoeCustomerId },
+      });
+      if (remainingCount === 0) {
+        await prisma.pppoeCustomer.delete({ where: { id: user.pppoeCustomerId } });
+      }
+    } catch (custErr) {
+      console.error('Clean up orphan pppoeCustomer error:', custErr);
+    }
+  }
+
+  // 17. Activity log
   try {
     await logActivity({
       userId: (session?.user as never as { id: string })?.id,
