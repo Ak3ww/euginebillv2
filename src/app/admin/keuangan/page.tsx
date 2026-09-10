@@ -45,7 +45,11 @@ import {
   Calendar,
   Tag,
   Search,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useBalancePrivacy } from "@/lib/balance-privacy";
 
 interface Category {
   id: string;
@@ -83,6 +87,7 @@ interface Stats {
 
 export default function KeuanganPage() {
   const { t } = useTranslation();
+  const { isHidden: isBalanceHidden, toggleHide: toggleBalancePrivacy } = useBalancePrivacy();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -397,8 +402,10 @@ export default function KeuanganPage() {
     }
   };
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
+  const formatCurrency = (amount: number) => {
+    if (isBalanceHidden) return 'Rp ••••••';
+    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
+  };
 
   const formatDate = (date: string) => formatWIB(new Date(date), "d MMM yyyy");
 
@@ -492,6 +499,19 @@ export default function KeuanganPage() {
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('keuangan.transactions')}</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleBalancePrivacy}
+            className={cn(
+              "h-8 text-xs gap-1.5",
+              isBalanceHidden ? "text-amber-500 border-amber-300 bg-amber-50 dark:bg-amber-950/30" : ""
+            )}
+            title={isBalanceHidden ? 'Tampilkan Saldo Rupiah' : 'Sembunyikan Saldo Rupiah'}
+          >
+            {isBalanceHidden ? <EyeOff className="w-3.5 h-3.5 text-amber-500" /> : <Eye className="w-3.5 h-3.5" />}
+            {isBalanceHidden ? 'Buka Saldo' : 'Tutup Saldo'}
+          </Button>
           <Button onClick={handleAddCategory} variant="outline" size="sm" className="h-8 text-xs">
             <Tag className="w-3.5 h-3.5 mr-1.5" />
             {t('keuangan.category')}
@@ -505,7 +525,11 @@ export default function KeuanganPage() {
 
       {/* Stats - Cyberpunk Style */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
-        <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-3 sm:p-4 hover:border-[#bc13fe]/50 hover:shadow-[0_0_30px_rgba(188,19,254,0.3)] transition-all">
+        <div 
+          onClick={toggleBalancePrivacy}
+          title={isBalanceHidden ? 'Klik untuk tampilkan nominal' : 'Klik untuk sembunyikan nominal'}
+          className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-3 sm:p-4 hover:border-[#bc13fe]/50 hover:shadow-[0_0_30px_rgba(188,19,254,0.3)] transition-all cursor-pointer select-none"
+        >
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-medium text-[#00f7ff] uppercase tracking-wide">{t('keuangan.income')}</p>
@@ -532,7 +556,11 @@ export default function KeuanganPage() {
           </div>
         </div>
 
-        <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-3 sm:p-4 hover:border-[#bc13fe]/50 hover:shadow-[0_0_30px_rgba(188,19,254,0.3)] transition-all">
+        <div 
+          onClick={toggleBalancePrivacy}
+          title={isBalanceHidden ? 'Klik untuk tampilkan nominal' : 'Klik untuk sembunyikan nominal'}
+          className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-3 sm:p-4 hover:border-[#bc13fe]/50 hover:shadow-[0_0_30px_rgba(188,19,254,0.3)] transition-all cursor-pointer select-none"
+        >
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-medium text-[#00f7ff] uppercase tracking-wide">{t('keuangan.expense')}</p>
@@ -545,7 +573,11 @@ export default function KeuanganPage() {
           </div>
         </div>
 
-        <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-3 sm:p-4 hover:border-[#bc13fe]/50 hover:shadow-[0_0_30px_rgba(188,19,254,0.3)] transition-all">
+        <div 
+          onClick={toggleBalancePrivacy}
+          title={isBalanceHidden ? 'Klik untuk tampilkan nominal' : 'Klik untuk sembunyikan nominal'}
+          className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-3 sm:p-4 hover:border-[#bc13fe]/50 hover:shadow-[0_0_30px_rgba(188,19,254,0.3)] transition-all cursor-pointer select-none"
+        >
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-medium text-[#00f7ff] uppercase tracking-wide">{t('keuangan.balance')}</p>

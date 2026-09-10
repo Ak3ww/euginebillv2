@@ -33,7 +33,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle, XCircle, Eye, Trash2, Search, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, EyeOff, Trash2, Search, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useBalancePrivacy } from '@/lib/balance-privacy';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { formatWIB } from '@/lib/timezone';
@@ -73,6 +75,7 @@ interface ManualPayment {
 export default function ManualPaymentsPage() {
   const { data: session } = useSession();
   const { t } = useTranslation();
+  const { isHidden: isBalanceHidden, toggleHide: toggleBalancePrivacy } = useBalancePrivacy();
   const [payments, setPayments] = useState<ManualPayment[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<ManualPayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -244,6 +247,7 @@ export default function ManualPaymentsPage() {
   };
 
   const formatCurrency = (amount: number) => {
+    if (isBalanceHidden) return 'Rp ••••••';
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
@@ -350,7 +354,16 @@ export default function ManualPaymentsPage() {
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
-            <Button onClick={fetchPayments} variant="outline" size="icon">
+            <Button
+              onClick={toggleBalancePrivacy}
+              variant="outline"
+              size="icon"
+              className={cn(isBalanceHidden ? "text-amber-500 border-amber-300 bg-amber-50 dark:bg-amber-950/30" : "")}
+              title={isBalanceHidden ? 'Tampilkan Saldo Rupiah' : 'Sembunyikan Saldo Rupiah'}
+            >
+              {isBalanceHidden ? <EyeOff className="h-4 w-4 text-amber-500" /> : <Eye className="h-4 w-4" />}
+            </Button>
+            <Button onClick={fetchPayments} variant="outline" size="icon" title={t('common.refresh')}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>

@@ -38,11 +38,15 @@ import {
   UserPlus,
   CalendarClock,
   AlertTriangle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { formatWIB, getTimezoneInfo, nowWIB } from '@/lib/timezone';
 import { useTranslation } from '@/hooks/useTranslation';
+import { cn } from '@/lib/utils';
+import { useBalancePrivacy } from '@/lib/balance-privacy';
 import {
   UserStatusPieChart,
   ChartCard,
@@ -179,10 +183,12 @@ interface StatCard {
   gradient: string;
   bgGlow: string;
   href?: string;
+  isCurrency?: boolean;
 }
 
 export default function AdminDashboard() {
   const [mounted, setMounted] = useState(false);
+  const { isHidden: isBalanceHidden, toggleHide: toggleBalancePrivacy, formatRupiah } = useBalancePrivacy();
   const tzInfo = getTimezoneInfo();
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
@@ -431,21 +437,23 @@ export default function AdminDashboard() {
     },
     {
       title: t('dashboard.voucherRevenue'),
-      value: stats.voucherRevenueFormatted,
+      value: formatRupiah(stats.voucherRevenue, stats.voucherRevenueFormatted),
       subtitle: periodLabel || t('dashboard.thisMonth'),
-      detail: `Hari ini: ${stats.voucherRevenueTodayFormatted}`,
+      detail: isBalanceHidden ? 'Hari ini: Rp ••••••' : `Hari ini: ${stats.voucherRevenueTodayFormatted}`,
       icon: <DollarSign className="w-5 h-5" />,
       gradient: 'from-fuchsia-500 to-pink-400',
       bgGlow: 'bg-fuchsia-500/20',
+      isCurrency: true,
     },
     {
       title: t('dashboard.invoiceRevenue'),
-      value: stats.invoiceRevenueFormatted,
+      value: formatRupiah(stats.invoiceRevenue, stats.invoiceRevenueFormatted),
       subtitle: `${stats.invoiceCountMonth} tagihan • ${periodLabel || t('dashboard.thisMonth')}`,
-      detail: `Hari ini: ${stats.invoiceRevenueTodayFormatted} (${stats.invoiceCountToday})`,
+      detail: isBalanceHidden ? `Hari ini: Rp •••••• (${stats.invoiceCountToday})` : `Hari ini: ${stats.invoiceRevenueTodayFormatted} (${stats.invoiceCountToday})`,
       icon: <Receipt className="w-5 h-5" />,
       gradient: 'from-teal-500 to-cyan-400',
       bgGlow: 'bg-teal-500/20',
+      isCurrency: true,
     },
     {
       title: 'Belum Bayar',
@@ -458,12 +466,13 @@ export default function AdminDashboard() {
     },
     {
       title: 'Omzet Total',
-      value: fmtIDR(totalMonthRevenue),
+      value: formatRupiah(totalMonthRevenue, fmtIDR(totalMonthRevenue)),
       subtitle: `Invoice + Voucher • ${periodLabel || t('dashboard.thisMonth')}`,
-      detail: `Invoice: ${stats.invoiceRevenueFormatted}`,
+      detail: isBalanceHidden ? 'Invoice: Rp ••••••' : `Invoice: ${stats.invoiceRevenueFormatted}`,
       icon: <TrendingUp className="w-5 h-5" />,
       gradient: 'from-lime-500 to-green-400',
       bgGlow: 'bg-lime-500/20',
+      isCurrency: true,
     },
   ] : [];
 
@@ -512,6 +521,19 @@ export default function AdminDashboard() {
               </button>
             </div>
             <button
+              onClick={toggleBalancePrivacy}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg border-2 transition-all",
+                isBalanceHidden
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25 shadow-[0_0_15px_rgba(245,158,11,0.25)]"
+                  : "bg-[#00f7ff]/10 border-[#00f7ff]/30 text-[#00f7ff] hover:bg-[#00f7ff]/20 shadow-[0_0_15px_rgba(0,247,255,0.2)]"
+              )}
+              title={isBalanceHidden ? 'Tampilkan Saldo Rupiah' : 'Sembunyikan Saldo Rupiah'}
+            >
+              {isBalanceHidden ? <EyeOff className="w-3.5 h-3.5 text-amber-400" /> : <Eye className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{isBalanceHidden ? 'Buka Saldo' : 'Tutup Saldo'}</span>
+            </button>
+            <button
               onClick={() => { loadDashboardData(); loadAnalyticsData(); }}
               disabled={loading || analyticsLoading}
               className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium bg-[#00f7ff]/10 border-2 border-[#00f7ff]/30 text-[#00f7ff] rounded-lg hover:bg-[#00f7ff]/20 disabled:opacity-50 transition-all shadow-[0_0_15px_rgba(0,247,255,0.2)]"
@@ -555,11 +577,21 @@ export default function AdminDashboard() {
                   </div>
                 </>
               );
-              const cls = 'relative bg-card/60 backdrop-blur-xl rounded-xl border border-white/10 p-3 sm:p-4 hover:border-white/20 hover:shadow-[0_0_30px_rgba(188,19,254,0.2)] transition-all group overflow-hidden';
+              const cls = cn(
+                'relative bg-card/60 backdrop-blur-xl rounded-xl border border-white/10 p-3 sm:p-4 hover:border-white/20 hover:shadow-[0_0_30px_rgba(188,19,254,0.2)] transition-all group overflow-hidden',
+                card.isCurrency && 'cursor-pointer hover:border-amber-400/40 select-none'
+              );
               return card.href ? (
                 <a key={card.title} href={card.href} className={cls}>{inner}</a>
               ) : (
-                <div key={card.title} className={cls}>{inner}</div>
+                <div 
+                  key={card.title}
+                  onClick={card.isCurrency ? toggleBalancePrivacy : undefined}
+                  title={card.isCurrency ? (isBalanceHidden ? 'Klik untuk menampilkan nominal' : 'Klik untuk menyembunyikan nominal') : undefined}
+                  className={cls}
+                >
+                  {inner}
+                </div>
               );
             })}
           </div>
@@ -635,7 +667,7 @@ export default function AdminDashboard() {
                       </div>
                       <div className="flex flex-col items-end flex-shrink-0 ml-2">
                         <span className="text-[11px] font-semibold text-foreground">
-                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(inv.amount)}
+                          {formatRupiah(inv.amount)}
                         </span>
                         <span className={`text-[9px] font-medium ${labelColor}`}>{labelText}</span>
                       </div>
@@ -793,14 +825,14 @@ export default function AdminDashboard() {
                     </div>
                     <span className="text-xs font-bold text-[#00f7ff] text-center">{agent.sold.toLocaleString()}</span>
                     <span className="text-xs text-muted-foreground text-right">
-                      {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(agent.revenue)}
+                      {formatRupiah(agent.revenue)}
                     </span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between p-2 border-t border-white/10 mt-1">
                   <span className="text-[10px] text-muted-foreground">{t('dashboard.agentTotalRevenue')}</span>
                   <span className="text-xs font-bold text-[#bc13fe]">
-                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(agentSalesTotal.revenue)}
+                    {formatRupiah(agentSalesTotal.revenue)}
                   </span>
                 </div>
               </div>

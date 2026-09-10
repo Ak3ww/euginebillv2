@@ -4,6 +4,44 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.38.3] — 2026-09-10
+### Major Feature & Financial Privacy Mode
+- **Fitur Sembunyikan Saldo Rupiah (Hide Balance / Privacy Mode Bintang-Bintang)**:
+  - *Context / User Request*:
+    Pengguna meminta fitur privasi saldo rupiah di halaman Tagihan dan Dashboard ("add fitur hide balane rupiah di tagihan dan di dashboard pokoknya berbau rupiah pas diklik bisa ke hide muanya i mena jadi kaya bintang2 gitu"). Saat fitur diaktifkan, seluruh angka nominal rupiah disamarkan menjadi bintang/bullet dots (`Rp ••••••`).
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Zustand Persist Balance Privacy Store (`src/lib/balance-privacy.ts`)**:
+       - Membangun Zustand store terpusat dengan middleware `persist` yang menyimpan state privasi `isHidden: boolean` ke `localStorage` (`euginebill-balance-privacy`).
+       - Dilengkapi proteksi SSR hydration mismatch pada hook `useBalancePrivacy()`.
+       - Helper pemformat `formatCurrencyPrivacy(amount, isHidden, customFormatted)` yang otomatis menghasilkan string sensor `Rp ••••••` saat status privasi aktif.
+    2. **Global Navigation Header Toggle (`src/app/admin/AdminClientLayout.tsx`)**:
+       - Menambahkan tombol toggle mata (`Eye` / `EyeOff` dari Lucide React) di header atas admin layout bersebelahan dengan live clock & tema gelap/terang.
+       - Memungkinkan admin mengaktifkan/menonaktifkan sensor saldo secara instan dari halaman manapun di panel admin.
+    3. **Dashboard Admin (`src/app/admin/page.tsx`)**:
+       - Menambahkan tombol toggle privasi saldo di action bar header utama (bersebelahan dengan navigasi bulan dan tombol refresh).
+       - Menyamarkan seluruh nominal pada Stat Cards pendapatan: Pendapatan Voucher, Pendapatan Invoice, Omzet Total, serta rincian omzet hari ini.
+       - Menjadikan card pendapatan interaktif (`cursor-pointer`): mengklik card nominal rupiah langsung menyembunyikan/menampilkan saldo.
+       - Menyamarkan jumlah tagihan pada daftar *Tagihan Jatuh Tempo* (`upcomingInvoices.amount`).
+       - Menyamarkan pendapatan agen pada daftar *Penjualan Voucher Agen* (`agent.revenue` dan total omzet agen).
+    4. **Halaman Tagihan Internet (`src/app/admin/invoices/page.tsx`)**:
+       - Menambahkan tombol toggle privasi saldo di toolbar atas.
+       - Memperbarui fungsi `formatCurrency(amount)` terpusat sehingga seluruh kartu ringkasan Router / NAS (`r.unpaidAmount` & `r.paidAmount`), summary cards atas (Belum Bayar & Lunas), tabel data desktop & card mobile, dialog rincian, dan dialog pelunasan otomatis tersensor.
+       - Kartu summary nominal (Belum Bayar & Lunas) dapat diklik langsung untuk memicu toggle privasi saldo.
+    5. **Halaman Tagihan Manual (`src/app/admin/manual-invoices/page.tsx`) & Pembayaran Manual (`src/app/admin/manual-payments/page.tsx`)**:
+       - Menambahkan tombol toggle privasi saldo di header masing-masing halaman.
+       - Memperbarui fungsi `formatRp(amount)` dan `formatCurrency(amount)` pada tabel rincian item, subtotal, diskon, total nilai invoice, dan dialog persetujuan pembayaran.
+    6. **Halaman Keuangan (`src/app/admin/keuangan/page.tsx`)**:
+       - Mengintegrasikan hook `useBalancePrivacy()` ke seluruh kartu ringkasan pemasukan, pengeluaran, saldo bersih, breakdown PPPoE/Hotspot/Isolir, serta tabel histori transaksi.
+  - *Files*:
+    - `src/lib/balance-privacy.ts`
+    - `src/app/admin/AdminClientLayout.tsx`
+    - `src/app/admin/page.tsx`
+    - `src/app/admin/invoices/page.tsx`
+    - `src/app/admin/manual-invoices/page.tsx`
+    - `src/app/admin/manual-payments/page.tsx`
+    - `src/app/admin/keuangan/page.tsx`
+    - `CHANGELOG.md`
+
 ## [2.38.2] — 2026-09-08
 ### Major Feature & Anti-Spam Architecture
 - **Aturan Ketat Maksimal 3 Pesan WhatsApp per Siklus Billing (2 Tagihan + 1 Isolasi H+7)**:

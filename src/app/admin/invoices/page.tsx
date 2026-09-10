@@ -22,8 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Loader2, DollarSign, FileText, CheckCircle, CheckCircle2, Clock, Eye, AlertCircle, Copy, Check, ExternalLink, MessageCircle, Trash2, Search, Download, Printer, Upload, ChevronLeft, ChevronRight, PlusSquare, Users, User as UserIcon, XCircle, RefreshCw, Filter, Zap, Server, X } from 'lucide-react';
+import { Loader2, DollarSign, FileText, CheckCircle, CheckCircle2, Clock, Eye, EyeOff, AlertCircle, Copy, Check, ExternalLink, MessageCircle, Trash2, Search, Download, Printer, Upload, ChevronLeft, ChevronRight, PlusSquare, Users, User as UserIcon, XCircle, RefreshCw, Filter, Zap, Server, X } from 'lucide-react';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
+import { useBalancePrivacy } from '@/lib/balance-privacy';
 
 interface Invoice {
   id: string;
@@ -82,6 +84,7 @@ interface RouterSummary {
 
 export default function InvoicesPage() {
   const { t } = useTranslation();
+  const { isHidden: isBalanceHidden, toggleHide: toggleBalancePrivacy } = useBalancePrivacy();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [routerSummaries, setRouterSummaries] = useState<RouterSummary[]>([]);
@@ -958,6 +961,7 @@ export default function InvoicesPage() {
   };
 
   const formatCurrency = (amount: number) => {
+    if (isBalanceHidden) return 'Rp ••••••';
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
   };
 
@@ -1079,6 +1083,19 @@ export default function InvoicesPage() {
               <input type="date" value={exportDateTo} onChange={e => setExportDateTo(e.target.value)}
                 className="text-[10px] px-1.5 py-1 bg-[#1a1135]/80 border border-[#bc13fe]/30 rounded text-foreground focus:outline-none focus:border-[#bc13fe]/60" />
             </div>
+            <button
+              onClick={toggleBalancePrivacy}
+              className={cn(
+                "inline-flex items-center px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all shadow-xs",
+                isBalanceHidden
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-500 hover:bg-amber-500/25"
+                  : "bg-muted border-border text-foreground hover:bg-muted/80"
+              )}
+              title={isBalanceHidden ? 'Tampilkan Saldo Rupiah' : 'Sembunyikan Saldo Rupiah'}
+            >
+              {isBalanceHidden ? <EyeOff className="h-3.5 w-3.5 mr-1 text-amber-500" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
+              {isBalanceHidden ? 'Buka Saldo' : 'Tutup Saldo'}
+            </button>
             <button onClick={handleExportExcel} className="inline-flex items-center px-2 py-1.5 text-xs border border-success text-success rounded hover:bg-success/10"><Download className="h-3 w-3 mr-1" />Excel</button>
             <button onClick={handleExportPDF} className="inline-flex items-center px-2 py-1.5 text-xs border border-destructive text-destructive rounded hover:bg-destructive/10"><Download className="h-3 w-3 mr-1" />PDF</button>
             <Link href="/admin/invoices/import">
@@ -1187,7 +1204,11 @@ export default function InvoicesPage() {
               </div>
             </div>
           </div>
-          <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-3 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
+          <div 
+            onClick={toggleBalancePrivacy}
+            title={isBalanceHidden ? 'Klik untuk tampilkan nominal' : 'Klik untuk sembunyikan nominal'}
+            className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-3 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all cursor-pointer select-none"
+          >
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[10px] sm:text-xs text-[#00f7ff] uppercase tracking-wide truncate">{t('invoices.pending')}</p>
@@ -1199,7 +1220,11 @@ export default function InvoicesPage() {
               </div>
             </div>
           </div>
-          <div className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-3 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all">
+          <div 
+            onClick={toggleBalancePrivacy}
+            title={isBalanceHidden ? 'Klik untuk tampilkan nominal' : 'Klik untuk sembunyikan nominal'}
+            className="bg-card/80 backdrop-blur-xl rounded-xl border-2 border-[#bc13fe]/30 p-3 sm:p-4 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:border-[#bc13fe]/50 transition-all cursor-pointer select-none"
+          >
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[10px] sm:text-xs text-[#00f7ff] uppercase tracking-wide truncate">{t('invoices.paid')}</p>

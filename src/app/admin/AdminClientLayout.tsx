@@ -45,9 +45,12 @@ import {
   Smartphone,
   Cloud,
   UserCog,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/store';
+import { useBalancePrivacy } from '@/lib/balance-privacy';
 import NotificationDropdown from '@/components/NotificationDropdown';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useIdleTimeout } from '@/hooks/useIdleTimeout';
@@ -667,6 +670,7 @@ function AdminLayoutContent({
   const { company, setCompany } = useAppStore();
   const { t } = useTranslation();
   const { isDark, toggleTheme } = useTheme();
+  const { isHidden: isBalanceHidden, toggleHide: toggleBalancePrivacy } = useBalancePrivacy();
 
   const isLoginPage = pathname === '/admin/login';
 
@@ -1170,6 +1174,14 @@ function AdminLayoutContent({
                   </span>
                 </div>
               )}
+              <button
+                onClick={toggleBalancePrivacy}
+                className="p-2 rounded-lg hover:bg-primary/20 text-muted-foreground hover:text-primary transition-colors border border-transparent hover:border-primary/30"
+                title={isBalanceHidden ? 'Tampilkan Saldo Rupiah' : 'Sembunyikan Saldo Rupiah'}
+                aria-label="Toggle Saldo Rupiah"
+              >
+                {isBalanceHidden ? <EyeOff className="w-4 h-4 text-amber-500" /> : <Eye className="w-4 h-4" />}
+              </button>
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-lg hover:bg-primary/20 text-muted-foreground hover:text-primary transition-colors border border-transparent hover:border-primary/30"

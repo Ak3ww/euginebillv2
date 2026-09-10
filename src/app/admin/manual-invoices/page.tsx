@@ -31,6 +31,7 @@ import {
   Trash2,
   Edit,
   Eye,
+  EyeOff,
   DollarSign,
   Search,
   RefreshCw,
@@ -44,6 +45,8 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useBalancePrivacy } from '@/lib/balance-privacy';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { formatWIB } from '@/lib/timezone';
 
@@ -112,6 +115,7 @@ function ItemRow({
   onRemove: (idx: number) => void;
   canRemove: boolean;
 }) {
+  const { formatRupiah } = useBalancePrivacy();
   return (
     <tr className="border-b border-border/60 hover:bg-muted/10 transition-colors">
       <td className="py-3 px-3 text-center text-muted-foreground text-xs font-semibold w-10">
@@ -151,7 +155,7 @@ function ItemRow({
         </div>
       </td>
       <td className="py-3 px-3 w-48 text-right font-semibold text-foreground text-sm">
-        {formatRp(item.total)}
+        {formatRupiah(item.total)}
       </td>
       <td className="py-3 px-2 w-12 text-center">
         {canRemove && (
@@ -172,6 +176,8 @@ function ItemRow({
 // ─── Main Page Component ──────────────────────────────────────────────────────
 
 export default function ManualInvoicesPage() {
+  const { isHidden: isBalanceHidden, toggleHide: toggleBalancePrivacy, formatRupiah } = useBalancePrivacy();
+  const formatRp = (amount: number) => formatRupiah(amount);
   const [invoices, setInvoices] = useState<ManualInvoice[]>([]);
   const [stats, setStats] = useState<Stats>({ pendingCount: 0, pendingAmount: 0, paidCount: 0, paidAmount: 0, cancelledCount: 0 });
   const [loading, setLoading] = useState(true);
@@ -398,12 +404,28 @@ export default function ManualInvoicesPage() {
             Buat invoice one-time untuk penjualan perangkat (OLT, kabel, ODP, splitter, precon) atau jasa proyek
           </p>
         </div>
-        {!isFormOpen && (
-          <Button onClick={openCreate} className="gap-2 bg-[#002C60] hover:bg-[#1b437c] text-white">
-            <Plus className="h-4 w-4" />
-            Buat Invoice Baru
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={toggleBalancePrivacy}
+            className={cn(
+              "gap-1.5 h-9",
+              isBalanceHidden ? "text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/30" : ""
+            )}
+            title={isBalanceHidden ? 'Tampilkan Saldo Rupiah' : 'Sembunyikan Saldo Rupiah'}
+          >
+            {isBalanceHidden ? <EyeOff className="h-4 w-4 text-amber-500" /> : <Eye className="h-4 w-4" />}
+            {isBalanceHidden ? 'Buka Saldo' : 'Tutup Saldo'}
           </Button>
-        )}
+          {!isFormOpen && (
+            <Button onClick={openCreate} className="gap-2 bg-[#002C60] hover:bg-[#1b437c] text-white">
+              <Plus className="h-4 w-4" />
+              Buat Invoice Baru
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* ─── INLINE FORM CARD (NO POPUP MODAL) ─────────────────────────────── */}
@@ -628,7 +650,11 @@ export default function ManualInvoicesPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#002C60]/5 border-[#002C60]/20">
+        <Card 
+          className="bg-[#002C60]/5 border-[#002C60]/20 cursor-pointer hover:border-[#002C60]/40 transition-colors select-none"
+          onClick={toggleBalancePrivacy}
+          title={isBalanceHidden ? 'Klik untuk tampilkan nominal' : 'Klik untuk sembunyikan nominal'}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Nilai</CardTitle>
             <DollarSign className="h-4 w-4 text-[#002C60]" />
