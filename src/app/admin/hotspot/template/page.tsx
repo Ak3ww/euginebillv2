@@ -268,8 +268,8 @@ export default function VoucherTemplatesPage() {
         usageQuota: 5 * 1024 * 1024 * 1024, // 5GB
         usageDuration: 180 // 3 hours
       },
-      router: { name: 'Router Cibinong', shortname: 'CBG', dnsName: 'wifi.euginemediagroup.com' },
-      dnsName: 'wifi.euginemediagroup.com'
+      router: { name: 'Hotspot Gateway', shortname: 'WIFI', dnsName: 'wifi.hotspot.local' },
+      dnsName: 'wifi.hotspot.local'
     },
     {
       code: 'USER5678',
@@ -282,15 +282,15 @@ export default function VoucherTemplatesPage() {
         usageQuota: 10 * 1024 * 1024 * 1024, // 10GB
         usageDuration: 1440 // 24 hours
       },
-      router: { name: 'Router Cibinong', shortname: 'CBG', dnsName: 'wifi.euginemediagroup.com' },
-      dnsName: 'wifi.euginemediagroup.com'
+      router: { name: 'Hotspot Gateway', shortname: 'WIFI', dnsName: 'wifi.hotspot.local' },
+      dnsName: 'wifi.hotspot.local'
     }
   ];
 
   const previewHtml = renderVoucherTemplate(
     formData.htmlTemplate,
     sampleVouchers,
-    { currencyCode: 'Rp', companyName: 'Router Cibinong', dnsName: 'wifi.euginemediagroup.com' }
+    { currencyCode: 'Rp', companyName: 'Hotspot Gateway', dnsName: 'wifi.hotspot.local' }
   );
 
   return (

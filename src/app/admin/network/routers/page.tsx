@@ -33,6 +33,7 @@ interface Router {
       services: Record<string, { public: number; target: number }>
     }
   }
+  authMode?: string
   isActive: boolean
   createdAt: string
 }
@@ -80,6 +81,7 @@ export default function RouterPage() {
     community: '',
     description: '',
     vpnClientId: '',
+    authMode: 'local',
   })
   const [useVpnClient, setUseVpnClient] = useState(false)
   const [testResult, setTestResult] = useState<{
@@ -106,7 +108,7 @@ export default function RouterPage() {
     hotspotAddress: '10.50.10.1',
     hotspotSubnet: '10.50.10.0/24',
     poolRange: '10.50.10.10-10.50.10.250',
-    dnsName: 'wifi.euginemediagroup.com',
+    dnsName: 'wifi.hotspot.local',
   })
 
   useEffect(() => {
@@ -323,6 +325,7 @@ export default function RouterPage() {
     setFormData({
       name: '', nasname: '', shortname: '', type: 'mikrotik', ipAddress: '', username: '', password: '',
       port: '8728', apiPort: '8729', secret: 'secret123', ports: '1812', server: '', community: '', description: '', vpnClientId: '',
+      authMode: 'local',
     })
     setTestResult(null)
     setUseVpnClient(false)
@@ -336,6 +339,7 @@ export default function RouterPage() {
       port: routerData.port.toString(), apiPort: routerData.apiPort.toString(), secret: routerData.secret,
       ports: routerData.ports.toString(), server: routerData.server || '', community: routerData.community || '',
       description: routerData.description || '', vpnClientId: routerData.vpnClientId || '',
+      authMode: routerData.authMode || 'local',
     })
     setUseVpnClient(!!routerData.vpnClientId)
     setTestResult(null)
@@ -683,7 +687,7 @@ export default function RouterPage() {
               <div className="bg-[#0f0a1e] border border-[#334155] rounded-lg p-3 text-xs">
                 <div className="font-semibold text-emerald-400 mb-1.5">Walled Garden Payment Gateway (Otomatis):</div>
                 <div className="flex flex-wrap gap-1.5">
-                  {['*.euginemediagroup.com', '*.midtrans.com', '*.xendit.co', '*.tripay.co.id', '*.duitku.com'].map((d) => (
+                  {['*.midtrans.com', '*.xendit.co', '*.tripay.co.id', '*.duitku.com', '*.qrin.id'].map((d) => (
                     <span key={d} className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-mono text-[11px]">
                       {d}
                     </span>
@@ -927,6 +931,15 @@ export default function RouterPage() {
                                   via VPN: {routerData.vpnClient.name}
                                 </span>
                               )}
+                              {routerData.authMode === 'radius' ? (
+                                <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-indigo-500/20 border border-indigo-500/40 text-indigo-400">
+                                  FreeRADIUS
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-400">
+                                  Local API
+                                </span>
+                              )}
                             </div>
                             <p className="text-muted-foreground text-sm mt-0.5">{routerData.type} • {routerData.nasname}</p>
                           </div>
@@ -1096,6 +1109,25 @@ export default function RouterPage() {
                     <option value="gateway" className="bg-background dark:bg-slate-800">{t('network.gatewayVps')}</option>
                     <option value="other" className="bg-background dark:bg-slate-800">{t('network.other')}</option>
                   </select>
+                </div>
+
+                {/* Mode Autentikasi */}
+                <div>
+                  <label className="block text-sm font-medium text-[#00f7ff] mb-2">Mode Autentikasi Pelanggan *</label>
+                  <select
+                    value={formData.authMode || 'local'}
+                    onChange={(e) => setFormData({ ...formData, authMode: e.target.value })}
+                    className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
+                    required
+                  >
+                    <option value="local" className="bg-background dark:bg-slate-800">Local MikroTik API (Default - Langsung RouterOS)</option>
+                    <option value="radius" className="bg-background dark:bg-slate-800">FreeRADIUS Server (Direct MySQL & CoA)</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formData.authMode === 'radius' 
+                      ? 'Autentikasi dikelola terpusat via server FreeRADIUS di MySQL radcheck/radreply.' 
+                      : 'Autentikasi dikelola langsung pada database internal MikroTik (/ppp/secret & /ip/hotspot/user).'}
+                  </p>
                 </div>
 
                 {/* VPN Client Toggle */}

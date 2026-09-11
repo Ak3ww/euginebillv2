@@ -286,7 +286,7 @@ export async function POST(
     }
 
     const company = await prisma.company.findFirst();
-    const appBaseUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://euginemediagroup.com';
+    const appBaseUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || '';
 
     if (invoice) {
       // Auto-generate paymentLink and paymentToken if missing
@@ -389,7 +389,7 @@ export async function POST(
             }
           } catch { }
 
-          const appBaseUrl = company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://euginemediagroup.com';
+          const appBaseUrl = company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || '';
 
           // Fire and forget — don't block the response
           sendPSBReportToGroup({

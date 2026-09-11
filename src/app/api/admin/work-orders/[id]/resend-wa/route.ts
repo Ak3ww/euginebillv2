@@ -30,7 +30,7 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
       }, { status: 400 });
     }
 
-    const appBaseUrl = company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://euginemediagroup.com';
+    const appBaseUrl = company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || '';
     const reportData = typeof wo.reportData === 'string' ? JSON.parse(wo.reportData) : (wo.reportData || {});
     const reportPhotos = typeof wo.reportPhotos === 'string' ? JSON.parse(wo.reportPhotos) : (wo.reportPhotos || {});
 

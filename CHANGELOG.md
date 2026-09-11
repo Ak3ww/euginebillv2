@@ -4,6 +4,67 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.0] — 2026-09-11
+### Commercial Release Readiness: First-Time Setup Wizard, Local Auth Mode, Manual Bank Transfer, & Zero-Hardcoding Sanitization
+- **Transformasi Komersial EugineBill Siap Sewa / Jual (Managed Single-Tenant VPS)**:
+  - *Context / User Request*:
+    Mempersiapkan codebase EugineBill agar 100% siap disewakan dan dijual ke klien ISP/RT-RW Net baru sebagai layanan Managed Single-Tenant VPS. Menjamin tidak ada hardcoded domain/logo vendor lama, menyediakan instalasi wizard pertama kali tanpa seeding database manual, mendukung mode autentikasi lokal MikroTik per router tanpa wajib RADIUS, auto-show pembayaran transfer manual di link bayar pelanggan jika gateway belum disetup, serta menyediakan skrip patch git yang aman dari risiko data loss.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **First-Time Setup Wizard (`/setup` & `/api/setup`)**:
+       - Mengembangkan antarmuka wizard visual 3 langkah (Profil ISP, Akun Superadmin, Default Billing & Identitas) dengan tema Hallmark Oceanic Blue.
+       - Menyediakan proteksi backend: route `/api/setup` otomatis mendeteksi status inisialisasi database. Jika superadmin sudah ada, endpoint terkunci secara permanen dan menolak permintaan pendaftaran ulang.
+       - Mengintegrasikan deteksi otomatis pada `/admin/login`: jika sistem belum diinisialisasi, pengguna langsung dialihkan ke `/setup`.
+       - Mendaftarkan rute `/setup` ke dalam bypass middleware `src/proxy.ts` (subdomain & isolated IP bypass).
+    2. **Per-Router Authentication Mode (`authMode: 'local' | 'radius'`)**:
+       - Menambahkan kolom `authMode String @default("local")` pada model `router` di `prisma/schema.prisma`.
+       - Memperbarui API router (`src/app/api/network/routers/route.ts`) untuk menangani penyimpanan dan pembaruan `authMode`.
+       - Menambahkan badge status mode autentikasi pada kartu router dan dropdown seleksi mode pada modal router di `/admin/network/routers`. Mode lokal MikroTik ditetapkan sebagai standar bawaan.
+    3. **Auto-Show Transfer Bank Manual pada Halaman Pembayaran (`/pay/[token]`)**:
+       - Mengembangkan sistem deteksi dinamis gateway pembayaran: jika belum ada payment gateway online aktif (`paymentGateways.length === 0`), formulir Transfer Bank Manual otomatis dibuka sebagai metode pembayaran utama.
+       - Menampilkan kartu rekening resmi perusahaan (`company.bankAccounts`) dilengkapi tombol 1-klik salin nomor rekening, petunjuk transfer nominal tagihan tepat, dan formulir konfirmasi bukti transfer yang langsung tersambung ke `POST /api/pay/[token]/manual`.
+       - Jika payment gateway online aktif, opsi transfer manual tetap dapat diakses sebagai opsi alternatif tanpa membebani biaya gateway.
+    4. **Sanitasi Zero-Hardcoding Menyeluruh**:
+       - Mengeliminasi seluruh fallback domain statis `https://euginemediagroup.com` di `whatsapp-templates.service.ts`, `auto-isolation.ts`, `broadcast/route.ts`, serta endpoint `work-orders`. Seluruh rujukan digantikan secara dinamis oleh `company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || ''`.
+       - Mengganti domain hotspot statis `wifi.euginemediagroup.com` dengan `wifi.hotspot.local` dan nama router dinamis di `templateRenderer.ts`, `voucher/page.tsx`, dan `setup-hotspot/route.ts`.
+       - Mengotomatisasi injeksi aturan Walled Garden MikroTik: script setup hotspot kini membaca hostname server billing secara dinamis dari `company.baseUrl` atau `NEXT_PUBLIC_APP_URL`.
+       - Mengganti fallback IP ONT remote proxy `43.173.14.236` pada `ont-remote/route.ts` dengan deteksi dinamis header host atau `process.env.VPS_PUBLIC_IP`.
+       - Mengganti aset logo fallback statis `eugine-logo.png` dengan logo dinamis perusahaan atau `/logo.png`.
+    5. **Skrip Pembaruan Aman & Setup Port VPS**:
+       - Menyusun `scripts/safe-update.sh`: melakukan snapshot backup database otomatis (`mysqldump` terkompresi `.sql.gz`), backup `.env`, `git pull`, `npx prisma db push --skip-generate` tanpa menghapus data, `npm run build`, dan graceful reload proses PM2 (`EugineBill-radius`, `EugineBill-wa`, `EugineBill-cron`).
+       - Menyusun `scripts/setup-vps-ports.sh`: otomatisasi konfigurasi firewall UFW untuk seluruh port layanan (80, 443, 22, 51820 UDP, 1812/1813/3799 UDP, dan rentang proxy ONT 24000:24999 TCP).
+       - Memperbarui template `.env.example` dengan dokumentasi lengkap variabel produksi.
+    6. **Dokumentasi Resmi Deployment Vendor**:
+       - Menyusun dokumen panduan `docs/setup/VENDOR_DEPLOYMENT_GUIDE.md` yang merinci langkah instalasi awal, arsitektur single-tenant, konfigurasi firewall, hingga serah terima sistem ke klien.
+  - *Files*:
+    - `prisma/schema.prisma`
+    - `src/proxy.ts`
+    - `src/app/setup/page.tsx`
+    - `src/app/api/setup/route.ts`
+    - `src/app/admin/login/page.tsx`
+    - `src/app/api/network/routers/route.ts`
+    - `src/app/admin/network/routers/page.tsx`
+    - `src/app/pay/[token]/page.tsx`
+    - `src/app/api/invoices/by-token/[token]/route.ts`
+    - `src/server/services/notifications/whatsapp-templates.service.ts`
+    - `src/server/jobs/auto-isolation.ts`
+    - `src/app/api/whatsapp/broadcast/route.ts`
+    - `src/app/api/technician/work-orders/[id]/complete/route.ts`
+    - `src/app/api/admin/work-orders/[id]/route.ts`
+    - `src/app/api/admin/work-orders/[id]/resend-wa/route.ts`
+    - `src/lib/utils/templateRenderer.ts`
+    - `src/app/admin/hotspot/voucher/page.tsx`
+    - `src/app/admin/hotspot/template/page.tsx`
+    - `src/app/api/network/routers/[id]/setup-hotspot/route.ts`
+    - `src/app/api/network/ont-remote/route.ts`
+    - `src/app/customer/CustomerClientLayout.tsx`
+    - `src/app/customer/login/page.tsx`
+    - `src/app/admin/technicians/page.tsx`
+    - `scripts/safe-update.sh`
+    - `scripts/setup-vps-ports.sh`
+    - `.env.example`
+    - `docs/setup/VENDOR_DEPLOYMENT_GUIDE.md`
+    - `CHANGELOG.md`
+
 ## [2.38.6] — 2026-09-11
 ### Client Field Deployment Kits & OLT Standardization
 - **Rilis Repositori & Standardisasi Field Deployment Toolkit (`euginemedia-client-kits`)**:

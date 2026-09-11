@@ -308,8 +308,8 @@ export async function sendIsolationNotification(
       select: { amount: true, paymentToken: true, createdAt: true },
     });
 
-    const rawBaseUrl = company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://euginemediagroup.com';
-    const baseUrl = ensureHttpsUrl(rawBaseUrl);
+    const rawBaseUrl = company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || '';
+    const baseUrl = rawBaseUrl ? ensureHttpsUrl(rawBaseUrl) : '';
 
     // If paymentToken is present, construct direct payment link
     const paymentLink = unpaidInvoice?.paymentToken

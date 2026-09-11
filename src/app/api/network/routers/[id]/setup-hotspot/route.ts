@@ -21,9 +21,16 @@ export async function POST(
 
     // Company settings
     const company = await prisma.company.findFirst({
-      select: { radiusHotspotEnabled: true, radiusEnabled: true },
+      select: { radiusHotspotEnabled: true, radiusEnabled: true, baseUrl: true },
     });
     const useRadiusHotspot = company?.radiusHotspotEnabled ?? false;
+    const rawAppUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || '';
+    let billingDomain = '';
+    try {
+      if (rawAppUrl) {
+        billingDomain = new URL(rawAppUrl.startsWith('http') ? rawAppUrl : `http://${rawAppUrl}`).hostname;
+      }
+    } catch {}
 
     // Configurable parameters with smart defaults
     const vlanId = parseInt(body.vlanId || '10');
@@ -32,7 +39,7 @@ export async function POST(
     const hotspotAddress = body.hotspotAddress || '10.50.10.1';
     const hotspotSubnet = body.hotspotSubnet || '10.50.10.0/24';
     const poolRange = body.poolRange || '10.50.10.10-10.50.10.250';
-    const dnsName = body.dnsName || 'wifi.euginemediagroup.com';
+    const dnsName = body.dnsName || router.dnsName || 'wifi.hotspot.local';
     const serverName = body.serverName || `hotspot-vlan${vlanId}`;
     const profileName = body.profileName || `hsprof-${vlanId}`;
     const poolName = `hs-pool-${vlanId}`;
@@ -94,8 +101,8 @@ export async function POST(
 
 # 8. Walled Garden (Billing & Payment Gateways)
 /ip hotspot walled-garden remove [find where comment~"EugineBill"]
-/ip hotspot walled-garden add dst-host="*.euginemediagroup.com" action=allow comment="EugineBill Billing Domain"
-/ip hotspot walled-garden add dst-host="euginemediagroup.com" action=allow comment="EugineBill Billing Root"
+${billingDomain ? `/ip hotspot walled-garden add dst-host="*.${billingDomain}" action=allow comment="EugineBill Billing Domain"
+/ip hotspot walled-garden add dst-host="${billingDomain}" action=allow comment="EugineBill Billing Root"` : ''}
 /ip hotspot walled-garden add dst-host="*.midtrans.com" action=allow comment="EugineBill Midtrans Payment"
 /ip hotspot walled-garden add dst-host="*.xendit.co" action=allow comment="EugineBill Xendit Payment"
 /ip hotspot walled-garden add dst-host="*.tripay.co.id" action=allow comment="EugineBill Tripay Payment"
@@ -250,8 +257,7 @@ export async function POST(
 
         // 8. Walled Garden
         const wgDomains = [
-          '*.euginemediagroup.com',
-          'euginemediagroup.com',
+          ...(billingDomain ? [`*.${billingDomain}`, billingDomain] : []),
           '*.midtrans.com',
           '*.xendit.co',
           '*.tripay.co.id',

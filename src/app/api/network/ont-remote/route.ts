@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       }
     }
     if (!resolvedPublicIp) {
-      resolvedPublicIp = process.env.VPS_PUBLIC_IP || process.env.VPS_HOST || '43.173.14.236'
+      resolvedPublicIp = process.env.VPS_PUBLIC_IP || process.env.VPS_HOST || currentDomain || '127.0.0.1'
     }
 
     const proxyUrl = `http://${resolvedPublicIp}:${proxyPort}`

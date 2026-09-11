@@ -81,7 +81,8 @@ export default async function proxy(req: NextRequest) {
         pathname.startsWith('/invoice') || 
         pathname.startsWith('/pay') || 
         pathname.startsWith('/isolated') || 
-        pathname.startsWith('/uploads');
+        pathname.startsWith('/uploads') ||
+        pathname.startsWith('/setup');
 
       if (!isSystem && !isStaticFile && !isStandaloneRoute) {
         if (!pathname.startsWith(targetBase)) {
@@ -147,7 +148,7 @@ export default async function proxy(req: NextRequest) {
       
       if (isIsolatedIp) {
         const allowedPaths = [
-          '/isolated', '/pay', '/api', '/_next', '/favicon.ico', '/logo.png', '/images', '/admin',
+          '/isolated', '/pay', '/setup', '/api', '/_next', '/favicon.ico', '/logo.png', '/images', '/admin',
         ];
         const isAllowedPath = allowedPaths.some(path => pathname.startsWith(path));
         const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(pathname);
@@ -164,7 +165,7 @@ export default async function proxy(req: NextRequest) {
       console.error('[PROXY] Error checking isolation settings:', error);
       // Fallback hardcoded check
       if (sourceIp.startsWith('192.168.200.')) {
-        const allowedPaths = ['/isolated', '/pay', '/api', '/_next', '/favicon.ico', '/logo.png', '/images', '/admin'];
+        const allowedPaths = ['/isolated', '/pay', '/setup', '/api', '/_next', '/favicon.ico', '/logo.png', '/images', '/admin'];
         const isAllowedPath = allowedPaths.some(path => pathname.startsWith(path));
         const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(pathname);
         

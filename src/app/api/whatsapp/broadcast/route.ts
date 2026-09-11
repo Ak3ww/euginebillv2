@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     const replaceVariables = (template: string, user: any, company: any) => {
       // Invoice data (latest invoice for this user)
       const latestInvoice = user.invoices?.[0];
-      const baseUrl = (company?.baseUrl || 'https://euginemediagroup.com').replace(/\/$/, '');
+      const baseUrl = (company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
       const now = new Date();
       const dueDate = latestInvoice ? new Date(latestInvoice.dueDate) : null;
       const diffTime = dueDate ? dueDate.getTime() - now.getTime() : 0;

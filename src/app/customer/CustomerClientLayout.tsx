@@ -282,33 +282,29 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-    const resolvedLogo = companyLogo || '/images/eugine-logo.png';
+    const resolvedLogo = companyLogo || '/logo.png';
 
     return (
     <div className="min-h-screen flex flex-col md:flex-row font-sans bg-slate-50 text-slate-900 selection:bg-[#002c60] selection:text-white">
       
       {/* ── Desktop Sidebar (Hidden on Mobile) ── */}
       <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 bg-white border-r border-slate-200/80 z-40 transition-colors duration-200 shrink-0 shadow-2xs">
-        {/* Brand Header with Eugine Media Logo */}
+        {/* Brand Header */}
         <div className="p-4 border-b border-slate-100 flex items-center gap-3">
           <div className="h-11 w-11 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center p-1 shadow-2xs overflow-hidden shrink-0">
             <img 
               src={resolvedLogo} 
-              alt={companyName || 'Eugine Media'} 
+              alt={companyName || 'Portal Pelanggan'} 
               className="h-full w-full object-contain"
               onError={(e) => { 
                 const target = e.target as HTMLImageElement;
-                if (target.src.endsWith('/logo.png')) {
-                  target.style.display = 'none';
-                } else {
-                  target.src = '/logo.png';
-                }
+                target.style.display = 'none';
               }}
             />
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="text-sm font-bold text-slate-900 truncate leading-tight tracking-tight">
-              {companyName || 'Eugine Media'}
+              {companyName || 'Portal Pelanggan'}
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />

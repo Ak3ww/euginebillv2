@@ -189,7 +189,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, ipAddress, nasIpAddress, nasname: nasnameFromBody, username, password, port, apiPort, secret, latitude, longitude, vpnClientId, type } = body;
+    const { name, ipAddress, nasIpAddress, nasname: nasnameFromBody, username, password, port, apiPort, secret, latitude, longitude, vpnClientId, type, authMode } = body;
 
     // Basic validation
     if (!name || !ipAddress) {
@@ -288,6 +288,7 @@ export async function POST(request: NextRequest) {
         latitude: latitude ? parseFloat(latitude) : null,
         longitude: longitude ? parseFloat(longitude) : null,
         vpnClientId: vpnClientId || null,
+        authMode: authMode === 'radius' ? 'radius' : 'local',
         isActive: true,
       },
     });
@@ -334,7 +335,7 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     // Support both 'nasname' (from frontend) and 'nasIpAddress' for backward compatibility
-    const { id, name, type, ipAddress, nasIpAddress, nasname: nasnameFromBody, username, password, port, secret, isActive, latitude, longitude, vpnClientId } = body;
+    const { id, name, type, ipAddress, nasIpAddress, nasname: nasnameFromBody, username, password, port, secret, isActive, latitude, longitude, vpnClientId, authMode } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Router ID is required' }, { status: 400 });
@@ -402,6 +403,7 @@ export async function PUT(request: NextRequest) {
         ...(latitude !== undefined && { latitude: latitude ? parseFloat(latitude) : null }),
         ...(longitude !== undefined && { longitude: longitude ? parseFloat(longitude) : null }),
         ...(vpnClientId !== undefined && { vpnClientId: vpnClientId || null }),
+        ...(authMode !== undefined && { authMode: authMode === 'radius' ? 'radius' : 'local' }),
         // server: NULL - untuk FreeRADIUS virtual_server name
       },
     });

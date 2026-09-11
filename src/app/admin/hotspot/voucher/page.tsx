@@ -352,10 +352,10 @@ export default function HotspotVoucherPage() {
         usageDuration: v.profile.usageDuration
       },
       router: v.router ? { name: v.router.name, shortname: v.router.shortname, dnsName: (v.router as any).dnsName } : undefined,
-      dnsName: (v.router as any)?.dnsName || 'wifi.euginemediagroup.com'
+      dnsName: (v.router as any)?.dnsName || 'wifi.hotspot.local'
     }));
     const firstRouter = vouchersToPrint.find(v => v.router)?.router?.name || companyName;
-    const dnsName = (vouchersToPrint.find(v => v.router)?.router as any)?.dnsName || 'wifi.euginemediagroup.com';
+    const dnsName = (vouchersToPrint.find(v => v.router)?.router as any)?.dnsName || 'wifi.hotspot.local';
     const rendered = renderVoucherTemplate(templateHtml, voucherData, { 
       currencyCode: 'Rp', 
       companyName: firstRouter,

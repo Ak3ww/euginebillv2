@@ -182,9 +182,9 @@ export function renderVoucherTemplate(
   context?: RenderContext
 ): string {
   const currencyCode = context?.currencyCode || 'Rp'
-  const companyName = context?.companyName || 'EugineBill'
-  const defaultDns = context?.dnsName || 'wifi.euginemediagroup.com'
-  const defaultSsid = context?.ssid || 'Eugine Hotspot'
+  const companyName = context?.companyName || 'Hotspot'
+  const defaultDns = context?.dnsName || 'wifi.hotspot.local'
+  const defaultSsid = context?.ssid || 'Hotspot'
 
   // Split template into header, body, footer
   const headerMatch = templateHtml.match(/\{include file="rad-template-header\.tpl"\}([\s\S]*?)\{foreach/)

@@ -282,16 +282,12 @@ export default function CustomerLoginPage() {
           <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-white shadow-sm border border-slate-200/80 mb-3.5">
               <img
-                src={companyLogo || '/images/eugine-logo.png'}
-                alt={companyName || 'Eugine Media Group'}
+                src={companyLogo || '/logo.png'}
+                alt={companyName || 'Portal Pelanggan'}
                 className="h-14 sm:h-16 w-auto max-w-[220px] object-contain"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
-                  if (target.src.endsWith('/logo.png')) {
-                    target.style.display = 'none';
-                  } else {
-                    target.src = '/logo.png';
-                  }
+                  target.style.display = 'none';
                 }}
               />
             </div>

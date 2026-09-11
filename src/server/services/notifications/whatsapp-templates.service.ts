@@ -37,17 +37,17 @@ function renderTemplate(template: string, variables: Record<string, any>): strin
     ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(rawAmount)
     : (rawAmount || '');
 
-  const rawBaseUrl = variables.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://euginemediagroup.com';
-  const baseUrl = ensureHttpsUrl(rawBaseUrl);
+  const rawBaseUrl = variables.baseUrl || process.env.NEXT_PUBLIC_APP_URL || '';
+  const baseUrl = rawBaseUrl ? ensureHttpsUrl(rawBaseUrl) : '';
 
-  const rawDownloadUrl = variables.link_download_aplikasi || variables.appDownloadLink || `${baseUrl}/download-app`;
-  const downloadAppUrl = ensureHttpsUrl(rawDownloadUrl);
+  const rawDownloadUrl = variables.link_download_aplikasi || variables.appDownloadLink || (baseUrl ? `${baseUrl}/download-app` : '');
+  const downloadAppUrl = rawDownloadUrl ? ensureHttpsUrl(rawDownloadUrl) : '';
 
-  const rawPaymentLink = variables.paymentLink || variables.payment_link || variables.paymentUrl || (variables.paymentToken ? `${baseUrl}/pay/${variables.paymentToken}` : '');
-  const paymentLink = ensureHttpsUrl(rawPaymentLink);
+  const rawPaymentLink = variables.paymentLink || variables.payment_link || variables.paymentUrl || (variables.paymentToken && baseUrl ? `${baseUrl}/pay/${variables.paymentToken}` : '');
+  const paymentLink = rawPaymentLink ? ensureHttpsUrl(rawPaymentLink) : '';
 
   const rawQrCode = variables.qrCode || variables.qrCodeImage || paymentLink;
-  const qrCode = ensureHttpsUrl(rawQrCode);
+  const qrCode = rawQrCode ? ensureHttpsUrl(rawQrCode) : '';
 
   const customerIdRaw = variables.customerId;
   const customerId = (customerIdRaw && customerIdRaw !== '-' && customerIdRaw !== 'undefined')

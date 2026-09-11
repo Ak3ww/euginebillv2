@@ -44,7 +44,9 @@ function LoginForm() {
   const [tfaCode, setTfaCode] = useState('');
   const tfaInputRef = useRef<HTMLInputElement>(null);
 
-  // Check idle logout
+  const [setupSuccess, setSetupSuccess] = useState(false);
+
+  // Check idle logout or setup success
   useEffect(() => {
     const reason = searchParams.get('reason');
     if (reason === 'idle') {
@@ -53,10 +55,26 @@ function LoginForm() {
         window.history.replaceState({}, '', '/admin/login');
       }, 100);
     }
+    if (searchParams.get('setup') === 'success') {
+      setSetupSuccess(true);
+      setTimeout(() => {
+        window.history.replaceState({}, '', '/admin/login');
+      }, 5000);
+    }
   }, [searchParams]);
 
-  // Load company branding
+  // Load company branding & check if system needs setup
   useEffect(() => {
+    // Check initialization status
+    fetch('/api/setup')
+      .then(res => res.json())
+      .then(setupData => {
+        if (setupData.success && setupData.isInitialized === false) {
+          router.replace('/setup');
+        }
+      })
+      .catch(() => {});
+
     fetch('/api/public/company')
       .then(res => res.json())
       .then(data => {
@@ -70,7 +88,7 @@ function LoginForm() {
       })
       .catch(() => {})
       .finally(() => setBrandLoaded(true));
-  }, []);
+  }, [router]);
 
   // Redirect if already authenticated (e.g. user navigates to /admin/login while already logged in)
   useEffect(() => {
@@ -242,6 +260,19 @@ function LoginForm() {
                 <div>
                   <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">{t('auth.sessionExpired')}</p>
                   <p className="text-xs text-amber-600/80 dark:text-amber-500/80">{t('auth.sessionExpiredDesc')}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Setup Success Notice */}
+          {setupSuccess && (
+            <div className="mb-4 p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-xl animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Inisialisasi Berhasil!</p>
+                  <p className="text-xs text-emerald-700/90 dark:text-emerald-400/80">Silakan login menggunakan akun super admin yang baru Anda buat.</p>
                 </div>
               </div>
             </div>

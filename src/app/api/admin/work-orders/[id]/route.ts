@@ -157,7 +157,7 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
 
       if (invoice) {
         const company = await prisma.company.findFirst();
-        const appBaseUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://euginemediagroup.com';
+        const appBaseUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || '';
 
         let paymentLink = invoice.paymentLink || '';
         let paymentToken = invoice.paymentToken || '';

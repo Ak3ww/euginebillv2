@@ -422,7 +422,7 @@ export default function TechniciansManagementPage() {
                   type="email" 
                   value={formData.email} 
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
-                  placeholder="teknisi@euginemedia.com" 
+                  placeholder="teknisi@domain.com" 
                 />
               </div>
 

@@ -8,7 +8,8 @@ import {
   CheckCircle, Clock, AlertCircle, CreditCard, Building2, 
   Loader2, User, Phone, Package, Calendar, MapPin, 
   FileText, Image as ImageIcon, QrCode, Download, ChevronLeft, ChevronRight,
-  CheckCircle2, Copy, ArrowRight, ShieldCheck, Zap, Store
+  CheckCircle2, Copy, ArrowRight, ShieldCheck, Zap, Store,
+  ChevronDown, ChevronUp, Upload, Check
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { BankInstructions } from './BankInstructions';
@@ -41,7 +42,8 @@ interface Invoice {
 }
 
 interface PaymentGateway { id: string; name: string; provider: string; isActive: boolean; }
-interface CompanySetting { name: string; address: string | null; phone: string | null; email: string | null; logo?: string | null; bankAccounts?: any; }
+export interface BankAccountItem { bankName: string; accountNumber: string; accountName: string; }
+interface CompanySetting { name: string; address: string | null; phone: string | null; email: string | null; logo?: string | null; bankAccounts?: BankAccountItem[] | any; }
 
 export default function PaymentPage() {
   const params = useParams();
@@ -74,13 +76,21 @@ export default function PaymentPage() {
   // 24-hour countdown timer for QRIS
   const [countdownSeconds, setCountdownSeconds] = useState(24 * 60 * 60 - 118); // default ~23:58:02
 
-  // Manual Transfer (Hidden by default, preserved for future toggle)
-  const SHOW_MANUAL_TRANSFER = false;
+  // Manual Transfer State
   const [showManualForm, setShowManualForm] = useState(false);
-  const [manualForm, setManualForm] = useState({ bankName: '', accountNumber: '', accountName: '', destinationBank: '', notes: '', receiptImage: null as File | null });
+  const [manualForm, setManualForm] = useState({
+    bankName: '',
+    accountNumber: '',
+    accountName: '',
+    destinationBank: '',
+    notes: '',
+    receiptImage: null as File | null
+  });
   const [uploading, setUploading] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
   const [manualSuccess, setManualSuccess] = useState(false);
+  const [copiedBankIdx, setCopiedBankIdx] = useState<number | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
 
   // Timer ticker
   useEffect(() => {
@@ -185,12 +195,36 @@ export default function PaymentPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Gagal memuat tagihan'); return; }
       setInvoice(data.invoice);
-      setPaymentGateways(data.paymentGateways || []);
+      const gateways: PaymentGateway[] = data.paymentGateways || [];
+      setPaymentGateways(gateways);
       setCompany(data.company || null);
-      if ((data.paymentGateways || []).some((g: PaymentGateway) => g.provider === 'duitku')) {
+
+      // Auto-show manual transfer if no payment gateways configured
+      if (gateways.length === 0) {
+        setShowManualForm(true);
+      }
+
+      // Prepopulate default destination bank if bank accounts exist
+      if (data.company?.bankAccounts) {
+        try {
+          const bList = Array.isArray(data.company.bankAccounts)
+            ? data.company.bankAccounts
+            : JSON.parse(data.company.bankAccounts);
+          if (bList.length > 0) {
+            setManualForm((prev) => ({
+              ...prev,
+              destinationBank: prev.destinationBank || `${bList[0].bankName} - ${bList[0].accountNumber} (${bList[0].accountName})`,
+            }));
+          }
+        } catch {
+          // Ignore parsing error
+        }
+      }
+
+      if (gateways.some((g: PaymentGateway) => g.provider === 'duitku')) {
         fetchDuitkuMethods(data.invoice?.amount || 10000);
       }
-      if ((data.paymentGateways || []).some((g: PaymentGateway) => g.provider === 'qrin')) {
+      if (gateways.some((g: PaymentGateway) => g.provider === 'qrin')) {
         fetchQrinMethods();
       }
     } catch (err) { setError('Koneksi terputus saat memuat tagihan'); } finally { setLoading(false); }
@@ -349,21 +383,38 @@ export default function PaymentPage() {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
-  // Preserved Manual Submit Handler
+  const handleReceiptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setManualError('Ukuran file maksimal 5MB.');
+      return;
+    }
+
+    setManualError(null);
+    setManualForm((prev) => ({ ...prev, receiptImage: file }));
+    const reader = new FileReader();
+    reader.onload = () => {
+      setReceiptPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleManualSubmit = async () => {
     setManualError(null);
     if (!manualForm.bankName || !manualForm.accountName || !manualForm.receiptImage) {
-      setManualError('Mohon lengkapi bank pengirim, nama pengirim, dan bukti transfer.');
+      setManualError('Mohon lengkapi bank pengirim, nama pemilik rekening, dan foto bukti transfer.');
       return;
     }
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('bankName', manualForm.bankName);
-      formData.append('accountNumber', manualForm.accountNumber);
+      formData.append('accountNumber', manualForm.accountNumber || '-');
       formData.append('accountName', manualForm.accountName);
-      formData.append('destinationBank', manualForm.destinationBank);
-      formData.append('notes', manualForm.notes);
+      formData.append('destinationBank', manualForm.destinationBank || 'Rekening Utama');
+      formData.append('notes', manualForm.notes || '');
       formData.append('receiptImage', manualForm.receiptImage);
 
       const res = await fetch(`/api/pay/${token}/manual`, {
@@ -374,9 +425,6 @@ export default function PaymentPage() {
       if (!res.ok) throw new Error(data.error || 'Gagal mengirim bukti transfer');
       
       setManualSuccess(true);
-      setTimeout(() => {
-        router.push('/customer/invoices');
-      }, 3000);
     } catch (err: any) {
       setManualError(err.message || 'Gagal upload bukti transfer');
     } finally {
@@ -671,6 +719,18 @@ export default function PaymentPage() {
     );
   }
 
+  const normalizedBankAccounts: BankAccountItem[] = company?.bankAccounts
+    ? (Array.isArray(company.bankAccounts)
+      ? company.bankAccounts
+      : (() => {
+          try {
+            return JSON.parse(company.bankAccounts);
+          } catch {
+            return [];
+          }
+        })())
+    : [];
+
   // ════════════════════════════════════════════════════════════════════════════
   // STATE 1: DEFAULT SELECTION MODE (INVOICE DETAIL & PAYMENT METHODS)
   // ════════════════════════════════════════════════════════════════════════════
@@ -850,22 +910,271 @@ export default function PaymentPage() {
             </div>
           )}
 
-          {/* ── 4. PRESERVED MANUAL TRANSFER (HIDDEN BY DEFAULT) ── */}
-          {SHOW_MANUAL_TRANSFER && (
-            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+          {/* ── 4. TRANSFER BANK MANUAL ── */}
+          {(paymentGateways.length === 0 || normalizedBankAccounts.length > 0) && (
+            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden transition-all">
               <button
+                type="button"
                 onClick={() => setShowManualForm(!showManualForm)}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left"
+                className="w-full flex items-center justify-between p-4 sm:p-5 hover:bg-slate-50/80 text-left transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <Building2 className="w-5 h-5 text-slate-600" />
+                <div className="flex items-center gap-3.5">
+                  <div className="p-2.5 bg-blue-50/80 border border-blue-200 rounded-xl shrink-0 text-[#002c60]">
+                    <Building2 className="w-5 h-5" />
+                  </div>
                   <div>
-                    <p className="text-xs sm:text-sm font-bold text-slate-800">Transfer Manual Bank</p>
-                    <p className="text-xs text-slate-500">Konfirmasi bukti transfer</p>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                        Transfer Bank Manual
+                      </h3>
+                      {paymentGateways.length === 0 ? (
+                        <span className="px-2 py-0.5 bg-blue-50 text-[#002c60] font-bold text-xs rounded-md border border-blue-200">
+                          Metode Utama
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-semibold text-xs rounded-md border border-slate-200">
+                          Konfirmasi Manual
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      {paymentGateways.length === 0 
+                        ? 'Transfer langsung ke rekening resmi dan kirim bukti pembayaran'
+                        : 'Pilihan alternatif transfer langsung tanpa gateway'}
+                    </p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                  {showManualForm ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
               </button>
+
+              {showManualForm && (
+                <div className="px-4 sm:px-6 pb-6 pt-2 border-t border-slate-100 space-y-5 animate-in fade-in duration-200">
+                  {/* Rekening Bank Tujuan */}
+                  {normalizedBankAccounts.length > 0 ? (
+                    <div className="space-y-2.5">
+                      <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Rekening Tujuan Resmi:
+                      </p>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {normalizedBankAccounts.map((acc, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3.5 rounded-xl border border-blue-100 bg-blue-50/40 flex items-center justify-between gap-3"
+                          >
+                            <div className="space-y-0.5 min-w-0">
+                              <span className="font-bold text-xs sm:text-sm text-slate-900 block truncate">
+                                {acc.bankName}
+                              </span>
+                              <p className="text-base sm:text-lg font-mono font-extrabold text-[#002c60] tracking-wide select-all">
+                                {acc.accountNumber}
+                              </p>
+                              <p className="text-xs text-slate-600 font-medium truncate">
+                                a/n <span className="font-semibold text-slate-800">{acc.accountName}</span>
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(acc.accountNumber);
+                                setCopiedBankIdx(idx);
+                                setTimeout(() => setCopiedBankIdx(null), 2000);
+                              }}
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#002c60] bg-white px-3 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-50 transition-colors shadow-2xs shrink-0"
+                            >
+                              {copiedBankIdx === idx ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                              {copiedBankIdx === idx ? 'Disalin' : 'Salin'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+                      Informasi nomor rekening belum dikonfigurasikan di sistem. Silakan hubungi customer service untuk informasi nomor rekening transfer.
+                    </div>
+                  )}
+
+                  {/* Instruksi Transfer */}
+                  <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1.5">
+                    <p className="font-bold text-amber-950">Petunjuk Transfer Manual:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-slate-700">
+                      <li>
+                        Transfer tepat sejumlah{' '}
+                        <span className="font-mono font-bold text-[#002c60]">{formatCurrency(invoice.amount)}</span>
+                      </li>
+                      <li>
+                        Tuliskan nomor tagihan pada berita transfer:{' '}
+                        <span className="font-mono font-bold text-slate-900">{invoice.invoiceNumber}</span>
+                      </li>
+                      <li>
+                        Simpan dan unggah foto struk / tangkapan layar bukti transfer pada formulir di bawah.
+                      </li>
+                    </ol>
+                  </div>
+
+                  {/* Formulir Konfirmasi Bukti Transfer */}
+                  {manualSuccess ? (
+                    <div className="p-5 rounded-xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
+                      <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+                      <h4 className="text-sm font-bold text-emerald-900">Bukti Transfer Berhasil Dikirim</h4>
+                      <p className="text-xs text-emerald-700 leading-relaxed">
+                        Terima kasih! Bukti pembayaran Anda telah kami terima dan segera diverifikasi oleh tim admin kami. Tagihan akan otomatis berubah menjadi lunas setelah diverifikasi.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 pt-2">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
+                        Formulir Konfirmasi Pembayaran
+                      </h4>
+
+                      {manualError && (
+                        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                          <span>{manualError}</span>
+                        </div>
+                      )}
+
+                      {normalizedBankAccounts.length > 1 && (
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Rekening Tujuan
+                          </label>
+                          <select
+                            value={manualForm.destinationBank}
+                            onChange={(e) => setManualForm({ ...manualForm, destinationBank: e.target.value })}
+                            className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#002c60]"
+                          >
+                            {normalizedBankAccounts.map((acc, idx) => (
+                              <option key={idx} value={`${acc.bankName} - ${acc.accountNumber} (${acc.accountName})`}>
+                                {acc.bankName} - {acc.accountNumber} ({acc.accountName})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Bank Pengirim <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Contoh: BCA / Mandiri / BRI / SeaBank"
+                            value={manualForm.bankName}
+                            onChange={(e) => setManualForm({ ...manualForm, bankName: e.target.value })}
+                            className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#002c60]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Nama Pemilik Rekening <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Sesuai buku tabungan / m-Banking"
+                            value={manualForm.accountName}
+                            onChange={(e) => setManualForm({ ...manualForm, accountName: e.target.value })}
+                            className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#002c60]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Nomor Rekening Pengirim <span className="text-slate-400 font-normal">(opsional)</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Contoh: 1234567890"
+                            value={manualForm.accountNumber}
+                            onChange={(e) => setManualForm({ ...manualForm, accountNumber: e.target.value })}
+                            className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#002c60]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Catatan <span className="text-slate-400 font-normal">(opsional)</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Keterangan tambahan jika ada"
+                            value={manualForm.notes}
+                            onChange={(e) => setManualForm({ ...manualForm, notes: e.target.value })}
+                            className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#002c60]"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          Foto / Bukti Transfer <span className="text-red-500">*</span>
+                        </label>
+                        <div className="mt-1 flex justify-center px-4 pt-4 pb-4 border-2 border-slate-200 border-dashed rounded-xl hover:border-[#002c60] transition-colors bg-slate-50/50">
+                          {receiptPreview ? (
+                            <div className="space-y-2 text-center">
+                              <img
+                                src={receiptPreview}
+                                alt="Pratinjau Bukti"
+                                className="max-h-48 mx-auto rounded-lg border border-slate-200 shadow-2xs object-contain"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReceiptPreview(null);
+                                  setManualForm((prev) => ({ ...prev, receiptImage: null }));
+                                }}
+                                className="text-xs text-red-600 hover:text-red-800 font-semibold"
+                              >
+                                Ganti Foto
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="cursor-pointer text-center space-y-1.5 w-full">
+                              <Upload className="w-7 h-7 text-slate-400 mx-auto" />
+                              <div className="text-xs text-slate-600">
+                                <span className="font-semibold text-[#002c60] hover:underline">
+                                  Klik untuk unggah foto
+                                </span>{' '}
+                                atau seret ke sini
+                              </div>
+                              <p className="text-[11px] text-slate-400">JPG, PNG, atau WebP hingga 5MB</p>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleReceiptFileChange}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleManualSubmit}
+                        disabled={uploading}
+                        className="w-full mt-2 py-3 px-4 bg-[#002c60] hover:bg-[#003b82] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {uploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Mengirim Bukti Transfer...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            <span>Kirim Konfirmasi Pembayaran</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
