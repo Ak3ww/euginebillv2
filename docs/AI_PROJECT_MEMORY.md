@@ -1,20 +1,57 @@
 # AI PROJECT MEMORY — EugineBill RADIUS
 
 > **Untuk AI/LLM yang melanjutkan pengembangan project ini.**
-> Baca file ini terlebih dahulu sebelum mulai membantu agar tidak mengulang hal yang sudah selesai atau membuat kesalahan yang sudah diketahui.
+> Baca file ini terlebih dahulu sebelum mulai membantu agar tidak mengulang hal yang sudah selesai atau membuat kesalahan arsitektural yang sudah diperbaiki.
+> File ini WAJIB diperbarui setiap kali ada milestone atau pembaruan di `CHANGELOG.md`.
 
 ---
 
 ## 📌 Project Overview
 
-**EugineBill Radius** adalah sistem billing ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS penuh. Mendukung PPPoE dan Hotspot, cocok untuk ISP kecil-menengah di Indonesia.
+**EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.21.0
-- **Status**: Production-ready, deployed di VPS
-- **Last Updated**: April 22, 2026
-- **Latest Commit**: `02f4909` — UI Redesign Customer Portal Cobalt Theme
-- **GitHub**: https://github.com/s4lfanet/EugineBill-radius (public)
-- **Live URL**: https://radius.hotspotapp.net
+- **Version**: 2.39.1
+- **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
+- **Last Updated**: September 11, 2026
+- **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
+- **Turnkey 1-Command Installer**: `curl -fsSL https://raw.githubusercontent.com/Ak3ww/euginebillv2/main/scripts/install.sh | sudo bash`
+
+---
+
+## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 11, 2026 — v2.39.1: Turnkey 1-Command Installer & Setup Wizard)
+- **Feat: 1-Command All-In-One Automated Installer (`scripts/install.sh`)**:
+  - Bundling seluruh dependensi: Node.js 20 LTS, PM2, MySQL Server, Nginx Reverse Proxy (Port 80/443 -> Port 3000 dengan WebSocket & 100MB upload limit).
+  - FreeRADIUS 3.x otomatis terpasang dengan modul SQL ke database `euginebill`, dinamis `clients.d/`, dan patch OpenSSL legacy MD4 provider untuk MS-CHAPv2 MikroTik PPPoE pada Ubuntu 22/24.
+  - WireGuard VPN Server (`10.200.0.0/24`, port 51820/UDP) dan L2TP/IPSec Server (`10.201.0.0/24`) otomatis aktif tanpa perlu perintah terpisah.
+  - 3 Layanan PM2 (`EugineBill-radius`, `EugineBill-wa`, `EugineBill-cron`) otomatis aktif dan disetel auto-startup.
+- **Feat: First-Time Setup Wizard Superadmin Account (`/setup` & `/api/setup`)**:
+  - **Critical Invariant**: NextAuth (`src/server/auth/config.ts`) mengotentikasi pengguna admin melalui model `prisma.adminUser` dengan mencocokkan `username` (role `SUPER_ADMIN`), **bukan** `prisma.users`.
+  - Endpoint `/api/setup` dan halaman `/setup` Langkah 2 menyediakan input eksplisit `Username Login` (default: `'admin'`), membuat record di `prisma.adminUser`, dan melakukan mirror ke `prisma.users`.
+  - Begitu selesai, endpoint `/api/setup` mengunci dirinya secara permanen dan menolak setup ulang.
+
+### Recent Patch Log (September 11, 2026 — v2.39.0: Commercial Release Readiness & Zero-Hardcoding)
+- **Feat: Mode Autentikasi Router (`router.authMode: 'local' | 'radius'`)**:
+  - Skema database mendukung per-router auth mode (`router.authMode`). Mode default adalah `local` (MikroTik local secrets via API). Mode `radius` menggunakan FreeRADIUS 3.x direct MySQL.
+- **Feat: Auto-Show Transfer Bank Manual pada `/pay/[token]`**:
+  - Jika belum ada payment gateway online aktif (`paymentGateways.length === 0`), halaman pembayaran otomatis menampilkan instruksi Transfer Bank Manual (`company.bankAccounts`) lengkap dengan tombol salin nomor rekening dan upload bukti bayar.
+- **Sanitasi Zero-Hardcoding Menyeluruh**:
+  - Seluruh referensi domain statis `euginemediagroup.com` dieliminasi dan digantikan secara dinamis oleh `company.baseUrl || process.env.NEXT_PUBLIC_APP_URL`.
+  - Fallback IP ONT remote proxy `43.173.14.236` diganti dengan deteksi header host atau `process.env.VPS_PUBLIC_IP`.
+  - Fallback logo statis `eugine-logo.png` digantikan oleh logo dinamis perusahaan.
+- **Feat: Skrip Safe Update & Port Firewall**:
+  - `scripts/safe-update.sh`: Melakukan snapshot database `mysqldump` terkompresi `.sql.gz` sebelum `git pull` dan `npm run build` untuk menjamin zero-data-loss.
+  - `scripts/setup-vps-ports.sh`: Membuka port 80, 443, 22, 51820/udp, 1812/1813/3799/udp, 10001:10999/tcp (Winbox), 24000:24999/tcp (ONT Remote), 7547/7567/tcp (GenieACS), 500/4500/1701/udp (L2TP).
+
+### Recent Patch Log (September 10, 2026 — v2.38.5: Salfanet vs EugineBill Blueprint)
+- **Architecture Invariant**: Tolak modul FreeRADIUS REST hook (`mods-available/rest`) untuk otentikasi utama karena rentan mass-outage saat web server reboot; gunakan direct MySQL SQL module (`mods-available/sql`) yang jauh lebih tangguh. Tolak pencemaran *synthetic radacct* palsu.
+
+### Recent Patch Log (September 10, 2026 — v2.38.4: PPPoE Username Reuse & Cascade Deletion)
+- **Critical Invariant**: Hapus pelanggan berhenti (`deletePppoeUser`) harus menggunakan isolasi berbasis `userId` secara mutlak (`where: { userId: id }`).
+- **Proteksi PPPoE Reuse**: Jika username PPPoE yang dihapus terdeteksi sedang digunakan ulang oleh pelanggan aktif lain (`activeReuser`), dilarang keras menyentuh MikroTik secret atau radcheck/radreply agar koneksi pelanggan baru tidak terputus. Invoice `PAID` dipertahankan permanen dengan melepaskan `userId = null` untuk histori pembukuan.
+
+---
 
 ### Recent Patch Log (July 2026 — Non-RADIUS, ACS, Billing & UI Overhaul)
 

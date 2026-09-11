@@ -58,3 +58,5 @@ For ALL customer-facing UI development (customer portal, payment pages, public l
    - Daftar File yang Ditambahkan / Dimodifikasi (`Files`)
 2. **Dokumentasi Teknis Fitur Baru di `docs/`**: Untuk setiap fitur baru atau perombakan sistem yang signifikan, WAJIB membuat atau memperbarui file panduan `.md` di dalam direktori `docs/` (misal `docs/customer/...` atau `docs/mikrotik/...`) yang merinci alur kerja, kontrak API, dan troubleshooting agar tim dapat membaca dan mengauditnya kembali sewaktu-waktu.
 3. **Integritas Dokumentasi**: Selalu pastikan apa yang dituliskan pada dokumentasi sesuai 100% dengan kode yang diimplementasikan (*write what we do, and do what we write*).
+4. **Agent Memory Synchronization (`docs/AI_PROJECT_MEMORY.md`)**: Setiap kali `CHANGELOG.md` diperbarui dengan penambahan fitur, bugfix krusial, atau keputusan arsitektur, WAJIB menyinkronkan intisari keputusan arsitektural dan batasan teknis (*hard invariants*) ke dalam file `docs/AI_PROJECT_MEMORY.md`. Hal ini menjamin memori jangka panjang AI agent di masa mendatang tidak akan pernah mengalami amnesia atau mengulangi kesalahan arsitektural yang telah dipecahkan.
+
