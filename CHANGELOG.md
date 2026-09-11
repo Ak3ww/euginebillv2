@@ -4,6 +4,32 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.38.6] — 2026-09-11
+### Client Field Deployment Kits & OLT Standardization
+- **Rilis Repositori & Standardisasi Field Deployment Toolkit (`euginemedia-client-kits`)**:
+  - *Context / User Request*:
+    Mempersiapkan toolkit deployment lapangan mandiri yang siap dibawa teknisi/laptop untuk instalasi paket FTTH 1-PON (OLT VSOL V1600GS + MikroTik v7) di sisi router klien tanpa bentrok IP dan tanpa downtime jaringan lama. Melakukan audit mentahan produksi CCR2116 EugineMedia dan standardisasi port remote web OLT serta SNMP.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Audit Multi-OLT Mentahan Produksi EugineMedia**:
+       - Mengidentifikasi pemetaan eksisting 3 OLT di CCR2116 EugineMedia:
+         - OLT 1 (HSGQ): Web `8229`, SNMP UDP `1611` (`192.168.30.2:161`).
+         - OLT 2 (VSOL V1600GS): Web `8003`, SNMP UDP `1614` (`192.168.30.6:161`).
+         - OLT 3 (VSOL V1600GT): Web `8004`, SNMP UDP `1615` (`192.168.30.7:1615`).
+    2. **Standarisasi Bersih Client Deployment Kit**:
+       - Menetapkan konvensi berurutan untuk instalasi OLT baru di sisi klien:
+         - OLT 1 (Default): Web GUI Port `8001` (`http://192.168.30.6:8001`), SNMP Port UDP `1611` (forward ke UDP `161` OLT).
+         - Skema Multi-OLT Klien: OLT 2 (`8002` / `1612`), OLT 3 (`8003` / `1613`), OLT 4 (`8004` / `1614`).
+    3. **Pembersihan Konfigurasi Mentahan VSOL V1600GS**:
+       - Menyaring lebih dari 70 serial number ONU statis lama (`onu add 1`..`118`) dari konfigurasi mentahan, mempertahankan VLAN 20 (PPPoE), VLAN 30 (Management OLT), VLAN 4000 (TR-069), serta mengaktifkan `onu auto-learn`.
+       - Mengubah konfigurasi OLT ke `web port 8001`.
+    4. **Pemisahan Script MikroTik FTTH Universal vs Billing EugineBill**:
+       - Memisahkan script pondasi FTTH (Cake SQM, Game Mangle, PPPoE server) dari aturan khusus billing cloud EugineBill (isolir redirect, payment gateway IP list, hotspot voucher, tunnel WireGuard).
+       - Menyiapkan script 7-point non-destructive inspection (`01-inspect-client-router.rsc`) dan modul AI Agent operational guidelines (`.agents/AGENTS.md`) dengan 5 skenario percabangan otomatis (DHCP client ISP, PPPoE dial client, dedicated IP statis, bentrok subnet auto-shift ke `10.20.0.0/22`, dan pemisahan port bridge).
+    5. **Repositori GitHub & Dokumentasi Terpadu**:
+       - Diterbitkan ke repositori `https://github.com/Ak3ww/euginemedia-client-kits.git`.
+  - *Files*:
+    - `CHANGELOG.md`
+
 ## [2.38.5] — 2026-09-10
 ### Architecture Audit & Master Blueprint Roadmap
 - **Master Blueprint: Komparasi Arsitektur Salfanet-Radius vs EugineBill & Roadmap Upgrade**:
