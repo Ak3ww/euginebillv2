@@ -28,11 +28,14 @@ sudo bash scripts/setup-vps-ports.sh
 
 Daftar port yang wajib dibuka pada Cloud Security Group / Firewall VPS:
 - **Port 80/tcp & 443/tcp**: Akses Web Admin, Customer Portal, Payment Page (`/pay/[token]`), dan Webhook Payment Gateway.
-- **Port 22/tcp**: Akses SSH Management.
-- **Port 51820/udp**: Server WireGuard VPN (koneksi tunneling MikroTik ke VPS).
+- **Port 22/tcp**: Akses SSH Management VPS.
+- **Port 51820/udp**: Server WireGuard VPN (tunneling MikroTik ke VPS).
+- **Port 10001-10999/tcp**: Range port Remote Winbox & MikroTik Services Forwarding publik (Winbox, WebFig, API per router).
+- **Port 24000-24999/tcp**: Range port ONT Remote Proxy (`socat` + Dynamic NAT MikroTik untuk remote modem pelanggan).
 - **Port 1812/udp & 1813/udp**: FreeRADIUS Authentication & Accounting (jika klien menggunakan RADIUS).
 - **Port 3799/udp**: RADIUS CoA (Change of Authorization / Disconnect Request).
-- **Port 24000-24999/tcp**: Range port ONT Remote Proxy (`socat` + Dynamic NAT MikroTik untuk remote modem pelanggan).
+- **Port 7547/tcp & 7567/tcp**: GenieACS TR-069 CWMP listener & File Server (untuk auto-provisioning ONT).
+- **Port 500/udp, 4500/udp, 1701/udp**: L2TP / IPSec VPN Server (opsional jika router memakai L2TP).
 - **Port 3306/tcp**: MySQL / MariaDB (HANYA BIND KE `127.0.0.1` / Private VPN, jangan dibuka ke publik).
 
 ---

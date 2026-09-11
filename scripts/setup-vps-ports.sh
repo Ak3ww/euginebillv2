@@ -52,9 +52,24 @@ ufw allow 1812/udp comment "FreeRADIUS Authentication"
 ufw allow 1813/udp comment "FreeRADIUS Accounting"
 ufw allow 3799/udp comment "RADIUS CoA / Disconnect"
 
-# 6. ONT Remote Proxy Range
+# 6. Remote Winbox & MikroTik Service Forwarding Range (10001-10999)
+log_info "Mengizinkan rentang port Remote Winbox & MikroTik Forwarding (10001:10999/tcp)..."
+ufw allow 10001:10999/tcp comment "EugineBill Remote Winbox & MikroTik Forwarding"
+
+# 7. ONT Remote Proxy Range (24000-24999)
 log_info "Mengizinkan rentang port ONT Remote Proxy (24000:24999/tcp)..."
 ufw allow 24000:24999/tcp comment "EugineBill ONT Remote Proxy Range"
+
+# 8. GenieACS TR-069 (CWMP 7547 & File Server 7567)
+log_info "Mengizinkan port GenieACS TR-069 (7547/tcp, 7567/tcp)..."
+ufw allow 7547/tcp comment "GenieACS CWMP Listener"
+ufw allow 7567/tcp comment "GenieACS File Server"
+
+# 9. L2TP / IPSec VPN (500, 4500, 1701/udp)
+log_info "Mengizinkan port L2TP/IPSec VPN (500/udp, 4500/udp, 1701/udp)..."
+ufw allow 500/udp comment "IPSec IKE"
+ufw allow 4500/udp comment "IPSec NAT-T"
+ufw allow 1701/udp comment "L2TP Server"
 
 # Enable UFW if not enabled
 log_info "Mengaktifkan UFW firewall..."
