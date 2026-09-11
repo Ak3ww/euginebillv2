@@ -1,5 +1,5 @@
 # ==============================================================================
-# SCRIPT DEPLOYMENT MIKROTIK FTTH (CLIENT PACK)
+# SCRIPT DEPLOYMENT MIKROTIK FTTH (LEAN & CLEAN VERSION)
 # Disusun untuk: MikroTik RouterOS v7.x (Kompatibel RB / CCR Series)
 # Sinkron 100% dengan OLT VSOL V1600GS (VLAN 20 PPPoE, VLAN 30 MGMT, VLAN 4000 TR069)
 # ==============================================================================
@@ -11,7 +11,7 @@
 add name=bridge-FTTH
 
 # PENTING: Masukkan port kabel yang menuju ke OLT ke dalam bridge-FTTH.
-# Contoh jika kabel dicolok di ether3 (uncomment dan jalankan):
+# Contoh jika kabel dicolok di ether3 (uncomment dan jalankan di terminal):
 # /interface bridge port add bridge=bridge-FTTH interface=ether3
 
 /interface vlan
@@ -48,14 +48,14 @@ add cake-ack-filter=filter cake-diffserv=diffserv4 cake-memlimit=32.0MiB \
     cake-rtt=50ms kind=cake name=cake
 
 # ------------------------------------------------------------------------------
-# 5. IP POOL & PROFILE PPPOE (DENGAN CAKE QUEUE & ISOLIR)
+# 5. IP POOL & PROFILE PPPOE (DENGAN CAKE QUEUE)
 # ------------------------------------------------------------------------------
 /ip pool
 add comment="POOL PPPOE PELANGGAN" name=POOL-PPPOE ranges=192.168.20.2-192.168.21.254,192.168.22.2-192.168.22.254
-add comment="IP Pool untuk user yang diisolir" name=pool-isolir ranges=192.168.200.100-192.168.200.200
+add comment="IP Pool untuk user isolir" name=pool-isolir ranges=192.168.200.100-192.168.200.200
 
 /ppp profile
-add address-list=isolir comment="Profile untuk user yang diisolir" local-address=192.168.200.1 name=isolir rate-limit=64k/64k remote-address=pool-isolir use-compression=no use-encryption=no use-mpls=no
+add address-list=isolir comment="Profile untuk user isolir" local-address=192.168.200.1 name=isolir rate-limit=64k/64k remote-address=pool-isolir use-compression=no use-encryption=no use-mpls=no
 add local-address=192.168.20.1 name="10 Mbps" only-one=yes queue-type=cake rate-limit="10M/10M" remote-address=POOL-PPPOE
 add local-address=192.168.20.1 name="20 Mbps" only-one=yes queue-type=cake rate-limit="21M/21M" remote-address=POOL-PPPOE
 add local-address=192.168.20.1 name="30 Mbps" only-one=yes queue-type=cake rate-limit="31M/31M" remote-address=POOL-PPPOE
@@ -85,47 +85,8 @@ add action=mark-connection chain=prerouting dst-port="7086-7995,10039,10096,1145
 add action=mark-packet chain=forward connection-mark=pkg-game new-packet-mark=paket-game passthrough=no
 
 # ------------------------------------------------------------------------------
-# 8. ADDRESS-LIST PAYMENT GATEWAYS (AGAR USER ISOLIR TETAP BISA BAYAR ONLINE)
-# ------------------------------------------------------------------------------
-/ip firewall address-list
-add address=api.midtrans.com comment="Midtrans API" list=payment-gateways
-add address=app.midtrans.com comment="Midtrans Snap" list=payment-gateways
-add address=payment.midtrans.com comment="Midtrans Payment" list=payment-gateways
-add address=api.xendit.co comment="Xendit API" list=payment-gateways
-add address=checkout.xendit.co comment="Xendit Checkout" list=payment-gateways
-add address=pay.xendit.co comment="Xendit Pay" list=payment-gateways
-add address=passport.duitku.com comment="Duitku API" list=payment-gateways
-add address=tripay.co.id comment="Tripay" list=payment-gateways
-add address=payment.tripay.co.id comment="Tripay Payment" list=payment-gateways
-add address=api.gojek.com comment="Gojek API" list=payment-gateways
-add address=gopay.co.id comment="GoPay" list=payment-gateways
-add address=api.dana.id comment="DANA API" list=payment-gateways
-add address=checkout.dana.id comment="DANA Checkout" list=payment-gateways
-add address=api.ovo.id comment="OVO API" list=payment-gateways
-add address=open-api.airpay.co.id comment="ShopeePay API" list=payment-gateways
-add address=p2p.klikbca.com comment="BCA KlikBCA" list=payment-gateways
-add address=partner.bri.co.id comment="BRI Partner API" list=payment-gateways
-add address=qris.id comment="QRIS" list=payment-gateways
-add address=api.qris.id comment="QRIS API" list=payment-gateways
-add address=qrin.web.id comment="QRIN Web" list=payment-gateways
-add address=api.qrin.web.id comment="QRIN API" list=payment-gateways
-add address=qrin.id comment="QRIN Domain" list=payment-gateways
-
-# ------------------------------------------------------------------------------
-# 9. FIREWALL FILTER (KEAMANAN & ISOLIR SYSTEM)
-# ------------------------------------------------------------------------------
-/ip firewall filter
-add action=accept chain=input comment="1. Accept Established/Related" connection-state=established,related
-add action=accept chain=input comment="2. Accept ICMP/Ping" protocol=icmp
-add action=accept chain=forward comment="Allow established/related for isolated users" connection-state=established,related src-address-list=isolir
-add action=accept chain=forward comment="Allow return traffic to isolated users" connection-state=established,related dst-address-list=isolir
-add action=accept chain=forward comment="Allow DNS for isolated users" dst-port=53 protocol=udp src-address-list=isolir
-add action=accept chain=forward comment="Allow ping for isolated users" protocol=icmp src-address-list=isolir
-add action=accept chain=forward comment="Allow access to payment gateways" dst-address-list=payment-gateways src-address-list=isolir
-add action=drop chain=forward comment="Block internet for isolated users" src-address-list=isolir
-
-# ------------------------------------------------------------------------------
-# 10. FIREWALL NAT (MASQUERADE, TR069, ISOLIR REDIRECT & REMOTE OLT)
+# 8. FIREWALL NAT (UNIVERSAL MASQUERADE & REMOTE OLT)
+# Bebas dicolok ke port WAN mana saja tanpa tergantung interface list
 # ------------------------------------------------------------------------------
 /ip firewall nat
 # Masquerade Internet PPPoE Pelanggan
@@ -141,13 +102,13 @@ add action=masquerade chain=srcnat comment="NAT Management OLT" dst-address=192.
 add action=dst-nat chain=dstnat comment="Remote Web OLT VSOL" dst-port=8003 protocol=tcp to-addresses=192.168.30.6 to-ports=8003
 
 # ------------------------------------------------------------------------------
-# 11. DNS RESOLVER
+# 9. DNS RESOLVER
 # ------------------------------------------------------------------------------
 /ip dns
 set allow-remote-requests=yes cache-max-ttl=1d cache-size=65536KiB servers=1.1.1.1,1.0.0.1,8.8.8.8,8.8.4.4
 
 # ------------------------------------------------------------------------------
-# 12. SCHEDULER & SCRIPT AUTO-CLEAN (PEMBERSIHAN SUBUH JAM 03.00)
+# 10. SCHEDULER & SCRIPT AUTO-CLEAN (PEMBERSIHAN SUBUH JAM 03.00)
 # ------------------------------------------------------------------------------
 /system script
 add dont-require-permissions=no name="CLEAR TRASH" policy=ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon source="/ip dns cache flush\r\n/system logging action set memory memory-lines=1\r\n/system logging action set memory memory-lines=1000\r\n:log info \"Maintenance Rutin: DNS Cache dan Log berhasil dibersihkan.\""
@@ -156,7 +117,7 @@ add dont-require-permissions=no name="CLEAR TRASH" policy=ftp,reboot,read,write,
 add interval=1d name="BERSIH-BERSIH -SUBUH" on-event="CLEAR TRASH" policy=ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon start-time=03:00:00
 
 # ------------------------------------------------------------------------------
-# 13. USER TESTING PPPOE
+# 11. USER TESTING PPPOE
 # ------------------------------------------------------------------------------
 /ppp secret
 add comment="USER TESTING FTTH" name=test profile="20 Mbps" service=pppoe password=123
