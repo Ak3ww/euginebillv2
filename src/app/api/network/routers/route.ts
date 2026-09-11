@@ -7,7 +7,7 @@ import crypto from 'crypto';
 import os from 'os';
 const RouterOSAPI = require('node-routeros').RouterOSAPI;
 import { prisma } from '@/server/db/client';
-import { getNextPortBlock, buildPublicPorts, addIptablesRules, type PublicPorts } from '@/lib/vpn-port-allocator';
+import { getNextPortBlock, buildPublicPorts, addIptablesRules, removeIptablesRules, type PublicPorts, type ServiceName } from '@/lib/vpn-port-allocator';
 
 // Auto-detect server IP from network interfaces
 const getServerIp = (): string => {
@@ -60,12 +60,6 @@ async function autoSetupPortForwarding(
     })
     if (!vpnClient) return
 
-    // Jika publicPorts sudah ada, tidak perlu setup ulang (sudah dilakukan sebelumnya)
-    if (vpnClient.publicPorts) {
-      console.log(`[routers] vpnClient ${vpnClientId} sudah punya publicPorts, skip auto-setup`)
-      return
-    }
-
     const connectIp   = vpnClient.vpnIp || fallbackIp
     const connectUser = vpnClient.apiUsername || fallbackUser
     const connectPass = vpnClient.apiPassword || fallbackPass
@@ -88,15 +82,47 @@ async function autoSetupPortForwarding(
     const services = await conn.write('/ip/service/print')
     conn.close()
 
-    const targetPorts: Partial<Record<string, number>> = {}
+    const targetPorts: Partial<Record<ServiceName, number>> = {}
     for (const svc of services) {
-      const ourName = ROS_TO_OUR_SERVICE[svc.name?.toLowerCase()]
+      const ourName = ROS_TO_OUR_SERVICE[svc.name?.toLowerCase()] as ServiceName | undefined
       if (!ourName) continue
       const port = parseInt(svc.port)
       if (!isNaN(port) && port > 0) targetPorts[ourName] = port
     }
 
-    // Alokasi port block + pasang iptables
+    const existingPorts = vpnClient.publicPorts as unknown as PublicPorts | null
+    if (existingPorts?.services) {
+      // Bandingkan target port yang tersimpan dengan aktual di MikroTik
+      const changedServices: ServiceName[] = []
+      const updatedTargetPorts: Partial<Record<ServiceName, number>> = {}
+      for (const [svc, actualPort] of Object.entries(targetPorts) as [ServiceName, number][]) {
+        const existing = existingPorts.services[svc]
+        if (existing && existing.target !== actualPort) {
+          changedServices.push(svc)
+          updatedTargetPorts[svc] = actualPort
+        }
+      }
+
+      if (changedServices.length > 0) {
+        console.log(`[routers] Perubahan port terdeteksi untuk vpnClient ${vpnClientId}: ${changedServices.join(', ')}. Mengupdate iptables...`)
+        await removeIptablesRules(connectIp, existingPorts, changedServices)
+        const newPublicPorts = buildPublicPorts(existingPorts.blockStart, {
+          ...Object.fromEntries(Object.entries(existingPorts.services).map(([k, v]) => [k, v.target])),
+          ...updatedTargetPorts,
+        })
+        await addIptablesRules(connectIp, newPublicPorts, changedServices)
+        await prisma.vpnClient.update({
+          where: { id: vpnClientId },
+          data: { publicPorts: newPublicPorts as any },
+        })
+        console.log(`[routers] Iptables auto port forwarding berhasil disinkronkan untuk vpnClient ${vpnClientId}`)
+      } else {
+        console.log(`[routers] vpnClient ${vpnClientId} port sudah sesuai dengan MikroTik`)
+      }
+      return
+    }
+
+    // Alokasi port block baru jika belum ada + pasang iptables
     const blockStart = await getNextPortBlock()
     const publicPorts = buildPublicPorts(blockStart, targetPorts)
     await addIptablesRules(connectIp, publicPorts)
@@ -296,6 +322,17 @@ export async function POST(request: NextRequest) {
     // Restart FreeRADIUS to reload NAS table
     await reloadFreeRadius();
 
+    // Auto setup & sync port forwarding VPS jika terhubung ke VPN Client
+    if (router.vpnClientId) {
+      autoSetupPortForwarding(
+        router.vpnClientId,
+        router.ipAddress,
+        router.port,
+        router.username,
+        router.password
+      ).catch(e => console.warn('[routers] autoSetupPortForwarding error on POST:', e.message));
+    }
+
     // Log activity
     try {
       const session = await getServerSession(authOptions);
@@ -410,6 +447,17 @@ export async function PUT(request: NextRequest) {
 
     // Restart FreeRADIUS to reload NAS table
     await reloadFreeRadius();
+
+    // Auto setup & sync port forwarding VPS jika terhubung ke VPN Client
+    if (router.vpnClientId) {
+      autoSetupPortForwarding(
+        router.vpnClientId,
+        router.ipAddress,
+        router.port,
+        router.username,
+        router.password
+      ).catch(e => console.warn('[routers] autoSetupPortForwarding error on PUT:', e.message));
+    }
 
     // Log activity
     try {

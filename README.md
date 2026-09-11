@@ -364,6 +364,30 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
 
 <!-- AUTO-CHANGELOG:START -->
 
+### v2.39.2 — 2026-09-11
+
+### Turnkey 1-Paste VPN Remote Client Scripting, Single Full-Privilege Winbox+API User, & Auto Port Forwarding Sync
+- **Turnkey 1-Paste Remote Access Setup (WireGuard & L2TP pada RouterOS 6 & 7)**:
+  - *Context / User Request*:
+    Pengguna mengeluhkan skrip setup VPN client yang dihasilkan EugineBill tidak dapat langsung dipakai untuk login ke Winbox (mengalami "error: the remote host closed the connection" atau logout otomatis setelah 1 detik), serta port forwarding VPS tidak otomatis menyesuaikan port kustom pada MikroTik (seperti Winbox di port 8228 dan API di port 8520). Pengguna juga menginginkan **1 akun kredensial tunggal** yang langsung dapat digunakan untuk Winbox, API, WebFig, dan SSH tanpa harus membuat banyak user terpisah.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Single Full-Privilege Remote User (`group=full`)**:
+       - Mengubah seluruh generator skrip MikroTik (`src/app/admin/network/vpn-client/page.tsx`, `src/app/api/network/vps-wg-peer/route.ts`, dan `src/app/api/network/vps-l2tp-peer/route.ts`) agar akun remote yang dibuat langsung diberikan hak akses bawaan `group=full`.
+       - Menghilangkan pembatasan grup `api-users` (`!romon, !reboot, !sniff, !rest-api`) yang sebelumnya menyebabkan aplikasi Winbox RouterOS 7 menolak hak akses GUI dan memutus koneksi (logout otomatis).
+       - Menjamin 1 kali paste skrip langsung menghasilkan akun administrator remote yang valid 100% untuk login Winbox, bot redaman, API EugineBill, WebFig, dan SSH.
+    2. **Otomatisasi Penuh Sinkronisasi Port Forwarding VPS (`autoSetupPortForwarding`)**:
+       - Memperbaiki `autoSetupPortForwarding` pada `src/app/api/network/routers/route.ts`: kini fungsi tersebut tidak lagi mengabaikan pembaruan jika `publicPorts` sudah ada di database.
+       - Sistem secara cerdas membaca port aktual seluruh layanan dari MikroTik via `/ip/service/print` melalui tunnel VPN, membandingkannya dengan port target pada iptables VPS, dan jika ada port kustom (misal Winbox 8228, API 8520), sistem otomatis meregenerasi aturan `iptables -t nat PREROUTING DNAT` di VPS dan memperbarui database.
+       - Menghubungkan fungsi sinkronisasi otomatis ini ke dalam handler `POST` (tambah router baru) dan `PUT` (edit router) agar port forwarding selalu sinkron tanpa intervensi manual.
+    3. **Generator Skrip WireGuard Terpadu di Backend**:
+       - Menambahkan fungsi pembantu `generateWgScript` pada `src/app/api/network/vps-wg-peer/route.ts` dan mengembalikan `routerosScript` langsung pada respons `POST /api/network/vps-wg-peer`.
+       - Modal WireGuard di antarmuka frontend kini otomatis menerima dan menampilkan skrip lengkap dengan port target dan akun `group=full` yang siap salin dan paste.
+  - *Files*:
+    - `src/app/admin/network/vpn-client/page.tsx`
+    - `src/app/api/network/routers/route.ts`
+    - `src/app/api/network/vps-l2tp-peer/route.ts`
+    - `src/app/api/network/vps-wg-peer/route.ts`
+
 ### v2.39.1 — 2026-09-11
 
 ### Turnkey 1-Command Installer Bundle & Setup Wizard Superadmin Username Customization
@@ -493,46 +517,6 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
        - Merancang 5 fase eksekusi bertahap yang 100% backward-compatible dan bebas risiko downtime.
   - *Files*:
     - `docs/architecture/RADIUS_LOCAL_AUTH_COMPARISON_AND_ROADMAP.md`
-    - `CHANGELOG.md`
-
-### v2.38.4 — 2026-09-10
-
-### Bug Fix & Comprehensive Cascade Customer Deletion
-- **Perbaikan Hapus Pelanggan & Pembersihan Riwayat Permanen (/admin/pppoe/stopped)**:
-  - *Context / User Request*:
-    Pengguna melaporkan kegagalan saat menghapus pelanggan yang berhenti berlangganan di https://admin.euginemediagroup.com/admin/pppoe/stopped ("SAYA INGIN MENGHAPUS PELANGGAN YG ADA DI SINI https://admin.euginemediagroup.com/admin/pppoe/stopped tapi gagal. Karna saya pengen hapus karna sudah yakin dia gak akan lanjut, dan akan buang semua historinya.").
-  - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Cascade Cleanup Komprehensif pada `deletePppoeUser` (`src/server/services/pppoe.service.ts`)**:
-       - Mengeliminasi error Foreign Key Constraint (MySQL 1451 / Prisma P2003) dengan membersihkan seluruh dependensi data yang mereferensikan akun pelanggan:
-         - **Permintaan Penangguhan (`suspendRequest`)**: Menghapus seluruh permohonan suspend yang dibuat oleh pelanggan.
-         - **Preservasi Invoice Lunas & Pembersihan Invoice Belum Lunas**:
-           - **Invoice Lunas (`PAID`)**: **TIDAK DIHAPUS**. Foreign key `userId` dilepaskan (`userId = null`) agar constraint database terpenuhi, sementara detail snapshot pelanggan (`customerName`, `customerUsername`, `customerPhone`, `customerEmail`) dan tanggal pelunasan (`paidAt`) tetap dipertahankan permanen sebagai bukti histori kapan pelanggan terakhir bayar sebelum berhenti.
-           - **Invoice Belum Lunas (`PENDING`, `OVERDUE`, `CANCELLED`)**: Dihapus permanen beserta anak relasi pembayaran dan pelepasan link pendaftaran (`registrationRequest.invoiceId = null`).
-         - **Pembayaran Manual Mandiri (`manualPayment`)**: Menghapus record pembayaran manual yang terkait langsung dengan `userId`.
-         - **Permohonan Registrasi (`registrationRequest`)**: Melepaskan kaitan `pppoeUserId` menjadi `null`.
-         - **Tiket Aduan & Pesan Tiket (`ticket`, `ticketMessage`)**: Menghapus semua tiket dan pesan percakapan pelanggan.
-         - **Surat Perintah Kerja (`workOrder`)**: Menghapus data SPK yang tertaut (`linkedUserId`).
-         - **Sesi Pengguna (`sessions` & `customerSession`)**: Menghapus sesi akuntansi jaringan dan sesi login OTP portal pelanggan.
-         - **Web Push & Notifikasi (`pushSubscription`, `customerNotification`)**: Menghapus pendaftaran push token browser dan inbox notifikasi.
-         - **Permohonan Ubah Paket (`packageChangeRequest`)**: Menghapus antrean request upgrade/downgrade paket.
-         - **ODP & Jaringan Optik (`odpCustomerAssignment`, `oltOnuStatus`)**: Menghapus alokasi port ODP dan melepaskan relasi ONU pada OLT (`customerId = null`).
-         - **TR-069 GenieACS (`acsDevice`)**: Melepaskan relasi perangkat modem ONT (`pppoeUserId = null`).
-         - **Sistem Referral (`referralReward`, `referredById`)**: Menghapus hadiah referral dan memutuskan rantai referensi referral.
-         - **Proteksi Ketat PPPoE Reuse (MikroTik & RADIUS Shield)**:
-            - Sistem otomatis mendeteksi apakah username PPPoE (atau base username) sedang digunakan ulang oleh pelanggan aktif lain (`activeReuser`).
-            - Jika terdeteksi sedang digunakan oleh pelanggan lain, sistem **DILARANG KERAS** menghapus secret di MikroTik, memutus koneksi aktif, atau menghapus record RADIUS (`radcheck`, `radreply`, dll) agar pelanggan aktif tidak terputus internetnya.
-            - Pengaturan default penghapusan secret MikroTik diubah menjadi `false` (safe mode) agar secret di router tetap aman dan bisa di-reuse bebas oleh tim lapangan.
-         - **Isolasi Ketat Berbasis `userId` (Anti Cross-Customer Data Leak)**:
-            - Seluruh query pembersihan tagihan, sesi jaringan, dan sesi portal menggunakan `where: { userId: id }` secara mutlak, bukan berdasarkan `username`. Hal ini menjamin tagihan dan sesi pelanggan baru yang me-reuse username PPPoE tersebut tidak akan pernah tersentuh atau terhapus.
-         - **Pembersihan Induk Pelanggan Yatim (`pppoeCustomer`)**: Pengecekan otomatis dan penghapusan data induk pelanggan jika tidak memiliki akun PPPoE aktif lainnya.
-    2. **Endpoint Baru Bulk Delete (`src/app/api/pppoe/users/bulk-delete/route.ts`)**:
-       - Menyediakan endpoint handler `DELETE` & `POST` untuk multi-select / bulk deletion pelanggan yang dipanggil oleh tombol hapus massal di UI `/admin/pppoe/stopped`.
-    3. **Peningkatan Error Output & Peringatan UI (`src/app/api/pppoe/users/route.ts` & `src/app/admin/pppoe/stopped/page.tsx`)**:
-       - Menambahkan notifikasi konfirmasi pada UI jika akun PPPoE yang akan dihapus terdeteksi sudah dipakai oleh pelanggan aktif lain, memastikan admin yakin bahwa secret router pelanggan aktif tetap terjaga.
-  - *Files*:
-    - `src/server/services/pppoe.service.ts`
-    - `src/app/api/pppoe/users/bulk-delete/route.ts`
-    - `src/app/api/pppoe/users/route.ts`
     - `CHANGELOG.md`
 
 <!-- AUTO-CHANGELOG:END -->

@@ -289,11 +289,9 @@ export default function VpnClientPage() {
 /ip/route/remove [find where comment="EugineBill-VPN"]
 /ip/route/add dst-address=${data.vpnSubnet || '10.200.0.0/24'} gateway=${ifaceName} comment="EugineBill-VPN"
 
-# 5. Buat atau Update Group & User API + Winbox (Akses Winbox & API)
-:do { /user/group/add name=api-users } on-error={}
-/user/group/set [find name=api-users] policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh comment="EugineBill Remote Group"
+# 5. Buat User Remote Admin (Akses Penuh: Winbox, API, WebFig, SSH)
 :do { /user/remove [find where name="${safeApiUsername}"] } on-error={}
-/user/add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
+/user/add name=${safeApiUsername} group=full password="${safeApiPassword}" comment="Remote Admin User EugineBill (Winbox & API)"
 
 # 6. Pastikan Port Layanan MikroTik Aktif & Bebas Restriksi IP
 :do { /ip/service/set winbox port=${winboxTargetPort} address="" disabled=no } on-error={}
@@ -873,12 +871,10 @@ export default function VpnClientPage() {
 # 2. Setup L2TP Client (UltraVPN Standard)
 /interface l2tp-client add name=${ifaceName} connect-to=${credentials.server} user=${credentials.username} password="${credentials.password}" profile=ebvpn-remote use-ipsec=no allow=chap,mschap2 disabled=no add-default-route=no dial-on-demand=no comment="euginebill-${credentials.username}"
 
-# 3. Buat API & Winbox User Group & User
-:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh comment="API & Winbox Access Group" } on-error={}
-:do { /user group set [find name="api-users"] policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh } on-error={}
+# 3. Buat User Remote Admin (Akses Penuh: Winbox, API, WebFig, SSH)
 :do { /user remove [find name="${safeApiUsername}"] } on-error={}
 :do { /user remove [find comment~"EugineBill"] } on-error={}
-/user add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
+/user add name=${safeApiUsername} group=full password="${safeApiPassword}" comment="Remote Admin User EugineBill (Winbox & API)"
 
 # 4. Konfigurasi Port Layanan MikroTik Aktif & Bebas Restriksi IP (Universal ROS 6 & 7)
 :do { /ip service set winbox port=${winboxTarget} address="" disabled=no } on-error={}
@@ -926,14 +922,10 @@ export default function VpnClientPage() {
 :do { /interface ${iface} remove [find where name="${ifaceName}" or comment~"EugineBill"] } on-error={}
 :do { /user remove [find where name="${safeApiUsername}" or comment~"EugineBill"] } on-error={}
 
-# 1. Create API & Winbox User Group
-:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh comment="API & Winbox Access Group" } on-error={}
-:do { /user group set [find name="api-users"] policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh } on-error={}
-
-# 2. Create API & Winbox User
+# 1. Create Remote Admin User (Akses Penuh: Winbox, API, WebFig, SSH)
 :do { /user remove [find name="${safeApiUsername}"] } on-error={}
 :do { /user remove [find comment~"EugineBill"] } on-error={}
-/user add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
+/user add name=${safeApiUsername} group=full password="${safeApiPassword}" comment="Remote Admin User EugineBill (Winbox & API)"
 
 # 3. Setup ${(selectedVpnType as string).toUpperCase()} Client
 /interface ${iface} ${vpnCmd}
@@ -1033,11 +1025,9 @@ export default function VpnClientPage() {
 /ip/route/remove [find where comment="EugineBill-VPN"]
 /ip/route/add dst-address=${wgSubnet} gateway=${ifaceName} comment="EugineBill-VPN"
 
-# 5. Buat atau Update Group & User API + Winbox (Akses Winbox & API)
-:do { /user/group/add name=api-users } on-error={}
-/user/group/set [find name=api-users] policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh comment="EugineBill Remote Group"
+# 5. Buat User Remote Admin (Akses Penuh: Winbox, API, WebFig, SSH)
 :do { /user/remove [find where name="${safeApiUsername}"] } on-error={}
-/user/add name=${safeApiUsername} group=api-users password="${safeApiPassword}" comment="API & Winbox User EugineBill"
+/user/add name=${safeApiUsername} group=full password="${safeApiPassword}" comment="Remote Admin User EugineBill (Winbox & API)"
 
 # 6. Pastikan Port Layanan MikroTik Aktif & Bebas Restriksi IP
 :do { /ip/service/set winbox port=${winboxTarget} address="" disabled=no } on-error={}

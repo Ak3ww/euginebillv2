@@ -4,6 +4,29 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.2] — 2026-09-11
+### Turnkey 1-Paste VPN Remote Client Scripting, Single Full-Privilege Winbox+API User, & Auto Port Forwarding Sync
+- **Turnkey 1-Paste Remote Access Setup (WireGuard & L2TP pada RouterOS 6 & 7)**:
+  - *Context / User Request*:
+    Pengguna mengeluhkan skrip setup VPN client yang dihasilkan EugineBill tidak dapat langsung dipakai untuk login ke Winbox (mengalami "error: the remote host closed the connection" atau logout otomatis setelah 1 detik), serta port forwarding VPS tidak otomatis menyesuaikan port kustom pada MikroTik (seperti Winbox di port 8228 dan API di port 8520). Pengguna juga menginginkan **1 akun kredensial tunggal** yang langsung dapat digunakan untuk Winbox, API, WebFig, dan SSH tanpa harus membuat banyak user terpisah.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Single Full-Privilege Remote User (`group=full`)**:
+       - Mengubah seluruh generator skrip MikroTik (`src/app/admin/network/vpn-client/page.tsx`, `src/app/api/network/vps-wg-peer/route.ts`, dan `src/app/api/network/vps-l2tp-peer/route.ts`) agar akun remote yang dibuat langsung diberikan hak akses bawaan `group=full`.
+       - Menghilangkan pembatasan grup `api-users` (`!romon, !reboot, !sniff, !rest-api`) yang sebelumnya menyebabkan aplikasi Winbox RouterOS 7 menolak hak akses GUI dan memutus koneksi (logout otomatis).
+       - Menjamin 1 kali paste skrip langsung menghasilkan akun administrator remote yang valid 100% untuk login Winbox, bot redaman, API EugineBill, WebFig, dan SSH.
+    2. **Otomatisasi Penuh Sinkronisasi Port Forwarding VPS (`autoSetupPortForwarding`)**:
+       - Memperbaiki `autoSetupPortForwarding` pada `src/app/api/network/routers/route.ts`: kini fungsi tersebut tidak lagi mengabaikan pembaruan jika `publicPorts` sudah ada di database.
+       - Sistem secara cerdas membaca port aktual seluruh layanan dari MikroTik via `/ip/service/print` melalui tunnel VPN, membandingkannya dengan port target pada iptables VPS, dan jika ada port kustom (misal Winbox 8228, API 8520), sistem otomatis meregenerasi aturan `iptables -t nat PREROUTING DNAT` di VPS dan memperbarui database.
+       - Menghubungkan fungsi sinkronisasi otomatis ini ke dalam handler `POST` (tambah router baru) dan `PUT` (edit router) agar port forwarding selalu sinkron tanpa intervensi manual.
+    3. **Generator Skrip WireGuard Terpadu di Backend**:
+       - Menambahkan fungsi pembantu `generateWgScript` pada `src/app/api/network/vps-wg-peer/route.ts` dan mengembalikan `routerosScript` langsung pada respons `POST /api/network/vps-wg-peer`.
+       - Modal WireGuard di antarmuka frontend kini otomatis menerima dan menampilkan skrip lengkap dengan port target dan akun `group=full` yang siap salin dan paste.
+  - *Files*:
+    - `src/app/admin/network/vpn-client/page.tsx`
+    - `src/app/api/network/routers/route.ts`
+    - `src/app/api/network/vps-l2tp-peer/route.ts`
+    - `src/app/api/network/vps-wg-peer/route.ts`
+
 ## [2.39.1] — 2026-09-11
 ### Turnkey 1-Command Installer Bundle & Setup Wizard Superadmin Username Customization
 - **Paket Instalasi 1-Baris Perintah Komprehensif (`scripts/install.sh`)**:

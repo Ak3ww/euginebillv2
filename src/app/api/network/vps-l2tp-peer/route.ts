@@ -458,12 +458,10 @@ function generateL2tpScript({ serverIp, username, password, apiUsername, ipsecPs
 # 2. Setup L2TP Client (UltraVPN Standard)
 /interface l2tp-client add name=${ifaceName} connect-to=${vpsHost} user="${username}" password="${password}" profile=ebvpn-remote use-ipsec=no allow=chap,mschap2 disabled=no add-default-route=no dial-on-demand=no comment="euginebill-${username}"
 
-# 3. Buat API & Winbox User Group & User
-:do { /user group add name=api-users policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh comment="API & Winbox Access Group" } on-error={}
-:do { /user group set [find name="api-users"] policy=read,write,policy,test,sensitive,api,winbox,password,local,web,ssh } on-error={}
+# 3. Buat User Remote Admin (Akses Penuh: Winbox, API, WebFig, SSH)
 :do { /user remove [find name="${safeApiUser}"] } on-error={}
 :do { /user remove [find comment~"EugineBill"] } on-error={}
-/user add name=${safeApiUser} group=api-users password="${safeApiPass}" comment="API & Winbox User EugineBill"
+/user add name=${safeApiUser} group=full password="${safeApiPass}" comment="Remote Admin User EugineBill (Winbox & API)"
 
 # 4. Konfigurasi Port Layanan MikroTik Aktif & Bebas Restriksi IP (Universal ROS 6 & 7)
 :do { /ip service set winbox port=${winboxTarget} address="" disabled=no } on-error={}

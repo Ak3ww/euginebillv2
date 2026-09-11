@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.1
+- **Version**: 2.39.2
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 11, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,17 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 11, 2026 — v2.39.2: Turnkey 1-Paste VPN Remote Scripting & Auto Port Sync)
+- **Critical Invariant: Single Full-Privilege Remote User (`group=full`)**:
+  - Dilarang keras membatasi user remote MikroTik ke grup custom seperti `api-users` dengan kebijakan terpotong (`!romon, !reboot, !sniff, !rest-api`). Pada RouterOS v7, aplikasi Winbox mewajibkan izin sistem lengkap; user dengan kebijakan terbatas akan terputus (logout otomatis) setelah 1 detik.
+  - Seluruh generator skrip setup VPN client (WireGuard & L2TP pada ROS 6 & 7) WAJIB menggunakan `group=full` secara langsung (`/user add name=... group=full password=...`). Satu kredensial ini mencakup seluruh kebutuhan: Winbox, WebFig, SSH, API EugineBill, dan bot redaman.
+- **Critical Invariant: Automatic Port Forwarding Synchronization (`autoSetupPortForwarding`)**:
+  - Dilarang mengasumsikan router MikroTik selalu menggunakan port default Winbox (8291) atau API (8728). Banyak ISP/admin mengubah port Winbox ke port kustom (misal 8228, 8520).
+  - Fungsi `autoSetupPortForwarding` pada `src/app/api/network/routers/route.ts` WAJIB selalu membaca port aktual dari `/ip/service/print` via koneksi API VPN tunnel, membandingkan port target dengan aturan iptables VPS, dan otomatis meregenerasi iptables DNAT jika ada perbedaan.
+  - `autoSetupPortForwarding` WAJIB dipanggil secara otomatis pada handler `POST` (tambah router) dan `PUT` (edit router).
+- **Critical Invariant: Hotspot vs Local Management Collision**:
+  - Jika Hotspot diaktifkan pada interface lokal/bridge (`bridge-LAN`), firewall dinamis Hotspot (`hs-unauth`) akan menembakkan `tcp-reset` pada koneksi lokal yang memanggil IP WAN publiknya sendiri. Jangan menaruh Hotspot pada interface bridge manajemen utama.
 
 ### Recent Patch Log (September 11, 2026 — v2.39.1: Turnkey 1-Command Installer & Setup Wizard)
 - **Feat: 1-Command All-In-One Automated Installer (`scripts/install.sh`)**:

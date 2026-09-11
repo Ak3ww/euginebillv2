@@ -330,6 +330,108 @@ export async function GET() {
   return NextResponse.json({ installed: true, ...info, peers })
 }
 
+function generateWgScript({
+  nasName,
+  vpnIp,
+  vpnSubnet,
+  vpsPublicIp,
+  clientPrivateKey,
+  serverPublicKey,
+  wgPort,
+  apiUsername,
+  apiPassword,
+  publicPorts,
+}: {
+  nasName: string
+  vpnIp: string
+  vpnSubnet: string
+  vpsPublicIp: string
+  clientPrivateKey: string
+  serverPublicKey: string
+  wgPort: number
+  apiUsername: string
+  apiPassword: string
+  publicPorts?: any
+}): string {
+  const ifaceName = `wg-${nasName.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 12)}`
+  const services = publicPorts?.services || {}
+  const winboxPublic = services.winbox?.public || 10001
+  const winboxTarget = services.winbox?.target || 8291
+  const apiPublic    = services.api?.public || 10002
+  const apiTarget    = services.api?.target || 8728
+  const apiSslPublic = services.apiSsl?.public || 10003
+  const apiSslTarget = services.apiSsl?.target || 8729
+  const wwwPublic    = services.www?.public || 10004
+  const wwwTarget    = services.www?.target || 80
+  const sshPublic    = services.ssh?.public || 10006
+  const sshTarget    = services.ssh?.target || 22
+
+  return `# ============================================================
+# MikroTik WireGuard Client Setup Script (RouterOS 7+)
+# NAS Name    : ${nasName}
+# NAS VPN IP  : ${vpnIp}
+# VPN Subnet  : ${vpnSubnet}
+#
+# ────────────────────────────────────────────────────────────
+# ALOKASI REMOTE AKSES PUBLIK (Akses dari Internet / Luar):
+# Host VPS    : ${vpsPublicIp}
+# Winbox Port : ${vpsPublicIp}:${winboxPublic} -> MikroTik:${winboxTarget}
+# WebGUI Port : http://${vpsPublicIp}:${wwwPublic} -> MikroTik:${wwwTarget}
+# API Port    : ${vpsPublicIp}:${apiPublic} -> MikroTik:${apiTarget}
+# API SSL Port: ${vpsPublicIp}:${apiSslPublic} -> MikroTik:${apiSslTarget}
+# SSH Port    : ${vpsPublicIp}:${sshPublic} -> MikroTik:${sshTarget}
+#
+# KREDENSIAL REMOTE MIKROTIK (Winbox, API, WebFig & SSH):
+# Username    : ${apiUsername}
+# Password    : ${apiPassword}
+# ============================================================
+
+# 0. Hapus setup WireGuard & User terdahulu jika ada (Idempoten & Bebas Error)
+:do { /interface/wireguard/peers/remove [find where endpoint-address="${vpsPublicIp}" or interface~"wg-"] } on-error={}
+:do { /interface/wireguard/remove [find where name="${ifaceName}" or name~"wg-"] } on-error={}
+:do { /ip/address/remove [find where address~"${vpnIp}" or interface~"wg-"] } on-error={}
+:do { /ip/route/remove [find where comment="EugineBill-VPN" or comment~"EugineBill" or gateway~"wg-"] } on-error={}
+:do { /user/remove [find where name="${apiUsername}" or comment~"EugineBill"] } on-error={}
+
+# 1. Buat WireGuard interface
+/interface/wireguard/add name=${ifaceName} private-key="${clientPrivateKey}"
+
+# 2. Tambah peer (VPS WireGuard server)
+/interface/wireguard/peers/add interface=${ifaceName} public-key="${serverPublicKey}" endpoint-address="${vpsPublicIp}" endpoint-port=${wgPort} allowed-address="${vpnSubnet}" persistent-keepalive=25
+
+# 3. Assign IP address NAS ke interface WireGuard
+/ip/address/remove [find where interface=${ifaceName}]
+/ip/address/add address=${vpnIp}/32 interface=${ifaceName}
+
+# 4. Route subnet VPN melalui WireGuard
+/ip/route/remove [find where comment="EugineBill-VPN"]
+/ip/route/add dst-address=${vpnSubnet} gateway=${ifaceName} comment="EugineBill-VPN"
+
+# 5. Buat User Remote Admin (Akses Penuh: Winbox, API, WebFig, SSH)
+:do { /user/remove [find where name="${apiUsername}"] } on-error={}
+/user/add name=${apiUsername} group=full password="${apiPassword}" comment="Remote Admin User EugineBill (Winbox & API)"
+
+# 6. Pastikan Port Layanan MikroTik Aktif & Bebas Restriksi IP
+:do { /ip/service/set winbox port=${winboxTarget} address="" disabled=no } on-error={}
+:do { /ip/service/set api port=${apiTarget} address="" disabled=no } on-error={}
+:do { /ip/service/set www port=${wwwTarget} address="" disabled=no } on-error={}
+:do { /ip/service/set ssh address="" disabled=no } on-error={}
+
+# 7. Izinkan Akses Masuk WireGuard di Baris Teratas Firewall Filter MikroTik
+:do { /ip/firewall/filter/add chain=input action=accept in-interface=${ifaceName} place-before=0 comment="Allow EugineBill VPN Remote Access" } on-error={}
+
+# ============================================================
+# PANDUAN PENGGUNAAN:
+# 1. Remote Winbox  : Buka Winbox -> Connect To: ${vpsPublicIp}:${winboxPublic} (Login: ${apiUsername} / Pass: ${apiPassword})
+# 2. Remote WebFig  : Buka Browser -> http://${vpsPublicIp}:${wwwPublic}
+# 3. Pengaturan NAS di EugineBill:
+#    - Host IP : ${vpnIp} (atau ${vpsPublicIp})
+#    - API Port: ${apiTarget} (atau ${apiPublic})
+#    - Username: ${apiUsername}
+#    - Password: ${apiPassword}
+# ============================================================`.trim()
+}
+
 // ─── POST /api/network/vps-wg-peer ───────────────────────────────────────
 // Body: { action: "add"|"remove", nasName?, publicKey? (for remove), nasLabel? }
 // On "add": generates keypair, assigns vpnIp, appends to wg.conf
@@ -472,6 +574,19 @@ export async function POST(req: NextRequest) {
       // use default
     }
 
+    const routerosScript = generateWgScript({
+      nasName,
+      vpnIp,
+      vpnSubnet: effectiveVpnSubnet,
+      vpsPublicIp: info.publicIp || '',
+      clientPrivateKey: clientPrivateKey || '',
+      serverPublicKey: info.publicKey,
+      wgPort: info.listenPort,
+      apiUsername: apiUsernameForResponse || '',
+      apiPassword: apiPasswordForResponse || '',
+      publicPorts,
+    })
+
     return NextResponse.json({
       success: true,
       vpnIp,
@@ -489,6 +604,7 @@ export async function POST(req: NextRequest) {
       radiusSecret: effectiveRadiusSecret,
       publicPorts: publicPorts || null,
       vpsPublicIp: info.publicIp || '',
+      routerosScript,
     })
   }
 
