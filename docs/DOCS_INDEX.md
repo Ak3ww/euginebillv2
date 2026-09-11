@@ -1,6 +1,6 @@
 # EugineBill Radius — Documentation Index
 
-> Last updated: 2026-04-10 | Version 2.17.0
+> Last updated: 2026-09-11 | Version 2.39.1 (Commercial Turnkey Release)
 
 ---
 
@@ -16,12 +16,14 @@ docs/
 ├── COMPREHENSIVE_FEATURE_GUIDE.md   # Panduan lengkap semua fitur
 ├── ROADMAP.md                       # Rencana pengembangan
 │
-├── getting-started/                 # Setup awal & troubleshooting
-├── setup/                           # Instalasi server & VPS
+├── setup/                           # Instalasi server, VPS & panduan vendor
+├── getting-started/                 # Setup awal, testing API & troubleshooting
+├── architecture/                    # Arsitektur autentikasi & perbandingan
 ├── mikrotik/                        # Konfigurasi MikroTik & CoA
-├── billing/                         # Billing, invoice, payment
+├── billing/                         # Billing, invoice, payment manual & gateway
+├── customer/                        # Panduan portal & pembayaran pelanggan
 ├── isolation/                       # Sistem isolasi pelanggan
-├── notifications/                   # WhatsApp, email, push notification
+├── notifications/                   # WhatsApp Baileys, email, push notification
 ├── customer-portal/                 # Portal pelanggan & self-service
 ├── mobile-app/                      # Aplikasi mobile (Expo/React Native)
 ├── features/                        # Fitur-fitur spesifik
@@ -30,29 +32,17 @@ docs/
 
 ---
 
-## Getting Started — Setup Awal & Troubleshooting
-
-| Dokumen | Deskripsi | Menu Terkait |
-|---------|-----------|--------------|
-| [TROUBLESHOOTING.md](getting-started/TROUBLESHOOTING.md) | Panduan troubleshooting umum | - |
-| [COA_TROUBLESHOOTING_WORKFLOW.md](getting-started/COA_TROUBLESHOOTING_WORKFLOW.md) | Troubleshooting CoA disconnect | Network → Sessions |
-| [DATABASE_MIGRATION_GUIDE.md](getting-started/DATABASE_MIGRATION_GUIDE.md) | Migrasi & update database Prisma | Settings |
-| [MIGRATION_AND_CLEANUP_GUIDE.md](getting-started/MIGRATION_AND_CLEANUP_GUIDE.md) | Panduan migrasi sistem & cleanup | Settings |
-| [API_TESTING_GUIDE.md](getting-started/API_TESTING_GUIDE.md) | Testing semua API endpoint | - |
-| [CHANGELOG.md](getting-started/CHANGELOG.md) | Log perubahan versi | - |
-
----
-
-## Setup — Instalasi Server & VPS
+## Setup — Instalasi Server & VPS Vendor
 
 | Dokumen | Deskripsi | Implementasi |
 |---------|-----------|--------------|
-| [FREERADIUS-SETUP.md](setup/FREERADIUS-SETUP.md) | Konfigurasi FreeRADIUS + MySQL | Jalankan `vps-install/install-freeradius.sh` |
+| [VENDOR_DEPLOYMENT_GUIDE.md](setup/VENDOR_DEPLOYMENT_GUIDE.md) | **Panduan Resmi Vendor**: Sewa VPS klien, installer 1-baris, first-time wizard | `curl -fsSL .../install.sh \| sudo bash` |
+| [FREERADIUS-SETUP.md](setup/FREERADIUS-SETUP.md) | Konfigurasi FreeRADIUS + MySQL | Otomatis via `scripts/install.sh` |
 | [CLOUDFLARE_TUNNEL_SETUP.md](setup/CLOUDFLARE_TUNNEL_SETUP.md) | Setup Cloudflare Tunnel untuk akses tanpa public IP | `cloudflared tunnel create` |
 | [PROXMOX_LXC_SETUP.md](setup/PROXMOX_LXC_SETUP.md) | Deploy di Proxmox LXC container | LXC + TUN/TAP device |
 | [PROXMOX_VPS_SETUP_GUIDE.md](setup/PROXMOX_VPS_SETUP_GUIDE.md) | Setup PPPoE/routing di Proxmox | Routing & /dev/ppp |
 | [PROXMOX_L2TP_SETUP.md](setup/PROXMOX_L2TP_SETUP.md) | L2TP VPN client di Proxmox | strongSwan + xl2tpd |
-| [VPN_CLIENT_SETUP_GUIDE.md](setup/VPN_CLIENT_SETUP_GUIDE.md) | Setup VPN client (L2TP/SSTP/PPTP) | Network → VPN Server |
+| [VPN_CLIENT_SETUP_GUIDE.md](setup/VPN_CLIENT_SETUP_GUIDE.md) | Setup VPN client (WireGuard/L2TP) | Network → VPN Server |
 | [VPS_OPTIMIZATION_GUIDE.md](setup/VPS_OPTIMIZATION_GUIDE.md) | Optimasi VPS 2GB RAM | `npm run build:vps` |
 
 ---

@@ -1,221 +1,100 @@
-# EugineBill RADIUS - Billing System for ISP/RTRW.NET
+# EugineBill RADIUS - Billing & Network Management System for ISP / RT-RW Net
 
-Modern, full-stack billing & RADIUS management system for ISP/RTRW.NET with FreeRADIUS integration supporting PPPoE and Hotspot authentication.
+Modern, full-stack billing & RADIUS management system for ISP/RT-RW Net with FreeRADIUS integration, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, and Multi-Portal PWA.
 
-> **Latest:** v2.25.2 — Native Baileys WhatsApp gateway built-in di VPS, QR modal auto-retry, auto-reconnect setelah device disconnect (Apr 26, 2026)
-
----
-
-## 🤖 AI Development Assistant
-
-**READ FIRST:** [docs/AI_PROJECT_MEMORY.md](docs/AI_PROJECT_MEMORY.md) — contains full architecture, VPS details, DB schema, known issues, and proven solutions.
+> **Latest Release:** v2.39.1 — Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS) dengan 1-Command All-in-One Installer, First-Time Setup Wizard (`/setup`), Local & RADIUS Per-Router Auth, Auto-Show Transfer Manual, dan Bundled WireGuard + L2TP VPN.
 
 ---
 
-## 🎯 Features
+## AI Development Assistant & Architecture Memory
 
-| Category | Key Capabilities |
-|----------|-----------------|
-| **RADIUS / Auth** | FreeRADIUS 3.0.26, PAP/CHAP/MS-CHAP, VPN L2TP/IPSec, PPPoE & Hotspot, CoA real-time speed/disconnect, IP Pool management, Multi-NAS isolation |
-| **VPN Management** | MikroTik CHR via API, VPS built-in WireGuard & L2TP/IPsec peer management, configurable IP pool & gateway per protocol, auto-generated RouterOS scripts |
-| **PPPoE Management** | Customer accounts, profile-based bandwidth, isolation, IP assignment, MikroTik auto-sync, foto KTP+instalasi via kamera HP, GPS otomatis, realtime online/offline status (polling 10s), realtime status isolir/aktif (polling 10s), PSB wizard 3-step (adopt dari home.pmynet.id), true optimistic update (reactivate/delete instant), placeholder MAC rejection |
-| **IP Pool** | RADIUS ippool module — dynamic IP allocation per speed tier, pool create/expand/delete, Pool-Name → group mapping, utilization stats |
-| **Data Usage Reporting** | Per-user bandwidth tracking (daily aggregation via cron), monthly summary, top consumers, GB upload/download per period |
-| **Hotspot Voucher** | 8 code types, batch up to 25,000, agent distribution, auto-sync with RADIUS, print templates, MikroTik local-only mode (voucher sync via RouterOS API, salfanet: comment marker, batch cleanup, cron status sync) |
-| **Billing** | Postpaid/prepaid invoices, auto-generation, payment reminders, balance/deposit, auto-renewal |
-| **Payment** | Manual upload (bukti transfer), Midtrans/Xendit/Duitku gateway, approval workflow, 0–5 bank accounts |
-| **Notifications** | WhatsApp (Fonnte/WAHA/GOWA/MPWA/Wablas/WABlast/**Kirimi.id**/**Baileys native**), Email SMTP, broadcast (outage/invoice/payment), webhook pesan masuk |
-| **Agent/Reseller** | Balance-based voucher generation, commission tracking, sales stats |
-| **Financial** | Income/expense tracking with categories, keuangan reconciliation |
-| **Network (FTTH)** | OLT/ODC/ODP management, customer port assignment, network map, distance calculation |
-| **Built-in ACS / TR-069** | Native CWMP TR-069 Server (zero external dependency) & GenieACS support, Multi-Vendor WiFi Config (2.4G & 5G for ZTE, Huawei, RTE, SK, GGCLink, China Mobile, FiberHome), Eye toggle UI, Hostname sanitization, Connected Devices (Hosts), RxPower, Reboot, Auto-Inform & Connection Request |
-| **Isolation** | Auto-isolate expired customers, customizable WhatsApp/Email/HTML landing page templates, fallback MikroTik API kick saat radacct kosong |
-| **Cron Jobs** | 17 automated background jobs (tsx runner via PM2 fork), history, distributed locking, manual trigger, auto-close orphaned/stale sessions |
-| **Roles & Permissions** | 53 permissions, 5 portals (Admin/Customer/Agent/Technician + SuperAdmin) |
-| **Activity Log** | Audit trail with auto-cleanup (30 days) |
-| **Security** | Session timeout 30 min, idle warning, RBAC, HTTPS/SSL |
-| **Performance** | Redis cache untuk data non-realtime (profiles, areas, routers), graceful degradation jika Redis unavailable |
-| **Auth Modes** | local (MikroTik primary) dan radius (FreeRADIUS primary, PPP secret backup disabled). Auto-migrate radius → local: create PPP secrets from existing customer data + disconnect RADIUS sessions. hybrid mode obsolete |
-| **RADIUS Setup** | Auto-generated RouterOS script pakai IP asli VPS (bukan domain/Cloudflare proxy), VPN-specific address selection |
-| **Bahasa** | Bahasa Indonesia (full) |
-| **PWA** | Installable di semua portal (admin, customer, agent, technician), offline fallback, service worker cache |
-| **Web Push** | VAPID-based browser push notifications, subscribe/unsubscribe toggle, admin broadcast |
-| **System Update** | Update via SSH menggunakan `updater.sh`, tidak ada web-based update |
-| **Mobile App** | Flutter customer portal (WiFi control, invoice, payment) |
-| **WhatsApp Baileys** | Native WhatsApp gateway built-in VPS via `@whiskeysockets/baileys`, PM2 proses terpisah, scan QR langsung di admin panel, auto-reconnect |
+**READ FIRST:** [docs/AI_PROJECT_MEMORY.md](docs/AI_PROJECT_MEMORY.md) & [docs/DOCS_INDEX.md](docs/DOCS_INDEX.md) — dokumentasi lengkap arsitektur, spesifikasi database, 70+ panduan teknis, dan troubleshooting playbook.
 
 ---
 
-## 📱 WhatsApp Baileys (Native Gateway)
+## Core Capabilities & Features
 
-Provider WhatsApp bawaan tanpa layanan pihak ketiga. Berjalan sebagai proses PM2 terpisah (`EugineBill-wa`) di VPS.
+| Kategori | Fitur & Arsitektur Utama |
+| :--- | :--- |
+| **RADIUS & Local Auth** | Mode fleksibel per-router (`local` MikroTik secrets atau `radius` FreeRADIUS 3.x), real-time CoA disconnect/speed change (Port 3799/UDP), OpenSSL MD4 legacy provider untuk MS-CHAPv2 PPPoE, Dynamic NAS management via `clients.d/`. |
+| **VPN Server Management** | WireGuard Server bawaan VPS (`10.200.0.0/24` port 51820 UDP untuk RouterOS v7) & L2TP/IPSec Server (`10.201.0.0/24` untuk RouterOS v6). MikroTik terhubung langsung ke VPS tanpa memerlukan CHR forwarder perantara. |
+| **ONT Remote Proxy** | Reverse proxy remote modem pelanggan (`24000:24999/tcp`) via `socat` VPS dan dynamic NAT MikroTik. Akses langsung modem ONT pelanggan di balik IP private tanpa IP publik statis di sisi pelanggan. |
+| **Remote Winbox Forwarding**| Forwarding port manajemen router MikroTik (`10001:10999/tcp`) untuk akses Winbox, WebFig, dan API dari mana saja via internet. |
+| **PPPoE Management** | Akun pelanggan, paket profile bandwidth, isolir otomatis, penugasan IP statis/pool, auto-sync MikroTik, foto KTP + instalasi via kamera smartphone, GPS otomatis, pemantauan status online/offline 10s. |
+| **Hotspot & Voucher** | 8 format kode voucher, generate batch hingga 25.000 voucher, distribusi agen/reseller, auto-sync RADIUS & MikroTik local mode, template cetak profesional dengan barcode QR. |
+| **Billing & Invoices** | Penagihan prabayar & pascabayar, invoice PDF & Excel server-side engine (Oceanic Blue), auto-generate tagihan bulanan, sistem saldo deposit agen & pelanggan, auto-renewal otomatis dari saldo. |
+| **Payment Gateway & Manual**| Multi-gateway otomatis (Midtrans, Xendit, Tripay, Duitku, QRIN) + Auto-Show Transfer Bank Manual pada `/pay/[token]` dengan 1-klik salin rekening dan upload bukti transfer. |
+| **WhatsApp Bot (Baileys Native)**| Bot WhatsApp bawaan VPS via `@whiskeysockets/baileys` (internal port 4000, zero third-party cost, multi-device, auto-reconnect, scan QR langsung di Web Admin). Mendukung juga Fonnte, Wablas, dan Kirimi.id. |
+| **Network (FTTH) & OLT** | Manajemen hierarki OLT/ODC/ODP, pemetaan port pelanggan, peta topologi jaringan, kalkulasi jarak kabel fiber optik, visualisasi map interaktif. |
+| **Built-in ACS / TR-069** | Native CWMP TR-069 server & GenieACS integration: konfigurasi WiFi multi-vendor (ZTE, Huawei, FiberHome), RxPower optik, reboot jarak jauh, auto-inform. |
+| **Isolasi Pelanggan Otomatis** | Auto-isolir pelanggan jatuh tempo, landing page isolir khusus pelanggan (`/isolated`), Walled Garden MikroTik dinamis, fallback auto-kick session. |
+| **Role-Based Portals** | 5 Portal terdedikasi: Admin Dashboard (`/admin`), Customer Portal (`/customer`), Agent Reseller (`/agent`), Technician (`/technician`), dan First-Time Setup Wizard (`/setup`). |
 
-### Setup
+---
 
-Provider Baileys otomatis di-setup saat menjalankan `updater.sh`. Tidak ada konfigurasi tambahan.
+## 1-Command Turnkey Deployment (VPS Baru)
+
+Untuk VPS baru (Ubuntu 20.04 / 22.04 / 24.04 LTS), jalankan **satu baris perintah** ini di terminal SSH:
 
 ```bash
-# Cek status wa-service
-pm2 status
-pm2 logs EugineBill-wa --lines 20
+curl -fsSL https://raw.githubusercontent.com/Ak3ww/euginebillv2/main/scripts/install.sh | sudo bash
 ```
 
-### Cara Pakai
-
-1. Buka **Admin → Pengaturan → WhatsApp → Penyedia**
-2. Klik **+ Tambah Provider**, pilih tipe **Baileys**
-3. Klik **QR Code** → scan dengan HP (WhatsApp → Linked Devices)
-4. Setelah scan berhasil, modal menampilkan centang hijau konfirmasi
-5. Provider siap digunakan untuk kirim notifikasi
-
-### PM2 Processes
-
-| Process | Mode | Port | Purpose |
-|---------|------|------|---------|
-| `EugineBill-radius` | cluster | 3000 | Next.js app |
-| `EugineBill-wa` | fork | 4000 (internal) | Baileys WA service |
-| `EugineBill-cron` | fork | — | Background jobs |
-
-### Auth Session
-
-Session WhatsApp tersimpan di `/var/data/EugineBill/baileys_auth/` dan persist meski PM2 restart. Untuk logout/scan ulang, klik **Restart Session** di admin panel.
-
----
-
-## 🚀 Tech Stack
-
-| Component | Technology |
-|-----------|------------|
-| Framework | Next.js 16 (App Router, standalone output) |
-| Language | TypeScript |
-| Styling | Tailwind CSS |
-| Database | MySQL 8.0 + Prisma ORM |
-| RADIUS | FreeRADIUS 3.0.26 |
-| Process Manager | PM2 (cluster × 2) |
-| Session Tracking | FreeRADIUS radacct (real-time) |
-| Maps | Leaflet / OpenStreetMap |
-
----
-
-## 📁 Project Structure
-
-```
-EugineBill-radius/
-├── src/
-│   ├── app/
-│   │   ├── admin/          # Admin panel
-│   │   ├── agent/          # Agent/reseller portal
-│   │   ├── api/            # API route handlers
-│   │   ├── customer/       # Customer self-service portal
-│   │   └── technician/     # Technician portal
-│   ├── server/             # DB, services, jobs, cache, auth
-│   ├── features/           # Vertical slices (queries, schemas, types)
-│   ├── components/         # Shared React components
-│   ├── locales/            # i18n translations (id, en)
-│   └── types/              # Shared TypeScript types
-├── prisma/
-│   ├── schema.prisma       # Database schema (~45 models)
-│   └── seeds/              # Seed scripts
-├── freeradius-config/      # FreeRADIUS config (deployed by installer)
-├── vps-install/            # One-command VPS installer scripts
-├── production/             # PM2 & Nginx config templates
-├── mobile-app/             # Flutter customer app
-├── scripts/                # Utility & tuning scripts
-└── docs/                   # Documentation & AI memory
-```
-
----
-
-## ⚙️ Installation
-
-### Metode 1 — Git Clone (Recommended)
-
+*(Atau via Git Clone manual)*:
 ```bash
-ssh root@YOUR_VPS_IP
-
-git clone https://github.com/s4lfanet/EugineBill-radius.git /root/EugineBill-radius
-cd /root/EugineBill-radius
-bash vps-install/vps-installer.sh
-```
-
-Installer akan berjalan **interaktif** — mendeteksi environment otomatis, memandu konfigurasi, lalu menjalankan semua step.
-
----
-
-### Metode 2 — Upload Manual via SCP (Tanpa Akses Internet di Server)
-
-```bash
-# Jalankan di terminal LOKAL (bukan di server)
-scp -r ./EugineBill-radius root@YOUR_VPS_IP:/root/EugineBill-radius
-
-# SSH ke server, lalu jalankan installer
-ssh root@YOUR_VPS_IP
-cd /root/EugineBill-radius
-bash vps-install/vps-installer.sh
-```
-
----
-
-### Environment yang Didukung
-
-| Environment | Flag | Akses |
-|------------|------|-------|
-| **Public VPS** (DigitalOcean, Vultr, Hetzner, AWS) | `--env vps` | Internet |
-| **Proxmox LXC** | `--env lxc` | LAN/VLAN |
-| **Proxmox VM / VirtualBox** | `--env vm` | LAN |
-| **Bare Metal / Server Fisik** | `--env bare` | LAN |
-
-```bash
-# Contoh: paksa environment + IP
-bash vps-install/vps-installer.sh --env lxc --ip 192.168.1.50
-```
-
----
-
-### Updating Existing Installation
-
-Cara paling aman. **Semua data upload (logo, foto KTP pelanggan, bukti bayar) otomatis dipreservasi.**
-
-```bash
-bash /var/www/EugineBill-radius/vps-install/updater.sh
-```
-
-Atau update dari branch terbaru secara manual:
-
-```bash
+git clone https://github.com/Ak3ww/euginebillv2.git /var/www/EugineBill-radius
 cd /var/www/EugineBill-radius
-git pull origin master
-npm install --legacy-peer-deps
-npx prisma db push
-npm run build
-pm2 reload all
+sudo bash scripts/install.sh
 ```
 
-Lihat detail lengkap di [vps-install/README.md](vps-install/README.md).
+### Apa Saja yang Diinstal Otomatis?
+1. **Node.js 20 LTS, MySQL Server, & PM2**
+2. **Nginx Reverse Proxy**: Port 80 & 443 langsung terhubung ke Next.js (port 3000), support WebSocket & batas upload 100MB.
+3. **FreeRADIUS 3.x + MySQL**: Langsung tersambung ke database `euginebill` dengan patch OpenSSL MD4 provider.
+4. **WireGuard VPN Server**: Aktif pada port `51820/UDP` (Subnet `10.200.0.0/24`).
+5. **L2TP/IPSec VPN Server**: Aktif (strongSwan + xl2tpd, Subnet `10.201.0.0/24`).
+6. **Firewall UFW**: Seluruh port otomatis dibuka (Web 80/443, Winbox 10001-10999, ONT Remote 24000-24999, FreeRADIUS 1812/1813/3799, VPN 51820/500/4500/1701).
+7. **Persistent Storage**: `/var/data/EugineBill/uploads` & auth WhatsApp Baileys.
+8. **3 Layanan PM2**: `EugineBill-radius` (Web), `EugineBill-wa` (WhatsApp Bot), dan `EugineBill-cron` (Cron Job otomatis).
+9. **First-Time Setup Wizard**: Buka browser di `http://IP_VPS/setup` untuk membuat akun Super Admin dan mengisi profil usaha Anda.
 
 ---
 
-### Data yang Aman Saat Update
+## First-Time Setup Wizard (`/setup`)
 
-| Data | Status |
-|------|--------|
-| Logo perusahaan (`public/uploads/logos/`) | ✅ Dipreservasi |
-| Foto KTP & dokumen pelanggan | ✅ Dipreservasi |
-| Bukti pembayaran | ✅ Dipreservasi |
-| File `.env` (database, secrets) | ✅ Tidak disentuh |
-| **Database MySQL (semua data pelanggan)** | ✅ Tidak disentuh |
+Tidak ada lagi kredensial default yang rentan. Setelah instalasi selesai:
+1. Buka browser: `http://IP_VPS/setup`
+2. **Langkah 1**: Masukkan Nama ISP, Telepon, Email, dan Alamat Kantor.
+3. **Langkah 2**: Buat Akun Super Admin Utama (Nama, Username Login, Email, Password).
+4. **Langkah 3**: Konfigurasi Prefix ID Pelanggan (contoh `EB-`) & Tanggal Jatuh Tempo Tagihan (contoh `20`).
+5. Klik **Selesaikan Inisialisasi** -> Halaman `/setup` otomatis terkunci permanen dan Anda langsung dialihkan ke login `/admin/login`.
 
 ---
 
-### Default Credentials
+## Updating Existing System (Safe Patch)
 
-| | |
-|--|--|
-| Admin URL | `http://YOUR_VPS_IP/admin/login` |
-| Username | `superadmin` |
-| Password | `admin123` |
+Untuk memperbarui sistem tanpa risiko kehilangan data pelanggan, database, atau konfigurasi:
 
-⚠️ **Ganti password segera setelah login pertama!**
+```bash
+sudo bash scripts/safe-update.sh
+```
+Skrip ini otomatis membuat snapshot database MySQL (`mysqldump` terkompresi `.sql.gz`), membackup file `.env`, melakukan `git pull`, sinkronisasi skema database, build aplikasi, dan me-reload proses PM2 tanpa downtime.
+
+---
+
+## Technical Documentation Index
+
+Dokumentasi lengkap terbagi ke dalam panduan teknis pada folder `docs/`:
+
+| Dokumen Panduan | Deskripsi |
+| :--- | :--- |
+| [VENDOR_DEPLOYMENT_GUIDE.md](docs/setup/VENDOR_DEPLOYMENT_GUIDE.md) | Panduan lengkap vendor menyewakan VPS EugineBill ke klien ISP baru. |
+| [CUSTOMER_EXPERIENCE_PAYMENT_GUIDE.md](docs/customer/CUSTOMER_EXPERIENCE_PAYMENT_GUIDE.md) | Panduan pembayaran pelanggan, transfer bank manual, dan gateway. |
+| [TROUBLESHOOTING.md](docs/getting-started/TROUBLESHOOTING.md) | Panduan investigasi dan solusi kendala teknis (RADIUS, MySQL, VPN). |
+| [COA_TROUBLESHOOTING_WORKFLOW.md](docs/getting-started/COA_TROUBLESHOOTING_WORKFLOW.md) | Panduan penanganan CoA disconnect dan MikroTik kick session. |
+| [API_TESTING_GUIDE.md](docs/getting-started/API_TESTING_GUIDE.md) | Daftar dan panduan pengujian 150+ endpoint API EugineBill. |
+| [GENIEACS-GUIDE.md](docs/features/GENIEACS-GUIDE.md) | Panduan TR-069 ACS dan manajemen modem ONT pelanggan. |
+| [CHANGELOG.md](CHANGELOG.md) | Riwayat patch lengkap dan catatan rilis setiap versi. |
 
 ---
 
