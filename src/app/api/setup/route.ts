@@ -7,15 +7,15 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const [userCount, companyCount] = await Promise.all([
-      prisma.users.count(),
+    const [adminCount, companyCount] = await Promise.all([
+      prisma.adminUser.count(),
       prisma.company.count(),
     ]);
 
     return NextResponse.json({
       success: true,
-      isInitialized: userCount > 0 && companyCount > 0,
-      userCount,
+      isInitialized: adminCount > 0 && companyCount > 0,
+      adminCount,
       companyCount,
     });
   } catch (error: any) {
@@ -29,12 +29,12 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const [userCount, companyCount] = await Promise.all([
-      prisma.users.count(),
+    const [adminCount, companyCount] = await Promise.all([
+      prisma.adminUser.count(),
       prisma.company.count(),
     ]);
 
-    if (userCount > 0 && companyCount > 0) {
+    if (adminCount > 0 && companyCount > 0) {
       return NextResponse.json(
         { error: 'Sistem sudah diinisialisasi. Setup terkunci.' },
         { status: 403 }
@@ -51,6 +51,7 @@ export async function POST(req: Request) {
       baseUrl,
       timezone,
       adminName,
+      adminUsername,
       adminEmail,
       adminPassword,
       customerIdPrefix,
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
     const resolvedCompanyId = randomUUID();
     const resolvedUserId = randomUUID();
+    const resolvedUsername = (adminUsername?.trim() || adminEmail.split('@')[0] || 'admin').toLowerCase();
 
     // Create or update company
     let company;
@@ -121,24 +123,40 @@ export async function POST(req: Request) {
       });
     }
 
-    // Create superadmin user if none exists
+    // Create superadmin user in admin_users if none exists
     let adminUser;
-    if (userCount === 0) {
-      adminUser = await prisma.users.create({
+    if (adminCount === 0) {
+      adminUser = await prisma.adminUser.create({
         data: {
           id: resolvedUserId,
           name: adminName.trim(),
+          username: resolvedUsername,
           email: adminEmail.trim().toLowerCase(),
           password: hashedPassword,
-          role: 'ADMIN',
+          role: 'SUPER_ADMIN',
+          isActive: true,
         },
       });
+
+      // Also mirror to legacy users table for backward compatibility
+      try {
+        await prisma.users.create({
+          data: {
+            id: resolvedUserId,
+            name: adminName.trim(),
+            email: adminEmail.trim().toLowerCase(),
+            password: hashedPassword,
+            role: 'ADMIN',
+          },
+        });
+      } catch {}
     }
 
     return NextResponse.json({
       success: true,
       message: 'Inisialisasi sistem berhasil! Silakan login.',
       companyId: company.id,
+      adminUsername: adminUser?.username || resolvedUsername,
       adminEmail: adminUser?.email || adminEmail,
     });
   } catch (error: any) {

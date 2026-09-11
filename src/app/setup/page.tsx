@@ -27,6 +27,7 @@ export default function SetupWizardPage() {
     timezone: 'Asia/Jakarta',
 
     // Step 2: Superadmin Account
+    adminUsername: 'admin',
     adminName: '',
     adminEmail: '',
     adminPassword: '',
@@ -69,8 +70,8 @@ export default function SetupWizardPage() {
       }
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      if (!formData.adminName.trim() || !formData.adminEmail.trim()) {
-        setError('Nama dan Email Admin wajib diisi.');
+      if (!formData.adminName.trim() || !formData.adminEmail.trim() || !formData.adminUsername.trim()) {
+        setError('Nama, Username Login, dan Email Admin wajib diisi.');
         return;
       }
       if (!formData.adminPassword || formData.adminPassword.length < 6) {
@@ -256,23 +257,39 @@ export default function SetupWizardPage() {
                   <p className="text-xs text-slate-400 mt-0.5">Akun ini memiliki hak akses penuh ke seluruh menu administrasi EugineBill.</p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                    Nama Lengkap Admin <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.adminName}
-                    onChange={(e) => updateField('adminName', e.target.value)}
-                    placeholder="Administrator"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-all"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                      Nama Lengkap Admin <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.adminName}
+                      onChange={(e) => updateField('adminName', e.target.value)}
+                      placeholder="Administrator"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-slate-400" /> Username Login <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.adminUsername}
+                      onChange={(e) => updateField('adminUsername', e.target.value)}
+                      placeholder="admin"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-all font-mono"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                    Email Login <span className="text-red-400">*</span>
+                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-slate-400" /> Email Login <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="email"

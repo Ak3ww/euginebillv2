@@ -4,6 +4,27 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.1] — 2026-09-11
+### Turnkey 1-Command Installer Bundle & Setup Wizard Superadmin Username Customization
+- **Paket Instalasi 1-Baris Perintah Komprehensif (`scripts/install.sh`)**:
+  - *Context / User Request*:
+    Menghilangkan kerumitan menjalankan banyak skrip terpisah di VPS baru. Memastikan FreeRADIUS 3.x, WireGuard VPN Server, L2TP/IPSec VPN Server, Nginx Reverse Proxy, dan PM2 Ecosystem (Web + WA + Cron) otomatis terpasang dan aktif dalam satu paket perintah tunggal (`curl -fsSL ... | sudo bash` atau `sudo bash scripts/install.sh`).
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Bundling Layanan Jaringan Lengkap**:
+       - Mengintegrasikan konfigurasi Nginx reverse proxy langsung di port 80/443 menuju Next.js internal (port 3000) dengan dukungan WebSocket dan batas unggah 100MB, sehingga setup wizard dapat diakses langsung pada port standar web `http://IP/setup`.
+       - Mengintegrasikan modul FreeRADIUS 3.x langsung terhubung ke database `euginebill` via MySQL, konfigurasi direktori dinamis `clients.d/`, dan injeksi provider legacy OpenSSL (MD4) untuk kompatibilitas MS-CHAPv2 MikroTik PPPoE pada Ubuntu 22+.
+       - Mengintegrasikan instalasi otomatis WireGuard VPN Server (subnet `10.200.0.0/24`, port `51820/UDP`) untuk router MikroTik RouterOS v7.
+       - Mengintegrasikan instalasi otomatis L2TP/IPSec VPN Server (strongSwan + xl2tpd, subnet `10.201.0.0/24`) dengan auto-generated IPSec PSK untuk router MikroTik RouterOS v6.
+       - Menjalankan seluruh proses PM2 melalui `ecosystem.config.js` (`EugineBill-radius`, `EugineBill-wa`, `EugineBill-cron`) dan menyetel auto-start sistem saat reboot.
+    2. **Kustomisasi Username Superadmin pada Setup Wizard (`/setup` & `/api/setup`)**:
+       - Menambahkan input field eksplisit `Username Login` (default: `'admin'`) pada Langkah 2 wizard agar pengguna mengetahui persis username yang digunakan untuk login di `/admin/login`.
+       - Menghubungkan pembuatan akun ke tabel `admin_users` dengan role `SUPER_ADMIN` yang menjadi acuan otentikasi NextAuth, sekaligus membuat salinan backward-compatible pada tabel legacy `users`.
+  - *Files*:
+    - `scripts/install.sh`
+    - `src/app/setup/page.tsx`
+    - `src/app/api/setup/route.ts`
+    - `docs/setup/VENDOR_DEPLOYMENT_GUIDE.md`
+
 ## [2.39.0] — 2026-09-11
 ### Commercial Release Readiness: First-Time Setup Wizard, Local Auth Mode, Manual Bank Transfer, & Zero-Hardcoding Sanitization
 - **Transformasi Komersial EugineBill Siap Sewa / Jual (Managed Single-Tenant VPS)**:

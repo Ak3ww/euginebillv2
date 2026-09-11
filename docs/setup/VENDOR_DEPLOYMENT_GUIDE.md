@@ -40,23 +40,28 @@ Daftar port yang wajib dibuka pada Cloud Security Group / Firewall VPS:
 
 ---
 
-## 3. Instalasi Cepat VPS Baru (1-Baris Perintah - Direkomendasikan)
+## 3. Instalasi Cepat VPS Baru (1-Baris Perintah - Turnkey All-in-One)
 
 Untuk server Ubuntu 22.04 / 24.04 yang masih baru dan bersih, Anda cukup menjalankan **satu baris perintah** ini di terminal SSH:
 
 ```bash
-git clone https://github.com/Ak3ww/euginebillv2.git /var/www/EugineBill-radius && cd /var/www/EugineBill-radius && sudo bash install.sh
+curl -fsSL https://raw.githubusercontent.com/Ak3ww/euginebillv2/main/scripts/install.sh | sudo bash
 ```
+*(Atau melalui clone manual: `git clone https://github.com/Ak3ww/euginebillv2.git /var/www/EugineBill-radius && cd /var/www/EugineBill-radius && sudo bash scripts/install.sh`)*
 
-Skrip `install.sh` akan secara otomatis:
-1. Mendeteksi IP server dan menanyakan 2-3 isian singkat (cukup tekan ENTER untuk menggunakan default).
-2. Menginstal Node.js 20, MySQL, PM2, WireGuard, Socat, dan UFW.
-3. Membuat database `euginebill` & user MySQL secara otomatis.
-4. Menghasilkan kunci enkripsi acak dan menulis file `.env`.
-5. Menyiapkan folder penyimpanan upload persisten.
-6. Membuka semua port firewall (Web, Winbox 10001-10999, ONT Remote 24000-24999).
-7. Melakukan build aplikasi dan menyalakan PM2.
-8. Memberikan tautan web wizard: `http://IP_VPS:3000/setup`.
+Skrip `install.sh` akan secara otomatis memasang seluruh paket sistem yang dibutuhkan dalam 1 paket lengkap:
+1. **Auto-Detect & Zero-Touch Prompt**: Mendeteksi IP publik server secara otomatis dan memberikan default nilai (cukup tekan ENTER 3 kali untuk menyetujui default, atau biarkan 15 detik auto-proceed).
+2. **Paket Dasar**: Menginstal Node.js 20 LTS, MySQL Server, PM2, dan dependensi build.
+3. **Nginx Reverse Proxy**: Mengonfigurasi port 80 & 443 langsung menuju Next.js (port 3000), mendukung WebSocket live updates, dan batas unggah berkas hingga 100MB.
+4. **FreeRADIUS 3.x + MySQL**: Terpasang dan terkonfigurasi dengan modul SQL, direktori `clients.d/` untuk router NAS dinamis, dan OpenSSL legacy provider (MD4) untuk autentikasi MS-CHAPv2 MikroTik PPPoE.
+5. **WireGuard VPN Server**: Otomatis aktif pada port `51820/UDP` dengan subnet `10.200.0.0/24` (Gateway VPS: `10.200.0.1`) untuk router MikroTik RouterOS v7.
+6. **L2TP/IPSec VPN Server**: Otomatis aktif (strongSwan + xl2tpd) dengan subnet `10.201.0.0/24` (Gateway: `10.201.0.1`) dan auto-generated IPSec PSK untuk router MikroTik RouterOS v6.
+7. **Socat Proxy**: Siap meneruskan akses Remote ONT (`24000:24999/tcp`) dan Remote Winbox (`10001:10999/tcp`).
+8. **Firewall UFW**: Seluruh port yang dibutuhkan langsung dibuka otomatis.
+9. **Persistent Storage**: Menyiapkan `/var/data/EugineBill/uploads` dan sesi WhatsApp Baileys.
+10. **Database & Build**: Sinkronisasi skema Prisma ke MySQL dan build produksi Next.js.
+11. **3 Layanan PM2**: Menjalankan Web App (`EugineBill-radius`), Background Cron (`EugineBill-cron`), dan WhatsApp Baileys (`EugineBill-wa`) yang otomatis menyala saat server reboot.
+12. **Setup Wizard URL**: Di akhir instalasi, buka browser pada `http://IP_VPS/setup` (port standar web).
 
 ---
 
