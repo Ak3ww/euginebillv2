@@ -40,9 +40,29 @@ Daftar port yang wajib dibuka pada Cloud Security Group / Firewall VPS:
 
 ---
 
-## 3. Instalasi Awal pada VPS Baru (Step-by-Step)
+## 3. Instalasi Cepat VPS Baru (1-Baris Perintah - Direkomendasikan)
 
-### Step 1: Install Paket Sistem & Node.js
+Untuk server Ubuntu 22.04 / 24.04 yang masih baru dan bersih, Anda cukup menjalankan **satu baris perintah** ini di terminal SSH:
+
+```bash
+git clone https://github.com/Ak3ww/euginebillv2.git /var/www/EugineBill-radius && cd /var/www/EugineBill-radius && sudo bash install.sh
+```
+
+Skrip `install.sh` akan secara otomatis:
+1. Mendeteksi IP server dan menanyakan 2-3 isian singkat (cukup tekan ENTER untuk menggunakan default).
+2. Menginstal Node.js 20, MySQL, PM2, WireGuard, Socat, dan UFW.
+3. Membuat database `euginebill` & user MySQL secara otomatis.
+4. Menghasilkan kunci enkripsi acak dan menulis file `.env`.
+5. Menyiapkan folder penyimpanan upload persisten.
+6. Membuka semua port firewall (Web, Winbox 10001-10999, ONT Remote 24000-24999).
+7. Melakukan build aplikasi dan menyalakan PM2.
+8. Memberikan tautan web wizard: `http://IP_VPS:3000/setup`.
+
+---
+
+## 3.B. Instalasi Manual (Step-by-Step Alternatif)
+
+Jika Anda ingin melakukan instalasi secara manual per langkah:
 ```bash
 sudo apt-get update && sudo apt-get upgrade -y
 sudo apt-get install -y curl git ufw socat mysql-server wireguard gzip
