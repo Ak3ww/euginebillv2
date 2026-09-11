@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.2
+- **Version**: 2.39.3
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 11, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,14 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 11, 2026 — v2.39.3: Strict Admin-Defined Port Forwarding Without Probing)
+- **Critical Invariant: Strict Admin-Driven Port Forwarding (`applyAdminPortForwarding`)**:
+  - DILARANG melakukan scanning/probing dinamis ke router MikroTik via `/ip/service/print` saat menyimpan router atau VPN client. Probing dinamis menambah latensi, gagal jika koneksi API belum terbentuk, dan berisiko mengubah port tanpa persetujuan eksplisit admin.
+  - Port forwarding VPS (iptables DNAT) WAJIB murni mengikuti isian form admin: jika admin mengisi API port 8520 dan Winbox port 8228, sistem langsung menerapkan target port tersebut ke `vpnClient.publicPorts` dan iptables VPS tanpa menyentuh atau memindai router MikroTik.
+  - Modal tambah & edit router (`/admin/network/routers`) menyediakan input field eksplisit untuk `API Port` dan `Winbox Port`.
+- **Diagnostic Invariant: Winbox PC Cache Corruption**:
+  - Jika koneksi Winbox dari HP (atau IP publik) berhasil login normal, tetapi dari PC Windows mengalami "the remote host closed the connection" atau logout otomatis 1 detik setelah login, penyebabnya adalah **cache lokal Winbox Windows yang korup/mismatch** di `%APPDATA%\MikroTik\WinBox\cache`. Solusinya adalah membuka Winbox di PC -> klik menu **Tools** -> **Clear Cache**.
 
 ### Recent Patch Log (September 11, 2026 — v2.39.2: Turnkey 1-Paste VPN Remote Scripting & Auto Port Sync)
 - **Critical Invariant: Single Full-Privilege Remote User (`group=full`)**:

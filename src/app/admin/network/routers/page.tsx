@@ -75,6 +75,7 @@ export default function RouterPage() {
     password: '',
     port: '8728',
     apiPort: '8729',
+    winboxPort: '8291',
     secret: 'secret123',
     ports: '1812',
     server: '',
@@ -93,7 +94,6 @@ export default function RouterPage() {
   const [creating, setCreating] = useState(false)
   const [settingUpRadius, setSettingUpRadius] = useState<string | null>(null)
   const [settingUpHotspot, setSettingUpHotspot] = useState<string | null>(null)
-  const [syncingPorts, setSyncingPorts] = useState<string | null>(null)
   const [showScriptModal, setShowScriptModal] = useState(false)
   const [showHotspotModal, setShowHotspotModal] = useState(false)
   const [showTutorial, setShowTutorial] = useState(true)
@@ -324,7 +324,7 @@ export default function RouterPage() {
   const resetForm = () => {
     setFormData({
       name: '', nasname: '', shortname: '', type: 'mikrotik', ipAddress: '', username: '', password: '',
-      port: '8728', apiPort: '8729', secret: 'secret123', ports: '1812', server: '', community: '', description: '', vpnClientId: '',
+      port: '8728', apiPort: '8729', winboxPort: '8291', secret: 'secret123', ports: '1812', server: '', community: '', description: '', vpnClientId: '',
       authMode: 'local',
     })
     setTestResult(null)
@@ -333,10 +333,11 @@ export default function RouterPage() {
 
   const handleEdit = (routerData: Router) => {
     setEditingRouter(routerData)
+    const winboxTarget = routerData.vpnClient?.publicPorts?.services?.winbox?.target?.toString() || '8291'
     setFormData({
       name: routerData.name, nasname: routerData.nasname, shortname: routerData.shortname, type: routerData.type,
       ipAddress: routerData.ipAddress, username: routerData.username, password: routerData.password,
-      port: routerData.port.toString(), apiPort: routerData.apiPort.toString(), secret: routerData.secret,
+      port: routerData.port.toString(), apiPort: routerData.apiPort.toString(), winboxPort: winboxTarget, secret: routerData.secret,
       ports: routerData.ports.toString(), server: routerData.server || '', community: routerData.community || '',
       description: routerData.description || '', vpnClientId: routerData.vpnClientId || '',
       authMode: routerData.authMode || 'local',
@@ -452,38 +453,7 @@ export default function RouterPage() {
     showSuccess(t('network.copiedToClipboard').replace('{label}', label))
   }
 
-  /**
-   * Sync port aktual MikroTik ke sistem port forwarding VPS.
-   * Konek ke MikroTik via API, baca /ip/service/print, update iptables jika ada perbedaan.
-   */
-  const handleSyncPorts = async (routerId: string, routerName: string) => {
-    setSyncingPorts(routerId)
-    try {
-      const res = await fetch('/api/network/routers/sync-ports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ routerId }),
-      })
-      const result = await res.json()
-      if (!res.ok) {
-        showError(result.error || 'Gagal sync ports')
-        return
-      }
-      if (result.changes?.length > 0) {
-        const changeList = result.changes.map((c: any) =>
-          `${c.service}: port ${c.oldTarget} → ${c.newTarget} (publik: ${c.publicPort})`
-        ).join('\n')
-        showSuccess(`Sync selesai! ${result.changes.length} port diperbarui:\n${changeList}`)
-      } else {
-        showSuccess(result.message || 'Semua port sudah sinkron.')
-      }
-      loadRouters()
-    } catch (e: any) {
-      showError('Gagal sync ports: ' + e.message)
-    } finally {
-      setSyncingPorts(null)
-    }
-  }
+
 
   // Stats
   const totalRouters = routers.length;
@@ -963,20 +933,7 @@ export default function RouterPage() {
                           >
                             {settingUpHotspot === routerData.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wifi className="w-5 h-5" />}
                           </button>
-                          {/* Tombol Sync Ports — hanya tampil jika router punya VPN client dengan publicPorts */}
-                          {routerData.vpnClient?.publicPorts && (
-                            <button
-                              onClick={() => handleSyncPorts(routerData.id, routerData.name)}
-                              disabled={syncingPorts === routerData.id}
-                              className="p-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-xl hover:bg-amber-500/20 transition-all disabled:opacity-50"
-                              title="Sync Port Aktual dari MikroTik (baca /ip/service/print)"
-                            >
-                              {syncingPorts === routerData.id
-                                ? <Loader2 className="w-5 h-5 animate-spin" />
-                                : <RefreshCw className="w-5 h-5" />
-                              }
-                            </button>
-                          )}
+
                           <button
                             onClick={() => handleEdit(routerData)}
                             className="p-2.5 bg-muted border border-border text-foreground rounded-xl hover:bg-accent transition-all"
@@ -1201,7 +1158,7 @@ export default function RouterPage() {
 
                 {/* Ports — only show for MikroTik routers, not gateway/VPS */}
                 {formData.type !== 'gateway' && (
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-[#00f7ff] mb-2">{t('network.apiPort')}</label>
                     <input
@@ -1211,6 +1168,18 @@ export default function RouterPage() {
                       className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
                       placeholder="8728"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Port API MikroTik (default 8728)</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#00f7ff] mb-2">Winbox Port</label>
+                    <input
+                      type="number"
+                      value={formData.winboxPort}
+                      onChange={(e) => setFormData({ ...formData, winboxPort: e.target.value })}
+                      className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
+                      placeholder="8291"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Port Winbox MikroTik (default 8291)</p>
                   </div>
                 </div>
                 )}

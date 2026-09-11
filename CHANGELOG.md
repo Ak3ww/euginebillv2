@@ -4,6 +4,27 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.3] — 2026-09-11
+### Strict Admin-Defined Port Forwarding (Direct VPS Iptables Application Without Router Probing)
+- **Penegakan Port Forwarding Murni dari Isian Admin (`applyAdminPortForwarding`)**:
+  - *Context / User Request*:
+    Pengguna meminta sistem tidak melakukan *probing* atau pemindaian dinamis ke router MikroTik via `/ip/service/print`. Ketika admin mengetikkan port (misalnya API: 8520, Winbox: 8228), sistem harus langsung menerapkan port tersebut ke VPS iptables dan database sesuai isian admin secara deterministik tanpa ketergantungan koneksi API router. Rule redirect sementara pada firewall MikroTik juga dihapus agar konfigurasi tetap bersih.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Direct Admin-Driven Port Forwarding (`applyAdminPortForwarding`)**:
+       - Menggantikan fungsi probing `autoSetupPortForwarding` pada `src/app/api/network/routers/route.ts` dengan `applyAdminPortForwarding`.
+       - Fungsi ini murni membaca isian admin dari request body (`port` sebagai API port, `winboxPort` sebagai Winbox port, `apiPort` sebagai API SSL port), langsung memperbarui `vpnClient.publicPorts` di database, dan langsung mengeksekusi regenerasi aturan `iptables -t nat PREROUTING DNAT` di VPS tanpa melakukan koneksi atau *query* ke router MikroTik.
+    2. **Field Input Eksplisit Winbox Port pada Modal Router**:
+       - Menambahkan input field `Winbox Port` (default 8291) berdampingan dengan `API Port` (default 8728) pada modal tambah dan edit router di `src/app/admin/network/routers/page.tsx`.
+       - Form edit router otomatis membaca port Winbox tersimpan dari `router.vpnClient.publicPorts.services.winbox.target`.
+    3. **Eliminasi Probing Route `sync-ports`**:
+       - Menghapus endpoint `src/app/api/network/routers/sync-ports` dan tombol "Sync Ports" pada tabel router agar sistem tidak menjalankan probing API yang tidak diinginkan.
+    4. **Pembersihan Rule Firewall MikroTik**:
+       - Menghapus rule redirect NAT sementara pada router MikroTik sehingga tabel firewall router kembali bersih dan bebas dari modifikasi non-standar.
+  - *Files*:
+    - `src/app/api/network/routers/route.ts`
+    - `src/app/admin/network/routers/page.tsx`
+    - `src/app/api/network/routers/sync-ports/` (Dihapus)
+
 ## [2.39.2] — 2026-09-11
 ### Turnkey 1-Paste VPN Remote Client Scripting, Single Full-Privilege Winbox+API User, & Auto Port Forwarding Sync
 - **Turnkey 1-Paste Remote Access Setup (WireGuard & L2TP pada RouterOS 6 & 7)**:

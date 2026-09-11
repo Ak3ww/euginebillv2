@@ -26,117 +26,76 @@ const getServerIp = (): string => {
 // RADIUS Server IP - prioritas: ENV > auto-detect
 const getRadiusServerIp = () => process.env.RADIUS_SERVER_IP || process.env.VPS_IP || getServerIp();
 
-// Mapping nama service RouterOS → nama service port allocator kita
-const ROS_TO_OUR_SERVICE: Record<string, string> = {
-  'api':     'api',
-  'api-ssl': 'apiSsl',
-  'www':     'www',
-  'www-ssl': 'wwwSsl',
-  'ssh':     'ssh',
-  'ftp':     'ftp',
-  'telnet':  'telnet',
-  'winbox':  'winbox',
-}
-
 /**
- * Baca port aktual dari MikroTik (/ip/service/print), alokasikan port blok publik,
- * pasang iptables PREROUTING DNAT, dan simpan ke vpnClient.publicPorts di DB.
- *
- * Dipanggil saat Router/NAS disave dengan vpnClientId yang valid.
- * Non-fatal — jika gagal (MikroTik belum konek), hanya log error.
+ * Terapkan port forwarding di VPS iptables murni berdasarkan ISIAN ADMIN langsung.
+ * Tidak melakukan scan/probe ke MikroTik — langsung tulis port sesuai form admin.
  */
-async function autoSetupPortForwarding(
+async function applyAdminPortForwarding(
   vpnClientId: string,
-  fallbackIp: string,    // ipAddress dari router sebagai fallback
-  fallbackPort: number,  // port API dari router sebagai fallback
-  fallbackUser: string,
-  fallbackPass: string,
+  adminPorts: {
+    winbox?: number
+    api?: number
+    apiSsl?: number
+    www?: number
+    ssh?: number
+  }
 ): Promise<void> {
   try {
-    // Ambil vpnClient untuk mendapatkan vpnIp + API credentials
     const vpnClient = await prisma.vpnClient.findUnique({
       where: { id: vpnClientId },
-      select: { id: true, vpnIp: true, apiUsername: true, apiPassword: true, publicPorts: true },
+      select: { id: true, vpnIp: true, publicPorts: true },
     })
     if (!vpnClient) return
 
-    const connectIp   = vpnClient.vpnIp || fallbackIp
-    const connectUser = vpnClient.apiUsername || fallbackUser
-    const connectPass = vpnClient.apiPassword || fallbackPass
-
-    // Konek ke MikroTik via API (melalui VPN tunnel)
-    const conn = new RouterOSAPI({
-      host: connectIp,
-      user: connectUser,
-      password: connectPass,
-      port: fallbackPort || 8728,
-      timeout: 8,
-    })
-
-    await Promise.race([
-      conn.connect(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000)),
-    ])
-
-    // Baca port aktual semua layanan dari MikroTik
-    const services = await conn.write('/ip/service/print')
-    conn.close()
+    const connectIp = vpnClient.vpnIp
+    const existingPorts = vpnClient.publicPorts as unknown as PublicPorts | null
 
     const targetPorts: Partial<Record<ServiceName, number>> = {}
-    for (const svc of services) {
-      const ourName = ROS_TO_OUR_SERVICE[svc.name?.toLowerCase()] as ServiceName | undefined
-      if (!ourName) continue
-      const port = parseInt(svc.port)
-      if (!isNaN(port) && port > 0) targetPorts[ourName] = port
-    }
+    if (adminPorts.winbox && adminPorts.winbox > 0) targetPorts.winbox = adminPorts.winbox
+    if (adminPorts.api && adminPorts.api > 0) targetPorts.api = adminPorts.api
+    if (adminPorts.apiSsl && adminPorts.apiSsl > 0) targetPorts.apiSsl = adminPorts.apiSsl
+    if (adminPorts.www && adminPorts.www > 0) targetPorts.www = adminPorts.www
+    if (adminPorts.ssh && adminPorts.ssh > 0) targetPorts.ssh = adminPorts.ssh
 
-    const existingPorts = vpnClient.publicPorts as unknown as PublicPorts | null
     if (existingPorts?.services) {
-      // Bandingkan target port yang tersimpan dengan aktual di MikroTik
       const changedServices: ServiceName[] = []
-      const updatedTargetPorts: Partial<Record<ServiceName, number>> = {}
-      for (const [svc, actualPort] of Object.entries(targetPorts) as [ServiceName, number][]) {
-        const existing = existingPorts.services[svc]
-        if (existing && existing.target !== actualPort) {
-          changedServices.push(svc)
-          updatedTargetPorts[svc] = actualPort
+      const mergedTargets: Partial<Record<ServiceName, number>> = {}
+
+      for (const [svcKey, entry] of Object.entries(existingPorts.services) as [ServiceName, { public: number; target: number }][]) {
+        const newTarget = targetPorts[svcKey] ?? entry.target
+        mergedTargets[svcKey] = newTarget
+        if (newTarget !== entry.target) {
+          changedServices.push(svcKey)
         }
       }
 
       if (changedServices.length > 0) {
-        console.log(`[routers] Perubahan port terdeteksi untuk vpnClient ${vpnClientId}: ${changedServices.join(', ')}. Mengupdate iptables...`)
         await removeIptablesRules(connectIp, existingPorts, changedServices)
-        const newPublicPorts = buildPublicPorts(existingPorts.blockStart, {
-          ...Object.fromEntries(Object.entries(existingPorts.services).map(([k, v]) => [k, v.target])),
-          ...updatedTargetPorts,
-        })
+        const newPublicPorts = buildPublicPorts(existingPorts.blockStart, mergedTargets)
         await addIptablesRules(connectIp, newPublicPorts, changedServices)
         await prisma.vpnClient.update({
           where: { id: vpnClientId },
           data: { publicPorts: newPublicPorts as any },
         })
-        console.log(`[routers] Iptables auto port forwarding berhasil disinkronkan untuk vpnClient ${vpnClientId}`)
+        console.log(`[routers] Port forwarding VPS diperbarui sesuai input admin untuk vpnClient ${vpnClientId}: ${changedServices.join(', ')}`)
       } else {
-        console.log(`[routers] vpnClient ${vpnClientId} port sudah sesuai dengan MikroTik`)
+        await addIptablesRules(connectIp, existingPorts)
       }
       return
     }
 
-    // Alokasi port block baru jika belum ada + pasang iptables
+    // Alokasi blok port baru jika belum ada
     const blockStart = await getNextPortBlock()
     const publicPorts = buildPublicPorts(blockStart, targetPorts)
     await addIptablesRules(connectIp, publicPorts)
 
-    // Simpan ke DB
     await prisma.vpnClient.update({
       where: { id: vpnClientId },
       data: { publicPorts: publicPorts as any },
     })
-
-    console.log(`[routers] Auto port forwarding setup untuk vpnClient ${vpnClientId}: block ${blockStart}`)
+    console.log(`[routers] Port forwarding VPS dibuat sesuai input admin untuk vpnClient ${vpnClientId}: block ${blockStart}`)
   } catch (err: any) {
-    // Non-fatal: MikroTik mungkin belum konek ke VPN saat router baru dibuat
-    console.warn(`[routers] Auto port forwarding gagal (non-fatal): ${err.message}`)
+    console.warn(`[routers] applyAdminPortForwarding error (non-fatal): ${err.message}`)
   }
 }
 
@@ -215,7 +174,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, ipAddress, nasIpAddress, nasname: nasnameFromBody, username, password, port, apiPort, secret, latitude, longitude, vpnClientId, type, authMode } = body;
+    const { name, ipAddress, nasIpAddress, nasname: nasnameFromBody, username, password, port, apiPort, winboxPort, secret, latitude, longitude, vpnClientId, type, authMode } = body;
 
     // Basic validation
     if (!name || !ipAddress) {
@@ -322,15 +281,13 @@ export async function POST(request: NextRequest) {
     // Restart FreeRADIUS to reload NAS table
     await reloadFreeRadius();
 
-    // Auto setup & sync port forwarding VPS jika terhubung ke VPN Client
+    // Terapkan port forwarding VPS langsung dari isian admin jika terhubung ke VPN Client
     if (router.vpnClientId) {
-      autoSetupPortForwarding(
-        router.vpnClientId,
-        router.ipAddress,
-        router.port,
-        router.username,
-        router.password
-      ).catch(e => console.warn('[routers] autoSetupPortForwarding error on POST:', e.message));
+      applyAdminPortForwarding(router.vpnClientId, {
+        api: portInt,
+        apiSsl: parseInt(apiPort) || undefined,
+        winbox: parseInt(winboxPort) || undefined,
+      }).catch(e => console.warn('[routers] applyAdminPortForwarding error on POST:', e.message));
     }
 
     // Log activity
@@ -372,7 +329,7 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     // Support both 'nasname' (from frontend) and 'nasIpAddress' for backward compatibility
-    const { id, name, type, ipAddress, nasIpAddress, nasname: nasnameFromBody, username, password, port, secret, isActive, latitude, longitude, vpnClientId, authMode } = body;
+    const { id, name, type, ipAddress, nasIpAddress, nasname: nasnameFromBody, username, password, port, apiPort, winboxPort, secret, isActive, latitude, longitude, vpnClientId, authMode } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Router ID is required' }, { status: 400 });
@@ -448,15 +405,13 @@ export async function PUT(request: NextRequest) {
     // Restart FreeRADIUS to reload NAS table
     await reloadFreeRadius();
 
-    // Auto setup & sync port forwarding VPS jika terhubung ke VPN Client
+    // Terapkan port forwarding VPS langsung dari isian admin jika terhubung ke VPN Client
     if (router.vpnClientId) {
-      autoSetupPortForwarding(
-        router.vpnClientId,
-        router.ipAddress,
-        router.port,
-        router.username,
-        router.password
-      ).catch(e => console.warn('[routers] autoSetupPortForwarding error on PUT:', e.message));
+      applyAdminPortForwarding(router.vpnClientId, {
+        api: port ? parseInt(port.toString()) : router.port,
+        apiSsl: apiPort ? parseInt(apiPort.toString()) : router.apiPort,
+        winbox: winboxPort ? parseInt(winboxPort.toString()) : undefined,
+      }).catch(e => console.warn('[routers] applyAdminPortForwarding error on PUT:', e.message));
     }
 
     // Log activity
