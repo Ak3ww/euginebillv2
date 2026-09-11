@@ -27,6 +27,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
        - Menyiapkan script 7-point non-destructive inspection (`01-inspect-client-router.rsc`) dan modul AI Agent operational guidelines (`.agents/AGENTS.md`) dengan 5 skenario percabangan otomatis (DHCP client ISP, PPPoE dial client, dedicated IP statis, bentrok subnet auto-shift ke `10.20.0.0/22`, dan pemisahan port bridge).
     5. **Repositori GitHub & Dokumentasi Terpadu**:
        - Diterbitkan ke repositori `https://github.com/Ak3ww/euginemedia-client-kits.git`.
+    6. **Aturan Wajib Konstruksi Dinamis NAT Masquerade PPPoE**:
+       - Mengunci protokol bahwa rule NAT Masquerade PPPoE tidak boleh dicopy secara buta. Parameter `src-address` wajib mengikuti subnet pool yang dipilih (`192.168.20.0/22` atau `10.20.0.0/22`), dan parameter `out-interface` / `out-interface-list` disesuaikan spesifik dengan port WAN ISP klien (DHCP `ether1`, dial `pppoe-out1`, atau dedicated) untuk menjamin trafik internet keluar dengan benar dan tidak merusak routing internal.
   - *Files*:
     - `CHANGELOG.md`
 
