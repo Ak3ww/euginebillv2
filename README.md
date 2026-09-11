@@ -1,5 +1,16 @@
 # EugineBill RADIUS - Billing & Network Management System for ISP / RT-RW Net
 
+<p align="left">
+  <a href="https://github.com/Ak3ww/euginebillv2/releases"><img src="https://img.shields.io/badge/version-v2.39.1-002C60.svg?style=flat-square&logo=git" alt="Version"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Next.js-16.x-black.svg?style=flat-square&logo=next.js" alt="Next.js"></a>
+  <a href="#"><img src="https://img.shields.io/badge/TypeScript-5.x-blue.svg?style=flat-square&logo=typescript" alt="TypeScript"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Node.js-%3E%3D20.x%20LTS-339933.svg?style=flat-square&logo=nodedotjs" alt="Node.js"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Database-MySQL%208.0%20%2B%20Prisma-4479A1.svg?style=flat-square&logo=mysql" alt="MySQL"></a>
+  <a href="#"><img src="https://img.shields.io/badge/FreeRADIUS-3.x-C0392B.svg?style=flat-square" alt="FreeRADIUS"></a>
+  <a href="#"><img src="https://img.shields.io/badge/VPN-WireGuard%20%2B%20L2TP-88171A.svg?style=flat-square&logo=wireguard" alt="VPN"></a>
+  <a href="#"><img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="License"></a>
+</p>
+
 Modern, full-stack billing & RADIUS management system for ISP/RT-RW Net with FreeRADIUS integration, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, and Multi-Portal PWA.
 
 > **Latest Release:** v2.39.1 — Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS) dengan 1-Command All-in-One Installer, First-Time Setup Wizard (`/setup`), Local & RADIUS Per-Router Auth, Auto-Show Transfer Manual, dan Bundled WireGuard + L2TP VPN.
@@ -353,66 +364,176 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
 
 <!-- AUTO-CHANGELOG:START -->
 
-### v2.34.4 — 2026-05-13
+### v2.39.1 — 2026-09-11
 
-### Added
-- **Sidebar: Permintaan Top-Up & Suspend** — tambah `nav.topupRequests` (`/admin/topup-requests`) dan `nav.suspendRequests` (`/admin/suspend-requests`) sebagai child PPPoE
-- **Sidebar: ODC, ODP, Peta Jaringan** — tambah 3 item ke Topology: Network Map, ODC, ODP
-- **Sidebar: Fiber ODC & Fiber ODP** — tambah ke seksi Manajemen Fiber
-- **Sidebar: GenieACS Files** — tambah child `nav.files` ke seksi GenieACS
-- **Sidebar: Kelola Teknisi** — tambah item standalone di catManagement
-- **Sidebar: Log Aktivitas** — tambah item standalone di catManagement
-- **Sidebar: Pengaturan Keamanan** — tambah child `/admin/settings/security` ke settingsMenu
-- **Sidebar: WhatsApp jadi submenu** — ubah dari single link ke children (Settings, Riwayat, Template, Kirim, Notifikasi, Providers)
-- **i18n: tambah nav keys** — `topupRequests`, `suspendRequests`, `activityLogs`, `security`, `fiberOdcs`, `fiberOdps`
-### Files
-- `src/app/admin/AdminClientLayout.tsx` — tambah menu items, WhatsApp jadi submenu, import UserCog
-- `src/locales/id.json` — tambah 6 nav translation keys
+### Turnkey 1-Command Installer Bundle & Setup Wizard Superadmin Username Customization
+- **Paket Instalasi 1-Baris Perintah Komprehensif (`scripts/install.sh`)**:
+  - *Context / User Request*:
+    Menghilangkan kerumitan menjalankan banyak skrip terpisah di VPS baru. Memastikan FreeRADIUS 3.x, WireGuard VPN Server, L2TP/IPSec VPN Server, Nginx Reverse Proxy, dan PM2 Ecosystem (Web + WA + Cron) otomatis terpasang dan aktif dalam satu paket perintah tunggal (`curl -fsSL ... | sudo bash` atau `sudo bash scripts/install.sh`).
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Bundling Layanan Jaringan Lengkap**:
+       - Mengintegrasikan konfigurasi Nginx reverse proxy langsung di port 80/443 menuju Next.js internal (port 3000) dengan dukungan WebSocket dan batas unggah 100MB, sehingga setup wizard dapat diakses langsung pada port standar web `http://IP/setup`.
+       - Mengintegrasikan modul FreeRADIUS 3.x langsung terhubung ke database `euginebill` via MySQL, konfigurasi direktori dinamis `clients.d/`, dan injeksi provider legacy OpenSSL (MD4) untuk kompatibilitas MS-CHAPv2 MikroTik PPPoE pada Ubuntu 22+.
+       - Mengintegrasikan instalasi otomatis WireGuard VPN Server (subnet `10.200.0.0/24`, port `51820/UDP`) untuk router MikroTik RouterOS v7.
+       - Mengintegrasikan instalasi otomatis L2TP/IPSec VPN Server (strongSwan + xl2tpd, subnet `10.201.0.0/24`) dengan auto-generated IPSec PSK untuk router MikroTik RouterOS v6.
+       - Menjalankan seluruh proses PM2 melalui `ecosystem.config.js` (`EugineBill-radius`, `EugineBill-wa`, `EugineBill-cron`) dan menyetel auto-start sistem saat reboot.
+    2. **Kustomisasi Username Superadmin pada Setup Wizard (`/setup` & `/api/setup`)**:
+       - Menambahkan input field eksplisit `Username Login` (default: `'admin'`) pada Langkah 2 wizard agar pengguna mengetahui persis username yang digunakan untuk login di `/admin/login`.
+       - Menghubungkan pembuatan akun ke tabel `admin_users` dengan role `SUPER_ADMIN` yang menjadi acuan otentikasi NextAuth, sekaligus membuat salinan backward-compatible pada tabel legacy `users`.
+  - *Files*:
+    - `scripts/install.sh`
+    - `src/app/setup/page.tsx`
+    - `src/app/api/setup/route.ts`
+    - `docs/setup/VENDOR_DEPLOYMENT_GUIDE.md`
 
-### v2.32.2 — 2026-05-13
+### v2.39.0 — 2026-09-11
 
-### Fixed
-- **System Info API: silent git errors** — Semua `execSync` git di `/api/admin/system/info` kini pakai `stdio: 'pipe'` sehingga stderr tidak bocor ke PM2 log; `getAppDir()` kini mencari `/var/www/EugineBill-frontend` lebih dulu (direktori dengan `.git`) sebelum fallback ke path lain
-### Files
-- `src/app/api/admin/system/info/route.ts` — tambah `stdio: 'pipe'` pada `execSync`/`execFileSync`, perbarui urutan kandidat `getAppDir()`
+### Commercial Release Readiness: First-Time Setup Wizard, Local Auth Mode, Manual Bank Transfer, & Zero-Hardcoding Sanitization
+- **Transformasi Komersial EugineBill Siap Sewa / Jual (Managed Single-Tenant VPS)**:
+  - *Context / User Request*:
+    Mempersiapkan codebase EugineBill agar 100% siap disewakan dan dijual ke klien ISP/RT-RW Net baru sebagai layanan Managed Single-Tenant VPS. Menjamin tidak ada hardcoded domain/logo vendor lama, menyediakan instalasi wizard pertama kali tanpa seeding database manual, mendukung mode autentikasi lokal MikroTik per router tanpa wajib RADIUS, auto-show pembayaran transfer manual di link bayar pelanggan jika gateway belum disetup, serta menyediakan skrip patch git yang aman dari risiko data loss.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **First-Time Setup Wizard (`/setup` & `/api/setup`)**:
+       - Mengembangkan antarmuka wizard visual 3 langkah (Profil ISP, Akun Superadmin, Default Billing & Identitas) dengan tema Hallmark Oceanic Blue.
+       - Menyediakan proteksi backend: route `/api/setup` otomatis mendeteksi status inisialisasi database. Jika superadmin sudah ada, endpoint terkunci secara permanen dan menolak permintaan pendaftaran ulang.
+       - Mengintegrasikan deteksi otomatis pada `/admin/login`: jika sistem belum diinisialisasi, pengguna langsung dialihkan ke `/setup`.
+       - Mendaftarkan rute `/setup` ke dalam bypass middleware `src/proxy.ts` (subdomain & isolated IP bypass).
+    2. **Per-Router Authentication Mode (`authMode: 'local' | 'radius'`)**:
+       - Menambahkan kolom `authMode String @default("local")` pada model `router` di `prisma/schema.prisma`.
+       - Memperbarui API router (`src/app/api/network/routers/route.ts`) untuk menangani penyimpanan dan pembaruan `authMode`.
+       - Menambahkan badge status mode autentikasi pada kartu router dan dropdown seleksi mode pada modal router di `/admin/network/routers`. Mode lokal MikroTik ditetapkan sebagai standar bawaan.
+    3. **Auto-Show Transfer Bank Manual pada Halaman Pembayaran (`/pay/[token]`)**:
+       - Mengembangkan sistem deteksi dinamis gateway pembayaran: jika belum ada payment gateway online aktif (`paymentGateways.length === 0`), formulir Transfer Bank Manual otomatis dibuka sebagai metode pembayaran utama.
+       - Menampilkan kartu rekening resmi perusahaan (`company.bankAccounts`) dilengkapi tombol 1-klik salin nomor rekening, petunjuk transfer nominal tagihan tepat, dan formulir konfirmasi bukti transfer yang langsung tersambung ke `POST /api/pay/[token]/manual`.
+       - Jika payment gateway online aktif, opsi transfer manual tetap dapat diakses sebagai opsi alternatif tanpa membebani biaya gateway.
+    4. **Sanitasi Zero-Hardcoding Menyeluruh**:
+       - Mengeliminasi seluruh fallback domain statis `https://euginemediagroup.com` di `whatsapp-templates.service.ts`, `auto-isolation.ts`, `broadcast/route.ts`, serta endpoint `work-orders`. Seluruh rujukan digantikan secara dinamis oleh `company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || ''`.
+       - Mengganti domain hotspot statis `wifi.euginemediagroup.com` dengan `wifi.hotspot.local` dan nama router dinamis di `templateRenderer.ts`, `voucher/page.tsx`, dan `setup-hotspot/route.ts`.
+       - Mengotomatisasi injeksi aturan Walled Garden MikroTik: script setup hotspot kini membaca hostname server billing secara dinamis dari `company.baseUrl` atau `NEXT_PUBLIC_APP_URL`.
+       - Mengganti fallback IP ONT remote proxy `43.173.14.236` pada `ont-remote/route.ts` dengan deteksi dinamis header host atau `process.env.VPS_PUBLIC_IP`.
+       - Mengganti aset logo fallback statis `eugine-logo.png` dengan logo dinamis perusahaan atau `/logo.png`.
+    5. **Skrip Pembaruan Aman & Setup Port VPS**:
+       - Menyusun `scripts/safe-update.sh`: melakukan snapshot backup database otomatis (`mysqldump` terkompresi `.sql.gz`), backup `.env`, `git pull`, `npx prisma db push --skip-generate` tanpa menghapus data, `npm run build`, dan graceful reload proses PM2 (`EugineBill-radius`, `EugineBill-wa`, `EugineBill-cron`).
+       - Menyusun `scripts/setup-vps-ports.sh`: otomatisasi konfigurasi firewall UFW untuk seluruh port layanan (80, 443, 22, 51820 UDP, 1812/1813/3799 UDP, dan rentang proxy ONT 24000:24999 TCP).
+       - Memperbarui template `.env.example` dengan dokumentasi lengkap variabel produksi.
+    6. **Dokumentasi Resmi Deployment Vendor**:
+       - Menyusun dokumen panduan `docs/setup/VENDOR_DEPLOYMENT_GUIDE.md` yang merinci langkah instalasi awal, arsitektur single-tenant, konfigurasi firewall, hingga serah terima sistem ke klien.
+  - *Files*:
+    - `prisma/schema.prisma`
+    - `src/proxy.ts`
+    - `src/app/setup/page.tsx`
+    - `src/app/api/setup/route.ts`
+    - `src/app/admin/login/page.tsx`
+    - `src/app/api/network/routers/route.ts`
+    - `src/app/admin/network/routers/page.tsx`
+    - `src/app/pay/[token]/page.tsx`
+    - `src/app/api/invoices/by-token/[token]/route.ts`
+    - `src/server/services/notifications/whatsapp-templates.service.ts`
+    - `src/server/jobs/auto-isolation.ts`
+    - `src/app/api/whatsapp/broadcast/route.ts`
+    - `src/app/api/technician/work-orders/[id]/complete/route.ts`
+    - `src/app/api/admin/work-orders/[id]/route.ts`
+    - `src/app/api/admin/work-orders/[id]/resend-wa/route.ts`
+    - `src/lib/utils/templateRenderer.ts`
+    - `src/app/admin/hotspot/voucher/page.tsx`
+    - `src/app/admin/hotspot/template/page.tsx`
+    - `src/app/api/network/routers/[id]/setup-hotspot/route.ts`
+    - `src/app/api/network/ont-remote/route.ts`
+    - `src/app/customer/CustomerClientLayout.tsx`
+    - `src/app/customer/login/page.tsx`
+    - `src/app/admin/technicians/page.tsx`
+    - `scripts/safe-update.sh`
+    - `scripts/setup-vps-ports.sh`
+    - `.env.example`
+    - `docs/setup/VENDOR_DEPLOYMENT_GUIDE.md`
+    - `CHANGELOG.md`
 
-### v2.32.1 — 2026-05-11
+### v2.38.6 — 2026-09-11
 
-### Fixed
-- **PPPoE Session Sync error 1264** — `acctsessiontime` di-clamp ke range INT MariaDB (`GREATEST(0, LEAST(..., 2147483647))`) pada semua 4 UPDATE query; sesi dengan `acctstarttime` tidak valid (`0000-00-00` atau sangat lama) tidak lagi menyebabkan cron gagal
-### Files
-- `src/server/jobs/pppoe-session-sync.ts` — clamp TIMESTAMPDIFF ke INT range, tambah filter `acctstarttime > '2000-01-01'` pada update aktif
+### Client Field Deployment Kits & OLT Standardization
+- **Rilis Repositori & Standardisasi Field Deployment Toolkit (`euginemedia-client-kits`)**:
+  - *Context / User Request*:
+    Mempersiapkan toolkit deployment lapangan mandiri yang siap dibawa teknisi/laptop untuk instalasi paket FTTH 1-PON (OLT VSOL V1600GS + MikroTik v7) di sisi router klien tanpa bentrok IP dan tanpa downtime jaringan lama. Melakukan audit mentahan produksi CCR2116 EugineMedia dan standardisasi port remote web OLT serta SNMP.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Audit Multi-OLT Mentahan Produksi EugineMedia**:
+       - Mengidentifikasi pemetaan eksisting 3 OLT di CCR2116 EugineMedia:
+         - OLT 1 (HSGQ): Web `8229`, SNMP UDP `1611` (`192.168.30.2:161`).
+         - OLT 2 (VSOL V1600GS): Web `8003`, SNMP UDP `1614` (`192.168.30.6:161`).
+         - OLT 3 (VSOL V1600GT): Web `8004`, SNMP UDP `1615` (`192.168.30.7:1615`).
+    2. **Standarisasi Bersih Client Deployment Kit**:
+       - Menetapkan konvensi berurutan untuk instalasi OLT baru di sisi klien:
+         - OLT 1 (Default): Web GUI Port `8001` (`http://192.168.30.6:8001`), SNMP Port UDP `1611` (forward ke UDP `161` OLT).
+         - Skema Multi-OLT Klien: OLT 2 (`8002` / `1612`), OLT 3 (`8003` / `1613`), OLT 4 (`8004` / `1614`).
+    3. **Pembersihan Konfigurasi Mentahan VSOL V1600GS**:
+       - Menyaring lebih dari 70 serial number ONU statis lama (`onu add 1`..`118`) dari konfigurasi mentahan, mempertahankan VLAN 20 (PPPoE), VLAN 30 (Management OLT), VLAN 4000 (TR-069), serta mengaktifkan `onu auto-learn`.
+       - Mengubah konfigurasi OLT ke `web port 8001`.
+    4. **Pemisahan Script MikroTik FTTH Universal vs Billing EugineBill**:
+       - Memisahkan script pondasi FTTH (Cake SQM, Game Mangle, PPPoE server) dari aturan khusus billing cloud EugineBill (isolir redirect, payment gateway IP list, hotspot voucher, tunnel WireGuard).
+       - Menyiapkan script 7-point non-destructive inspection (`01-inspect-client-router.rsc`) dan modul AI Agent operational guidelines (`.agents/AGENTS.md`) dengan 5 skenario percabangan otomatis (DHCP client ISP, PPPoE dial client, dedicated IP statis, bentrok subnet auto-shift ke `10.20.0.0/22`, dan pemisahan port bridge).
+    5. **Repositori GitHub & Dokumentasi Terpadu**:
+       - Diterbitkan ke repositori `https://github.com/Ak3ww/euginemedia-client-kits.git`.
+    6. **Aturan Wajib Konstruksi Dinamis NAT Masquerade PPPoE**:
+       - Mengunci protokol bahwa rule NAT Masquerade PPPoE tidak boleh dicopy secara buta. Parameter `src-address` wajib mengikuti subnet pool yang dipilih (`192.168.20.0/22` atau `10.20.0.0/22`), dan parameter `out-interface` / `out-interface-list` disesuaikan spesifik dengan port WAN ISP klien (DHCP `ether1`, dial `pppoe-out1`, atau dedicated) untuk menjamin trafik internet keluar dengan benar dan tidak merusak routing internal.
+  - *Files*:
+    - `CHANGELOG.md`
 
-### v2.32.0 — 2026-05-11
+### v2.38.5 — 2026-09-10
 
-### Added
-- **Centralized Cron Schedule Management** — jadwal semua cron job kini bisa diatur dari satu halaman Admin → Settings → Cron tab "Jadwal Cron"; perubahan disimpan ke DB `cron_schedule_config`, aktif setelah `pm2 restart EugineBill-cron`
-- **Schedule Editor modal** — 17 preset waktu (Every minute, Every 5 min, dll.) + custom cron expression; menampilkan default schedule sebagai referensi
-- **3-tab layout cron page** — Tab: Status & Trigger, Jadwal Cron, Riwayat Eksekusi
-- **API `/api/cron/schedules`** — GET/PUT/DELETE untuk manajemen schedule override per job (SUPERADMIN only)
-- **DB table `cron_schedule_config`** — menyimpan override schedule per jobType
-### Changed
-- **`runner.ts`** — load schedule overrides dari DB saat startup; fallback ke default jika tidak ada override atau tabel belum ada; support `preload.cjs` mock untuk `server-only`
-- **`jobs.config.ts`** — hapus `import 'server-only'` guard (redundant; diganti comment penjelasan)
-### Fixed
-- **Duplicate `CronSettingsPage` declaration** — page.tsx memiliki dua `export default function CronSettingsPage()` yang menyebabkan build error Turbopack; baris duplikat dihapus
-- **`server-only` module block tsx cron runner** — `src/cron/preload.cjs` mocking module `server-only` sebelum tsx load file apapun agar standalone cron runner bisa berjalan
-### Files
-- `src/app/admin/settings/cron/page.tsx` — rewrite lengkap dengan 3-tab layout + ScheduleEditor modal
-- `src/app/api/cron/schedules/route.ts` — NEW: CRUD API untuk schedule override
-- `src/cron/runner.ts` — load schedule overrides dari DB via `initSchedules()`
-- `src/cron/preload.cjs` — NEW: mock `server-only` agar tsx bisa load server files
-- `src/cron/runner-wrapper.cjs` — NEW: CJS wrapper entry point (opsional)
-- `src/server/jobs/jobs.config.ts` — hapus `import 'server-only'`
-- `prisma/schema.prisma` — tambah model `cronScheduleConfig`
+### Architecture Audit & Master Blueprint Roadmap
+- **Master Blueprint: Komparasi Arsitektur Salfanet-Radius vs EugineBill & Roadmap Upgrade**:
+  - *Context / User Request*:
+    Pengguna menginstruksikan re-clone repositori Salfanet-Radius (`https://github.com/s4lfanet/salfanet-radius.git`), melakukan audit mendalam sistem RADIUS & Local Auth menggunakan subagent otonom pada kedua codebase, serta menyusun dokumentasi komparasi obyektif dan roadmap fitur apa yang perlu dikejar vs apa yang harus dihindari.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Dual Subagent Codebase Audit**:
+       - Mengoperasikan subagent auditor independen pada `C:\salfanet-radius` (`v5.20.0`) dan `C:\EugineBill` untuk membedah seluruh layer: FreeRADIUS configuration, REST hook authorize/post-auth, skema database, alur CoA disconnect, cron session sync, hingga Transactional Outbox.
+    2. **Penyusunan Master Blueprint Document (`docs/architecture/RADIUS_LOCAL_AUTH_COMPARISON_AND_ROADMAP.md`)**:
+       - Menganalisis 14 parameter teknis komparasi antara Salfanet dan EugineBill.
+       - Menetapkan daftar fitur unggulan Salfanet yang **WAJIB DIKEJAR** (Per-Router `authMode`, migrasi router 1-klik, Transactional Outbox `external_task`, rekapitulasi voucher terpakai `firstLoginAt`, dynamic interim-update 300s).
+       - Menetapkan daftar anti-pattern Salfanet yang **HARUS DITOLAK** demi stabilitas produksi (modul FreeRADIUS REST hook yang rawan mass-outage saat web server restart, serta pencemaran tabel `radacct` via sesi palsu *synthetic radacct*).
+       - Merancang 5 fase eksekusi bertahap yang 100% backward-compatible dan bebas risiko downtime.
+  - *Files*:
+    - `docs/architecture/RADIUS_LOCAL_AUTH_COMPARISON_AND_ROADMAP.md`
+    - `CHANGELOG.md`
 
-### v2.31.12 — 2026-05-11
+### v2.38.4 — 2026-09-10
 
-### Fixed
-- **MikroTik timeout empty error message** — `node-routeros` melempar empty string `""` saat timeout (bukan `Error` object); sekarang ada fallback message yang jelas jika error kosong atau `{}`
-- **Library timeout conflict** — `node-routeros` internal timeout diset ke 9999s agar tidak interferensi dengan `Promise.race` timeout kita yang memberikan pesan error yang lebih informatif
-### Files
-- `src/server/services/mikrotik/client.ts` — set library timeout ke 9999s, tambah fallback untuk empty error message
+### Bug Fix & Comprehensive Cascade Customer Deletion
+- **Perbaikan Hapus Pelanggan & Pembersihan Riwayat Permanen (/admin/pppoe/stopped)**:
+  - *Context / User Request*:
+    Pengguna melaporkan kegagalan saat menghapus pelanggan yang berhenti berlangganan di https://admin.euginemediagroup.com/admin/pppoe/stopped ("SAYA INGIN MENGHAPUS PELANGGAN YG ADA DI SINI https://admin.euginemediagroup.com/admin/pppoe/stopped tapi gagal. Karna saya pengen hapus karna sudah yakin dia gak akan lanjut, dan akan buang semua historinya.").
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Cascade Cleanup Komprehensif pada `deletePppoeUser` (`src/server/services/pppoe.service.ts`)**:
+       - Mengeliminasi error Foreign Key Constraint (MySQL 1451 / Prisma P2003) dengan membersihkan seluruh dependensi data yang mereferensikan akun pelanggan:
+         - **Permintaan Penangguhan (`suspendRequest`)**: Menghapus seluruh permohonan suspend yang dibuat oleh pelanggan.
+         - **Preservasi Invoice Lunas & Pembersihan Invoice Belum Lunas**:
+           - **Invoice Lunas (`PAID`)**: **TIDAK DIHAPUS**. Foreign key `userId` dilepaskan (`userId = null`) agar constraint database terpenuhi, sementara detail snapshot pelanggan (`customerName`, `customerUsername`, `customerPhone`, `customerEmail`) dan tanggal pelunasan (`paidAt`) tetap dipertahankan permanen sebagai bukti histori kapan pelanggan terakhir bayar sebelum berhenti.
+           - **Invoice Belum Lunas (`PENDING`, `OVERDUE`, `CANCELLED`)**: Dihapus permanen beserta anak relasi pembayaran dan pelepasan link pendaftaran (`registrationRequest.invoiceId = null`).
+         - **Pembayaran Manual Mandiri (`manualPayment`)**: Menghapus record pembayaran manual yang terkait langsung dengan `userId`.
+         - **Permohonan Registrasi (`registrationRequest`)**: Melepaskan kaitan `pppoeUserId` menjadi `null`.
+         - **Tiket Aduan & Pesan Tiket (`ticket`, `ticketMessage`)**: Menghapus semua tiket dan pesan percakapan pelanggan.
+         - **Surat Perintah Kerja (`workOrder`)**: Menghapus data SPK yang tertaut (`linkedUserId`).
+         - **Sesi Pengguna (`sessions` & `customerSession`)**: Menghapus sesi akuntansi jaringan dan sesi login OTP portal pelanggan.
+         - **Web Push & Notifikasi (`pushSubscription`, `customerNotification`)**: Menghapus pendaftaran push token browser dan inbox notifikasi.
+         - **Permohonan Ubah Paket (`packageChangeRequest`)**: Menghapus antrean request upgrade/downgrade paket.
+         - **ODP & Jaringan Optik (`odpCustomerAssignment`, `oltOnuStatus`)**: Menghapus alokasi port ODP dan melepaskan relasi ONU pada OLT (`customerId = null`).
+         - **TR-069 GenieACS (`acsDevice`)**: Melepaskan relasi perangkat modem ONT (`pppoeUserId = null`).
+         - **Sistem Referral (`referralReward`, `referredById`)**: Menghapus hadiah referral dan memutuskan rantai referensi referral.
+         - **Proteksi Ketat PPPoE Reuse (MikroTik & RADIUS Shield)**:
+            - Sistem otomatis mendeteksi apakah username PPPoE (atau base username) sedang digunakan ulang oleh pelanggan aktif lain (`activeReuser`).
+            - Jika terdeteksi sedang digunakan oleh pelanggan lain, sistem **DILARANG KERAS** menghapus secret di MikroTik, memutus koneksi aktif, atau menghapus record RADIUS (`radcheck`, `radreply`, dll) agar pelanggan aktif tidak terputus internetnya.
+            - Pengaturan default penghapusan secret MikroTik diubah menjadi `false` (safe mode) agar secret di router tetap aman dan bisa di-reuse bebas oleh tim lapangan.
+         - **Isolasi Ketat Berbasis `userId` (Anti Cross-Customer Data Leak)**:
+            - Seluruh query pembersihan tagihan, sesi jaringan, dan sesi portal menggunakan `where: { userId: id }` secara mutlak, bukan berdasarkan `username`. Hal ini menjamin tagihan dan sesi pelanggan baru yang me-reuse username PPPoE tersebut tidak akan pernah tersentuh atau terhapus.
+         - **Pembersihan Induk Pelanggan Yatim (`pppoeCustomer`)**: Pengecekan otomatis dan penghapusan data induk pelanggan jika tidak memiliki akun PPPoE aktif lainnya.
+    2. **Endpoint Baru Bulk Delete (`src/app/api/pppoe/users/bulk-delete/route.ts`)**:
+       - Menyediakan endpoint handler `DELETE` & `POST` untuk multi-select / bulk deletion pelanggan yang dipanggil oleh tombol hapus massal di UI `/admin/pppoe/stopped`.
+    3. **Peningkatan Error Output & Peringatan UI (`src/app/api/pppoe/users/route.ts` & `src/app/admin/pppoe/stopped/page.tsx`)**:
+       - Menambahkan notifikasi konfirmasi pada UI jika akun PPPoE yang akan dihapus terdeteksi sudah dipakai oleh pelanggan aktif lain, memastikan admin yakin bahwa secret router pelanggan aktif tetap terjaga.
+  - *Files*:
+    - `src/server/services/pppoe.service.ts`
+    - `src/app/api/pppoe/users/bulk-delete/route.ts`
+    - `src/app/api/pppoe/users/route.ts`
+    - `CHANGELOG.md`
 
 <!-- AUTO-CHANGELOG:END -->
 

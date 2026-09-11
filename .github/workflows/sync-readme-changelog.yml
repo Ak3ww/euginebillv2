@@ -2,7 +2,7 @@ name: Sync README Changelog
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main, master ]
     paths:
       - CHANGELOG.md
   workflow_dispatch:
