@@ -2,6 +2,7 @@
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { formatWIB } from '@/lib/timezone';
 import { useTranslation } from '@/hooks/useTranslation';
+import { compressImage } from '@/lib/utils';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -517,8 +518,9 @@ export default function AgentDashboardPage() {
     setCreatingManualDeposit(true);
     try {
       setUploadingProof(true);
+      const compressed = await compressImage(proofFile, 1600, 0.8);
       const uploadForm = new FormData();
-      uploadForm.append('file', proofFile);
+      uploadForm.append('file', compressed);
       const uploadRes = await fetch('/api/upload/payment-proof', {
         method: 'POST',
         body: uploadForm,
@@ -1073,11 +1075,22 @@ export default function AgentDashboardPage() {
                     <input
                       type="file"
                       accept="image/jpeg,image/jpg,image/png,image/webp"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0] || null;
                         if (proofPreviewUrl) URL.revokeObjectURL(proofPreviewUrl);
-                        setProofFile(file);
-                        setProofPreviewUrl(file ? URL.createObjectURL(file) : null);
+                        if (!file) {
+                          setProofFile(null);
+                          setProofPreviewUrl(null);
+                          return;
+                        }
+                        try {
+                          const compressed = await compressImage(file, 1600, 0.8);
+                          setProofFile(compressed);
+                          setProofPreviewUrl(URL.createObjectURL(compressed));
+                        } catch {
+                          setProofFile(file);
+                          setProofPreviewUrl(URL.createObjectURL(file));
+                        }
                       }}
                       className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-300"
                     />

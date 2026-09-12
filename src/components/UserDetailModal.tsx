@@ -9,6 +9,7 @@ import { showSuccess, showError, showWarning } from '@/lib/sweetalert';
 import { CameraPhotoInput } from '@/components/CameraPhotoInput';
 import { CameraViewfinder } from '@/components/CameraViewfinder';
 import { getFastLocation } from '@/lib/geo-utils';
+import { compressImage } from '@/lib/utils';
 
 interface User {
   id: string;
@@ -217,7 +218,8 @@ export default function UserDetailModal({
     if (!file) return;
     setUploadingInstallation(true);
     try {
-      const fd = new FormData(); fd.append('file', file); fd.append('type', 'installation');
+      const compressed = await compressImage(file, 1600, 0.8);
+      const fd = new FormData(); fd.append('file', compressed); fd.append('type', 'installation');
       const res = await fetch('/api/upload/pppoe-customer', { method: 'POST', body: fd });
       const result = await res.json();
       if (result.success) { setFormData(prev => ({ ...prev, installationPhotos: [...prev.installationPhotos, result.url] })); }
@@ -229,7 +231,8 @@ export default function UserDetailModal({
   const handleCameraInstallation = async (file: File) => {
     setUploadingInstallation(true);
     try {
-      const fd = new FormData(); fd.append('file', file); fd.append('type', 'installation');
+      const compressed = await compressImage(file, 1600, 0.8);
+      const fd = new FormData(); fd.append('file', compressed); fd.append('type', 'installation');
       const res = await fetch('/api/upload/pppoe-customer', { method: 'POST', body: fd });
       const result = await res.json();
       if (result.success) {
@@ -670,7 +673,8 @@ export default function UserDetailModal({
                       onUploadFile={async (file) => {
                         setUploadingIdCard(true);
                         try {
-                          const fd = new FormData(); fd.append('file', file); fd.append('type', 'idCard');
+                          const compressed = await compressImage(file, 1600, 0.8);
+                          const fd = new FormData(); fd.append('file', compressed); fd.append('type', 'idCard');
                           const res = await fetch('/api/upload/pppoe-customer', { method: 'POST', body: fd });
                           const result = await res.json();
                           if (result.success) { setFormData(prev => ({ ...prev, idCardPhoto: result.url })); return result.url; }

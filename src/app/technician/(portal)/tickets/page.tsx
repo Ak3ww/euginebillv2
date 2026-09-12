@@ -18,6 +18,7 @@ function renderWithLinks(text: string) {
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getFastLocation } from '@/lib/geo-utils';
+import { compressImage } from '@/lib/utils';
 import {
   Ticket,
   Search,
@@ -229,13 +230,21 @@ export default function TechnicianTicketsPage() {
     }
   }
 
-  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPhotoFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 1600, 0.8);
+      setPhotoFile(compressed);
+      const reader = new FileReader();
+      reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
+      reader.readAsDataURL(compressed);
+    } catch {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
   }
 
   async function handleGetGPS() {
@@ -245,7 +254,7 @@ export default function TechnicianTicketsPage() {
       const latitude = pos.latitude;
       const longitude = pos.longitude;
       const mapsUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
-      const gpsText = `📍 Lokasi: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}\n${mapsUrl}`;
+      const gpsText = `Lokasi: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}\n${mapsUrl}`;
       setReplyMessage((prev) => (prev ? `${prev}\n${gpsText}` : gpsText));
       setGpsLoading(false);
       replyTextareaRef.current?.focus();
@@ -265,8 +274,9 @@ export default function TechnicianTicketsPage() {
     try {
       let uploadedUrls: string[] = [];
       if (photoFile) {
+        const compressed = await compressImage(photoFile, 1600, 0.8);
         const fd = new FormData();
-        fd.append('file', photoFile);
+        fd.append('file', compressed);
         const upRes = await fetch('/api/technician/upload', { method: 'POST', body: fd });
         const upData = await upRes.json();
         if (!upRes.ok) throw new Error(upData.error || 'Gagal mengupload foto');

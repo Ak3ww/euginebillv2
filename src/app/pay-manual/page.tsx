@@ -19,6 +19,7 @@ import { showSuccess, showError } from '@/lib/sweetalert';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { formatWIB, nowWIB, todayWIBStr } from '@/lib/timezone';
+import { compressImage } from '@/lib/utils';
 
 interface BankAccount {
   name: string;
@@ -93,7 +94,7 @@ function PayManualPageContent() {
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -103,20 +104,24 @@ function PayManualPageContent() {
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      showError('Ukuran file maksimal 5MB');
-      return;
+    try {
+      const compressed = await compressImage(file, 1600, 0.8);
+      setReceiptImage(compressed);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(compressed);
+    } catch {
+      setReceiptImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
-
-    setReceiptImage(file);
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -146,8 +151,9 @@ function PayManualPageContent() {
       setSubmitting(true);
 
       // Upload receipt image first
+      const compressed = await compressImage(receiptImage, 1600, 0.8);
       const formData = new FormData();
-      formData.append('file', receiptImage);
+      formData.append('file', compressed);
 
       const uploadResponse = await fetch('/api/upload/payment-proof', {
         method: 'POST',
@@ -468,7 +474,7 @@ function PayManualPageContent() {
                         Klik untuk upload bukti transfer
                       </Label>
                       <p className="text-xs text-muted-foreground mt-2">
-                        Format: JPG, PNG, WebP (Max 5MB)
+                        Format: JPG, PNG, WebP (Otomatis dikompres)
                       </p>
                       <Input
                         id="receiptImage"

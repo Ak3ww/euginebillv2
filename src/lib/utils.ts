@@ -49,45 +49,57 @@ export function ensureHttpsUrl(url: string | null | undefined): string {
 
 /**
  * Compress an image File to JPEG, scaling down if larger than maxDimension.
- * Falls back to original file on any error.
+ * Falls back to original file on any error or if the file is not an image/SVG/GIF.
  * @param file       Source image File
- * @param maxDimension Max width or height in pixels (default 1280)
- * @param quality    JPEG quality 0-1 (default 0.78)
+ * @param maxDimension Max width or height in pixels (default 1600)
+ * @param quality    JPEG quality 0-1 (default 0.80)
  */
 export function compressImage(
   file: File,
-  maxDimension = 1280,
-  quality = 0.78,
+  maxDimension = 1600,
+  quality = 0.8,
 ): Promise<File> {
   return new Promise((resolve) => {
     if (typeof window === 'undefined') { resolve(file); return; }
-    const img = new window.Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let { width, height } = img;
-      if (width > maxDimension || height > maxDimension) {
-        const ratio = Math.min(maxDimension / width, maxDimension / height);
-        width = Math.round(width * ratio);
-        height = Math.round(height * ratio);
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { resolve(file); return; }
-      ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) { resolve(file); return; }
-          const outName = file.name.replace(/\.[^.]+$/, '.jpg');
-          resolve(new File([blob], outName, { type: 'image/jpeg' }));
-        },
-        'image/jpeg',
-        quality,
-      );
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-    img.src = url;
+    // Skip if not an image or if vector/animation
+    if (file.type && !file.type.startsWith('image/')) { resolve(file); return; }
+    if (file.type === 'image/svg+xml' || file.type === 'image/gif') { resolve(file); return; }
+
+    try {
+      const img = new window.Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        try {
+          let { width, height } = img;
+          if (width > maxDimension || height > maxDimension) {
+            const ratio = Math.min(maxDimension / width, maxDimension / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(file); return; }
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) { resolve(file); return; }
+              const outName = file.name.replace(/\.[^.]+$/, '.jpg');
+              resolve(new File([blob], outName, { type: 'image/jpeg' }));
+            },
+            'image/jpeg',
+            quality,
+          );
+        } catch {
+          resolve(file);
+        }
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    } catch {
+      resolve(file);
+    }
   });
 }

@@ -24,11 +24,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024;
+    // Validate file size (max 25MB)
+    const maxSize = 25 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
-        { success: false, error: 'Ukuran file melebihi batas 10MB.' },
+        { success: false, error: 'Ukuran file melebihi batas 25MB.' },
         { status: 400 }
       );
     }

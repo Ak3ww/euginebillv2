@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -6,6 +6,7 @@ import { ArrowLeft, Upload, DollarSign, CreditCard, Smartphone, Banknote, Loader
 import { CyberCard, CyberButton } from '@/components/cyberpunk';
 import { showSuccess, showError } from '@/lib/sweetalert';
 import { useTranslation } from '@/hooks/useTranslation';
+import { compressImage } from '@/lib/utils';
 
 export default function TopUpRequestPage() {
   const { t } = useTranslation();
@@ -40,7 +41,8 @@ export default function TopUpRequestPage() {
       data.append('paymentMethod', formData.paymentMethod);
       data.append('note', formData.note);
       if (formData.proofFile) {
-        data.append('proof', formData.proofFile);
+        const compressed = await compressImage(formData.proofFile, 1600, 0.8);
+        data.append('proof', compressed);
       }
 
       const token = localStorage.getItem('customer_token');
@@ -68,16 +70,9 @@ export default function TopUpRequestPage() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        showError(t('customer.maxFileSize'), t('customer.fileTooLarge'));
-        e.target.value = '';
-        return;
-      }
-
       // Validate file type
       if (!file.type.startsWith('image/')) {
         showError(t('customer.onlyImageAllowed'), t('customer.invalidFileType'));
@@ -85,7 +80,12 @@ export default function TopUpRequestPage() {
         return;
       }
 
-      setFormData(prev => ({ ...prev, proofFile: file }));
+      try {
+        const compressed = await compressImage(file, 1600, 0.8);
+        setFormData(prev => ({ ...prev, proofFile: compressed }));
+      } catch {
+        setFormData(prev => ({ ...prev, proofFile: file }));
+      }
     }
   };
 

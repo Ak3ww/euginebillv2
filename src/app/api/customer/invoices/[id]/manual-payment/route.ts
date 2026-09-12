@@ -85,8 +85,8 @@ export async function POST(
           { status: 400 }
         );
       }
-      if (file.size > 5 * 1024 * 1024) {
-        return NextResponse.json({ success: false, error: 'Ukuran file maksimal 5MB' }, { status: 400 });
+      if (file.size > 25 * 1024 * 1024) {
+        return NextResponse.json({ success: false, error: 'Ukuran file maksimal 25MB' }, { status: 400 });
       }
 
       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';

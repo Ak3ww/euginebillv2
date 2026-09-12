@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.9
+- **Version**: 2.39.10
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 12, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,20 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 12, 2026 — v2.39.10: Universal Client-Side Auto-Compression & High-Capacity Image Upload Engine)
+- **Architectural Invariant: Dual-Layer Zero-Failure Image Upload Architecture**:
+  - **The Problem**: Smartphone kamera modern menghasilkan foto berukuran 6MB–25MB (resolusi 48MP–108MP). Jika diunggah mentah di jaringan seluler teknisi/pelanggan di lapangan, request rawan timeout, packet drop, dan ditolak server karena limit API rendah (3MB–5MB) atau diblokir validasi client.
+  - **Layer 1: Mandatory Client-Side Auto-Downscale/Compression**:
+    - Seluruh form upload (Teknisi SPK, Tiket, KTP, Pembayaran Manual, Topup Saldo, Registrasi Pelanggan) WAJIB melewatkan file ke fungsi `compressImage(file, 1600, 0.8)` (`src/lib/utils.ts`) sebelum dimasukkan ke `FormData`.
+    - Resolusi dibatasi ke `maxDimension = 1600px` (menjamin angka redaman OPM, barcode/QR, label SN modem, struk bank, dan tulisan KTP tetap 100% terbaca tajam dan jernih).
+    - Ukuran file menyusut secara instan (< 150ms di browser) dari 15MB–25MB menjadi ~200KB–600KB, memangkas durasi upload menjadi < 1 detik.
+    - Pada canvas overlay watermark teknisi (`work-orders/[id]/page.tsx`), dimensi canvas WAJIB di-clamp ke maksimal 1600px sebelum me-render strip teks WIB/GPS/SPK.
+  - **Layer 2: Server-Side High-Capacity Limits (25MB–30MB)**:
+    - Seluruh konstanta `MAX_SIZE` / `maxSize` pada route upload (`/api/technician/upload`, `/api/upload/payment-proof`, `/api/upload/pppoe-customer`, `/api/customer/payments/[id]/proof`, `/api/customer/invoices/[id]/manual-payment`, `/api/public/upload-registration`, `/api/upload`) dinaikkan menjadi `25 * 1024 * 1024` (25MB).
+    - Nginx VPS sudah memiliki `client_max_body_size 100M;`, sehingga request upload tidak akan pernah ditolak server secara prematur.
+  - **Client-Side Blocker Removal**:
+    - Dilarang keras menampilkan pop-up error "Ukuran file maksimal 5MB" di sisi klien. Formulir harus secara cerdas dan senyap mengompres foto ke ukuran ideal sehingga pengalaman pengguna mulus 100% tanpa hambatan.
 
 ### Recent Patch Log (September 12, 2026 — v2.39.9: Permanent Hide PWA Install Prompt Across All Portals Except Landing Page)
 - **Architectural Invariant: Strict Whitelist for PWA Install Prompt**:

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { writeFile } from 'fs/promises';
 import path from 'path';
@@ -83,10 +83,10 @@ export async function POST(
       );
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (max 25MB)
+    if (file.size > 25 * 1024 * 1024) {
       return NextResponse.json(
-        { success: false, message: 'Ukuran file maksimal 5MB' },
+        { success: false, message: 'Ukuran file maksimal 25MB' },
         { status: 400 }
       );
     }

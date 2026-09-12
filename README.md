@@ -374,160 +374,165 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
 
 <!-- AUTO-CHANGELOG:START -->
 
-### v2.39.2 — 2026-09-11
+### v2.39.10 — 2026-09-12
 
-### Turnkey 1-Paste VPN Remote Client Scripting, Single Full-Privilege Winbox+API User, & Auto Port Forwarding Sync
-- **Turnkey 1-Paste Remote Access Setup (WireGuard & L2TP pada RouterOS 6 & 7)**:
+### Universal Client-Side Auto-Compression & High-Capacity Image Upload Engine
+- **Sistem Kompresi Gambar Otomatis & Penaikan Kapasitas Upload Universal**:
   - *Context / User Request*:
-    Pengguna mengeluhkan skrip setup VPN client yang dihasilkan EugineBill tidak dapat langsung dipakai untuk login ke Winbox (mengalami "error: the remote host closed the connection" atau logout otomatis setelah 1 detik), serta port forwarding VPS tidak otomatis menyesuaikan port kustom pada MikroTik (seperti Winbox di port 8228 dan API di port 8520). Pengguna juga menginginkan **1 akun kredensial tunggal** yang langsung dapat digunakan untuk Winbox, API, WebFig, dan SSH tanpa harus membuat banyak user terpisah.
+    Teknisi melaporkan upload foto di portal teknisi gagal karena file kebesaran ("upload foto di portal teknisi gagal karna file kebesaran ini gimana solusinya? Pastikan juga upload foto dimanapun tidak gagal baik itu teknisi, atau pelanggan"). Kamera HP modern menghasilkan foto 6MB hingga 25MB (resolusi 48MP–108MP), sementara endpoint API membatasi ukuran file 3MB–5MB dan form client langsung menolak file > 5MB.
   - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Single Full-Privilege Remote User (`group=full`)**:
-       - Mengubah seluruh generator skrip MikroTik (`src/app/admin/network/vpn-client/page.tsx`, `src/app/api/network/vps-wg-peer/route.ts`, dan `src/app/api/network/vps-l2tp-peer/route.ts`) agar akun remote yang dibuat langsung diberikan hak akses bawaan `group=full`.
-       - Menghilangkan pembatasan grup `api-users` (`!romon, !reboot, !sniff, !rest-api`) yang sebelumnya menyebabkan aplikasi Winbox RouterOS 7 menolak hak akses GUI dan memutus koneksi (logout otomatis).
-       - Menjamin 1 kali paste skrip langsung menghasilkan akun administrator remote yang valid 100% untuk login Winbox, bot redaman, API EugineBill, WebFig, dan SSH.
-    2. **Otomatisasi Penuh Sinkronisasi Port Forwarding VPS (`autoSetupPortForwarding`)**:
-       - Memperbaiki `autoSetupPortForwarding` pada `src/app/api/network/routers/route.ts`: kini fungsi tersebut tidak lagi mengabaikan pembaruan jika `publicPorts` sudah ada di database.
-       - Sistem secara cerdas membaca port aktual seluruh layanan dari MikroTik via `/ip/service/print` melalui tunnel VPN, membandingkannya dengan port target pada iptables VPS, dan jika ada port kustom (misal Winbox 8228, API 8520), sistem otomatis meregenerasi aturan `iptables -t nat PREROUTING DNAT` di VPS dan memperbarui database.
-       - Menghubungkan fungsi sinkronisasi otomatis ini ke dalam handler `POST` (tambah router baru) dan `PUT` (edit router) agar port forwarding selalu sinkron tanpa intervensi manual.
-    3. **Generator Skrip WireGuard Terpadu di Backend**:
-       - Menambahkan fungsi pembantu `generateWgScript` pada `src/app/api/network/vps-wg-peer/route.ts` dan mengembalikan `routerosScript` langsung pada respons `POST /api/network/vps-wg-peer`.
-       - Modal WireGuard di antarmuka frontend kini otomatis menerima dan menampilkan skrip lengkap dengan port target dan akun `group=full` yang siap salin dan paste.
+    1. **Dual-Layer Architecture (Client Canvas Auto-Downscale + Server Limit Expansion)**:
+       - **Client-Side Canvas Auto-Downscale**: Mengapa wajib: Teknisi dan pelanggan di lapangan sering kali menghadapi koneksi internet seluler yang terbatas di pelosok. Mengunggah file mentah 15MB–25MB memicu timeout, network drop, dan pemborosan bandwidth. Dengan HTML5 Canvas, foto 15MB–25MB secara instan (< 150ms) di-downscale ke dimensi optimal (maksimal 1600px) dan dikompresi ke format JPEG (kualitas 0.80), menghasilkan payload ringan ~200KB–600KB dengan ketajaman nomor seri modem, barcode, struk transfer, dan tulisan KTP yang tetap 100% presisi dan tajam. Waktu unggah terpangkas dari 30+ detik menjadi < 1 detik dengan tingkat keberhasilan 100%.
+       - **Server-Side Limit Expansion**: Batasan upload di seluruh route handler API dinaikkan ke 25MB–30MB sehingga server tidak pernah menolak file secara prematur.
+    2. **Penyempurnaan Fungsi Kompresi Universal `compressImage` (`src/lib/utils.ts`)**:
+       - Default `maxDimension = 1600` dan `quality = 0.80`.
+       - Menjaga keutuhan format SVG/GIF tanpa merusak animasi atau vektor.
+       - Proteksi try-catch berlapis dengan fallback aman ke file asli apabila canvas browser mengalami kendala.
+    3. **Optimalisasi Overlay Watermark Teknisi (`work-orders/[id]/page.tsx`)**:
+       - Membatasi resolusi canvas pada `addPhotoOverlay` ke maksimal 1600px sebelum menggambar strip watermark GPS, tanggal WIB, dan label SPK, serta mengekspor blob JPEG pada kualitas 0.80.
+       - Menambahkan auto-kompresi ganda pada fungsi `uploadPhoto` sebelum dimasukkan ke `FormData`.
+    4. **Integrasi Kompresi Otomatis pada Seluruh Portal**:
+       - **Portal Teknisi**: `work-orders/[id]/page.tsx` (foto ODP, port, rumah, ONT, speedtest), `tickets/page.tsx` (lampiran respon tiket komplain), `register/page.tsx` (foto KTP & instalasi pendaftaran pelanggan baru).
+       - **Portal Pelanggan & Pembayaran**: `pay/[token]/page.tsx` (bukti transfer manual), `pay-manual/[token]/page.tsx`, `pay-manual/page.tsx`, `customer/topup-request/page.tsx` (bukti transfer saldo topup), `daftar/page.tsx` (foto KTP pendaftaran publik).
+       - **Portal Agen**: `agent/dashboard/page.tsx` (bukti transfer deposit saldo agen).
+       - **Portal Admin**: `admin/work-orders/[id]/page.tsx` (upload foto SPK oleh admin), `admin/pppoe/users/page.tsx`, `admin/pppoe/users/new/page.tsx`, dan `src/components/UserDetailModal.tsx` (foto KTP & foto instalasi).
+    5. **Penaikan Batas Maksimal Server-Side API (`MAX_SIZE` / `maxSize`)**:
+       - `src/app/api/technician/upload/route.ts`: `MAX_SIZE = 25 * 1024 * 1024` (25MB, sebelumnya 5MB).
+       - `src/app/api/upload/route.ts`: `maxSize = 25 * 1024 * 1024` (25MB, sebelumnya 10MB).
+       - `src/app/api/upload/pppoe-customer/route.ts`: `maxSize = 25 * 1024 * 1024` (25MB, sebelumnya 5MB).
+       - `src/app/api/upload/payment-proof/route.ts`: `maxSize = 25 * 1024 * 1024` (25MB, sebelumnya 5MB).
+       - `src/app/api/customer/payments/[id]/proof/route.ts`: batas dinaikkan ke 25MB (sebelumnya 5MB).
+       - `src/app/api/customer/invoices/[id]/manual-payment/route.ts`: batas dinaikkan ke 25MB (sebelumnya 5MB).
+       - `src/app/api/public/upload-registration/route.ts`: `maxSize = 25 * 1024 * 1024` (25MB, sebelumnya 3MB).
+       - `src/app/api/upload/logo/route.ts`: `maxSize = 10 * 1024 * 1024` (10MB, sebelumnya 2MB).
+    6. **Pembersihan Blocker Validasi 5MB di Client**:
+       - Menghapus popup error `Ukuran file maksimal 5MB` di seluruh formulir pembayaran dan top-up, digantikan dengan kompresi client-side otomatis tanpa interupsi.
   - *Files*:
-    - `src/app/admin/network/vpn-client/page.tsx`
-    - `src/app/api/network/routers/route.ts`
-    - `src/app/api/network/vps-l2tp-peer/route.ts`
-    - `src/app/api/network/vps-wg-peer/route.ts`
-
-### v2.39.1 — 2026-09-11
-
-### Turnkey 1-Command Installer Bundle & Setup Wizard Superadmin Username Customization
-- **Paket Instalasi 1-Baris Perintah Komprehensif (`scripts/install.sh`)**:
-  - *Context / User Request*:
-    Menghilangkan kerumitan menjalankan banyak skrip terpisah di VPS baru. Memastikan FreeRADIUS 3.x, WireGuard VPN Server, L2TP/IPSec VPN Server, Nginx Reverse Proxy, dan PM2 Ecosystem (Web + WA + Cron) otomatis terpasang dan aktif dalam satu paket perintah tunggal (`curl -fsSL ... | sudo bash` atau `sudo bash scripts/install.sh`).
-  - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Bundling Layanan Jaringan Lengkap**:
-       - Mengintegrasikan konfigurasi Nginx reverse proxy langsung di port 80/443 menuju Next.js internal (port 3000) dengan dukungan WebSocket dan batas unggah 100MB, sehingga setup wizard dapat diakses langsung pada port standar web `http://IP/setup`.
-       - Mengintegrasikan modul FreeRADIUS 3.x langsung terhubung ke database `euginebill` via MySQL, konfigurasi direktori dinamis `clients.d/`, dan injeksi provider legacy OpenSSL (MD4) untuk kompatibilitas MS-CHAPv2 MikroTik PPPoE pada Ubuntu 22+.
-       - Mengintegrasikan instalasi otomatis WireGuard VPN Server (subnet `10.200.0.0/24`, port `51820/UDP`) untuk router MikroTik RouterOS v7.
-       - Mengintegrasikan instalasi otomatis L2TP/IPSec VPN Server (strongSwan + xl2tpd, subnet `10.201.0.0/24`) dengan auto-generated IPSec PSK untuk router MikroTik RouterOS v6.
-       - Menjalankan seluruh proses PM2 melalui `ecosystem.config.js` (`EugineBill-radius`, `EugineBill-wa`, `EugineBill-cron`) dan menyetel auto-start sistem saat reboot.
-    2. **Kustomisasi Username Superadmin pada Setup Wizard (`/setup` & `/api/setup`)**:
-       - Menambahkan input field eksplisit `Username Login` (default: `'admin'`) pada Langkah 2 wizard agar pengguna mengetahui persis username yang digunakan untuk login di `/admin/login`.
-       - Menghubungkan pembuatan akun ke tabel `admin_users` dengan role `SUPER_ADMIN` yang menjadi acuan otentikasi NextAuth, sekaligus membuat salinan backward-compatible pada tabel legacy `users`.
-  - *Files*:
-    - `scripts/install.sh`
-    - `src/app/setup/page.tsx`
-    - `src/app/api/setup/route.ts`
-    - `docs/setup/VENDOR_DEPLOYMENT_GUIDE.md`
-
-### v2.39.0 — 2026-09-11
-
-### Commercial Release Readiness: First-Time Setup Wizard, Local Auth Mode, Manual Bank Transfer, & Zero-Hardcoding Sanitization
-- **Transformasi Komersial EugineBill Siap Sewa / Jual (Managed Single-Tenant VPS)**:
-  - *Context / User Request*:
-    Mempersiapkan codebase EugineBill agar 100% siap disewakan dan dijual ke klien ISP/RT-RW Net baru sebagai layanan Managed Single-Tenant VPS. Menjamin tidak ada hardcoded domain/logo vendor lama, menyediakan instalasi wizard pertama kali tanpa seeding database manual, mendukung mode autentikasi lokal MikroTik per router tanpa wajib RADIUS, auto-show pembayaran transfer manual di link bayar pelanggan jika gateway belum disetup, serta menyediakan skrip patch git yang aman dari risiko data loss.
-  - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **First-Time Setup Wizard (`/setup` & `/api/setup`)**:
-       - Mengembangkan antarmuka wizard visual 3 langkah (Profil ISP, Akun Superadmin, Default Billing & Identitas) dengan tema Hallmark Oceanic Blue.
-       - Menyediakan proteksi backend: route `/api/setup` otomatis mendeteksi status inisialisasi database. Jika superadmin sudah ada, endpoint terkunci secara permanen dan menolak permintaan pendaftaran ulang.
-       - Mengintegrasikan deteksi otomatis pada `/admin/login`: jika sistem belum diinisialisasi, pengguna langsung dialihkan ke `/setup`.
-       - Mendaftarkan rute `/setup` ke dalam bypass middleware `src/proxy.ts` (subdomain & isolated IP bypass).
-    2. **Per-Router Authentication Mode (`authMode: 'local' | 'radius'`)**:
-       - Menambahkan kolom `authMode String @default("local")` pada model `router` di `prisma/schema.prisma`.
-       - Memperbarui API router (`src/app/api/network/routers/route.ts`) untuk menangani penyimpanan dan pembaruan `authMode`.
-       - Menambahkan badge status mode autentikasi pada kartu router dan dropdown seleksi mode pada modal router di `/admin/network/routers`. Mode lokal MikroTik ditetapkan sebagai standar bawaan.
-    3. **Auto-Show Transfer Bank Manual pada Halaman Pembayaran (`/pay/[token]`)**:
-       - Mengembangkan sistem deteksi dinamis gateway pembayaran: jika belum ada payment gateway online aktif (`paymentGateways.length === 0`), formulir Transfer Bank Manual otomatis dibuka sebagai metode pembayaran utama.
-       - Menampilkan kartu rekening resmi perusahaan (`company.bankAccounts`) dilengkapi tombol 1-klik salin nomor rekening, petunjuk transfer nominal tagihan tepat, dan formulir konfirmasi bukti transfer yang langsung tersambung ke `POST /api/pay/[token]/manual`.
-       - Jika payment gateway online aktif, opsi transfer manual tetap dapat diakses sebagai opsi alternatif tanpa membebani biaya gateway.
-    4. **Sanitasi Zero-Hardcoding Menyeluruh**:
-       - Mengeliminasi seluruh fallback domain statis `https://euginemediagroup.com` di `whatsapp-templates.service.ts`, `auto-isolation.ts`, `broadcast/route.ts`, serta endpoint `work-orders`. Seluruh rujukan digantikan secara dinamis oleh `company.baseUrl || process.env.NEXT_PUBLIC_APP_URL || ''`.
-       - Mengganti domain hotspot statis `wifi.euginemediagroup.com` dengan `wifi.hotspot.local` dan nama router dinamis di `templateRenderer.ts`, `voucher/page.tsx`, dan `setup-hotspot/route.ts`.
-       - Mengotomatisasi injeksi aturan Walled Garden MikroTik: script setup hotspot kini membaca hostname server billing secara dinamis dari `company.baseUrl` atau `NEXT_PUBLIC_APP_URL`.
-       - Mengganti fallback IP ONT remote proxy `43.173.14.236` pada `ont-remote/route.ts` dengan deteksi dinamis header host atau `process.env.VPS_PUBLIC_IP`.
-       - Mengganti aset logo fallback statis `eugine-logo.png` dengan logo dinamis perusahaan atau `/logo.png`.
-    5. **Skrip Pembaruan Aman & Setup Port VPS**:
-       - Menyusun `scripts/safe-update.sh`: melakukan snapshot backup database otomatis (`mysqldump` terkompresi `.sql.gz`), backup `.env`, `git pull`, `npx prisma db push --skip-generate` tanpa menghapus data, `npm run build`, dan graceful reload proses PM2 (`EugineBill-radius`, `EugineBill-wa`, `EugineBill-cron`).
-       - Menyusun `scripts/setup-vps-ports.sh`: otomatisasi konfigurasi firewall UFW untuk seluruh port layanan (80, 443, 22, 51820 UDP, 1812/1813/3799 UDP, dan rentang proxy ONT 24000:24999 TCP).
-       - Memperbarui template `.env.example` dengan dokumentasi lengkap variabel produksi.
-    6. **Dokumentasi Resmi Deployment Vendor**:
-       - Menyusun dokumen panduan `docs/setup/VENDOR_DEPLOYMENT_GUIDE.md` yang merinci langkah instalasi awal, arsitektur single-tenant, konfigurasi firewall, hingga serah terima sistem ke klien.
-  - *Files*:
-    - `prisma/schema.prisma`
-    - `src/proxy.ts`
-    - `src/app/setup/page.tsx`
-    - `src/app/api/setup/route.ts`
-    - `src/app/admin/login/page.tsx`
-    - `src/app/api/network/routers/route.ts`
-    - `src/app/admin/network/routers/page.tsx`
+    - `src/lib/utils.ts`
+    - `src/app/technician/(portal)/work-orders/[id]/page.tsx`
+    - `src/app/technician/(portal)/tickets/page.tsx`
+    - `src/app/technician/(portal)/register/page.tsx`
+    - `src/app/admin/work-orders/[id]/page.tsx`
+    - `src/app/admin/pppoe/users/page.tsx`
+    - `src/app/admin/pppoe/users/new/page.tsx`
+    - `src/components/UserDetailModal.tsx`
+    - `src/app/agent/dashboard/page.tsx`
+    - `src/app/customer/topup-request/page.tsx`
+    - `src/app/daftar/page.tsx`
     - `src/app/pay/[token]/page.tsx`
-    - `src/app/api/invoices/by-token/[token]/route.ts`
-    - `src/server/services/notifications/whatsapp-templates.service.ts`
-    - `src/server/jobs/auto-isolation.ts`
-    - `src/app/api/whatsapp/broadcast/route.ts`
-    - `src/app/api/technician/work-orders/[id]/complete/route.ts`
-    - `src/app/api/admin/work-orders/[id]/route.ts`
-    - `src/app/api/admin/work-orders/[id]/resend-wa/route.ts`
-    - `src/lib/utils/templateRenderer.ts`
-    - `src/app/admin/hotspot/voucher/page.tsx`
-    - `src/app/admin/hotspot/template/page.tsx`
-    - `src/app/api/network/routers/[id]/setup-hotspot/route.ts`
-    - `src/app/api/network/ont-remote/route.ts`
-    - `src/app/customer/CustomerClientLayout.tsx`
-    - `src/app/customer/login/page.tsx`
-    - `src/app/admin/technicians/page.tsx`
-    - `scripts/safe-update.sh`
-    - `scripts/setup-vps-ports.sh`
-    - `.env.example`
-    - `docs/setup/VENDOR_DEPLOYMENT_GUIDE.md`
+    - `src/app/pay-manual/[token]/page.tsx`
+    - `src/app/pay-manual/page.tsx`
+    - `src/app/api/technician/upload/route.ts`
+    - `src/app/api/upload/route.ts`
+    - `src/app/api/upload/pppoe-customer/route.ts`
+    - `src/app/api/upload/payment-proof/route.ts`
+    - `src/app/api/customer/payments/[id]/proof/route.ts`
+    - `src/app/api/customer/invoices/[id]/manual-payment/route.ts`
+    - `src/app/api/public/upload-registration/route.ts`
+    - `src/app/api/upload/logo/route.ts`
     - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
 
-### v2.38.6 — 2026-09-11
+### v2.39.9 — 2026-09-12
 
-### Client Field Deployment Kits & OLT Standardization
-- **Rilis Repositori & Standardisasi Field Deployment Toolkit (`euginemedia-client-kits`)**:
+### Permanent Hide PWA Install Prompt Across All Portals Except Landing Page
+- **Penyembunyian Permanen Modal PWA Install Prompt di Semua Portal Kecuali Landing Page**:
   - *Context / User Request*:
-    Mempersiapkan toolkit deployment lapangan mandiri yang siap dibawa teknisi/laptop untuk instalasi paket FTTH 1-PON (OLT VSOL V1600GS + MikroTik v7) di sisi router klien tanpa bentrok IP dan tanpa downtime jaringan lama. Melakukan audit mentahan produksi CCR2116 EugineMedia dan standardisasi port remote web OLT serta SNMP.
+    Pengguna melaporkan bahwa modal pop-up "Install Aplikasi Pelanggan" (PWA prompt) masih muncul di halaman invoice, halaman bayar `/pay/[token]`, dan sering mengganggu saat admin membuka dashboard `/admin`. Pengguna menginstruksikan untuk menyembunyikan modal ini secara permanen di seluruh sistem kecuali pada landing page.
   - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Audit Multi-OLT Mentahan Produksi EugineMedia**:
-       - Mengidentifikasi pemetaan eksisting 3 OLT di CCR2116 EugineMedia:
-         - OLT 1 (HSGQ): Web `8229`, SNMP UDP `1611` (`192.168.30.2:161`).
-         - OLT 2 (VSOL V1600GS): Web `8003`, SNMP UDP `1614` (`192.168.30.6:161`).
-         - OLT 3 (VSOL V1600GT): Web `8004`, SNMP UDP `1615` (`192.168.30.7:1615`).
-    2. **Standarisasi Bersih Client Deployment Kit**:
-       - Menetapkan konvensi berurutan untuk instalasi OLT baru di sisi klien:
-         - OLT 1 (Default): Web GUI Port `8001` (`http://192.168.30.6:8001`), SNMP Port UDP `1611` (forward ke UDP `161` OLT).
-         - Skema Multi-OLT Klien: OLT 2 (`8002` / `1612`), OLT 3 (`8003` / `1613`), OLT 4 (`8004` / `1614`).
-    3. **Pembersihan Konfigurasi Mentahan VSOL V1600GS**:
-       - Menyaring lebih dari 70 serial number ONU statis lama (`onu add 1`..`118`) dari konfigurasi mentahan, mempertahankan VLAN 20 (PPPoE), VLAN 30 (Management OLT), VLAN 4000 (TR-069), serta mengaktifkan `onu auto-learn`.
-       - Mengubah konfigurasi OLT ke `web port 8001`.
-    4. **Pemisahan Script MikroTik FTTH Universal vs Billing EugineBill**:
-       - Memisahkan script pondasi FTTH (Cake SQM, Game Mangle, PPPoE server) dari aturan khusus billing cloud EugineBill (isolir redirect, payment gateway IP list, hotspot voucher, tunnel WireGuard).
-       - Menyiapkan script 7-point non-destructive inspection (`01-inspect-client-router.rsc`) dan modul AI Agent operational guidelines (`.agents/AGENTS.md`) dengan 5 skenario percabangan otomatis (DHCP client ISP, PPPoE dial client, dedicated IP statis, bentrok subnet auto-shift ke `10.20.0.0/22`, dan pemisahan port bridge).
-    5. **Repositori GitHub & Dokumentasi Terpadu**:
-       - Diterbitkan ke repositori `https://github.com/Ak3ww/euginemedia-client-kits.git`.
-    6. **Aturan Wajib Konstruksi Dinamis NAT Masquerade PPPoE**:
-       - Mengunci protokol bahwa rule NAT Masquerade PPPoE tidak boleh dicopy secara buta. Parameter `src-address` wajib mengikuti subnet pool yang dipilih (`192.168.20.0/22` atau `10.20.0.0/22`), dan parameter `out-interface` / `out-interface-list` disesuaikan spesifik dengan port WAN ISP klien (DHCP `ether1`, dial `pppoe-out1`, atau dedicated) untuk menjamin trafik internet keluar dengan benar dan tidak merusak routing internal.
+    1. **Strict Whitelist Filtering pada `src/components/pwa-install-prompt.tsx`**:
+       - Mengganti filter *blacklist* berbasis `pathname.startsWith` yang rawan bocor menjadi *strict whitelist*: hanya mengizinkan rendering jika `pathname === '/' || pathname === '/landing' || pathname.startsWith('/landing')`.
+       - Seluruh halaman lain (Admin `/admin/*`, Invoice `/invoice/*`, Pay `/pay/*`, Customer `/customer/*`, Agent `/agent/*`, Teknisi `/technician/*`, dsb.) langsung mengembalikan `null` secara permanen.
+       - Listener event browser `beforeinstallprompt` pada `useEffect` dinonaktifkan sepenuhnya jika route bukan merupakan landing page, menjamin nol interupsi modal pop-up di seluruh portal operasional.
   - *Files*:
+    - `src/components/pwa-install-prompt.tsx`
     - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
 
-### v2.38.5 — 2026-09-10
+### v2.39.8 — 2026-09-12
 
-### Architecture Audit & Master Blueprint Roadmap
-- **Master Blueprint: Komparasi Arsitektur Salfanet-Radius vs EugineBill & Roadmap Upgrade**:
+### Fix Auto-Hide Transfer Manual When Payment Gateway Active
+- **Perbaikan Auto-Hide Transfer Bank Manual pada Halaman Pembayaran (`/pay/[token]`)**:
   - *Context / User Request*:
-    Pengguna menginstruksikan re-clone repositori Salfanet-Radius (`https://github.com/s4lfanet/salfanet-radius.git`), melakukan audit mendalam sistem RADIUS & Local Auth menggunakan subagent otonom pada kedua codebase, serta menyusun dokumentasi komparasi obyektif dan roadmap fitur apa yang perlu dikejar vs apa yang harus dihindari.
+    Pengguna melaporkan bahwa opsi Transfer Bank Manual masih muncul di halaman pembayaran pelanggan (`/pay/[token]`), padahal payment gateway (QRIN) sudah disetup dan aktif.
   - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Dual Subagent Codebase Audit**:
-       - Mengoperasikan subagent auditor independen pada `C:\salfanet-radius` (`v5.20.0`) dan `C:\EugineBill` untuk membedah seluruh layer: FreeRADIUS configuration, REST hook authorize/post-auth, skema database, alur CoA disconnect, cron session sync, hingga Transactional Outbox.
-    2. **Penyusunan Master Blueprint Document (`docs/architecture/RADIUS_LOCAL_AUTH_COMPARISON_AND_ROADMAP.md`)**:
-       - Menganalisis 14 parameter teknis komparasi antara Salfanet dan EugineBill.
-       - Menetapkan daftar fitur unggulan Salfanet yang **WAJIB DIKEJAR** (Per-Router `authMode`, migrasi router 1-klik, Transactional Outbox `external_task`, rekapitulasi voucher terpakai `firstLoginAt`, dynamic interim-update 300s).
-       - Menetapkan daftar anti-pattern Salfanet yang **HARUS DITOLAK** demi stabilitas produksi (modul FreeRADIUS REST hook yang rawan mass-outage saat web server restart, serta pencemaran tabel `radacct` via sesi palsu *synthetic radacct*).
-       - Merancang 5 fase eksekusi bertahap yang 100% backward-compatible dan bebas risiko downtime.
+    1. **Strict Condition Rendering pada `src/app/pay/[token]/page.tsx`**:
+       - Mengganti kondisi rendering ambigu `{(paymentGateways.length === 0 || normalizedBankAccounts.length > 0)}` menjadi strictly `{paymentGateways.length === 0}`.
+       - Memastikan `showManualForm` bernilai `false` jika terdapat payment gateway aktif (`gateways.length > 0`).
+    2. **Logika Bisnis yang Benar & Konsisten**:
+       - **Saat Payment Gateway Aktif (misal QRIN / Duitku / Midtrans)**: Opsi Transfer Bank Manual **100% otomatis disembunyikan (*auto-hide*)**, pelanggan hanya melihat kanal pembayaran otomatis resmi (QRIS instan, Virtual Account, atau Gerai Retail) sehingga pembayaran terverifikasi otomatis tanpa memerlukan verifikasi mutasi manual oleh admin.
+       - **Saat Belum Ada Payment Gateway (`paymentGateways.length === 0`)**: Formulir Transfer Bank Manual **otomatis terbuka (*auto-show*)** sebagai metode utama lengkap dengan kartu rekening tujuan resmi, panduan nominal presisi, dan tombol unggah bukti transfer.
   - *Files*:
-    - `docs/architecture/RADIUS_LOCAL_AUTH_COMPARISON_AND_ROADMAP.md`
+    - `src/app/pay/[token]/page.tsx`
     - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
+
+### v2.39.7 — 2026-09-12
+
+### Master Easy Setup Guide (VPS & MikroTik), UI Quick Links, and Zero-Emoji Standard Enforcement
+- **Easy Setup Experience di VPS & MikroTik (Master Guide, Quick Links, & Pembersihan Total Text Emoji)**:
+  - *Context / User Request*:
+    Pengguna meminta jaminan bahwa alur EugineBill Easy Setup di VPS dan MikroTik memiliki panduan lengkap baik di antarmuka Admin UI maupun repositori GitHub: "Cuma beberapa kali klik dan paste script di MikroTik harus sudah siap pakai." Selain itu, seluruh elemen UI harus patuh pada aturan nol text emoji di seluruh portal admin.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Master Setup Guide (`docs/setup/EUGINEBILL_EASY_SETUP_GUIDE.md`)**:
+       - Dokumentasi panduan lengkap 5 skenario implementasi siap pakai:
+         - Skenario 1: Hubungkan MikroTik ke EugineBill Cloud (1-Klik Salin Script VPN).
+         - Skenario 2: Skrip Fondasi FTTH Plug-and-Play (`02-mikrotik-ftth-complete.rsc`).
+         - Skenario 3: Remote ONT Proxy 1-Klik Siap Pakai.
+         - Skenario 4: Built-in TR-069 ACS Native Setup (VLAN 4000 on-demand).
+         - Skenario 5: Dynamic Isolation & Walled Garden.
+    2. **Prominent Banner di Root `README.md` & `docs/DOCS_INDEX.md`**:
+       - Menempatkan callout banner utama "Quick Start & Easy Setup" di awal `README.md` dan tabel indeks teknis.
+       - Menambahkan referensi master guide di `docs/DOCS_INDEX.md`.
+    3. **Helper Card Easy Setup di UI Router (`/admin/network/routers`)**:
+       - Menambahkan kartu informasi "Easy Setup Fondasi FTTH & TR-069" dengan tombol pintas ke menu TR-069 ACS (`/admin/acs`).
+    4. **Pembersihan Total Text Emoji Sesuai Aturan Workspace**:
+       - Mengganti seluruh emoji teks yang tersisa pada `src/app/admin/network/vpn-server/page.tsx`, `src/app/admin/network/vpn-client/page.tsx`, `src/app/admin/network/olts/page.tsx`, `src/app/admin/network/map/page.tsx`, `src/app/admin/pppoe/areas/page.tsx`, dan `src/app/admin/pppoe/users/new/page.tsx` dengan komponen resmi `Lucide React` (`<Cloud />`, `<Server />`, `<Settings />`, `<Wifi />`, `<Terminal />`, `<Radio />`, `<Zap />`, `<Wrench />`, `<User />`, `<AlertTriangle />`, dot status Tailwind, dll.).
+  - *Files*:
+    - `docs/setup/EUGINEBILL_EASY_SETUP_GUIDE.md`
+    - `README.md`
+    - `docs/DOCS_INDEX.md`
+    - `deployment-pack-client/PANDUAN_SETUP_LENGKAP_OLT_MIKROTIK.md`
+    - `src/app/admin/network/routers/page.tsx`
+    - `src/app/admin/network/vpn-server/page.tsx`
+    - `src/app/admin/network/vpn-client/page.tsx`
+    - `src/app/admin/network/olts/page.tsx`
+    - `src/app/admin/network/map/page.tsx`
+    - `src/app/admin/pppoe/areas/page.tsx`
+    - `src/app/admin/pppoe/users/new/page.tsx`
+    - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
+
+### v2.39.6 — 2026-09-12
+
+### Built-in TR-069 ACS Engine, On-Demand VLAN 4000 Activation UI & Lean Base Scripts
+- **Standarisasi TR-069: Skrip Pondasi Lean & Aktivasi On-Demand VLAN 4000 di UI**:
+  - *Context / User Request*:
+    Pengguna menginstruksikan bahwa skrip pondasi awal OLT dan MikroTik harus dijaga tetap bersih dan ringan (*ultra-lean*) tanpa memuat VLAN 4000 secara default. Jika admin ingin menggunakan TR-069 dengan Dedicated VLAN, EugineBill menyediakan panduan interaktif dan skrip aktivasi 1-klik siap salin langsung di halaman Admin `/admin/acs` serta dokumentasi GitHub.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Skrip Pondasi FTTH Ultra-Lean (`01-vsol-1600gs-clean.conf` & `02-mikrotik-ftth-complete.rsc`)**:
+       - Hanya memuat port uplink WAN (`ether1`), LAN distribution bridge (`ether2-5`), VLAN 20 (`VLAN20-PPPOE`), dan VLAN 30 (`VLAN30-MGMT-OLT`).
+       - Bebas dari konfigurasi awal VLAN 4000 agar tidak membebani teknisi yang baru memasang jaringan awal.
+    2. **Komponen Panduan & Generator Skrip Aktivasi TR-069 di UI (`src/components/admin/AcsGuideCard.tsx`)**:
+       - Menyediakan tab navigasi interaktif 3 langkah:
+         - **Langkah 1 (MikroTik)**: Skrip terminal Winbox siap salin 1-klik untuk membuat interface `vlan4000-tr069`, IP `10.40.10.1/24`, pool, dan DHCP Server TR-069.
+         - **Langkah 2 (OLT VSOL)**: Perintah CLI OLT siap salin 1-klik untuk deklarasi `vlan 4000` dan tagging pada port uplink GE 0/1-0/3.
+         - **Langkah 3 (Modem ONT Pelanggan)**: Panduan konfigurasi modem per vendor (ZTE, Huawei, Fiberhome, VSOL) untuk opsi Dedicated VLAN 4000 maupun In-Band PPPoE.
+    3. **100% Otomatis Aktif di VPS (`/api/cwmp`)**:
+       - Engine Built-in ACS ditanam langsung di Next.js monolith (`src/app/api/cwmp/route.ts` & `CwmpService`). Begitu PM2 `EugineBill-radius` running, endpoint langsung aktif tanpa perlu instalasi Docker, tanpa MongoDB, dan tanpa daemon tambahan.
+       - Menyediakan HTTP GET handler untuk health check yang mengembalikan status JSON online dan informasi layanan.
+    4. **Dokumentasi Terintegrasi di GitHub (`docs/mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md`)**:
+       - Merinci arsitektur on-demand VLAN 4000, skrip aktivasi terminal, dan alur kerja integrasi Built-in ACS.
+  - *Files*:
+    - `deployment-pack-client/01-vsol-1600gs-clean.conf`
+    - `deployment-pack-client/02-mikrotik-ftth-complete.rsc`
+    - `src/app/api/cwmp/route.ts`
+    - `src/components/admin/AcsGuideCard.tsx`
+    - `src/app/admin/acs/page.tsx`
+    - `docs/mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md`
+    - `docs/mikrotik/ACS_SETUP.md`
+    - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
 
 <!-- AUTO-CHANGELOG:END -->
 

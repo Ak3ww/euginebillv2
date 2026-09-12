@@ -14,6 +14,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { BankInstructions } from './BankInstructions';
 import { BankLogo, AcceptedQrisBadges } from '@/components/ui/BankLogo';
+import { compressImage } from '@/lib/utils';
 
 interface Invoice {
   id: string;
@@ -385,22 +386,27 @@ export default function PaymentPage() {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
-  const handleReceiptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      setManualError('Ukuran file maksimal 5MB.');
-      return;
-    }
+  const handleReceiptFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
 
     setManualError(null);
-    setManualForm((prev) => ({ ...prev, receiptImage: file }));
-    const reader = new FileReader();
-    reader.onload = () => {
-      setReceiptPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const file = await compressImage(rawFile, 1600, 0.8);
+      setManualForm((prev) => ({ ...prev, receiptImage: file }));
+      const reader = new FileReader();
+      reader.onload = () => {
+        setReceiptPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setManualForm((prev) => ({ ...prev, receiptImage: rawFile }));
+      const reader = new FileReader();
+      reader.onload = () => {
+        setReceiptPreview(reader.result as string);
+      };
+      reader.readAsDataURL(rawFile);
+    }
   };
 
   const handleManualSubmit = async () => {
@@ -411,13 +417,14 @@ export default function PaymentPage() {
     }
     setUploading(true);
     try {
+      const compressed = await compressImage(manualForm.receiptImage, 1600, 0.8);
       const formData = new FormData();
       formData.append('bankName', manualForm.bankName);
       formData.append('accountNumber', manualForm.accountNumber || '-');
       formData.append('accountName', manualForm.accountName);
       formData.append('destinationBank', manualForm.destinationBank || 'Rekening Utama');
       formData.append('notes', manualForm.notes || '');
-      formData.append('receiptImage', manualForm.receiptImage);
+      formData.append('receiptImage', compressed);
 
       const res = await fetch(`/api/pay/${token}/manual`, {
         method: 'POST',
@@ -1135,7 +1142,7 @@ export default function PaymentPage() {
                                 </span>{' '}
                                 atau seret ke sini
                               </div>
-                              <p className="text-[11px] text-slate-400">JPG, PNG, atau WebP hingga 5MB</p>
+                              <p className="text-[11px] text-slate-400">JPG, PNG, atau WebP (otomatis dikompres)</p>
                               <input
                                 type="file"
                                 accept="image/*"

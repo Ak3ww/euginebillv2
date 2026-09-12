@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { writeFile } from 'fs/promises';
@@ -40,11 +40,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 2MB)
-    const maxSize = 2 * 1024 * 1024; // 2MB
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       return NextResponse.json(
-        { success: false, error: 'File size too large. Maximum 2MB allowed.' },
+        { success: false, error: 'File size too large. Maximum 10MB allowed.' },
         { status: 400 }
       );
     }

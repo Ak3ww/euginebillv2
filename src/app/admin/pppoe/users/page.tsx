@@ -18,6 +18,7 @@ import UserDetailModal from '@/components/UserDetailModal';
 import OntRemoteModal from '@/components/admin/OntRemoteModal';
 import { getFastLocation } from '@/lib/geo-utils';
 import { formatWIB, isExpiredWIB as isExpired, endOfDayWIBtoUTC } from '@/lib/timezone';
+import { compressImage } from '@/lib/utils';
 import {
   SimpleModal,
   ModalHeader,
@@ -126,7 +127,8 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
     if (!file) return;
     setUploadingInstallation(true);
     try {
-      const fd = new FormData(); fd.append('file', file); fd.append('type', 'installation');
+      const compressed = await compressImage(file, 1600, 0.8);
+      const fd = new FormData(); fd.append('file', compressed); fd.append('type', 'installation');
       const res = await fetch('/api/upload/pppoe-customer', { method: 'POST', body: fd });
       const result = await res.json();
       if (result.success) { setFormData(prev => ({ ...prev, installationPhotos: [...prev.installationPhotos, result.url] })); }
@@ -138,7 +140,8 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
   const handleCameraInstallation = async (file: File) => {
     setUploadingInstallation(true);
     try {
-      const fd = new FormData(); fd.append('file', file); fd.append('type', 'installation');
+      const compressed = await compressImage(file, 1600, 0.8);
+      const fd = new FormData(); fd.append('file', compressed); fd.append('type', 'installation');
       const res = await fetch('/api/upload/pppoe-customer', { method: 'POST', body: fd });
       const result = await res.json();
       if (result.success) {
@@ -282,7 +285,8 @@ function AddPppoeUserModal({ isOpen, onClose, onSuccess, profiles, routers, area
                   onUploadFile={async (file) => {
                     setUploadingIdCard(true);
                     try {
-                      const fd = new FormData(); fd.append('file', file); fd.append('type', 'idCard');
+                      const compressed = await compressImage(file, 1600, 0.8);
+                      const fd = new FormData(); fd.append('file', compressed); fd.append('type', 'idCard');
                       const res = await fetch('/api/upload/pppoe-customer', { method: 'POST', body: fd });
                       const result = await res.json();
                       if (result.success) { setFormData(prev => ({ ...prev, idCardPhoto: result.url })); return result.url; }

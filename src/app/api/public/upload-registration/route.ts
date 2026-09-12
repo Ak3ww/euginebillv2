@@ -24,11 +24,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 3MB for public endpoint)
-    const maxSize = 3 * 1024 * 1024;
+    // Validate file size (max 25MB for public endpoint)
+    const maxSize = 25 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
-        { success: false, error: 'Ukuran file melebihi batas 3MB.' },
+        { success: false, error: 'Ukuran file melebihi batas 25MB.' },
         { status: 400 }
       );
     }

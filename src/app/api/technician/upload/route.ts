@@ -32,7 +32,7 @@ async function verifyTechnician(req: NextRequest) {
 }
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_SIZE = 25 * 1024 * 1024; // 25MB
 
 export async function POST(req: NextRequest) {
   const tech = await verifyTechnician(req);
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: 'Ukuran file maksimal 5MB' }, { status: 400 });
+      return NextResponse.json({ error: 'Ukuran file maksimal 25MB' }, { status: 400 });
     }
 
     const ext = extname(file.name) || '.jpg';

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FileText, CreditCard, Upload, Calendar, Building2, User, ArrowLeft, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
 import { showSuccess, showError, showWarning } from '@/lib/sweetalert';
 import { formatWIB, todayWIBStr } from '@/lib/timezone';
+import { compressImage } from '@/lib/utils';
 
 interface BankAccount {
   bankName: string;
@@ -105,17 +106,12 @@ export default function PayManualPage({ params }: { params: Promise<{ token: str
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      showError('Ukuran file maksimal 5MB', 'File Terlalu Besar');
-      return;
-    }
-
     setUploadingImage(true);
 
     try {
+      const compressed = await compressImage(file, 1600, 0.8);
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', compressed);
 
       const response = await fetch('/api/upload/payment-proof', {
         method: 'POST',

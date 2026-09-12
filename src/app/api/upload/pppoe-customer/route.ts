@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { randomBytes } from 'crypto';
@@ -32,11 +32,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024;
+    // Validate file size (max 25MB)
+    const maxSize = 25 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
-        { success: false, error: 'Ukuran file melebihi batas 5MB.' },
+        { success: false, error: 'Ukuran file melebihi batas 25MB.' },
         { status: 400 }
       );
     }

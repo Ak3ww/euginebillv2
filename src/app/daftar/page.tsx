@@ -6,6 +6,7 @@ import { UserPlus, Loader2, Wifi, CheckCircle, MapPin, Phone, Mail, Home, Packag
 import MapPicker from '@/components/MapPicker';
 import { CameraPhotoInput } from '@/components/CameraPhotoInput';
 import TestimonialsSection from '@/components/TestimonialsSection';
+import { compressImage } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -454,8 +455,9 @@ function DaftarPageInner() {
                   onUploadFile={async (file) => {
                     setUploadingPhoto(true);
                     try {
+                      const compressed = await compressImage(file, 1600, 0.8);
                       const fd = new FormData();
-                      fd.append('file', file);
+                      fd.append('file', compressed);
                       const res = await fetch('/api/public/upload-registration', { method: 'POST', body: fd });
                       const data = await res.json();
                       if (data.success) {
@@ -473,7 +475,7 @@ function DaftarPageInner() {
                   }}
                   onGpsCapture={(lat, lng) => setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }))}
                   theme="light"
-                  hint="Format JPG/PNG, maksimal 3MB"
+                  hint="Format JPG/PNG/WebP (otomatis dikompres)"
                   previewClassName="h-32"
                 />
               </div>

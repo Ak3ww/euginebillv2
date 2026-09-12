@@ -9,7 +9,7 @@ import {
   Wrench, Camera, CheckSquare, Calendar, User, Send, Download,
   Edit3, Trash2, X, Save
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, compressImage } from '@/lib/utils';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 
 export default function AdminWorkOrderDetailPage() {
@@ -238,8 +238,9 @@ export default function AdminWorkOrderDetailPage() {
   const handleAdminUploadPhoto = async (label: string, file: File) => {
     setUploadingLabel(label);
     try {
+      const compressed = await compressImage(file, 1600, 0.8);
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', compressed);
       formData.append('type', 'ticket');
 
       const res = await fetch('/api/technician/upload', {

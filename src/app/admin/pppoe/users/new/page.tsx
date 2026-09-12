@@ -5,6 +5,7 @@ import { showSuccess, showError } from '@/lib/sweetalert';
 import { ArrowLeft, MapPin, Map, Eye, EyeOff, Loader2, X, ChevronRight, ChevronLeft, Wifi, WifiOff, Radio, User, Wrench, Settings } from 'lucide-react';
 import MapPicker from '@/components/MapPicker';
 import { ModalInput, ModalSelect, ModalLabel } from '@/components/cyberpunk';
+import { compressImage } from '@/lib/utils';
 
 interface Profile { id: string; name: string; groupName: string; price: number; proratePricePerDay: number; }
 interface Router { id: string; name: string; nasname: string; ipAddress: string; }
@@ -103,7 +104,8 @@ export default function NewPppoeUserPage() {
     if (!file) return;
     setUploadingIdCard(true);
     try {
-      const fd = new FormData(); fd.append('file', file); fd.append('type', 'idCard');
+      const compressed = await compressImage(file, 1600, 0.8);
+      const fd = new FormData(); fd.append('file', compressed); fd.append('type', 'idCard');
       const res = await fetch('/api/upload/pppoe-customer', { method: 'POST', body: fd });
       const data = await res.json();
       if (res.ok && data.url) setFormData(prev => ({ ...prev, idCardPhoto: data.url }));
@@ -117,7 +119,8 @@ export default function NewPppoeUserPage() {
     if (!file) return;
     setUploadingInstallation(true);
     try {
-      const fd = new FormData(); fd.append('file', file); fd.append('type', 'installation');
+      const compressed = await compressImage(file, 1600, 0.8);
+      const fd = new FormData(); fd.append('file', compressed); fd.append('type', 'installation');
       const res = await fetch('/api/upload/pppoe-customer', { method: 'POST', body: fd });
       const data = await res.json();
       if (res.ok && data.url) setFormData(prev => ({ ...prev, installationPhotos: [...prev.installationPhotos, data.url] }));

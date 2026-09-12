@@ -9,7 +9,7 @@ import {
   AlertCircle, FlipHorizontal, Timer, Award, Star, Zap, Trophy,
   Shield, Wifi, WifiOff, Smartphone, Power, Link, Globe, Rocket, Package, Plug, Home, BarChart2, Lock
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, compressImage } from '@/lib/utils';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { calculateTechnicianScore, PerformanceRating, EUGINEBILL_HQ } from '@/lib/geo-utils';
 
@@ -54,13 +54,23 @@ async function addPhotoOverlay(
     const img = new window.Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
+      // Scale down large camera photos (e.g. 12MP/48MP/108MP) to max 1600px
+      const MAX_DIM = 1600;
+      let width = img.naturalWidth;
+      let height = img.naturalHeight;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
       const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (!ctx) { resolve(file); return; }
 
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, 0, 0, width, height);
       URL.revokeObjectURL(url);
 
       // Overlay strip at bottom
@@ -93,10 +103,11 @@ async function addPhotoOverlay(
 
       canvas.toBlob((blob) => {
         if (!blob) { resolve(file); return; }
-        resolve(new File([blob], file.name, { type: 'image/jpeg' }));
-      }, 'image/jpeg', 0.88);
+        const outName = file.name.replace(/\.[^.]+$/, '.jpg');
+        resolve(new File([blob], outName, { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.80);
     };
-    img.onerror = () => resolve(file);
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
     img.src = url;
   });
 }
@@ -694,8 +705,9 @@ export default function TechnicianWorkOrderWizardPage() {
   const uploadPhoto = async (key: string, file: File) => {
     setUploadingKey(key);
     try {
+      const compressed = await compressImage(file, 1600, 0.8);
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', compressed);
       const res = await fetch('/api/technician/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (res.ok && data.url) {

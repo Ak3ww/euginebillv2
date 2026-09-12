@@ -12,6 +12,7 @@ import { useToast } from '@/components/cyberpunk/CyberToast';
 import { useTranslation } from '@/hooks/useTranslation';
 import { CameraPhotoInput } from '@/components/CameraPhotoInput';
 import { getFastLocation } from '@/lib/geo-utils';
+import { compressImage } from '@/lib/utils';
 
 interface Profile {
   id: string;
@@ -526,8 +527,9 @@ export default function TechnicianRegisterPage() {
                       onUploadFile={async (file) => {
                         setUploadingKtp(true);
                         try {
+                          const compressed = await compressImage(file, 1600, 0.8);
                           const fd = new FormData();
-                          fd.append('file', file);
+                          fd.append('file', compressed);
                           fd.append('type', 'idCard');
                           const res = await fetch('/api/upload/pppoe-customer', { method: 'POST', body: fd });
                           const result = await res.json();
@@ -537,7 +539,7 @@ export default function TechnicianRegisterPage() {
                         finally { setUploadingKtp(false); }
                       }}
                       theme="light"
-                      hint="Format: JPG/PNG/WebP, maks. 5MB"
+                      hint="Format: JPG/PNG/WebP (otomatis dikompres)"
                     />
                   </div>
 
@@ -571,8 +573,9 @@ export default function TechnicianRegisterPage() {
                         onUploadFile={async (file) => {
                           setUploadingInstallation(true);
                           try {
+                            const compressed = await compressImage(file, 1600, 0.8);
                             const fd = new FormData();
-                            fd.append('file', file);
+                            fd.append('file', compressed);
                             fd.append('type', 'installation');
                             const res = await fetch('/api/upload/pppoe-customer', { method: 'POST', body: fd });
                             const result = await res.json();
@@ -586,7 +589,7 @@ export default function TechnicianRegisterPage() {
                         }}
                         onGpsCapture={(lat, lng) => setForm((f) => ({ ...f }))}
                         theme="light"
-                        hint="Bisa tambah beberapa foto. Maks. 5MB per foto. Kamera HP otomatis mengambil GPS."
+                        hint="Bisa tambah beberapa foto (otomatis dikompres). Kamera HP otomatis mengambil GPS."
                       />
                     </div>
                   </div>
