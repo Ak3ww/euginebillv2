@@ -382,6 +382,7 @@
     "nodeSummary": "Ringkasan Node",
     "networkNodes": "Node Jaringan",
     "fiberPaths": "Jalur Fiber",
+    "acs": "TR-069 ACS",
     "genieacs": "GenieACS",
     "systemUpdate": "Update Sistem",
     "cloudflare_tunnel": "Cloudflare Tunnel",

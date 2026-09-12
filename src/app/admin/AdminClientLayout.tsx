@@ -221,9 +221,9 @@ const menuGroups: MenuGroup[] = [
       {
         titleKey: 'nav.acs',
         icon: <Router className="w-4 h-4" />,
-        requiredPermission: 'settings.genieacs',
+        requiredPermission: 'network.view',
         children: [
-          { titleKey: 'nav.devices', href: '/admin/acs', requiredPermission: 'settings.genieacs' },
+          { titleKey: 'nav.devices', href: '/admin/acs', requiredPermission: 'network.view' },
         ],
       },
       {
