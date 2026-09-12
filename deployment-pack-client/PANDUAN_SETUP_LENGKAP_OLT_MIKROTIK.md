@@ -48,10 +48,11 @@ Panduan praktis lapangan untuk instalasi cepat paket FTTH (1 PON = maks 128 pela
 9. Tunggu OLT selesai reboot (sekitar 1–2 menit).
 
 > [!IMPORTANT]
-> **INGAT: WEB PORT BERUBAH KE 8003!**
-> Setelah reboot, IP OLT berubah menjadi `192.168.8.200` dengan port `8003`.
-> Jika ingin membuka web OLT lagi dari laptop, buka URL:
-> 👉 **`http://192.168.8.200:8003`** (Password login admin: `@eugine0909@` atau password EugineMedia).
+> **AKSES WEB MANAGEMENT OLT VIA MIKROTIK:**
+> Di MikroTik telah disiapkan DST-NAT port `8001`.
+> Dari laptop yang terhubung ke MikroTik (LAN atau Wi-Fi), Anda cukup membuka browser ke:
+> 👉 **`http://192.168.30.1:8001`** ATAU **`http://192.168.50.1:8001`**
+> *(Kredensial login admin: admin / admin)*.
 
 ---
 
@@ -61,23 +62,16 @@ Panduan praktis lapangan untuk instalasi cepat paket FTTH (1 PON = maks 128 pela
 2. Buka menu **New Terminal**.
 3. Buka file **`02-mikrotik-ftth-complete.rsc`** di Notepad laptop Anda, **Copy Seluruh Isinya**, lalu **Paste di New Terminal Winbox**.
 4. Tekan **Enter** sampai baris terakhir selesai dieksekusi.
-5. **PENTING - Tentukan Port Colokan ke OLT**:
-   Tentukan kabel LAN ke OLT mau dicolok di port berapa pada MikroTik klien (misalnya **ether3**).
-   Ketik perintah ini di New Terminal:
-   ```text
-   /interface bridge port add bridge=bridge-FTTH interface=ether3
-   ```
-   *(Jika dicolok di ether2, ganti interface=ether2)*.
-6. Hubungkan kabel LAN dari port **ether3 MikroTik** ke port **GE 0/1 OLT**.
+5. Hubungkan kabel LAN dari port distribusi MikroTik (misal **ether2**) ke port Uplink OLT (**GE 0/1** atau **GE 0/2**).
 
 ---
 
 ## 4. LANGKAH 3: Uji Coba Remote OLT dari MikroTik (1 Menit)
 
 Setelah kabel MikroTik dan OLT tersambung:
-1. Pastikan laptop Anda tersambung ke jaringan MikroTik (dapat IP lokal MikroTik).
-2. Buka browser di laptop Anda, akses IP manajemen OLT:
-   👉 **`http://192.168.30.6:8003`**
+1. Pastikan laptop Anda tersambung ke port MikroTik (misal colok LAN di `ether3-5` atau via Wi-Fi).
+2. Buka browser di laptop Anda, akses Web OLT via IP Gateway MikroTik:
+   👉 **`http://192.168.30.1:8001`** (atau `http://192.168.50.1:8001`)
 3. Jika halaman login OLT VSOL langsung terbuka, **SELAMAT! Jalur Management OLT (VLAN 30) SUDAH 100% SUKSES!**
    *(Mulai detik ini, Anda tidak perlu lagi repot colok-cabut kabel ke OLT jika ingin memantau redaman optik atau register ONT).*
 
