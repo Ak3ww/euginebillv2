@@ -109,16 +109,16 @@ Setelah kabel MikroTik dan OLT tersambung:
 
 ## 6. Apa Saja Fitur yang Sudah Otomatis Aktif di MikroTik Klien?
 
-1. **Queue CAKE SQM**:
-   Algoritma antrian paling canggih anti-lag / anti-bufferbloat. Main game Mobile Legends & PUBG tetap hijau 20ms meskipun ada orang yang download YouTube.
-2. **Game Priority Mangle**:
-   Port game online (MLBB, Free Fire, PUBG Mobile) otomatis ditandai dan diprioritaskan.
-3. **Sistem Isolir Otomatis**:
-   Profile `isolir` otomatis me-redirect pelanggan nunggak ke halaman pembayaran dan memutus akses internet umum.
-4. **Walled Garden Payment Gateway**:
-   Pelanggan isolir tetap bisa membuka Midtrans, Tripay, QRIS, BCA, BRI, DANA, OVO, ShopeePay untuk melunasi tagihan mereka.
-5. **TR-069 DHCP Server (VLAN 4000)**:
-   Siap untuk integrasi GenieACS / Remote ONT Proxy otomatis.
+1. **WAN DHCP Client Otomatis (Port ether1)**:
+   MikroTik otomatis mengambil IP, Gateway, dan DNS dari modem ISP. Begitu kabel dari modem dicolok ke ether1, MikroTik langsung terhubung ke internet.
+2. **DHCP Server LAN Plug & Play (Port ether2 - ether5)**:
+   Teknisi atau klien bisa langsung mencolok laptop atau Access Point ke port ether2 s/d ether5 dan otomatis mendapatkan IP `192.168.50.x` serta akses internet langsung.
+3. **Standard Simple Queue Limiting**:
+   Limitasi bandwidth rapi dan stabil sesuai profil langganan tanpa beban CPU dari Cake Queue.
+4. **VLAN FTTH OLT Siap Pakai**:
+   VLAN 20 (PPPoE), VLAN 30 (Management OLT), dan VLAN 4000 (TR-069 ACS) langsung aktif di atas bridge distribusi.
+5. **Universal Masquerade NAT**:
+   Semua segmen jaringan (PPPoE pelanggan, LAN teknisi, TR-069) otomatis bisa browsing ke internet tanpa kendala routing.
 6. **Auto-Maintenance Subuh (03.00 Pagi)**:
    MikroTik otomatis membersihkan cache DNS sampah dan merapikan log sistem setiap jam 3 subuh.
 
