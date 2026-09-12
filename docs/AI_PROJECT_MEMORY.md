@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.4
+- **Version**: 2.39.5
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 12, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,18 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 12, 2026 — v2.39.5: Automated ONT Remote Readiness Probe, 1-Click Winbox Setup Script in UI, and Hardened FTTH Standards)
+- **Feature Invariant: In-App ONT Remote Readiness Probe & Winbox Activation Script**:
+  - Modal remote ONT (`OntRemoteModal.tsx`) WAJIB secara proaktif memvalidasi kesiapan koneksi sebelum admin meluncurkan tunnel:
+    1. Memanggil `GET /api/network/ont-remote?action=check-readiness` untuk memverifikasi soket API MikroTik (timeout 3 detik), keberadaan IP PPPoE aktif pelanggan, dan kesiapan proxy VPS.
+    2. Jika API router belum terhubung atau pelanggan offline, modal menampilkan status peringatan cerdas dan otomatis membuka kartu skrip aktivasi Winbox siap salin (1-klik copy).
+    3. Menyajikan 2 langkah praktis aktivasi tanpa membebani modul teknisi: (1) Paste skrip ke New Terminal Winbox, (2) Aktifkan opsi Web WAN / Remote Management pada koneksi PPPoE modem pelanggan.
+- **Hardening Invariant: FTTH Production Script Optimization (`02-mikrotik-ftth-complete.rsc`)**:
+  - **DNS Hardening**: DHCP Client port `ether1` menggunakan `use-peer-dns=no`. DNS statis menggunakan recursive resolver MikroTik (`1.1.1.1` & `8.8.8.8`) untuk menghindari transparent hijacking atau DNS poisoning dari modem upstream ISP.
+  - **Time & Clock Synchronization**: RouterOS wajib mengaktifkan `/ip cloud set update-time=yes`, `/system clock set time-zone-name=Asia/Jakarta`, dan `/system ntp client` ke `id.pool.ntp.org` dan `time.google.com` untuk menjamin validitas sertifikat TLS dan jadwal billing.
+  - **Separation of Concerns for Isolir**: Profil dan pool isolir dihapus dari skrip pondasi awal FTTH karena dikelola dinamis oleh modul billing (*Firewall Payment Integration*).
+  - **Lean NAT Architecture**: Menghapus 3 rule masquerade internal yang redundan; menyetel DST-NAT Web GUI OLT ke port `8001` (diarahkan ke `192.168.30.6:80`).
 
 ### Recent Patch Log (September 12, 2026 — v2.39.4: FTTH Deployment Pack Lean Architecture & Terminal Feedback Loop)
 - **Critical Invariant: Ultra-Lean FTTH Deployment Pack (`02-mikrotik-ftth-complete.rsc`)**:

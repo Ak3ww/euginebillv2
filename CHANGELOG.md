@@ -4,6 +4,31 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.5] — 2026-09-12
+### Automated ONT Remote Readiness Probe, 1-Click Winbox Setup Script in UI, and Hardened FTTH Standards
+- **Deteksi Kesiapan Remote ONT & Generator Skrip Winbox Interaktif di UI (`OntRemoteModal`)**:
+  - *Context / User Request*:
+    Pengguna meminta sistem antarmuka pada modal Remote ONT untuk otomatis mendeteksi apakah router MikroTik sudah siap dan terhubung ke API EugineBill. Jika belum, sistem menampilkan peringatan cerdas dan panduan aktivasi yang menyediakan skrip terminal Winbox (1-klik salin) serta panduan umum aktivasi Web WAN modem pelanggan. Seluruh alur ini berpusat di portal Admin tanpa menyentuh modul teknisi.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Endpoint Deteksi Kesiapan (`GET /api/network/ont-remote?action=check-readiness`)**:
+       - Memeriksa konektivitas socket API RouterOS (`timeout: 3s`), memverifikasi sesi PPPoE aktif pelanggan, dan mengonfirmasi kesiapan VPS proxy engine.
+       - Mengembalikan status `ready`, IP ONT aktif, dan payload skrip aktivasi Winbox yang disesuaikan.
+    2. **UI Cerdas pada `OntRemoteModal.tsx`**:
+       - Menjalankan deteksi otomatis saat modal dibuka.
+       - Jika siap: menampilkan badge hijau `<CheckCircle2 />` "MikroTik & VPS Siap Terhubung" beserta IP ONT pelanggan yang terdeteksi dan tombol toggle script Winbox.
+       - Jika belum siap: menampilkan kartu peringatan amber `<AlertTriangle />` dan secara otomatis membuka blok kode skrip terminal Winbox dengan tombol 1-klik "Salin Script" (`<Copy />`) dan panduan 2 langkah praktis.
+    3. **Penyempurnaan Skrip FTTH Produksi (`02-mikrotik-ftth-complete.rsc`)**:
+       - Menambahkan sinkronisasi waktu otomatis via Cloud Time (`/ip cloud set update-time=yes`), Timezone `Asia/Jakarta`, dan SNTP Client (`id.pool.ntp.org`, `time.google.com`).
+       - Mematikan `use-peer-dns` pada DHCP Client dan mengarahkan DNS MikroTik ke Cloudflare (`1.1.1.1`) & Google (`8.8.8.8`) untuk resolusi bebas manipulasi ISP.
+       - Menghapus profil & pool isolir dari skrip pondasi agar dikelola dinamis oleh modul billing.
+       - Mengeliminasi 3 rule masquerade internal yang redundan dan menyetel DST-NAT Web GUI OLT ke port `8001` (diarahkan ke `192.168.30.6:80`).
+  - *Files*:
+    - `src/app/api/network/ont-remote/route.ts`
+    - `src/components/admin/OntRemoteModal.tsx`
+    - `deployment-pack-client/02-mikrotik-ftth-complete.rsc`
+    - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.39.4] — 2026-09-12
 ### Ultra-Lean FTTH Deployment Pack: WAN DHCP Client, LAN Plug-and-Play DHCP Server, & Queue/Mangle Elimination
 - **Penyederhanaan Skrip Pondasi FTTH (`deployment-pack-client/02-mikrotik-ftth-complete.rsc`)**:
