@@ -3,6 +3,23 @@
 All notable changes to EugineBill RADIUS are documented in this file.  
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.39.8] — 2026-09-12
+### Fix Auto-Hide Transfer Manual When Payment Gateway Active
+- **Perbaikan Auto-Hide Transfer Bank Manual pada Halaman Pembayaran (`/pay/[token]`)**:
+  - *Context / User Request*:
+    Pengguna melaporkan bahwa opsi Transfer Bank Manual masih muncul di halaman pembayaran pelanggan (`/pay/[token]`), padahal payment gateway (QRIN) sudah disetup dan aktif.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Strict Condition Rendering pada `src/app/pay/[token]/page.tsx`**:
+       - Mengganti kondisi rendering ambigu `{(paymentGateways.length === 0 || normalizedBankAccounts.length > 0)}` menjadi strictly `{paymentGateways.length === 0}`.
+       - Memastikan `showManualForm` bernilai `false` jika terdapat payment gateway aktif (`gateways.length > 0`).
+    2. **Logika Bisnis yang Benar & Konsisten**:
+       - **Saat Payment Gateway Aktif (misal QRIN / Duitku / Midtrans)**: Opsi Transfer Bank Manual **100% otomatis disembunyikan (*auto-hide*)**, pelanggan hanya melihat kanal pembayaran otomatis resmi (QRIS instan, Virtual Account, atau Gerai Retail) sehingga pembayaran terverifikasi otomatis tanpa memerlukan verifikasi mutasi manual oleh admin.
+       - **Saat Belum Ada Payment Gateway (`paymentGateways.length === 0`)**: Formulir Transfer Bank Manual **otomatis terbuka (*auto-show*)** sebagai metode utama lengkap dengan kartu rekening tujuan resmi, panduan nominal presisi, dan tombol unggah bukti transfer.
+  - *Files*:
+    - `src/app/pay/[token]/page.tsx`
+    - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.39.7] — 2026-09-12
 ### Master Easy Setup Guide (VPS & MikroTik), UI Quick Links, and Zero-Emoji Standard Enforcement
 - **Easy Setup Experience di VPS & MikroTik (Master Guide, Quick Links, & Pembersihan Total Text Emoji)**:

@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.7
+- **Version**: 2.39.8
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 12, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,12 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 12, 2026 — v2.39.8: Fix Auto-Hide Transfer Manual When Payment Gateway Active)
+- **Architectural Invariant: Strict Payment Method Mutual Exclusivity**:
+  - Pada halaman bayar pelanggan (`/pay/[token]`), pilihan Transfer Bank Manual WAJIB tersembunyi total (*auto-hide*) jika terdapat payment gateway online yang aktif (`paymentGateways.length > 0`, seperti QRIN, Duitku, Midtrans, dll.).
+  - Dilarang menambahkan kondisi `|| normalizedBankAccounts.length > 0` pada rendering kartu transfer manual karena akan menyebabkan opsi manual selalu muncul jika admin memiliki rekening bank tersimpan.
+  - Kartu Transfer Bank Manual HANYA boleh dirender jika belum ada payment gateway aktif sama sekali (`paymentGateways.length === 0`). Dalam kondisi ini, formulir transfer manual otomatis terbuka (*auto-show*) sebagai metode pembayaran utama.
 
 ### Recent Patch Log (September 12, 2026 — v2.39.7: Master Easy Setup Guide VPS & MikroTik, Zero-Emoji Strict Compliance)
 - **Architectural Invariant: Master Easy Setup & 1-Click Paste Workflow**:

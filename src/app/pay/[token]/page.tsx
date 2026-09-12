@@ -199,9 +199,11 @@ export default function PaymentPage() {
       setPaymentGateways(gateways);
       setCompany(data.company || null);
 
-      // Auto-show manual transfer if no payment gateways configured
+      // Auto-show manual transfer if no payment gateways configured, otherwise hide
       if (gateways.length === 0) {
         setShowManualForm(true);
+      } else {
+        setShowManualForm(false);
       }
 
       // Prepopulate default destination bank if bank accounts exist
@@ -910,8 +912,8 @@ export default function PaymentPage() {
             </div>
           )}
 
-          {/* ── 4. TRANSFER BANK MANUAL ── */}
-          {(paymentGateways.length === 0 || normalizedBankAccounts.length > 0) && (
+          {/* ── 4. TRANSFER BANK MANUAL (Otomatis Sembunyi Jika Payment Gateway Aktif) ── */}
+          {paymentGateways.length === 0 && (
             <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden transition-all">
               <button
                 type="button"
@@ -927,20 +929,12 @@ export default function PaymentPage() {
                       <h3 className="text-sm sm:text-base font-bold text-slate-900">
                         Transfer Bank Manual
                       </h3>
-                      {paymentGateways.length === 0 ? (
-                        <span className="px-2 py-0.5 bg-blue-50 text-[#002c60] font-bold text-xs rounded-md border border-blue-200">
-                          Metode Utama
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-semibold text-xs rounded-md border border-slate-200">
-                          Konfirmasi Manual
-                        </span>
-                      )}
+                      <span className="px-2 py-0.5 bg-blue-50 text-[#002c60] font-bold text-xs rounded-md border border-blue-200">
+                        Metode Utama
+                      </span>
                     </div>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">
-                      {paymentGateways.length === 0 
-                        ? 'Transfer langsung ke rekening resmi dan kirim bukti pembayaran'
-                        : 'Pilihan alternatif transfer langsung tanpa gateway'}
+                      Transfer langsung ke rekening resmi dan kirim bukti pembayaran
                     </p>
                   </div>
                 </div>
