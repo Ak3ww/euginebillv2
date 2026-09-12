@@ -40,19 +40,19 @@ Panduan praktis lapangan untuk instalasi cepat paket FTTH (1 PON = maks 128 pela
 4. Buka browser (Chrome/Edge), akses IP default OLT:
    * URL: **`http://192.168.8.100`**
    * Username: **`admin`** | Password: **`admin`** (atau `admin123`)
-5. Masuk ke menu: **System Management** $\rightarrow$ **Configuration Management** (atau **System** $\rightarrow$ **Config**).
+5. Masuk ke menu: **System Management** -> **Configuration Management** (atau **System** -> **Config**).
 6. Klik tombol **Choose File / Browse**, pilih file:
-   👉 **`01-vsol-1600gs-clean.conf`**
+   - **`01-vsol-1600gs-clean.conf`**
 7. Klik **Upload / Import Configuration**.
-8. Klik **Save Configuration** $\rightarrow$ lalu klik **Reboot OLT**.
+8. Klik **Save Configuration** -> lalu klik **Reboot OLT**.
 9. Tunggu OLT selesai reboot (sekitar 1–2 menit).
 
 > [!IMPORTANT]
-> **AKSES WEB MANAGEMENT OLT VIA MIKROTIK:**
-> Di MikroTik telah disiapkan DST-NAT port `8001`.
-> Dari laptop yang terhubung ke MikroTik (LAN atau Wi-Fi), Anda cukup membuka browser ke:
-> 👉 **`http://192.168.30.1:8001`** ATAU **`http://192.168.50.1:8001`**
-> *(Kredensial login admin: admin / admin)*.
+> **AKSES WEB MANAGEMENT OLT & SNMP UDP VIA MIKROTIK:**
+> Di MikroTik telah disiapkan DST-NAT port:
+> - **Web GUI OLT**: Port `8001` (dan fallback `8003`) -> `http://192.168.30.1:8001` atau `http://192.168.50.1:8001`.
+> - **SNMP UDP OLT**: Port UDP `1611` (forward ke UDP `161` OLT) untuk monitoring traffic/optical power.
+> *(Kredensial login admin OLT: admin / admin)*.
 
 ---
 
@@ -71,7 +71,7 @@ Panduan praktis lapangan untuk instalasi cepat paket FTTH (1 PON = maks 128 pela
 Setelah kabel MikroTik dan OLT tersambung:
 1. Pastikan laptop Anda tersambung ke port MikroTik (misal colok LAN di `ether3-5` atau via Wi-Fi).
 2. Buka browser di laptop Anda, akses Web OLT via IP Gateway MikroTik:
-   👉 **`http://192.168.30.1:8001`** (atau `http://192.168.50.1:8001`)
+   * **`http://192.168.30.1:8001`** (atau `http://192.168.50.1:8001`)
 3. Jika halaman login OLT VSOL langsung terbuka, **SELAMAT! Jalur Management OLT (VLAN 30) SUDAH 100% SUKSES!**
    *(Mulai detik ini, Anda tidak perlu lagi repot colok-cabut kabel ke OLT jika ingin memantau redaman optik atau register ONT).*
 

@@ -8,13 +8,14 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Client Deployment Toolkit Hardening (OLT VSOL V1600GS & MikroTik FTTH Pack)
 - **Verifikasi & Harmonisasi Toolkit Lapangan OLT & MikroTik**:
   - *Context / User Request*:
-    Persiapan final toolkit instalasi OLT VSOL V1600GS dan MikroTik FTTH untuk dibawa langsung ke lokasi klien. Memastikan file konfigurasi dan skrip import 100% sinkron, bebas bug, dan siap pakai secara plug & play tanpa kendala akses remote.
+    Persiapan final toolkit instalasi OLT VSOL V1600GS dan MikroTik FTTH untuk dibawa langsung ke lokasi klien. Memastikan port web OLT diset 8001 (standar deployment klien EugineBill, berbeda dari OLT 2 internal EugineMedia yang memakai 8003) dan port UDP SNMP diselaraskan ke 1611 dengan fallback 1614.
   - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Sinkronisasi Port Web Management OLT**:
-       - Mengembalikan `web port 80` pada konfigurasi OLT VSOL (`01-vsol-1600gs-clean.conf`) agar sesuai dengan standar pabrikan dan forwarding MikroTik.
-    2. **Dual-Port Fail-Safe NAT & SNMP Forwarding di MikroTik (`02-mikrotik-ftth-complete.rsc`)**:
-       - Menambahkan aturan DST-NAT port 8001 -> `192.168.30.6:80` dan fallback port 8003 -> `192.168.30.6:8003` sehingga laptop teknisi dapat membuka web GUI OLT dari segmen manapun (`192.168.30.1:8001` atau `192.168.50.1:8001`).
-       - Menambahkan DST-NAT UDP port 1611 -> `192.168.30.6:161` untuk kemudahan monitoring SNMP OLT langsung dari MikroTik.
+    1. **Konfigurasi Web Port 8001 OLT Klien (`01-vsol-1600gs-clean.conf`)**:
+       - Menetapkan `web port 8001` pada konfigurasi OLT VSOL V1600GS klien.
+    2. **Dual-Port Fail-Safe NAT & SNMP UDP di MikroTik (`02-mikrotik-ftth-complete.rsc`)**:
+       - Menambahkan aturan DST-NAT port 8001 -> `192.168.30.6:8001` dan fallback port 8003 -> `192.168.30.6:8001` (kebiasaan teknisi dari EugineMedia).
+       - Menambahkan DST-NAT UDP port 1611 -> `192.168.30.6:161` (standar OLT 1 SNMP klien) dan fallback UDP port 1614 -> `192.168.30.6:161` (port VSOL OLT di EugineMedia).
+       - Memungkinkan laptop teknisi di port LAN/Wi-Fi (`192.168.50.x`) langsung membuka `http://192.168.30.1:8001` atau `http://192.168.50.1:8001`.
   - *Files*:
     - `deployment-pack-client/01-vsol-1600gs-clean.conf`
     - `deployment-pack-client/02-mikrotik-ftth-complete.rsc`

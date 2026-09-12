@@ -100,11 +100,12 @@ add action=change-mss chain=forward comment="TCP-MSS-CLAMPING" new-mss=clamp-to-
 # Outbound Internet Masquerade via WAN Uplink
 add action=masquerade chain=srcnat comment="NAT-MASQUERADE-WAN-OUTBOUND" out-interface=ether1
 
-# Management OLT Access NAT (Forward Web GUI OLT to Port 8001, 8003 & SNMP to 1611)
+# Management OLT Access NAT (Web GUI Port 8001 & SNMP UDP Port 1611)
 add action=masquerade chain=srcnat comment="NAT-SRC-MGMT-OLT" dst-address=192.168.30.6
-add action=dst-nat chain=dstnat comment="DSTNAT-MGMT-WEB-OLT-8001" dst-port=8001 protocol=tcp to-addresses=192.168.30.6 to-ports=80
-add action=dst-nat chain=dstnat comment="DSTNAT-MGMT-WEB-OLT-8003" dst-port=8003 protocol=tcp to-addresses=192.168.30.6 to-ports=8003
+add action=dst-nat chain=dstnat comment="DSTNAT-MGMT-WEB-OLT-8001" dst-port=8001 protocol=tcp to-addresses=192.168.30.6 to-ports=8001
+add action=dst-nat chain=dstnat comment="DSTNAT-MGMT-WEB-OLT-8003-FALLBACK" dst-port=8003 protocol=tcp to-addresses=192.168.30.6 to-ports=8001
 add action=dst-nat chain=dstnat comment="DSTNAT-MGMT-SNMP-OLT-1611" dst-port=1611 protocol=udp to-addresses=192.168.30.6 to-ports=161
+add action=dst-nat chain=dstnat comment="DSTNAT-MGMT-SNMP-OLT-1614-FALLBACK" dst-port=1614 protocol=udp to-addresses=192.168.30.6 to-ports=161
 
 # ------------------------------------------------------------------------------
 # 11. RECURSIVE DNS RESOLVER & CACHE

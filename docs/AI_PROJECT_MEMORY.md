@@ -24,12 +24,13 @@
 - **Architectural Invariant: Toolkit Synchronization & Zero-Friction Field Deployment**:
   - **The Context**: Toolkit deployment klien di `deployment-pack-client/` adalah fondasi lapangan yang dibawa teknisi dengan flashdisk/laptop untuk setup OLT dan MikroTik klien secara offline maupun online dalam waktu 10–15 menit.
   - **OLT Web Management Port Alignment**:
-    - File konfigurasi OLT `01-vsol-1600gs-clean.conf` diselaraskan ke `web port 80` (standar default pabrikan OLT VSOL V1600GS).
+    - File konfigurasi OLT `01-vsol-1600gs-clean.conf` diselaraskan ke `web port 8001` (standar OLT klien EugineBill, berbeda dari OLT 2 EugineMedia yang memakai 8003).
   - **MikroTik Fail-Safe NAT & Remote Management**:
     - File `02-mikrotik-ftth-complete.rsc` menyediakan dual-port DST-NAT fail-safe:
-      - Port `8001` -> `192.168.30.6:80` (standar akses web GUI OLT via MikroTik).
-      - Port `8003` -> `192.168.30.6:8003` (fallback port).
-      - Port UDP `1611` -> `192.168.30.6:161` (SNMP forwarding untuk monitoring OLT).
+      - Web: Port `8001` -> `192.168.30.6:8001` (standar akses web GUI OLT via MikroTik).
+      - Fallback Web: Port `8003` -> `192.168.30.6:8001` (antisipasi kebiasaan teknisi EugineMedia).
+      - SNMP UDP: Port `1611` -> `192.168.30.6:161` (standar monitoring OLT 1 klien).
+      - Fallback SNMP UDP: Port `1614` -> `192.168.30.6:161` (port UDP OLT VSOL di EugineMedia).
     - Memungkinkan laptop teknisi di port LAN/Wi-Fi (`192.168.50.x`) langsung membuka `http://192.168.30.1:8001` atau `http://192.168.50.1:8001` tanpa perlu cabut-pasang kabel ke port MGMT OLT.
 
 ### Recent Patch Log (September 12, 2026 — v2.39.10: Universal Client-Side Auto-Compression & High-Capacity Image Upload Engine)
