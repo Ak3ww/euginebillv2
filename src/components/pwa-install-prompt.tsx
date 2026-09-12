@@ -17,7 +17,15 @@ export function PwaInstallPrompt() {
   const [showGuide, setShowGuide] = useState(false);
   const [isIos, setIsIos] = useState(false);
 
+  // Sembunyikan permanen di SEMUA halaman KECUALI Landing Page ('/' atau '/landing')
+  const isLandingPage = Boolean(
+    pathname && (pathname === '/' || pathname === '/landing' || pathname.startsWith('/landing'))
+  );
+
   useEffect(() => {
+    // Jangan pasang listener jika bukan di landing page
+    if (!isLandingPage) return;
+
     // Auto-detect if running as installed PWA or previously installed
     if (
       window.matchMedia('(display-mode: standalone)').matches ||
@@ -57,7 +65,7 @@ export function PwaInstallPrompt() {
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
     };
-  }, []);
+  }, [isLandingPage]);
 
   const handleInstall = async () => {
     if (deferredPrompt) {
@@ -84,16 +92,8 @@ export function PwaInstallPrompt() {
     sessionStorage.setItem('pwa-install-dismissed', '1');
   };
 
-  // Do not render on admin/technician/agent routes or customer payment flows
-  if (
-    !pathname ||
-    pathname.startsWith('/admin') ||
-    pathname.startsWith('/technician') ||
-    pathname.startsWith('/agent') ||
-    pathname.startsWith('/pay') ||
-    pathname.startsWith('/payment') ||
-    pathname.includes('/pay')
-  ) {
+  // Sembunyikan permanen di seluruh route selain Landing Page
+  if (!isLandingPage) {
     return null;
   }
 

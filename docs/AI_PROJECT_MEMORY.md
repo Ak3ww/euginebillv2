@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.8
+- **Version**: 2.39.9
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 12, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,12 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 12, 2026 — v2.39.9: Permanent Hide PWA Install Prompt Across All Portals Except Landing Page)
+- **Architectural Invariant: Strict Whitelist for PWA Install Prompt**:
+  - Modal dialog "Install Aplikasi Pelanggan" (`PwaInstallPrompt.tsx`) DILARANG menggunakan sistem blacklist.
+  - Komponen WAJIB menggunakan *strict whitelist* (`isLandingPage = pathname === '/' || pathname === '/landing' || pathname.startsWith('/landing')`).
+  - Seluruh portal dan rute operasional (Admin `/admin/*`, Invoice `/invoice/*`, Pay `/pay/*`, Customer `/customer/*`, Agent `/agent/*`, Teknisi `/technician/*`) WAJIB mengembalikan `null` secara permanen dan menolak memasang event listener `beforeinstallprompt` agar tidak mengganggu alur operasional pengguna.
 
 ### Recent Patch Log (September 12, 2026 — v2.39.8: Fix Auto-Hide Transfer Manual When Payment Gateway Active)
 - **Architectural Invariant: Strict Payment Method Mutual Exclusivity**:

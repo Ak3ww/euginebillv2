@@ -3,6 +3,21 @@
 All notable changes to EugineBill RADIUS are documented in this file.  
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.39.9] — 2026-09-12
+### Permanent Hide PWA Install Prompt Across All Portals Except Landing Page
+- **Penyembunyian Permanen Modal PWA Install Prompt di Semua Portal Kecuali Landing Page**:
+  - *Context / User Request*:
+    Pengguna melaporkan bahwa modal pop-up "Install Aplikasi Pelanggan" (PWA prompt) masih muncul di halaman invoice, halaman bayar `/pay/[token]`, dan sering mengganggu saat admin membuka dashboard `/admin`. Pengguna menginstruksikan untuk menyembunyikan modal ini secara permanen di seluruh sistem kecuali pada landing page.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Strict Whitelist Filtering pada `src/components/pwa-install-prompt.tsx`**:
+       - Mengganti filter *blacklist* berbasis `pathname.startsWith` yang rawan bocor menjadi *strict whitelist*: hanya mengizinkan rendering jika `pathname === '/' || pathname === '/landing' || pathname.startsWith('/landing')`.
+       - Seluruh halaman lain (Admin `/admin/*`, Invoice `/invoice/*`, Pay `/pay/*`, Customer `/customer/*`, Agent `/agent/*`, Teknisi `/technician/*`, dsb.) langsung mengembalikan `null` secara permanen.
+       - Listener event browser `beforeinstallprompt` pada `useEffect` dinonaktifkan sepenuhnya jika route bukan merupakan landing page, menjamin nol interupsi modal pop-up di seluruh portal operasional.
+  - *Files*:
+    - `src/components/pwa-install-prompt.tsx`
+    - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.39.8] — 2026-09-12
 ### Fix Auto-Hide Transfer Manual When Payment Gateway Active
 - **Perbaikan Auto-Hide Transfer Bank Manual pada Halaman Pembayaran (`/pay/[token]`)**:
