@@ -4,26 +4,24 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [2.39.6] — 2026-09-12
-### TR-069 VLAN 4000 Elimination, VSOL OLT Streamlining, Built-in CWMP Endpoint & In-Band ACS Admin Guide UI
-- **Pembersihan Total VLAN 4000 & Standarisasi In-Band TR-069**:
+### Built-in TR-069 ACS Engine, Dedicated VLAN 4000 Retention, CWMP Endpoint & Admin Guide UI
+- **Standarisasi TR-069: Dedicated Management VLAN 4000 & In-Band PPPoE Ready**:
   - *Context / User Request*:
-    Pengguna meminta konfigurasi TR-069 / VLAN 4000 dibersihkan sepenuhnya dari skrip MikroTik dan konfigurasi VSOL OLT V1600GS. Sebagai gantinya, EugineBill harus menyediakan panduan setting **Built-in ACS** (bukan GenieACS) baik di antarmuka Admin UI maupun dokumentasi GitHub repository.
+    Pengguna menegaskan bahwa arsitektur FTTH tetap menggunakan Dedicated Management VLAN (VLAN 4000) untuk TR-069 agar modem pelanggan selalu dapat dipantau di ACS bahkan saat sesi PPPoE internet mati atau terisolir. Selain itu, sistem Built-in ACS bawaan EugineBill (bukan GenieACS) harus dipastikan otomatis aktif di VPS dan didukung panduan lengkap di UI serta GitHub.
   - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Pembersihan Konfigurasi VSOL OLT (`deployment-pack-client/01-vsol-1600gs-clean.conf`)**:
-       - Menghapus tuntas deklarasi `vlan 4000`, `description VLAN4000-TR069`, blok `interface vlan 4000` (IPv6 ND), serta tagging `switchport hybrid vlan 4000 tagged` pada seluruh uplink port GigabitEthernet `0/1`, `0/2`, dan `0/3`.
-       - OLT kini hanya mengalirkan VLAN 1 (Management bawaan), VLAN 20 (`VLAN20-PPPOE`), dan VLAN 30 (`VLAN30-MGMT`), menjaga port uplink dan switch fabric sangat bersih dan efisien.
-    2. **Pembersihan Skrip MikroTik (`02-mikrotik-ftth-complete.rsc`)**:
-       - Telah diverifikasi dan dipastikan 100% bersih tanpa interface `vlan4000-tr069`, DHCP pool `dhcp_pool_tr069`, atau DHCP server TR-069.
-    3. **Standar Arsitektur In-Band PPPoE**:
-       - Modem ONT/CPE pelanggan menggunakan interface WAN PPPoE eksisting (`Service List: INTERNET_TR069` atau `INTERNET,TR069`) untuk berkomunikasi langsung ke endpoint ACS EugineBill tanpa memerlukan alokasi IP pool TR-069 terpisah maupun VLAN tambahan.
-    4. **Health Check & Info Endpoint (`GET /api/cwmp`)**:
-       - Menambahkan handler HTTP GET pada route `/api/cwmp` yang merespons status JSON online, nama layanan EugineBill Built-in CWMP, versi protokol, dan petunjuk integrasi saat diakses admin/teknisi via browser atau curl.
-    5. **Komponen Panduan Built-in ACS Terintegrasi di UI (`src/components/admin/AcsGuideCard.tsx` & `src/app/admin/acs/page.tsx`)**:
-       - Menampilkan card panduan interaktif Shadcn UI dengan deteksi dinamis URL ACS (`http://<domain_or_ip>/api/cwmp`), tombol 1-klik salin ke clipboard, dan penegasan arsitektur native Next.js (bukan GenieACS, zero Docker, zero MongoDB).
-       - Dilengkapi modal/tab instruksi langkah demi langkah konfigurasi In-Band TR-069 untuk 4 merk modem ONT utama: ZTE (F609/F670L), Huawei (HG8245H/EG8145), Fiberhome (HG6243/6245), dan VSOL / XPON Generic.
-       - Menyediakan tautan langsung ke panduan teknis repository GitHub.
-    6. **Dokumentasi Komprehensif (`docs/mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md`)**:
-       - Menulis panduan komprehensif mengenai arsitektur In-Band TR-069, perbedaan mendasar dengan GenieACS, petunjuk step-by-step per merk modem, parameter monitoring (redaman optik Rx/Tx dBm, SSID WiFi & password, reboot remote), dan langkah troubleshooting.
+    1. **Integrasi Dedicated VLAN 4000 pada OLT & MikroTik**:
+       - **VSOL OLT V1600GS (`01-vsol-1600gs-clean.conf`)**: Mendeklarasikan `vlan 4000` (`VLAN4000-TR069`) dan men-tag VLAN 4000 pada seluruh uplink port GigabitEthernet `0/1`, `0/2`, dan `0/3`.
+       - **MikroTik FTTH (`02-mikrotik-ftth-complete.rsc`)**: Mengaktifkan interface `vlan4000-tr069` (`10.40.10.1/24`), IP pool `dhcp_pool_tr069` (`10.40.10.2-10.40.11.254`), dan DHCP Server TR-069 otomatis.
+    2. **Dukungan Dual-Mode Koneksi TR-069**:
+       - **Mode A (Dedicated VLAN 4000 - Rekomendasi ISP)**: ONT dikonfigurasi WAN ke-2 IPoE/DHCP VLAN 4000 sehingga selalu online di ACS independen dari sesi PPPoE.
+       - **Mode B (In-Band PPPoE - VLAN 20)**: ONT menggunakan 1 koneksi PPPoE dengan Service Type `INTERNET,TR069`.
+    3. **100% Otomatis Aktif di VPS (`/api/cwmp`)**:
+       - Engine Built-in ACS ditanam langsung di Next.js monolith (`src/app/api/cwmp/route.ts` & `CwmpService`). Begitu PM2 `EugineBill-radius` running, endpoint langsung aktif tanpa perlu instalasi Docker, tanpa MongoDB, dan tanpa daemon tambahan.
+       - Menyediakan HTTP GET handler untuk health check yang mengembalikan status JSON online dan informasi layanan.
+    4. **Komponen Panduan Built-in ACS Terintegrasi di UI (`src/components/admin/AcsGuideCard.tsx`)**:
+       - Menampilkan card interaktif Shadcn UI dengan deteksi dinamis URL ACS (`http://<domain_or_ip>/api/cwmp`), tombol 1-klik salin ke clipboard, dan panduan konfigurasi untuk merk ZTE, Huawei, Fiberhome, dan VSOL.
+    5. **Dokumentasi Lengkap di GitHub (`docs/mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md`)**:
+       - Menguraikan arsitektur dual-mode (VLAN 4000 & In-Band), konfigurasi modem per vendor, pembacaan redaman optik (Rx/Tx dBm), manajemen WiFi, reboot, dan diagnostik.
   - *Files*:
     - `deployment-pack-client/01-vsol-1600gs-clean.conf`
     - `deployment-pack-client/02-mikrotik-ftth-complete.rsc`

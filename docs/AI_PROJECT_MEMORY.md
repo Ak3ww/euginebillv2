@@ -20,18 +20,20 @@
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
 
-### Recent Patch Log (September 12, 2026 — v2.39.6: TR-069 VLAN 4000 Elimination, VSOL OLT & MikroTik Streamlining, Built-in CWMP Endpoint & In-Band ACS Admin Guide UI)
-- **Hard Architectural Invariant: Elimination of VLAN 4000 & In-Band TR-069 Standard**:
-  - DILARANG membuat interface VLAN 4000, DHCP pool TR-069, atau tagging VLAN 4000 pada OLT & MikroTik untuk operasional harian.
-  - Standar baku FTTH EugineBill adalah **In-Band PPPoE**:
-    1. ONT/CPE pelanggan menggunakan interface WAN PPPoE eksisting pada VLAN 20.
-    2. Pada konfigurasi WAN modem pelanggan, set `Service List` atau `Service Type` ke `INTERNET,TR069` (atau `INTERNET_TR069`).
-    3. Paket TR-069 SOAP dikirim langsung melalui tunnel PPPoE ke endpoint ACS EugineBill (`http://<DOMAIN_OR_IP>/api/cwmp`).
-    4. Hal ini menghemat alokasi IP pool, menghilangkan kerumitan manajemen VLAN di OLT, dan mempercepat aktivasi pelanggan baru.
+### Recent Patch Log (September 12, 2026 — v2.39.6: Built-in TR-069 ACS Engine, Dedicated VLAN 4000 Retention, CWMP Endpoint & Admin Guide UI)
+- **Architectural Invariant: Dual-Mode TR-069 ACS (Dedicated VLAN 4000 & In-Band PPPoE)**:
+  - **Dedicated Management VLAN 4000 (Standar Skrip FTTH)**:
+    1. Skrip MikroTik (`02-mikrotik-ftth-complete.rsc`) dan konfigurasi VSOL OLT (`01-vsol-1600gs-clean.conf`) menyertakan **VLAN 4000** (`10.40.10.1/24`) dengan DHCP Server aktif.
+    2. Modem ONT pelanggan dikonfigurasi dengan WAN ke-2 IPoE/DHCP pada VLAN 4000.
+    3. Manfaat: Modem **selalu online dan dapat dipantau** di ACS EugineBill meskipun sesi PPPoE internet pelanggan mati, belum dial, atau diisolir.
+  - **In-Band PPPoE (VLAN 20)**:
+    1. Alternatif single-WAN jika modem tidak ingin disetel VLAN ganda.
+    2. Cukup atur `Service List` atau `Service Type` WAN PPPoE ke `INTERNET,TR069`.
 - **Service Invariant: Native Built-in ACS vs GenieACS**:
   - EugineBill memiliki engine TR-069 bawaan (*Built-in ACS*) di `src/app/api/cwmp/route.ts` dan `src/server/services/acs/cwmp.service.ts`.
   - Built-in ACS berjalan 100% native di dalam monolit Next.js + Prisma (`acsDevice`, `acsTask`), TANPA memerlukan instalasi GenieACS eksternal, TANPA container Docker, dan TANPA database MongoDB.
-  - Endpoint `/api/cwmp` mengekspor POST (untuk pertukaran SOAP TR-069) dan GET (untuk health check / diagnosa status service via browser/curl).
+  - Endpoint `/api/cwmp` **100% otomatis aktif di VPS** selama PM2 `EugineBill-radius` running.
+  - Endpoint `/api/cwmp` mengekspor POST (pertukaran SOAP TR-069) dan GET (health check status JSON).
 - **UI & Documentation Invariant**:
   - Halaman `/admin/acs` dilengkapi komponen `AcsGuideCard.tsx` dengan URL dinamis (`window.location.origin + '/api/cwmp'`), tombol 1-klik salin, dan tab panduan langkah konfigurasi modem per merk (ZTE, Huawei, Fiberhome, VSOL).
   - Dokumentasi resmi tersimpan lengkap di `docs/mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md`.

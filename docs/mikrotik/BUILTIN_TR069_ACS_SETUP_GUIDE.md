@@ -1,4 +1,4 @@
-# Panduan Integrasi Built-in TR-069 ACS EugineBill (In-Band PPPoE)
+# Panduan Integrasi Built-in TR-069 ACS EugineBill (VLAN 4000 & In-Band PPPoE)
 
 Dokumentasi ini menjelaskan arsitektur, konfigurasi, dan langkah integrasi perangkat ONT/CPE pelanggan ke **Built-in Auto Configuration Server (ACS)** bawaan EugineBill melalui protokol TR-069 / CWMP.
 
@@ -10,44 +10,36 @@ EugineBill dilengkapi dengan engine **Native Built-in CWMP (TR-069) Server** yan
 
 | Aspek | Built-in ACS EugineBill | GenieACS (Eksternal) |
 | :--- | :--- | :--- |
-| **Arsitektur** | Native Monolith Next.js | Container Terpisah / Node.js Process |
+| **Arsitektur** | Native Monolith Next.js (100% Otomatis Aktif di VPS) | Container Terpisah / Node.js Process |
 | **Database** | PostgreSQL / MySQL bawaan Prisma (`acsDevice`, `acsTask`) | Wajib MongoDB terpisah |
 | **Beban Server / RAM** | 0 MB RAM tambahan (menyatu dengan web app) | 500 MB - 1.5 GB RAM tambahan (Node + Mongo) |
-| **VLAN Jaringan** | **In-Band PPPoE** (VLAN 20 eksisting, tanpa VLAN khusus) | Sering memerlukan VLAN terpisah (VLAN 4000) & DHCP |
+| **Pilihan Mode Jaringan** | **Dedicated VLAN 4000** (DHCP) ATAU **In-Band PPPoE** (VLAN 20) | Wajib VLAN terpisah & MongoDB |
 | **Mapping Pelanggan** | Otomatis via active IP PPPoE (`pppoeUser`) | Perlu script NBI / sync API terpisah |
 | **Maintenance** | 100% otomatis ikut PM2 `EugineBill-radius` | Perlu maintain MongoDB, GenieACS CWMP, UI, FS |
 
-> **Catatan Penting:** Anda **TIDAK PERLU** menginstall Docker, MongoDB, atau GenieACS. Cukup arahkan modem ONT pelanggan ke endpoint `/api/cwmp` EugineBill.
+> **Catatan Penting:** Anda **TIDAK PERLU** menginstall Docker, MongoDB, atau GenieACS. Endpoint `/api/cwmp` **otomatis aktif** di VPS EugineBill selama aplikasi web berjalan.
 
 ---
 
-## 2. Arsitektur Jaringan (In-Band PPPoE)
+## 2. Pilihan Arsitektur Jaringan TR-069
 
-Dalam topologi FTTH standar EugineBill:
-1. **MikroTik Router**: Mengelola VLAN 20 (`vlan20-PPPoE`) untuk sesi internet pelanggan dan VLAN 30 (`vlan30-MGMT-OLT`) untuk remote OLT.
-2. **VSOL OLT**: Mengalirkan VLAN 20 ke port PON secara *tagged* (`service ser_1 gemport 1 tag 20`).
-3. **ONT Pelanggan**: Terkoneksi ke VLAN 20 dengan mode PPPoE dial-up.
+EugineBill mendukung dua metode koneksi TR-069 dari ONT ke VPS:
 
-```text
-+-------------------+       PPPoE (VLAN 20)       +---------------------+
-|   ONT Pelanggan   | =========================== |   MikroTik BNG/NAS  |
-| (INTERNET,TR069)  |                             | (10.20.10.1 Gateway)|
-+-------------------+                             +---------------------+
-          |                                                  |
-          | HTTP SOAP Inform via WAN PPPoE                   | Routing / NAT ke VPS
-          v                                                  v
-+-----------------------------------------------------------------------+
-|                       VPS EugineBill                                  |
-|   Endpoint: http://<DOMAIN_OR_IP>/api/cwmp                            |
-|   Engine: Built-in TR-069 CWMP Service (Next.js Core)                 |
-+-----------------------------------------------------------------------+
-```
+### Metode A: Dedicated Management VLAN 4000 (Rekomendasi ISP)
+Topologi ini sudah terkonfigurasi secara *out-of-the-box* pada skrip MikroTik (`02-mikrotik-ftth-complete.rsc`) dan OLT VSOL (`01-vsol-1600gs-clean.conf`):
+1. **MikroTik**: Memiliki interface `vlan4000-tr069` (`10.40.10.1/24`) dengan DHCP Server aktif (`10.40.10.2 - 10.40.11.254`).
+2. **VSOL OLT**: Mengalirkan VLAN 4000 secara *tagged* pada seluruh uplink port GE `0/1` s/d `0/3`.
+3. **ONT Pelanggan**:
+   - WAN 1: PPPoE Internet (VLAN 20).
+   - WAN 2: IPoE / DHCP Management TR-069 (VLAN 4000).
+4. **Keuntungan**: Modem **selalu online dan dapat dipantau** di panel ACS meskipun sesi PPPoE internet pelanggan sedang mati, belum login, atau terisolir.
 
-### Mengapa In-Band TR-069?
-- **Tanpa VLAN Tambahan**: Tidak perlu membuat VLAN 4000 di MikroTik maupun OLT.
-- **Hemat IP Pool**: Modem menggunakan IP WAN PPPoE yang sudah dialokasikan untuk berkomunikasi dengan ACS.
-- **Keamanan Tinggi**: Paket TR-069 terenkapsulasi dalam tunnel PPPoE pelanggan dan di-routing secara aman ke EugineBill.
-- **Auto-Mapping Akurat**: EugineBill langsung mencocokkan IP pengirim SOAP Inform dengan `mikrotikSession` / `radacct` aktif untuk menautkan perangkat ke nama pelanggan secara instan.
+### Metode B: In-Band PPPoE (VLAN 20)
+Topologi ringkas tanpa perlu membuat koneksi WAN ke-2 pada modem:
+1. ONT pelanggan hanya memiliki 1 koneksi WAN PPPoE di VLAN 20.
+2. Opsi `Service List` atau `Service Type` diatur ke **`INTERNET,TR069`**.
+3. Paket SOAP TR-069 mengalir langsung di dalam tunnel PPPoE pelanggan menuju endpoint ACS EugineBill.
+
 
 ---
 

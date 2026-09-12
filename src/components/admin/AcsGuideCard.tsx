@@ -72,11 +72,11 @@ export default function AcsGuideCard({ initialHost }: AcsGuideCardProps) {
                 Bukan GenieACS
               </Badge>
               <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20">
-                In-Band PPPoE
+                VLAN 4000 & In-Band Ready
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed max-w-3xl">
-              EugineBill mengusung Built-in TR-069 CWMP Server bawaan. ONT/CPE pelanggan langsung terhubung melalui koneksi WAN PPPoE eksisting tanpa perlu docker GenieACS, MongoDB, atau konfigurasi VLAN TR-069 terpisah (VLAN 4000).
+              EugineBill mengusung Built-in TR-069 CWMP Server bawaan (100% otomatis aktif di VPS). ONT/CPE pelanggan dapat terhubung melalui <strong>Dedicated Management VLAN 4000</strong> (DHCP 10.40.10.x pada MikroTik &amp; OLT) atau secara <strong>In-Band</strong> via VLAN 20 PPPoE tanpa perlu Docker GenieACS maupun MongoDB.
             </p>
           </div>
 
@@ -150,7 +150,7 @@ export default function AcsGuideCard({ initialHost }: AcsGuideCardProps) {
               <span className="font-mono">/api/cwmp</span>
             </div>
             <div>
-              <span className="font-medium text-foreground">Metode:</span> In-Band (VLAN 20 PPPoE)
+              <span className="font-medium text-foreground">Metode:</span> VLAN 4000 (DHCP) / In-Band (VLAN 20)
             </div>
             <div>
               <span className="font-medium text-foreground">Username / Pass:</span>{' '}
@@ -172,10 +172,10 @@ export default function AcsGuideCard({ initialHost }: AcsGuideCardProps) {
                   <span className="p-1 rounded bg-blue-500/10 text-blue-600">
                     <Layers className="w-4 h-4" />
                   </span>
-                  1. Mode In-Band (Tanpa VLAN Khusus)
+                  1. Opsi A: Dedicated VLAN 4000 (Rekomendasi)
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Tidak perlu membuat VLAN 4000 atau IP Pool TR-069 di MikroTik/OLT. Modem mengakses ACS langsung melalui koneksi PPPoE pelanggan.
+                  Modem menggunakan WAN ke-2 mode IPoE/DHCP pada VLAN 4000. MikroTik otomatis memberi IP <span className="font-mono text-foreground font-semibold">10.40.10.x</span>. Modem tetap terpantau di ACS meski PPPoE mati/terisolir.
                 </p>
               </div>
 
@@ -184,10 +184,10 @@ export default function AcsGuideCard({ initialHost }: AcsGuideCardProps) {
                   <span className="p-1 rounded bg-emerald-500/10 text-emerald-600">
                     <Wifi className="w-4 h-4" />
                   </span>
-                  2. Ubah Service Type WAN ke INTERNET,TR069
+                  2. Opsi B: In-Band PPPoE (VLAN 20)
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Pada menu WAN Connection modem pelanggan, ubah Service Type dari <span className="font-mono text-foreground font-semibold">INTERNET</span> menjadi <span className="font-mono text-foreground font-semibold">INTERNET,TR069</span>.
+                  Cukup 1 WAN PPPoE di VLAN 20, ubah Service Type dari <span className="font-mono text-foreground font-semibold">INTERNET</span> menjadi <span className="font-mono text-foreground font-semibold">INTERNET,TR069</span> tanpa perlu WAN ke-2.
                 </p>
               </div>
 
@@ -196,10 +196,10 @@ export default function AcsGuideCard({ initialHost }: AcsGuideCardProps) {
                   <span className="p-1 rounded bg-purple-500/10 text-purple-600">
                     <Sparkles className="w-4 h-4" />
                   </span>
-                  3. Auto-Mapping Otomatis
+                  3. Auto-Mapping Akun Pelanggan
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Begitu ONT mengirim Inform pertama kali, EugineBill otomatis memetakan serial number modem ke akun pelanggan berdasarkan WAN IP PPPoE aktif.
+                  EugineBill otomatis memetakan serial number modem ke akun pelanggan berdasarkan sesi PPPoE aktif saat paket SOAP Inform masuk ke ACS.
                 </p>
               </div>
             </div>
