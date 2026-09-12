@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Globe,
   ExternalLink,
@@ -14,6 +14,9 @@ import {
   PlusCircle,
   XCircle,
   Server,
+  Terminal,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react'
 import { showSuccess, showError } from '@/lib/sweetalert'
 
@@ -25,6 +28,19 @@ interface OntRemoteModalProps {
   targetIp?: string
   routerName?: string
   onSuccess?: () => void
+}
+
+interface ReadinessState {
+  ready: boolean
+  apiConnected: boolean
+  apiError?: string | null
+  ontIp?: string | null
+  username?: string
+  customerName?: string
+  routerName?: string
+  routerVpnIp?: string | null
+  vpsStatus?: string
+  winboxScript?: string
 }
 
 export default function OntRemoteModal({
@@ -47,7 +63,36 @@ export default function OntRemoteModal({
   const [remainingSeconds, setRemainingSeconds] = useState<number>(0)
   const [copied, setCopied] = useState(false)
 
-  // Reset modal state when opening for a new customer
+  // Readiness detection state
+  const [probing, setProbing] = useState(false)
+  const [readiness, setReadiness] = useState<ReadinessState | null>(null)
+  const [showScriptGuide, setShowScriptGuide] = useState(false)
+  const [scriptCopied, setScriptCopied] = useState(false)
+
+  const checkReadiness = useCallback(async () => {
+    setProbing(true)
+    try {
+      const q = new URLSearchParams({
+        action: 'check-readiness',
+        ...(username ? { username } : {}),
+        ...(targetIp ? { targetIp } : {}),
+      })
+      const res = await fetch(`/api/network/ont-remote?${q.toString()}`)
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setReadiness(data)
+        if (!data.ready || !data.apiConnected) {
+          setShowScriptGuide(true)
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setProbing(false)
+    }
+  }, [username, targetIp])
+
+  // Reset modal state & trigger auto-detection when opened
   useEffect(() => {
     if (isOpen) {
       setProxyUrl(null)
@@ -56,8 +101,11 @@ export default function OntRemoteModal({
       setRemainingSeconds(0)
       setTargetPort('80')
       setCustomPort('')
+      setShowScriptGuide(false)
+      setReadiness(null)
+      checkReadiness()
     }
-  }, [isOpen, username, targetIp])
+  }, [isOpen, checkReadiness])
 
   // Countdown timer ticker
   useEffect(() => {
@@ -174,15 +222,29 @@ export default function OntRemoteModal({
     showSuccess('Link URL berhasil disalin!')
   }
 
+  const handleCopyScript = () => {
+    const script =
+      readiness?.winboxScript ||
+      `/ip service set api disabled=no port=8728\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=8728 comment="ALLOW-EUGINEBILL-API" place-before=0\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=24000-24999 comment="ALLOW-EUGINEBILL-ONT-PROXY" place-before=0\r\n/ip firewall filter add chain=forward action=accept protocol=tcp dst-port=80,443,8080 comment="ALLOW-ONT-WEB-MANAGEMENT" place-before=0`
+    navigator.clipboard.writeText(script)
+    setScriptCopied(true)
+    setTimeout(() => setScriptCopied(false), 2000)
+    showSuccess('Script Winbox berhasil disalin!')
+  }
+
   const formatCountdown = (secs: number) => {
     const m = Math.floor(secs / 60)
     const s = secs % 60
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   }
 
+  const defaultScript =
+    readiness?.winboxScript ||
+    `/ip service set api disabled=no port=8728\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=8728 comment="ALLOW-EUGINEBILL-API" place-before=0\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=24000-24999 comment="ALLOW-EUGINEBILL-ONT-PROXY" place-before=0\r\n/ip firewall filter add chain=forward action=accept protocol=tcp dst-port=80,443,8080 comment="ALLOW-ONT-WEB-MANAGEMENT" place-before=0`
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden space-y-0 text-card-foreground">
+      <div className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden space-y-0 text-card-foreground">
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-border flex items-center justify-between bg-muted/30">
           <div className="flex items-center gap-3">
@@ -208,26 +270,114 @@ export default function OntRemoteModal({
         </div>
 
         {/* Content */}
-        <div className="p-5 sm:p-6 space-y-4">
+        <div className="p-5 sm:p-6 space-y-4 max-h-[85vh] overflow-y-auto">
           {!proxyUrl ? (
             <div className="space-y-4">
-              <div className="p-3.5 bg-muted/40 border border-border rounded-xl text-xs space-y-1.5">
-                <div className="font-semibold text-foreground flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-primary" />
-                  <span>Reverse Proxy Otomatis MikroTik + VPS</span>
+              {/* 1. Status Deteksi Otomatis MikroTik & VPS */}
+              {probing ? (
+                <div className="p-3 bg-muted/40 border border-border rounded-xl flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <RotateCw className="w-3.5 h-3.5 animate-spin text-primary" />
+                    <span>Mengecek kesiapan MikroTik & VPS proxy...</span>
+                  </div>
                 </div>
-                <p className="text-muted-foreground leading-relaxed">
-                  Sistem mendeteksi IP PPPoE aktif dari <span className="font-mono text-foreground font-medium">{username || targetIp}</span> dan membuka tunnel proxy sementara (15 menit) di IP publik VPS.
-                </p>
-              </div>
+              ) : readiness?.ready ? (
+                <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>MikroTik & VPS Siap Terhubung</span>
+                    </div>
+                    <span className="text-[10.5px] font-mono text-emerald-700 dark:text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-md">
+                      API Aktif
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground text-[11px] pt-0.5 border-t border-emerald-500/15">
+                    <span>
+                      IP ONT Terdeteksi:{' '}
+                      <strong className="font-mono text-foreground font-semibold">
+                        {readiness.ontIp || targetIp || 'Sesi Aktif'}
+                      </strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowScriptGuide(!showScriptGuide)}
+                      className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                    >
+                      <Terminal className="w-3 h-3" />
+                      <span>{showScriptGuide ? 'Tutup Script' : 'Lihat Script Winbox'}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : readiness && !readiness.ready ? (
+                <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-semibold">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <span>
+                        {!readiness.apiConnected
+                          ? 'MikroTik API Belum Terhubung'
+                          : !readiness.ontIp
+                          ? 'Pelanggan Belum Terkoneksi (PPPoE Offline)'
+                          : 'Remote ONT Memerlukan Script Winbox'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={checkReadiness}
+                      disabled={probing}
+                      className="p-1 hover:bg-amber-500/20 rounded text-amber-600 dark:text-amber-400 transition-colors"
+                      title="Cek Ulang Kesiapan"
+                    >
+                      <RotateCw className={`w-3.5 h-3.5 ${probing ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed text-[11px]">
+                    {!readiness.apiConnected
+                      ? 'EugineBill belum dapat mengakses API port 8728 di router. Salin dan jalankan script aktivasi Winbox di bawah ini.'
+                      : 'Pelanggan saat ini belum terhubung (offline) atau IP PPPoE belum terdaftar di MikroTik.'}
+                  </p>
+                </div>
+              ) : null}
 
+              {/* 2. Script Aktivasi Winbox (Tampil jika belum siap atau saat diklik) */}
+              {(showScriptGuide || (readiness && !readiness.apiConnected)) && (
+                <div className="p-3.5 bg-muted/40 border border-border rounded-xl space-y-2.5 text-xs animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                    <div className="flex items-center gap-2 font-semibold text-foreground">
+                      <Terminal className="w-4 h-4 text-primary" />
+                      <span>Script Aktivasi MikroTik (Winbox Terminal)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyScript}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-[11px] font-medium transition-colors"
+                    >
+                      {scriptCopied ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{scriptCopied ? 'Tersalin' : 'Salin Script'}</span>
+                    </button>
+                  </div>
+
+                  <pre className="p-2.5 bg-background border border-border rounded-lg font-mono text-[10.5px] text-foreground overflow-x-auto whitespace-pre leading-relaxed select-all">
+                    {defaultScript}
+                  </pre>
+
+                  <div className="p-2.5 bg-background/70 border border-border/70 rounded-lg text-[11px] text-muted-foreground space-y-1">
+                    <p className="font-semibold text-foreground">Panduan Singkat Aktivasi:</p>
+                    <p>1. Buka <strong>Winbox &rarr; New Terminal</strong>, lalu paste script di atas.</p>
+                    <p>2. Pada modem pelanggan, pastikan opsi <strong>Web WAN / Remote Management</strong> aktif di koneksi PPPoE.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Form Konfigurasi Port & Eksekusi */}
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                  Custom Port Modem (Opsional, Kosongkan jika IP Murni)
+                  Custom Port Modem (Opsional, Default Port 80)
                 </label>
                 <input
                   type="text"
-                  placeholder="Opsional: 8080 (untuk modem SK / FiberHome)"
+                  placeholder="Contoh: 8080 (untuk modem FiberHome / SK tertentu)"
                   value={customPort}
                   onChange={(e) => setCustomPort(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary"
@@ -236,7 +386,7 @@ export default function OntRemoteModal({
 
               <button
                 onClick={handleLaunch}
-                disabled={loading}
+                disabled={loading || (readiness && !readiness.apiConnected)}
                 className="w-full inline-flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-xl shadow-sm transition-all disabled:opacity-50"
               >
                 {loading ? (

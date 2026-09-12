@@ -29,12 +29,67 @@ async function getNextAvailableProxyPort(): Promise<number> {
   throw new Error('Tidak ada port proxy yang tersedia')
 }
 
-// ── GET: List sessions ─────────────────────────────────────────────────────────
+// ── GET: List sessions or Check Readiness ────────────────────────────────────
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
+    const { searchParams } = new URL(request.url)
+    const action = searchParams.get('action')
+
+    // Handle check-readiness probe
+    if (action === 'check-readiness') {
+      const username = searchParams.get('username') || undefined
+      const customerId = searchParams.get('customerId') || undefined
+      const targetIp = searchParams.get('targetIp') || undefined
+
+      const resolved = await resolveOntIpFromMikrotik({ customerId, username, providedIp: targetIp })
+
+      let apiConnected = false
+      let apiError: string | null = null
+
+      if (resolved.routerId) {
+        try {
+          const router = await prisma.router.findUnique({ where: { id: resolved.routerId } })
+          if (router) {
+            const { RouterOSAPI: RAPI } = await import('node-routeros')
+            const api = new RAPI({
+              host: router.ipAddress || router.nasname,
+              port: router.port || 8728,
+              user: router.username,
+              password: router.password,
+              timeout: 3,
+            })
+            await api.connect()
+            apiConnected = true
+            await api.close().catch(() => {})
+          }
+        } catch (err: any) {
+          apiConnected = false
+          apiError = err.message || 'Gagal terhubung ke API RouterOS'
+        }
+      }
+
+      const winboxScript = `/ip service set api disabled=no port=8728\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=8728 comment="ALLOW-EUGINEBILL-API" place-before=0\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=24000-24999 comment="ALLOW-EUGINEBILL-ONT-PROXY" place-before=0\r\n/ip firewall filter add chain=forward action=accept protocol=tcp dst-port=80,443,8080 comment="ALLOW-ONT-WEB-MANAGEMENT" place-before=0`
+
+      const ready = apiConnected && !!resolved.ip
+
+      return NextResponse.json({
+        success: true,
+        ready,
+        apiConnected,
+        apiError,
+        ontIp: resolved.ip,
+        username: resolved.username,
+        customerName: resolved.customerName,
+        routerName: resolved.routerName,
+        routerVpnIp: resolved.routerVpnIp,
+        vpsStatus: 'ready',
+        winboxScript,
+      })
+    }
+
     const now = new Date()
 
     // Auto-expire stale sessions
