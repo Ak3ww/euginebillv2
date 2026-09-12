@@ -1,6 +1,7 @@
 import { prisma } from '@/server/db/client';
 import { Router as RouterIcon, Wifi, Search, ExternalLink, Activity, AlertCircle, CheckCircle, XCircle, Globe } from 'lucide-react';
 import Link from 'next/link';
+import AcsGuideCard from '@/components/admin/AcsGuideCard';
 
 function formatRelativeTime(date: Date | null): string {
   if (!date) return 'Belum pernah';
@@ -64,10 +65,13 @@ export default async function AcsDashboardPage({ searchParams }: { searchParams:
             Built-in TR-069 ACS
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Daftar ONT/Router yang terhubung ke Auto Configuration Server.
+            Daftar ONT/Router yang terhubung ke Auto Configuration Server bawaan EugineBill.
           </p>
         </div>
       </div>
+
+      {/* Built-in ACS Guide Banner */}
+      <AcsGuideCard />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

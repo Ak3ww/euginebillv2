@@ -39,7 +39,7 @@ export async function POST(
     const hotspotAddress = body.hotspotAddress || '10.50.10.1';
     const hotspotSubnet = body.hotspotSubnet || '10.50.10.0/24';
     const poolRange = body.poolRange || '10.50.10.10-10.50.10.250';
-    const dnsName = body.dnsName || router.dnsName || 'wifi.hotspot.local';
+    const dnsName = body.dnsName || (router as any).dnsName || 'wifi.hotspot.local';
     const serverName = body.serverName || `hotspot-vlan${vlanId}`;
     const profileName = body.profileName || `hsprof-${vlanId}`;
     const poolName = `hs-pool-${vlanId}`;

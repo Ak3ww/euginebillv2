@@ -161,3 +161,16 @@ export async function POST(req: NextRequest) {
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
+
+export async function GET() {
+  return NextResponse.json({
+    status: 'online',
+    service: 'EugineBill Built-in TR-069 ACS (CWMP)',
+    version: '2.0',
+    endpoint: '/api/cwmp',
+    usage: 'Masukkan URL ini ke konfigurasi TR-069 / CWMP ACS URL pada ONT pelanggan',
+    protocol: 'TR-069 / CWMP over HTTP(S)',
+    connectionMode: 'In-Band PPPoE (Service Type: INTERNET,TR069)',
+  });
+}
+

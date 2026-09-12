@@ -392,7 +392,7 @@ export default function OntRemoteModal({
 
               <button
                 onClick={handleLaunch}
-                disabled={loading || (readiness && !readiness.apiConnected)}
+                disabled={loading || Boolean(readiness && !readiness.apiConnected)}
                 className="w-full inline-flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-xl shadow-sm transition-all disabled:opacity-50"
               >
                 {loading ? (

@@ -3,6 +3,37 @@
 All notable changes to EugineBill RADIUS are documented in this file.  
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.39.6] — 2026-09-12
+### TR-069 VLAN 4000 Elimination, VSOL OLT Streamlining, Built-in CWMP Endpoint & In-Band ACS Admin Guide UI
+- **Pembersihan Total VLAN 4000 & Standarisasi In-Band TR-069**:
+  - *Context / User Request*:
+    Pengguna meminta konfigurasi TR-069 / VLAN 4000 dibersihkan sepenuhnya dari skrip MikroTik dan konfigurasi VSOL OLT V1600GS. Sebagai gantinya, EugineBill harus menyediakan panduan setting **Built-in ACS** (bukan GenieACS) baik di antarmuka Admin UI maupun dokumentasi GitHub repository.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Pembersihan Konfigurasi VSOL OLT (`deployment-pack-client/01-vsol-1600gs-clean.conf`)**:
+       - Menghapus tuntas deklarasi `vlan 4000`, `description VLAN4000-TR069`, blok `interface vlan 4000` (IPv6 ND), serta tagging `switchport hybrid vlan 4000 tagged` pada seluruh uplink port GigabitEthernet `0/1`, `0/2`, dan `0/3`.
+       - OLT kini hanya mengalirkan VLAN 1 (Management bawaan), VLAN 20 (`VLAN20-PPPOE`), dan VLAN 30 (`VLAN30-MGMT`), menjaga port uplink dan switch fabric sangat bersih dan efisien.
+    2. **Pembersihan Skrip MikroTik (`02-mikrotik-ftth-complete.rsc`)**:
+       - Telah diverifikasi dan dipastikan 100% bersih tanpa interface `vlan4000-tr069`, DHCP pool `dhcp_pool_tr069`, atau DHCP server TR-069.
+    3. **Standar Arsitektur In-Band PPPoE**:
+       - Modem ONT/CPE pelanggan menggunakan interface WAN PPPoE eksisting (`Service List: INTERNET_TR069` atau `INTERNET,TR069`) untuk berkomunikasi langsung ke endpoint ACS EugineBill tanpa memerlukan alokasi IP pool TR-069 terpisah maupun VLAN tambahan.
+    4. **Health Check & Info Endpoint (`GET /api/cwmp`)**:
+       - Menambahkan handler HTTP GET pada route `/api/cwmp` yang merespons status JSON online, nama layanan EugineBill Built-in CWMP, versi protokol, dan petunjuk integrasi saat diakses admin/teknisi via browser atau curl.
+    5. **Komponen Panduan Built-in ACS Terintegrasi di UI (`src/components/admin/AcsGuideCard.tsx` & `src/app/admin/acs/page.tsx`)**:
+       - Menampilkan card panduan interaktif Shadcn UI dengan deteksi dinamis URL ACS (`http://<domain_or_ip>/api/cwmp`), tombol 1-klik salin ke clipboard, dan penegasan arsitektur native Next.js (bukan GenieACS, zero Docker, zero MongoDB).
+       - Dilengkapi modal/tab instruksi langkah demi langkah konfigurasi In-Band TR-069 untuk 4 merk modem ONT utama: ZTE (F609/F670L), Huawei (HG8245H/EG8145), Fiberhome (HG6243/6245), dan VSOL / XPON Generic.
+       - Menyediakan tautan langsung ke panduan teknis repository GitHub.
+    6. **Dokumentasi Komprehensif (`docs/mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md`)**:
+       - Menulis panduan komprehensif mengenai arsitektur In-Band TR-069, perbedaan mendasar dengan GenieACS, petunjuk step-by-step per merk modem, parameter monitoring (redaman optik Rx/Tx dBm, SSID WiFi & password, reboot remote), dan langkah troubleshooting.
+  - *Files*:
+    - `deployment-pack-client/01-vsol-1600gs-clean.conf`
+    - `deployment-pack-client/02-mikrotik-ftth-complete.rsc`
+    - `src/app/api/cwmp/route.ts`
+    - `src/components/admin/AcsGuideCard.tsx`
+    - `src/app/admin/acs/page.tsx`
+    - `docs/mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md`
+    - `docs/mikrotik/ACS_SETUP.md`
+    - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
 
 ## [2.39.5] — 2026-09-12
 ### Automated ONT Remote Readiness Probe, 1-Click Winbox Setup Script in UI, and Hardened FTTH Standards

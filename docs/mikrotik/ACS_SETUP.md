@@ -1,11 +1,15 @@
 # Panduan Setup TR-069 ACS di MikroTik
 
+> **Rekomendasi Utama (In-Band PPPoE):** Untuk panduan integrasi Built-in ACS tanpa VLAN tambahan menggunakan metode **In-Band PPPoE (Service Type: INTERNET,TR069)** pada ZTE, Huawei, Fiberhome, dan VSOL, silakan rujuk ke panduan resmi terbaru:  
+> 👉 [BUILTIN_TR069_ACS_SETUP_GUIDE.md](./BUILTIN_TR069_ACS_SETUP_GUIDE.md)
+
 ## Gambaran Umum
 
 Dokumen ini menjelaskan cara mengkonfigurasi MikroTik agar ONT/ONU pelanggan bisa terhubung ke **Built-in ACS EugineBill** via protokol TR-069/CWMP.
 
-**ACS URL:** `http://[IP_VPS]:3000/api/cwmp`  
+**ACS URL:** `http://[IP_VPS]/api/cwmp`  
 (atau via Nginx reverse proxy: `http://domain-anda.com/api/cwmp`)
+
 
 ---
 
