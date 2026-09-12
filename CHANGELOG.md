@@ -3,6 +3,41 @@
 All notable changes to EugineBill RADIUS are documented in this file.  
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.39.7] — 2026-09-12
+### Master Easy Setup Guide (VPS & MikroTik), UI Quick Links, and Zero-Emoji Standard Enforcement
+- **Easy Setup Experience di VPS & MikroTik (Master Guide, Quick Links, & Pembersihan Total Text Emoji)**:
+  - *Context / User Request*:
+    Pengguna meminta jaminan bahwa alur EugineBill Easy Setup di VPS dan MikroTik memiliki panduan lengkap baik di antarmuka Admin UI maupun repositori GitHub: "Cuma beberapa kali klik dan paste script di MikroTik harus sudah siap pakai." Selain itu, seluruh elemen UI harus patuh pada aturan nol text emoji di seluruh portal admin.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Master Setup Guide (`docs/setup/EUGINEBILL_EASY_SETUP_GUIDE.md`)**:
+       - Dokumentasi panduan lengkap 5 skenario implementasi siap pakai:
+         - Skenario 1: Hubungkan MikroTik ke EugineBill Cloud (1-Klik Salin Script VPN).
+         - Skenario 2: Skrip Fondasi FTTH Plug-and-Play (`02-mikrotik-ftth-complete.rsc`).
+         - Skenario 3: Remote ONT Proxy 1-Klik Siap Pakai.
+         - Skenario 4: Built-in TR-069 ACS Native Setup (VLAN 4000 on-demand).
+         - Skenario 5: Dynamic Isolation & Walled Garden.
+    2. **Prominent Banner di Root `README.md` & `docs/DOCS_INDEX.md`**:
+       - Menempatkan callout banner utama "Quick Start & Easy Setup" di awal `README.md` dan tabel indeks teknis.
+       - Menambahkan referensi master guide di `docs/DOCS_INDEX.md`.
+    3. **Helper Card Easy Setup di UI Router (`/admin/network/routers`)**:
+       - Menambahkan kartu informasi "Easy Setup Fondasi FTTH & TR-069" dengan tombol pintas ke menu TR-069 ACS (`/admin/acs`).
+    4. **Pembersihan Total Text Emoji Sesuai Aturan Workspace**:
+       - Mengganti seluruh emoji teks yang tersisa pada `src/app/admin/network/vpn-server/page.tsx`, `src/app/admin/network/vpn-client/page.tsx`, `src/app/admin/network/olts/page.tsx`, `src/app/admin/network/map/page.tsx`, `src/app/admin/pppoe/areas/page.tsx`, dan `src/app/admin/pppoe/users/new/page.tsx` dengan komponen resmi `Lucide React` (`<Cloud />`, `<Server />`, `<Settings />`, `<Wifi />`, `<Terminal />`, `<Radio />`, `<Zap />`, `<Wrench />`, `<User />`, `<AlertTriangle />`, dot status Tailwind, dll.).
+  - *Files*:
+    - `docs/setup/EUGINEBILL_EASY_SETUP_GUIDE.md`
+    - `README.md`
+    - `docs/DOCS_INDEX.md`
+    - `deployment-pack-client/PANDUAN_SETUP_LENGKAP_OLT_MIKROTIK.md`
+    - `src/app/admin/network/routers/page.tsx`
+    - `src/app/admin/network/vpn-server/page.tsx`
+    - `src/app/admin/network/vpn-client/page.tsx`
+    - `src/app/admin/network/olts/page.tsx`
+    - `src/app/admin/network/map/page.tsx`
+    - `src/app/admin/pppoe/areas/page.tsx`
+    - `src/app/admin/pppoe/users/new/page.tsx`
+    - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.39.6] — 2026-09-12
 ### Built-in TR-069 ACS Engine, On-Demand VLAN 4000 Activation UI & Lean Base Scripts
 - **Standarisasi TR-069: Skrip Pondasi Lean & Aktivasi On-Demand VLAN 4000 di UI**:

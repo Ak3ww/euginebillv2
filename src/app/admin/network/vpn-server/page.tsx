@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { useTranslation } from '@/hooks/useTranslation';
-import { Shield, Server, Plus, Pencil, Trash2, Zap, Activity, CheckCircle, XCircle, Settings, Terminal, RefreshCw, FileText, X, Wifi, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Shield, Server, Plus, Pencil, Trash2, Zap, Activity, CheckCircle, XCircle, Settings, Terminal, RefreshCw, FileText, X, Wifi, ChevronDown, ChevronUp, Info, Cloud } from 'lucide-react';
 
 interface VpnServer {
   id: string
@@ -888,14 +888,14 @@ export default function VpnServerPage() {
                 <div className="px-6 pb-6 border-t border-[#00f7ff]/10">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
                     {[
-                      { step: 1, icon: '☁️', color: 'border-[#bc13fe]/40 bg-[#bc13fe]/5', title: 'Install di VPS', desc: 'Jalankan installer EugineBill di VPS: bash vps-install.sh. FreeRADIUS, Node.js, dan PM2 akan terinstall otomatis.', link: null, linkLabel: null },
-                      { step: 2, icon: '🖥️', color: 'border-[#00f7ff]/40 bg-[#00f7ff]/5', title: 'Tambah VPN Server', desc: 'Isi IP MikroTik CHR, username admin, dan subnet VPN (contoh: 10.20.30.0/24). Klik "Test Koneksi" lalu Simpan.', link: null, linkLabel: null },
-                      { step: 3, icon: '⚙️', color: 'border-green-500/40 bg-green-500/5', title: 'Setup Protokol', desc: 'Klik tombol "Setup" pada kartu server untuk konfigurasi L2TP/SSTP/PPTP di MikroTik CHR secara otomatis. Untuk WireGuard (RouterOS 7+) klik tombol WireGuard.', link: null, linkLabel: null },
-                      { step: 4, icon: '📡', color: 'border-amber-500/40 bg-amber-500/5', title: 'Tambah VPN Client', desc: 'Setelah server siap, pergi ke menu VPN Client untuk tambahkan setiap NAS sebagai client. Sistem generate script RouterOS otomatis.', link: '/admin/network/vpn-client', linkLabel: '→ Menu VPN Client' },
+                      { step: 1, icon: <Cloud className="w-5 h-5 text-[#bc13fe]" />, color: 'border-[#bc13fe]/40 bg-[#bc13fe]/5', title: 'Install di VPS', desc: 'Jalankan installer EugineBill di VPS: bash vps-install.sh. FreeRADIUS, Node.js, dan PM2 akan terinstall otomatis.', link: null, linkLabel: null },
+                      { step: 2, icon: <Server className="w-5 h-5 text-[#00f7ff]" />, color: 'border-[#00f7ff]/40 bg-[#00f7ff]/5', title: 'Tambah VPN Server', desc: 'Isi IP MikroTik CHR, username admin, dan subnet VPN (contoh: 10.20.30.0/24). Klik "Test Koneksi" lalu Simpan.', link: null, linkLabel: null },
+                      { step: 3, icon: <Settings className="w-5 h-5 text-green-400" />, color: 'border-green-500/40 bg-green-500/5', title: 'Setup Protokol', desc: 'Klik tombol "Setup" pada kartu server untuk konfigurasi L2TP/SSTP/PPTP di MikroTik CHR secara otomatis. Untuk WireGuard (RouterOS 7+) klik tombol WireGuard.', link: null, linkLabel: null },
+                      { step: 4, icon: <Wifi className="w-5 h-5 text-amber-400" />, color: 'border-amber-500/40 bg-amber-500/5', title: 'Tambah VPN Client', desc: 'Setelah server siap, pergi ke menu VPN Client untuk tambahkan setiap NAS sebagai client. Sistem generate script RouterOS otomatis.', link: '/admin/network/vpn-client', linkLabel: '→ Menu VPN Client' },
                     ].map(item => (
                       <div key={item.step} className={`rounded-xl border ${item.color} p-4`}>
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xl">{item.icon}</span>
+                          <div className="p-1 rounded-md bg-background/50">{item.icon}</div>
                           <span className="text-xs font-bold text-muted-foreground bg-muted/50 dark:bg-slate-800/80 px-2 py-0.5 rounded-full">Step {item.step}</span>
                         </div>
                         <p className="text-sm font-bold text-foreground mb-1">{item.title}</p>
@@ -908,11 +908,11 @@ export default function VpnServerPage() {
                   </div>
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="p-3 rounded-xl border border-[#bc13fe]/20 bg-[#bc13fe]/5">
-                      <p className="text-xs font-bold text-[#bc13fe] mb-1">🔷 WireGuard (RouterOS 7+)</p>
+                      <p className="text-xs font-bold text-[#bc13fe] mb-1 flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" /> WireGuard (RouterOS 7+)</p>
                       <p className="text-xs text-muted-foreground">Arsitektur baru: VPS sebagai WG server, setiap NAS connect langsung ke VPS. Lebih cepat, lebih aman, tidak perlu CHR.</p>
                     </div>
                     <div className="p-3 rounded-xl border border-[#00f7ff]/20 bg-[#00f7ff]/5">
-                      <p className="text-xs font-bold text-[#00f7ff] mb-1">🔶 L2TP/SSTP (RouterOS 6+)</p>
+                      <p className="text-xs font-bold text-[#00f7ff] mb-1 flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> L2TP/SSTP (RouterOS 6+)</p>
                       <p className="text-xs text-muted-foreground">Arsitektur legacy: VPS connect ke MikroTik CHR via L2TP/SSTP. NAS kemudian connect ke CHR. Gunakan jika RouterOS belum di-upgrade.</p>
                     </div>
                   </div>

@@ -15,6 +15,13 @@ Modern, full-stack billing & RADIUS management system for ISP/RT-RW Net with Fre
 
 > **Latest Release:** v2.39.1 — Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS) dengan 1-Command All-in-One Installer, First-Time Setup Wizard (`/setup`), Local & RADIUS Per-Router Auth, Auto-Show Transfer Manual, dan Bundled WireGuard + L2TP VPN.
 
+## Quick Start & Easy Setup
+
+> **Butuh panduan instalasi kilat 1-klik & integrasi MikroTik siap pakai?**
+> Baca panduan lengkap: **[docs/setup/EUGINEBILL_EASY_SETUP_GUIDE.md](docs/setup/EUGINEBILL_EASY_SETUP_GUIDE.md)**
+> - **VPS Setup**: 1 baris perintah curl installer + Setup Wizard (`/setup`).
+> - **MikroTik Setup**: Cuma beberapa klik di UI dan paste script di WinBox, router langsung online, siap PPPoE/Hotspot, remote ONT, dan TR-069!
+
 ---
 
 ## AI Development Assistant & Architecture Memory
@@ -99,6 +106,9 @@ Dokumentasi lengkap terbagi ke dalam panduan teknis pada folder `docs/`:
 
 | Dokumen Panduan | Deskripsi |
 | :--- | :--- |
+| [EUGINEBILL_EASY_SETUP_GUIDE.md](docs/setup/EUGINEBILL_EASY_SETUP_GUIDE.md) | **Panduan Master Easy Setup VPS & MikroTik Siap Pakai** (Beberapa Klik & Paste Script). |
+| [BUILTIN_TR069_ACS_SETUP_GUIDE.md](docs/mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md) | Panduan Built-in TR-069 ACS Native EugineBill (Zero Docker/Mongo). |
+| [PANDUAN_SETUP_LENGKAP_OLT_MIKROTIK.md](deployment-pack-client/PANDUAN_SETUP_LENGKAP_OLT_MIKROTIK.md) | Panduan Lengkap Fondasi FTTH: OLT VSOL 1600GS & MikroTik RSC Siap Pakai. |
 | [VENDOR_DEPLOYMENT_GUIDE.md](docs/setup/VENDOR_DEPLOYMENT_GUIDE.md) | Panduan lengkap vendor menyewakan VPS EugineBill ke klien ISP baru. |
 | [CUSTOMER_EXPERIENCE_PAYMENT_GUIDE.md](docs/customer/CUSTOMER_EXPERIENCE_PAYMENT_GUIDE.md) | Panduan pembayaran pelanggan, transfer bank manual, dan gateway. |
 | [TROUBLESHOOTING.md](docs/getting-started/TROUBLESHOOTING.md) | Panduan investigasi dan solusi kendala teknis (RADIUS, MySQL, VPN). |
@@ -109,7 +119,7 @@ Dokumentasi lengkap terbagi ke dalam panduan teknis pada folder `docs/`:
 
 ---
 
-## 🔌 FreeRADIUS
+## FreeRADIUS Architecture
 
 Key config files at `/etc/freeradius/3.0/`:
 

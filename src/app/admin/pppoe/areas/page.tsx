@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, MapPin, Users, Search, X, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, MapPin, Users, Search, X, Loader2, Radio } from 'lucide-react';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -363,7 +363,8 @@ export default function AreasPage() {
                       </td>
                       <td className="px-3 py-2 text-xs">
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                          📡 {area.router?.name || 'Belum di-set'}
+                          <Radio className="h-3 w-3 mr-1" />
+                          {area.router?.name || 'Belum di-set'}
                         </span>
                       </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">

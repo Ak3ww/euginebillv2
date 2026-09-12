@@ -1184,14 +1184,14 @@ export default function VpnClientPage() {
                 <div className="px-6 pb-6 border-t border-[#00f7ff]/10">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
                     {[
-                      { step: 1, icon: '🖥️', color: 'border-[#bc13fe]/40 bg-[#bc13fe]/5', title: 'VPN Server Dulu', desc: 'Pastikan VPN Server sudah dikonfigurasi di menu VPN Server (MikroTik CHR atau WireGuard VPS).', link: '/admin/network/vpn-server', linkLabel: '→ Menu VPN Server' },
-                      { step: 2, icon: '➕', color: 'border-[#00f7ff]/40 bg-[#00f7ff]/5', title: 'Buat VPN Client', desc: 'Klik "+ Tambah VPN Client", pilih protokol (WireGuard/L2TP/SSTP/PPTP), dan nama NAS. Sistem otomatis generate user & konfigurasi di CHR.', link: null, linkLabel: null },
-                      { step: 3, icon: '📋', color: 'border-green-500/40 bg-green-500/5', title: 'Apply Script ke NAS', desc: 'Copy script RouterOS yang dihasilkan → paste di terminal MikroTik/WinBox pada router/NAS pelanggan. VPN akan tersambung otomatis.', link: null, linkLabel: null },
-                      { step: 4, icon: '📡', color: 'border-amber-500/40 bg-amber-500/5', title: 'Tandai RADIUS Server', desc: 'Centang "Jadikan RADIUS Server" pada client yang jalan di VPS/Raspberry Pi. Lalu daftarkan NAS di menu NAS/Router.', link: '/admin/network/routers', linkLabel: '→ Menu NAS/Router' },
+                      { step: 1, icon: <Server className="w-5 h-5 text-[#bc13fe]" />, color: 'border-[#bc13fe]/40 bg-[#bc13fe]/5', title: 'VPN Server Dulu', desc: 'Pastikan VPN Server sudah dikonfigurasi di menu VPN Server (MikroTik CHR atau WireGuard VPS).', link: '/admin/network/vpn-server', linkLabel: '→ Menu VPN Server' },
+                      { step: 2, icon: <Plus className="w-5 h-5 text-[#00f7ff]" />, color: 'border-[#00f7ff]/40 bg-[#00f7ff]/5', title: 'Buat VPN Client', desc: 'Klik "+ Tambah VPN Client", pilih protokol (WireGuard/L2TP/SSTP/PPTP), dan nama NAS. Sistem otomatis generate user & konfigurasi di CHR.', link: null, linkLabel: null },
+                      { step: 3, icon: <Terminal className="w-5 h-5 text-green-500" />, color: 'border-green-500/40 bg-green-500/5', title: 'Apply Script ke NAS', desc: 'Copy script RouterOS yang dihasilkan → paste di terminal MikroTik/WinBox pada router/NAS pelanggan. VPN akan tersambung otomatis.', link: null, linkLabel: null },
+                      { step: 4, icon: <Radio className="w-5 h-5 text-amber-500" />, color: 'border-amber-500/40 bg-amber-500/5', title: 'Tandai RADIUS Server', desc: 'Centang "Jadikan RADIUS Server" pada client yang jalan di VPS/Raspberry Pi. Lalu daftarkan NAS di menu NAS/Router.', link: '/admin/network/routers', linkLabel: '→ Menu NAS/Router' },
                     ].map(item => (
                       <div key={item.step} className={`rounded-xl border ${item.color} p-4`}>
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xl">{item.icon}</span>
+                          <div className="p-1 rounded-md bg-background/50">{item.icon}</div>
                           <span className="text-xs font-bold text-muted-foreground bg-muted/50 dark:bg-slate-800/80 px-2 py-0.5 rounded-full">Step {item.step}</span>
                         </div>
                         <p className="text-sm font-bold text-foreground mb-1">{item.title}</p>
@@ -1203,7 +1203,7 @@ export default function VpnClientPage() {
                     ))}
                   </div>
                   <div className="mt-4 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
-                    <p className="text-xs text-amber-400/90"><span className="font-bold">💡 Tips protokol:</span> Gunakan <strong>WireGuard</strong> untuk RouterOS 7+ (lebih cepat &amp; modern). Gunakan <strong>L2TP/SSTP</strong> untuk RouterOS 6 atau jika WireGuard tidak support. PPTP sudah deprecated, hindari untuk keamanan.</p>
+                    <p className="text-xs text-amber-400/90 flex items-center gap-1.5"><Info className="w-4 h-4 text-amber-400 flex-shrink-0" /><span className="font-bold">Tips protokol:</span> Gunakan <strong>WireGuard</strong> untuk RouterOS 7+ (lebih cepat &amp; modern). Gunakan <strong>L2TP/SSTP</strong> untuk RouterOS 6 atau jika WireGuard tidak support. PPTP sudah deprecated, hindari untuk keamanan.</p>
                   </div>
                 </div>
               )}
@@ -1815,8 +1815,9 @@ export default function VpnClientPage() {
                         />
                       </div>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      💡 Isi jika MikroTik Anda memakai port kustom (cth: Winbox 8228, API 8520). Port publik VPS akan otomatis di-forward (DNAT) ke port ini.
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <Info className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                      Isi jika MikroTik Anda memakai port kustom (cth: Winbox 8228, API 8520). Port publik VPS akan otomatis di-forward (DNAT) ke port ini.
                     </p>
                   </div>
                 </div>
@@ -2096,7 +2097,12 @@ export default function VpnClientPage() {
                   disabled={applyRoutingRunning}
                   className="flex-1 px-4 py-2.5 text-sm font-bold bg-gradient-to-r from-[#00f7ff] to-[#00d4e6] text-black rounded-xl hover:shadow-[0_0_20px_rgba(0,247,255,0.4)] transition-all disabled:opacity-50"
                 >
-                  {applyRoutingRunning ? 'Menjalankan...' : '🚀 Apply Routing'}
+                  {applyRoutingRunning ? 'Menjalankan...' : (
+                    <span className="flex items-center justify-center gap-1.5">
+                      <Zap className="w-4 h-4" />
+                      Apply Routing
+                    </span>
+                  )}
                 </button>
               </div>
             </div>

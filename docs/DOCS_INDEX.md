@@ -36,6 +36,7 @@ docs/
 
 | Dokumen | Deskripsi | Implementasi |
 |---------|-----------|--------------|
+| [EUGINEBILL_EASY_SETUP_GUIDE.md](setup/EUGINEBILL_EASY_SETUP_GUIDE.md) | **Panduan Master Easy Setup VPS & MikroTik**: 1-Command Installer, 1-Click VPN, & Skrip Siap Pakai | Master Quickstart |
 | [VENDOR_DEPLOYMENT_GUIDE.md](setup/VENDOR_DEPLOYMENT_GUIDE.md) | **Panduan Resmi Vendor**: Sewa VPS klien, installer 1-baris, first-time wizard | `curl -fsSL .../install.sh \| sudo bash` |
 | [FREERADIUS-SETUP.md](setup/FREERADIUS-SETUP.md) | Konfigurasi FreeRADIUS + MySQL | Otomatis via `scripts/install.sh` |
 | [CLOUDFLARE_TUNNEL_SETUP.md](setup/CLOUDFLARE_TUNNEL_SETUP.md) | Setup Cloudflare Tunnel untuk akses tanpa public IP | `cloudflared tunnel create` |
@@ -51,6 +52,7 @@ docs/
 
 | Dokumen | Deskripsi | Menu Terkait |
 |---------|-----------|--------------|
+| [BUILTIN_TR069_ACS_SETUP_GUIDE.md](mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md) | **Panduan Built-in TR-069 ACS Native**: Setup VLAN 4000 on-demand & ONT Modem | TR-069 ACS (`/admin/acs`) |
 | [MIKROTIK_COA_SETUP.md](mikrotik/MIKROTIK_COA_SETUP.md) | Setup CoA untuk auto-disconnect | Network → Sessions |
 | [MIKROTIK_RADIUS_COA_COMPLETE_SETUP.md](mikrotik/MIKROTIK_RADIUS_COA_COMPLETE_SETUP.md) | Setup lengkap RADIUS + CoA di MikroTik | FreeRADIUS → Settings |
 | [MULTIPLE_NAS_SAME_IP.md](mikrotik/MULTIPLE_NAS_SAME_IP.md) | Multiple NAS dengan IP yang sama | Network → NAS |

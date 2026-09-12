@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { showSuccess, showError } from '@/lib/sweetalert';
-import { ArrowLeft, MapPin, Map, Eye, EyeOff, Loader2, X, ChevronRight, ChevronLeft, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft, MapPin, Map, Eye, EyeOff, Loader2, X, ChevronRight, ChevronLeft, Wifi, WifiOff, Radio, User, Wrench, Settings } from 'lucide-react';
 import MapPicker from '@/components/MapPicker';
 import { ModalInput, ModalSelect, ModalLabel } from '@/components/cyberpunk';
 
@@ -11,10 +11,10 @@ interface Router { id: string; name: string; nasname: string; ipAddress: string;
 interface Area { id: string; name: string; }
 
 const TABS = [
-  { id: 'pppoe', label: 'Akun PPPoE', icon: '📡' },
-  { id: 'pelanggan', label: 'Data Pelanggan', icon: '👤' },
-  { id: 'instalasi', label: 'Instalasi', icon: '🔧' },
-  { id: 'pengaturan', label: 'Pengaturan', icon: '⚙️' },
+  { id: 'pppoe', label: 'Akun PPPoE', icon: Radio },
+  { id: 'pelanggan', label: 'Data Pelanggan', icon: User },
+  { id: 'instalasi', label: 'Instalasi', icon: Wrench },
+  { id: 'pengaturan', label: 'Pengaturan', icon: Settings },
 ];
 
 interface UserFormData {
@@ -244,14 +244,17 @@ export default function NewPppoeUserPage() {
 
       {/* Tab Bar */}
       <div className="flex gap-1 bg-muted/50 rounded-xl p-1 flex-shrink-0">
-        {TABS.map((tab, i) => (
-          <button key={tab.id} type="button" onClick={() => setActiveTab(i)}
-            className={`flex-1 flex flex-col items-center py-1.5 px-1 rounded-lg text-[10px] font-medium transition-all ${activeTab === i ? 'bg-card shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-            <span className="text-sm leading-none mb-0.5">{tab.icon}</span>
-            <span className="leading-none hidden sm:block">{tab.label}</span>
-            {tabDone[i] && activeTab !== i && <span className="w-1 h-1 rounded-full bg-emerald-500 mt-0.5" />}
-          </button>
-        ))}
+        {TABS.map((tab, i) => {
+          const TabIcon = tab.icon;
+          return (
+            <button key={tab.id} type="button" onClick={() => setActiveTab(i)}
+              className={`flex-1 flex flex-col items-center py-1.5 px-1 rounded-lg text-[10px] font-medium transition-all ${activeTab === i ? 'bg-card shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              <TabIcon className="w-4 h-4 mb-0.5" />
+              <span className="leading-none hidden sm:block">{tab.label}</span>
+              {tabDone[i] && activeTab !== i && <span className="w-1 h-1 rounded-full bg-emerald-500 mt-0.5" />}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab Content */}

@@ -97,7 +97,7 @@ Setelah kabel MikroTik dan OLT tersambung:
    * Klik **Apply / Save**.
 5. Buka Winbox MikroTik $\rightarrow$ menu **PPP** $\rightarrow$ tab **Active Connections**.
    * Anda akan langsung melihat user **`test`** aktif dan mendapat IP `192.168.20.x`.
-6. Tes browsing / speedtest dari Wi-Fi modem ONT. Internet langsung jalan kencang dengan limitasi profile 20 Mbps dan Cake Queues!
+6. Tes browsing / speedtest dari Wi-Fi modem ONT. Internet langsung jalan kencang dengan limitasi profile 20 Mbps native RouterOS!
 
 ---
 
@@ -108,11 +108,11 @@ Setelah kabel MikroTik dan OLT tersambung:
 2. **DHCP Server LAN Plug & Play (Port ether2 - ether5)**:
    Teknisi atau klien bisa langsung mencolok laptop atau Access Point ke port ether2 s/d ether5 dan otomatis mendapatkan IP `192.168.50.x` serta akses internet langsung.
 3. **Standard Simple Queue Limiting**:
-   Limitasi bandwidth rapi dan stabil sesuai profil langganan tanpa beban CPU dari Cake Queue.
+   Limitasi bandwidth rapi, ringan, dan stabil sesuai profil langganan tanpa beban lonjakan CPU.
 4. **VLAN FTTH OLT Siap Pakai**:
-   VLAN 20 (PPPoE), VLAN 30 (Management OLT), dan VLAN 4000 (TR-069 ACS) langsung aktif di atas bridge distribusi.
+   VLAN 20 (PPPoE) dan VLAN 30 (Management OLT) langsung aktif di atas bridge distribusi. Jika ingin mengaktifkan TR-069 via VLAN 4000, skrip aktivasi siap salin tersedia di UI EugineBill menu **TR-069 ACS**.
 5. **Universal Masquerade NAT**:
-   Semua segmen jaringan (PPPoE pelanggan, LAN teknisi, TR-069) otomatis bisa browsing ke internet tanpa kendala routing.
+   Semua segmen jaringan (PPPoE pelanggan, LAN teknisi) otomatis bisa browsing ke internet tanpa kendala routing.
 6. **Auto-Maintenance Subuh (03.00 Pagi)**:
    MikroTik otomatis membersihkan cache DNS sampah dan merapikan log sistem setiap jam 3 subuh.
 

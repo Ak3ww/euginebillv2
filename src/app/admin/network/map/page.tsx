@@ -1277,8 +1277,9 @@ export default function NetworkMapPage() {
                         {/* Connected Routers */}
                         {connectedRouters.length > 0 && (
                           <div className="border-t border-gray-100 pt-3 mt-3">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                              📡 Uplink dari {connectedRouters.length} Router:
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                              <Radio className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
+                              Uplink dari {connectedRouters.length} Router:
                             </p>
                             <div className="flex flex-wrap gap-1.5">
                               {connectedRouters.map(r => (

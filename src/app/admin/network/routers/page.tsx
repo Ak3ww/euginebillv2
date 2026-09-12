@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { useTranslation } from '@/hooks/useTranslation';
-import { Server, Plus, Trash2, Edit, CheckCircle, XCircle, Copy, Loader2, Shield, Radio, Wifi, Activity, RefreshCw, Settings, X, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Server, Plus, Trash2, Edit, CheckCircle, XCircle, Copy, Loader2, Shield, Radio, Wifi, Activity, RefreshCw, Settings, X, ChevronDown, ChevronUp, Info, Cable, FileCode, AlertTriangle, CheckCircle2, Terminal } from 'lucide-react';
 
 interface Router {
   id: string
@@ -757,14 +757,14 @@ export default function RouterPage() {
                 <div className="px-6 pb-6 border-t border-[#00f7ff]/10">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
                     {[
-                      { step: 1, icon: '🔌', color: 'border-[#bc13fe]/40 bg-[#bc13fe]/5', title: 'Sambungkan VPN', desc: 'Pastikan NAS/router sudah tersambung ke VPN (L2TP, WireGuard, atau SSTP) melalui menu VPN Client.', link: '/admin/network/vpn-client', linkLabel: '→ Menu VPN Client' },
-                      { step: 2, icon: '➕', color: 'border-[#00f7ff]/40 bg-[#00f7ff]/5', title: 'Tambah NAS/Router', desc: 'Klik "+ Tambah Router/NAS". Isi Nama, IP VPN NAS (mis. 10.20.30.10), username & password Winbox/API MikroTik.', link: null, linkLabel: null },
-                      { step: 3, icon: '🔬', color: 'border-green-500/40 bg-green-500/5', title: 'Test & Simpan', desc: 'Klik "Test Koneksi" untuk verifikasi API MikroTik dapat diakses. Simpan jika berhasil. NAS terdaftar sebagai RADIUS client.', link: null, linkLabel: null },
-                      { step: 4, icon: '📜', color: 'border-amber-500/40 bg-amber-500/5', title: 'Generate RADIUS Script', desc: 'Klik "RADIUS Script" pada kartu NAS. Copy script RouterOS yang dihasilkan dan paste di terminal/WinBox MikroTik NAS tersebut.', link: null, linkLabel: null },
+                      { step: 1, icon: <Cable className="w-5 h-5 text-[#bc13fe]" />, color: 'border-[#bc13fe]/40 bg-[#bc13fe]/5', title: 'Sambungkan VPN', desc: 'Pastikan NAS/router sudah tersambung ke VPN (L2TP, WireGuard, atau SSTP) melalui menu VPN Client.', link: '/admin/network/vpn-client', linkLabel: '→ Menu VPN Client' },
+                      { step: 2, icon: <Plus className="w-5 h-5 text-[#00f7ff]" />, color: 'border-[#00f7ff]/40 bg-[#00f7ff]/5', title: 'Tambah NAS/Router', desc: 'Klik "+ Tambah Router/NAS". Isi Nama, IP VPN NAS (mis. 10.20.30.10), username & password Winbox/API MikroTik.', link: null, linkLabel: null },
+                      { step: 3, icon: <CheckCircle2 className="w-5 h-5 text-green-500" />, color: 'border-green-500/40 bg-green-500/5', title: 'Test & Simpan', desc: 'Klik "Test Koneksi" untuk verifikasi API MikroTik dapat diakses. Simpan jika berhasil. NAS terdaftar sebagai RADIUS client.', link: null, linkLabel: null },
+                      { step: 4, icon: <FileCode className="w-5 h-5 text-amber-500" />, color: 'border-amber-500/40 bg-amber-500/5', title: 'Generate RADIUS Script', desc: 'Klik "RADIUS Script" pada kartu NAS. Copy script RouterOS yang dihasilkan dan paste di terminal/WinBox MikroTik NAS tersebut.', link: null, linkLabel: null },
                     ].map(item => (
                       <div key={item.step} className={`rounded-xl border ${item.color} p-4`}>
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xl">{item.icon}</span>
+                          <div className="p-1 rounded-md bg-background/50">{item.icon}</div>
                           <span className="text-xs font-bold text-muted-foreground bg-muted/50 dark:bg-slate-800/80 px-2 py-0.5 rounded-full">Step {item.step}</span>
                         </div>
                         <p className="text-sm font-bold text-foreground mb-1">{item.title}</p>
@@ -776,12 +776,36 @@ export default function RouterPage() {
                     ))}
                   </div>
                   <div className="mt-4 p-3 rounded-xl border border-[#00f7ff]/20 bg-[#00f7ff]/5">
-                    <p className="text-xs text-[#00f7ff]/80"><span className="font-bold">ℹ️ Tentang NAS/Router:</span> NAS (Network Access Server) adalah MikroTik router di lokasi pelanggan yang menangani autentikasi PPPoE atau Hotspot. Setiap NAS harus terdaftar di sini agar RADIUS server dapat mengenali request autentikasi dari NAS tersebut.</p>
+                    <p className="text-xs text-[#00f7ff]/80 flex items-center gap-1.5"><Info className="w-4 h-4 text-[#00f7ff] flex-shrink-0" /><span className="font-bold">Tentang NAS/Router:</span> NAS (Network Access Server) adalah MikroTik router di lokasi pelanggan yang menangani autentikasi PPPoE atau Hotspot. Setiap NAS harus terdaftar di sini agar RADIUS server dapat mengenali request autentikasi dari NAS tersebut.</p>
+                  </div>
+
+                  {/* Easy Setup & TR-069 ACS Link */}
+                  <div className="mt-3 p-3.5 rounded-xl border border-sky-500/30 bg-sky-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-400 mt-0.5">
+                        <Terminal className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-sky-400">Easy Setup Fondasi FTTH & TR-069</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Konfigurasi MikroTik siap pakai (WAN DHCP, LAN ether2-5, VLAN 20 PPPoE, VLAN 30 OLT MGMT) sudah disediakan di pack deployment. Jika ingin mengaktifkan Built-in TR-069 ACS, cukup salin skrip on-demand di menu TR-069 ACS.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <a
+                        href="/admin/acs"
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 border border-sky-500/30 transition-colors flex items-center gap-1.5"
+                      >
+                        <Radio className="w-3.5 h-3.5" />
+                        Menu TR-069 ACS
+                      </a>
+                    </div>
                   </div>
 
                   {/* Troubleshooting: unknown client */}
                   <div className="mt-3 p-4 rounded-xl border border-amber-500/30 bg-amber-500/5">
-                    <p className="text-xs font-bold text-amber-400 mb-2">⚠️ Troubleshooting — FreeRADIUS: &quot;unknown client&quot;</p>
+                    <p className="text-xs font-bold text-amber-400 mb-2 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />Troubleshooting — FreeRADIUS: &quot;unknown client&quot;</p>
                     <p className="text-xs text-muted-foreground mb-3">Jika FreeRADIUS menolak request NAS dengan error <code className="bg-slate-800 px-1 rounded text-amber-300">Ignoring request from unknown client X.X.X.X</code>, lakukan langkah berikut:</p>
                     <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
                       <li>Pastikan NAS sudah ditambahkan lewat halaman ini (bukan langsung ke database). Jika baru saja di-INSERT manual ke DB, hapus dan tambah ulang via UI.</li>

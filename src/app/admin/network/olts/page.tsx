@@ -927,46 +927,51 @@ export default function OLTsPage() {
                     {olt.onu_stats.online > 0 && (
                       <Link
                         href={`/admin/network/onus?olt_id=${olt.id}&filter=online`}
-                        className="text-[9px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded font-medium hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors cursor-pointer"
+                        className="text-[9px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded font-medium hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors cursor-pointer flex items-center gap-1"
                         title="View online ONUs"
                       >
-                        🟢 {olt.onu_stats.online} Online
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        {olt.onu_stats.online} Online
                       </Link>
                     )}
                     {olt.onu_stats.dying_gasp > 0 && (
                       <Link
                         href={`/admin/network/onus?olt_id=${olt.id}&filter=dying_gasp`}
-                        className="text-[9px] px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded font-medium hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors cursor-pointer"
+                        className="text-[9px] px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded font-medium hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors cursor-pointer flex items-center gap-1"
                         title="View dying gasp ONUs"
                       >
-                        ⚠️ {olt.onu_stats.dying_gasp} Dying Gasp
+                        <AlertTriangle className="w-2.5 h-2.5 text-yellow-500" />
+                        {olt.onu_stats.dying_gasp} Dying Gasp
                       </Link>
                     )}
                     {olt.onu_stats.los > 0 && (
                       <Link
                         href={`/admin/network/onus?olt_id=${olt.id}&filter=los`}
-                        className="text-[9px] px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded font-medium hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors cursor-pointer"
+                        className="text-[9px] px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded font-medium hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors cursor-pointer flex items-center gap-1"
                         title="View LOS ONUs"
                       >
-                        📡 {olt.onu_stats.los} LOS
+                        <Radio className="w-2.5 h-2.5 text-orange-500" />
+                        {olt.onu_stats.los} LOS
                       </Link>
                     )}
                     {olt.onu_stats.unconfig > 0 && (
                       <Link
                         href={`/admin/network/onus?olt_id=${olt.id}&filter=unconfig`}
-                        className="text-[9px] px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors cursor-pointer"
+                        className="text-[9px] px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors cursor-pointer flex items-center gap-1"
                         title="View unconfigured ONUs"
                       >
-                        🔧 {olt.onu_stats.unconfig} Unconfig
+                        <Wrench className="w-2.5 h-2.5 text-purple-500" />
+                        {olt.onu_stats.unconfig} Unconfig
                       </Link>
                     )}
                     {olt.onu_stats.offline > 0 && (
                       <Link
                         href={`/admin/network/onus?olt_id=${olt.id}&filter=all`}
-                        className="text-[9px] px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
+                        className="text-[9px] px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer flex items-center gap-1"
                         title="View all ONUs"
                       >
-                        🔴 {olt.onu_stats.offline} Offline
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        {olt.onu_stats.offline} Offline
                       </Link>
                     )}
                   </div>

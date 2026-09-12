@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.6
+- **Version**: 2.39.7
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 12, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,16 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 12, 2026 — v2.39.7: Master Easy Setup Guide VPS & MikroTik, Zero-Emoji Strict Compliance)
+- **Architectural Invariant: Master Easy Setup & 1-Click Paste Workflow**:
+  - Semua panduan instalasi dan integrasi router disatukan dalam master guide: `docs/setup/EUGINEBILL_EASY_SETUP_GUIDE.md`.
+  - Alur integrasi MikroTik wajib menganut prinsip: "Cuma beberapa klik di UI dan paste script di Winbox terminal, router langsung siap pakai."
+  - Root `README.md` dan `docs/DOCS_INDEX.md` menampilkan master guide ini di baris paling atas untuk memudahkan onboarding klien baru dan vendor.
+  - Halaman router (`/admin/network/routers`) dilengkapi helper card "Easy Setup Fondasi FTTH & TR-069" yang mengarahkan langsung ke generator skrip aktivasi on-demand.
+- **Strict UI Invariant: Zero Text Emojis Across ALL Portals**:
+  - Dilarang keras menggunakan text emoji pada seluruh teks antarmuka (Admin, Customer, Technician, Landing Page).
+  - Seluruh status, indikator langkah, dan tombol wajib menggunakan komponen resmi `lucide-react` (`<Radio />`, `<Server />`, `<Cloud />`, `<Zap />`, `<Terminal />`, `<Wifi />`, `<AlertTriangle />`, dot status Tailwind, dll.).
 
 ### Recent Patch Log (September 12, 2026 — v2.39.6: Built-in TR-069 ACS Engine, On-Demand VLAN 4000 Activation UI & Lean Base Scripts)
 - **Architectural Invariant: Lean Base Deployment & On-Demand TR-069 Activation**:
