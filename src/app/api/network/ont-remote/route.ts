@@ -48,30 +48,45 @@ export async function GET(request: NextRequest) {
 
       let apiConnected = false
       let apiError: string | null = null
+      let routerApiPort = 8728
+      let routerObj: any = null
 
       if (resolved.routerId) {
+        routerObj = await prisma.router.findUnique({
+          where: { id: resolved.routerId },
+          include: { vpnClient: true },
+        })
+      } else {
+        routerObj = await prisma.router.findFirst({
+          where: { isActive: true },
+          include: { vpnClient: true },
+        })
+      }
+
+      if (routerObj) {
+        // Deteksi port API aktual yang diisi admin pada form router (misal 8728, 8520, dll)
+        routerApiPort = routerObj.port || 8728
+
         try {
-          const router = await prisma.router.findUnique({ where: { id: resolved.routerId } })
-          if (router) {
-            const { RouterOSAPI: RAPI } = await import('node-routeros')
-            const api = new RAPI({
-              host: router.ipAddress || router.nasname,
-              port: router.port || 8728,
-              user: router.username,
-              password: router.password,
-              timeout: 3,
-            })
-            await api.connect()
-            apiConnected = true
-            await api.close().catch(() => {})
-          }
+          const { RouterOSAPI: RAPI } = await import('node-routeros')
+          const api = new RAPI({
+            host: routerObj.ipAddress || routerObj.nasname,
+            port: routerApiPort,
+            user: routerObj.username,
+            password: routerObj.password,
+            timeout: 3,
+          })
+          await api.connect()
+          apiConnected = true
+          await api.close().catch(() => {})
         } catch (err: any) {
           apiConnected = false
           apiError = err.message || 'Gagal terhubung ke API RouterOS'
         }
       }
 
-      const winboxScript = `/ip service set api disabled=no port=8728\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=8728 comment="ALLOW-EUGINEBILL-API" place-before=0\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=24000-24999 comment="ALLOW-EUGINEBILL-ONT-PROXY" place-before=0\r\n/ip firewall filter add chain=forward action=accept protocol=tcp dst-port=80,443,8080 comment="ALLOW-ONT-WEB-MANAGEMENT" place-before=0`
+      // Script Winbox dinamis 100% mengikuti port yang diberikan admin di field
+      const winboxScript = `/ip service set api disabled=no port=${routerApiPort}\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=${routerApiPort} comment="ALLOW-EUGINEBILL-API" place-before=0\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=24000-24999 comment="ALLOW-EUGINEBILL-ONT-PROXY" place-before=0\r\n/ip firewall filter add chain=forward action=accept protocol=tcp dst-port=80,443,8080 comment="ALLOW-ONT-WEB-MANAGEMENT" place-before=0`
 
       const ready = apiConnected && !!resolved.ip
 
@@ -80,11 +95,12 @@ export async function GET(request: NextRequest) {
         ready,
         apiConnected,
         apiError,
+        routerApiPort,
         ontIp: resolved.ip,
         username: resolved.username,
         customerName: resolved.customerName,
-        routerName: resolved.routerName,
-        routerVpnIp: resolved.routerVpnIp,
+        routerName: routerObj?.name || resolved.routerName,
+        routerVpnIp: routerObj?.ipAddress || routerObj?.nasname || resolved.routerVpnIp,
         vpsStatus: 'ready',
         winboxScript,
       })

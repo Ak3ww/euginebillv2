@@ -34,6 +34,7 @@ interface ReadinessState {
   ready: boolean
   apiConnected: boolean
   apiError?: string | null
+  routerApiPort?: number
   ontIp?: string | null
   username?: string
   customerName?: string
@@ -222,10 +223,12 @@ export default function OntRemoteModal({
     showSuccess('Link URL berhasil disalin!')
   }
 
+  const detectedPort = readiness?.routerApiPort || 8728
+
   const handleCopyScript = () => {
     const script =
       readiness?.winboxScript ||
-      `/ip service set api disabled=no port=8728\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=8728 comment="ALLOW-EUGINEBILL-API" place-before=0\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=24000-24999 comment="ALLOW-EUGINEBILL-ONT-PROXY" place-before=0\r\n/ip firewall filter add chain=forward action=accept protocol=tcp dst-port=80,443,8080 comment="ALLOW-ONT-WEB-MANAGEMENT" place-before=0`
+      `/ip service set api disabled=no port=${detectedPort}\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=${detectedPort} comment="ALLOW-EUGINEBILL-API" place-before=0\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=24000-24999 comment="ALLOW-EUGINEBILL-ONT-PROXY" place-before=0\r\n/ip firewall filter add chain=forward action=accept protocol=tcp dst-port=80,443,8080 comment="ALLOW-ONT-WEB-MANAGEMENT" place-before=0`
     navigator.clipboard.writeText(script)
     setScriptCopied(true)
     setTimeout(() => setScriptCopied(false), 2000)
@@ -240,7 +243,7 @@ export default function OntRemoteModal({
 
   const defaultScript =
     readiness?.winboxScript ||
-    `/ip service set api disabled=no port=8728\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=8728 comment="ALLOW-EUGINEBILL-API" place-before=0\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=24000-24999 comment="ALLOW-EUGINEBILL-ONT-PROXY" place-before=0\r\n/ip firewall filter add chain=forward action=accept protocol=tcp dst-port=80,443,8080 comment="ALLOW-ONT-WEB-MANAGEMENT" place-before=0`
+    `/ip service set api disabled=no port=${detectedPort}\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=${detectedPort} comment="ALLOW-EUGINEBILL-API" place-before=0\r\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=24000-24999 comment="ALLOW-EUGINEBILL-ONT-PROXY" place-before=0\r\n/ip firewall filter add chain=forward action=accept protocol=tcp dst-port=80,443,8080 comment="ALLOW-ONT-WEB-MANAGEMENT" place-before=0`
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -334,7 +337,7 @@ export default function OntRemoteModal({
                   </div>
                   <p className="text-muted-foreground leading-relaxed text-[11px]">
                     {!readiness.apiConnected
-                      ? 'EugineBill belum dapat mengakses API port 8728 di router. Salin dan jalankan script aktivasi Winbox di bawah ini.'
+                      ? `EugineBill belum dapat mengakses API port ${detectedPort} di router ini. Salin dan jalankan script aktivasi Winbox di bawah ini.`
                       : 'Pelanggan saat ini belum terhubung (offline) atau IP PPPoE belum terdaftar di MikroTik.'}
                   </p>
                 </div>
@@ -346,7 +349,10 @@ export default function OntRemoteModal({
                   <div className="flex items-center justify-between border-b border-border/60 pb-2">
                     <div className="flex items-center gap-2 font-semibold text-foreground">
                       <Terminal className="w-4 h-4 text-primary" />
-                      <span>Script Aktivasi MikroTik (Winbox Terminal)</span>
+                      <span>Script Aktivasi MikroTik</span>
+                      <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                        API Port: {detectedPort}
+                      </span>
                     </div>
                     <button
                       type="button"
