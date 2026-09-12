@@ -21,7 +21,9 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
        - Menambahkan sinkronisasi waktu otomatis via Cloud Time (`/ip cloud set update-time=yes`), Timezone `Asia/Jakarta`, dan SNTP Client (`id.pool.ntp.org`, `time.google.com`).
        - Mematikan `use-peer-dns` pada DHCP Client dan mengarahkan DNS MikroTik ke Cloudflare (`1.1.1.1`) & Google (`8.8.8.8`) untuk resolusi bebas manipulasi ISP.
        - Menghapus profil & pool isolir dari skrip pondasi agar dikelola dinamis oleh modul billing.
-       - Mengeliminasi 3 rule masquerade internal yang redundan dan menyetel DST-NAT Web GUI OLT ke port `8001` (diarahkan ke `192.168.30.6:80`).
+    4. **Deteksi Port API Dinamis Sesuai Isian Admin (`router.port`)**:
+       - Menghapus hardcoded port 8728 pada script aktivasi Winbox. Sistem secara otomatis membaca `router.port` yang dikonfigurasi admin pada form router (misal port 8520, 8728, dll.).
+       - Payload script dan firewall filter input secara dinamis menyesuaikan `/ip service set api disabled=no port=${routerApiPort}` dan `dst-port=${routerApiPort}` agar tidak terjadi benturan port atau kegagalan koneksi API.
   - *Files*:
     - `src/app/api/network/ont-remote/route.ts`
     - `src/components/admin/OntRemoteModal.tsx`
