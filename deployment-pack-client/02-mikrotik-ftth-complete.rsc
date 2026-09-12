@@ -90,11 +90,9 @@ add address=10.40.10.0/24 comment="NET-TR069-ACS" dns-server=1.1.1.1,8.8.8.8 gat
 # 8. PPPOE IP POOLS & BANDWIDTH PROFILES
 # ------------------------------------------------------------------------------
 /ip pool
-add comment="POOL-PPPOE-SUBSCRIBERS" name=POOL-PPPOE ranges=192.168.20.2-192.168.21.254,192.168.22.2-192.168.22.254
-add comment="POOL-ISOLIR-OVERDUE" name=pool-isolir ranges=192.168.200.100-192.168.200.200
+add comment="POOL-IP-PELANGGAN-PPPOE" name=POOL-PPPOE ranges=192.168.20.2-192.168.21.254,192.168.22.2-192.168.22.254
 
 /ppp profile
-add address-list=isolir comment="PROFILE-ISOLIR" local-address=192.168.200.1 name=isolir rate-limit=64k/64k remote-address=pool-isolir use-compression=no use-encryption=no use-mpls=no
 add local-address=192.168.20.1 name="10 Mbps" only-one=yes rate-limit="10M/10M" remote-address=POOL-PPPOE
 add local-address=192.168.20.1 name="20 Mbps" only-one=yes rate-limit="20M/20M" remote-address=POOL-PPPOE
 add local-address=192.168.20.1 name="30 Mbps" only-one=yes rate-limit="30M/30M" remote-address=POOL-PPPOE
@@ -122,14 +120,9 @@ add action=change-mss chain=forward comment="TCP-MSS-CLAMPING" new-mss=clamp-to-
 # Outbound Internet Masquerade via WAN Uplink
 add action=masquerade chain=srcnat comment="NAT-MASQUERADE-WAN-OUTBOUND" out-interface=ether1
 
-# Internal Subnets Masquerade
-add action=masquerade chain=srcnat comment="NAT-SRC-PPPOE-SUBSCRIBERS" src-address=192.168.20.0/22
-add action=masquerade chain=srcnat comment="NAT-SRC-LOCAL-LAN" src-address=192.168.50.0/24
-add action=masquerade chain=srcnat comment="NAT-SRC-TR069-ACS" src-address=10.40.10.0/24
-
-# Management OLT Access NAT
+# Management OLT Access NAT (Forward Web GUI OLT to Port 8001)
 add action=masquerade chain=srcnat comment="NAT-SRC-MGMT-OLT" dst-address=192.168.30.6
-add action=dst-nat chain=dstnat comment="DSTNAT-MGMT-WEB-OLT-8003" dst-port=8003 protocol=tcp to-addresses=192.168.30.6 to-ports=8003
+add action=dst-nat chain=dstnat comment="DSTNAT-MGMT-WEB-OLT-8001" dst-port=8001 protocol=tcp to-addresses=192.168.30.6 to-ports=80
 
 # ------------------------------------------------------------------------------
 # 12. RECURSIVE DNS RESOLVER & CACHE
