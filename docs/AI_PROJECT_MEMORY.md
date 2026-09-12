@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.10
+- **Version**: 2.39.11
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 12, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,18 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 12, 2026 — v2.39.11: Client Deployment Toolkit Hardening - OLT VSOL V1600GS & MikroTik FTTH Pack)
+- **Architectural Invariant: Toolkit Synchronization & Zero-Friction Field Deployment**:
+  - **The Context**: Toolkit deployment klien di `deployment-pack-client/` adalah fondasi lapangan yang dibawa teknisi dengan flashdisk/laptop untuk setup OLT dan MikroTik klien secara offline maupun online dalam waktu 10–15 menit.
+  - **OLT Web Management Port Alignment**:
+    - File konfigurasi OLT `01-vsol-1600gs-clean.conf` diselaraskan ke `web port 80` (standar default pabrikan OLT VSOL V1600GS).
+  - **MikroTik Fail-Safe NAT & Remote Management**:
+    - File `02-mikrotik-ftth-complete.rsc` menyediakan dual-port DST-NAT fail-safe:
+      - Port `8001` -> `192.168.30.6:80` (standar akses web GUI OLT via MikroTik).
+      - Port `8003` -> `192.168.30.6:8003` (fallback port).
+      - Port UDP `1611` -> `192.168.30.6:161` (SNMP forwarding untuk monitoring OLT).
+    - Memungkinkan laptop teknisi di port LAN/Wi-Fi (`192.168.50.x`) langsung membuka `http://192.168.30.1:8001` atau `http://192.168.50.1:8001` tanpa perlu cabut-pasang kabel ke port MGMT OLT.
 
 ### Recent Patch Log (September 12, 2026 — v2.39.10: Universal Client-Side Auto-Compression & High-Capacity Image Upload Engine)
 - **Architectural Invariant: Dual-Layer Zero-Failure Image Upload Architecture**:

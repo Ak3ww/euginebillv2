@@ -3,6 +3,23 @@
 All notable changes to EugineBill RADIUS are documented in this file.  
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.39.11] — 2026-09-12
+### Client Deployment Toolkit Hardening (OLT VSOL V1600GS & MikroTik FTTH Pack)
+- **Verifikasi & Harmonisasi Toolkit Lapangan OLT & MikroTik**:
+  - *Context / User Request*:
+    Persiapan final toolkit instalasi OLT VSOL V1600GS dan MikroTik FTTH untuk dibawa langsung ke lokasi klien. Memastikan file konfigurasi dan skrip import 100% sinkron, bebas bug, dan siap pakai secara plug & play tanpa kendala akses remote.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Sinkronisasi Port Web Management OLT**:
+       - Mengembalikan `web port 80` pada konfigurasi OLT VSOL (`01-vsol-1600gs-clean.conf`) agar sesuai dengan standar pabrikan dan forwarding MikroTik.
+    2. **Dual-Port Fail-Safe NAT & SNMP Forwarding di MikroTik (`02-mikrotik-ftth-complete.rsc`)**:
+       - Menambahkan aturan DST-NAT port 8001 -> `192.168.30.6:80` dan fallback port 8003 -> `192.168.30.6:8003` sehingga laptop teknisi dapat membuka web GUI OLT dari segmen manapun (`192.168.30.1:8001` atau `192.168.50.1:8001`).
+       - Menambahkan DST-NAT UDP port 1611 -> `192.168.30.6:161` untuk kemudahan monitoring SNMP OLT langsung dari MikroTik.
+  - *Files*:
+    - `deployment-pack-client/01-vsol-1600gs-clean.conf`
+    - `deployment-pack-client/02-mikrotik-ftth-complete.rsc`
+    - `deployment-pack-client/PANDUAN_SETUP_LENGKAP_OLT_MIKROTIK.md`
+
 ## [2.39.10] — 2026-09-12
 ### Universal Client-Side Auto-Compression & High-Capacity Image Upload Engine
 - **Sistem Kompresi Gambar Otomatis & Penaikan Kapasitas Upload Universal**:
