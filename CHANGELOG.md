@@ -4,6 +4,26 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.4] — 2026-09-12
+### Ultra-Lean FTTH Deployment Pack: WAN DHCP Client, LAN Plug-and-Play DHCP Server, & Queue/Mangle Elimination
+- **Penyederhanaan Skrip Pondasi FTTH (`deployment-pack-client/02-mikrotik-ftth-complete.rsc`)**:
+  - *Context / User Request*:
+    Pengguna membutuhkan skrip deployment MikroTik FTTH yang langsung membuat internet aktif menggunakan sumber internet dari modem ISP. Mengeliminasi antrian rumit (Queue CAKE) dan mangle game yang berpotensi membebani CPU atau menyebabkan kegagalan eksekusi, serta menambahkan WAN DHCP Client dan LAN DHCP Server agar laptop teknisi atau access point langsung terhubung ke internet saat dicolok.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **WAN DHCP Client Otomatis**:
+       - Menambahkan `/ip dhcp-client` pada port `ether1` dengan opsi `add-default-route=yes` dan `use-peer-dns=yes` agar otomatis mendapatkan rute default dan DNS dari modem ISP.
+    2. **LAN DHCP Server Plug & Play**:
+       - Menggabungkan port `ether2-ether5` ke dalam `bridge-LAN` dengan subnet gateway `192.168.50.1/24` dan pool DHCP `192.168.50.10-192.168.50.250`.
+    3. **Eliminasi Queue CAKE & Game Mangle**:
+       - Menghapus tipe antrian `cake` dan dependensi `queue-type=cake` pada seluruh profil PPPoE. Profil beralih menggunakan *standard simple queue* bawaan RouterOS.
+       - Menghapus seluruh rule firewall mangle game online (MLBB, PUBG, dll.), hanya mempertahankan TCP MSS Clamping untuk mencegah fragmentasi paket PPPoE.
+    4. **Protokol Diagnostik Terminal Winbox**:
+       - Menetapkan alur kerja diagnostik interaktif di mana pengguna mem-paste skrip ke Terminal Winbox dan memberikan output log terminal ke Agent untuk dianalisis baris demi baris secara presisi.
+  - *Files*:
+    - `deployment-pack-client/02-mikrotik-ftth-complete.rsc`
+    - `deployment-pack-client/PANDUAN_SETUP_LENGKAP_OLT_MIKROTIK.md`
+    - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.39.3] — 2026-09-11
 ### Strict Admin-Defined Port Forwarding (Direct VPS Iptables Application Without Router Probing)
 - **Penegakan Port Forwarding Murni dari Isian Admin (`applyAdminPortForwarding`)**:

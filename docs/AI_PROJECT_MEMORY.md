@@ -10,15 +10,27 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.3
+- **Version**: 2.39.4
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
-- **Last Updated**: September 11, 2026
+- **Last Updated**: September 12, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
 - **Turnkey 1-Command Installer**: `curl -fsSL https://raw.githubusercontent.com/Ak3ww/euginebillv2/main/scripts/install.sh | sudo bash`
 
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 12, 2026 — v2.39.4: FTTH Deployment Pack Lean Architecture & Terminal Feedback Loop)
+- **Critical Invariant: Ultra-Lean FTTH Deployment Pack (`02-mikrotik-ftth-complete.rsc`)**:
+  - Dilarang memasukkan Queue CAKE (`queue-type=cake`) dan Game Mangle berlebihan ke skrip pondasi awal. Algoritma CAKE dan puluhan aturan mangle sering menyebabkan latensi CPU tinggi, bufferbloat tak terduga, dan inkompatibilitas antar varian chipset RouterOS v7.
+  - Skrip pondasi FTTH WAJIB mengutamakan prinsip *direct connectivity*:
+    1. **WAN DHCP Client**: Port `ether1` mengambil IP, default gateway, dan DNS otomatis dari modem ISP (`/ip dhcp-client add interface=ether1 ...`).
+    2. **LAN DHCP Server Plug & Play**: Port `ether2-5` digabung ke `bridge-LAN` (`192.168.50.1/24`) dengan DHCP Server aktif (`192.168.50.10-250`) agar laptop teknisi atau Access Point langsung mendapat internet begitu dicolok.
+    3. **VLAN OLT**: VLAN 20 (PPPoE), VLAN 30 (Management OLT `192.168.30.1`), dan VLAN 4000 (TR-069 ACS `10.40.10.1`) terpasang di atas `bridge-LAN`.
+    4. **Standard Simple Queue**: Profil PPPoE menggunakan rate-limit native RouterOS (misal `rate-limit="20M/20M"`) yang ringan dan stabil.
+- **Workflow Invariant: Interactive Terminal Winbox Feedback Loop**:
+  - Saat pengguna mengonfigurasi router di lapangan, pengguna akan mem-paste skrip ke Terminal Winbox dan mem-paste kembali pesan output/error terminal ke Agent.
+  - Agent WAJIB langsung menganalisis baris output tersebut (misal `failure: already have such name`, `invalid value for argument`, atau port bentrok), mengidentifikasi penyebab pastinya, dan memberikan perintah perbaikan yang presisi baris per baris.
 
 ### Recent Patch Log (September 11, 2026 — v2.39.3: Strict Admin-Defined Port Forwarding Without Probing)
 - **Critical Invariant: Strict Admin-Driven Port Forwarding (`applyAdminPortForwarding`)**:
