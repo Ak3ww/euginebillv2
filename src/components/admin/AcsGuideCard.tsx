@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Wifi,
   Globe,
   Copy,
   Check,
@@ -11,13 +10,12 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
-  ShieldCheck,
-  Info,
   Laptop,
   CheckCircle2,
-  Cpu,
   Layers,
-  Sparkles,
+  Terminal,
+  Cpu,
+  Zap,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,9 +27,12 @@ interface AcsGuideCardProps {
 
 export default function AcsGuideCard({ initialHost }: AcsGuideCardProps) {
   const [acsUrl, setAcsUrl] = useState<string>('http://domain-anda.com/api/cwmp');
-  const [copied, setCopied] = useState<boolean>(false);
+  const [copiedAcs, setCopiedAcs] = useState<boolean>(false);
+  const [copiedMikrotik, setCopiedMikrotik] = useState<boolean>(false);
+  const [copiedOlt, setCopiedOlt] = useState<boolean>(false);
   const [showFullGuide, setShowFullGuide] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'zte' | 'huawei' | 'fiberhome' | 'vsol'>('zte');
+  const [mainStep, setMainStep] = useState<'mikrotik' | 'olt' | 'ont'>('mikrotik');
+  const [ontTab, setOntTab] = useState<'zte' | 'huawei' | 'fiberhome' | 'vsol'>('zte');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -42,13 +43,76 @@ export default function AcsGuideCard({ initialHost }: AcsGuideCardProps) {
     }
   }, [initialHost]);
 
-  const handleCopy = async () => {
+  const handleCopyAcs = async () => {
     try {
       await navigator.clipboard.writeText(acsUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedAcs(true);
+      setTimeout(() => setCopiedAcs(false), 2000);
     } catch (err) {
       console.error('Failed to copy ACS URL:', err);
+    }
+  };
+
+  const mikrotikScript = `# ==============================================================================
+# AKTIVASI DEDICATED VLAN TR-069 ACS DI MIKROTIK
+# Jalankan di: Winbox -> New Terminal
+# ==============================================================================
+/interface vlan
+add comment="VLAN4000-TR069-ACS" interface=bridge-LAN name=vlan4000-tr069 vlan-id=4000
+
+/ip address
+add address=10.40.10.1/24 comment="IP-GATEWAY-TR069-ACS" interface=vlan4000-tr069 network=10.40.10.0
+
+/ip pool
+add comment="POOL-DHCP-TR069" name=dhcp_pool_tr069 ranges=10.40.10.2-10.40.11.254
+
+/ip dhcp-server
+add address-pool=dhcp_pool_tr069 comment="DHCP-SERVER-TR069" disabled=no interface=vlan4000-tr069 name=dhcp-tr069
+
+/ip dhcp-server network
+add address=10.40.10.0/24 comment="NET-TR069-ACS" dns-server=1.1.1.1,8.8.8.8 gateway=10.40.10.1`;
+
+  const oltScript = `! ==============================================================================
+! AKTIVASI VLAN 4000 TR-069 PADA OLT VSOL V1600GS
+! Jalankan di: Telnet / SSH / Serial Console OLT
+! ==============================================================================
+enable
+config
+vlan 4000
+description VLAN4000-TR069
+exit
+
+interface gigabitEthernet 0/1
+switchport hybrid vlan 4000 tagged
+exit
+
+interface gigabitEthernet 0/2
+switchport hybrid vlan 4000 tagged
+exit
+
+interface gigabitEthernet 0/3
+switchport hybrid vlan 4000 tagged
+exit
+
+write`;
+
+  const handleCopyMikrotik = async () => {
+    try {
+      await navigator.clipboard.writeText(mikrotikScript);
+      setCopiedMikrotik(true);
+      setTimeout(() => setCopiedMikrotik(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy MikroTik script:', err);
+    }
+  };
+
+  const handleCopyOlt = async () => {
+    try {
+      await navigator.clipboard.writeText(oltScript);
+      setCopiedOlt(true);
+      setTimeout(() => setCopiedOlt(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy OLT script:', err);
     }
   };
 
@@ -63,36 +127,36 @@ export default function AcsGuideCard({ initialHost }: AcsGuideCardProps) {
                 <Server className="w-5 h-5" />
               </span>
               <h2 className="text-base font-semibold text-foreground">
-                Panduan Integrasi Built-in TR-069 ACS
+                Built-in TR-069 ACS (Bukan GenieACS)
               </h2>
               <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-medium">
-                Native Next.js Engine
+                Otomatis Aktif di VPS
               </Badge>
               <Badge variant="secondary" className="text-xs">
-                Bukan GenieACS
+                Zero Docker / Zero Mongo
               </Badge>
               <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20">
                 VLAN 4000 & In-Band Ready
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed max-w-3xl">
-              EugineBill mengusung Built-in TR-069 CWMP Server bawaan (100% otomatis aktif di VPS). ONT/CPE pelanggan dapat terhubung melalui <strong>Dedicated Management VLAN 4000</strong> (DHCP 10.40.10.x pada MikroTik &amp; OLT) atau secara <strong>In-Band</strong> via VLAN 20 PPPoE tanpa perlu Docker GenieACS maupun MongoDB.
+              Engine TR-069 CWMP terintegrasi langsung di dalam EugineBill. Skrip bawaan OLT dan MikroTik dibuat seringan mungkin (ultra-lean). Jika Anda ingin mengaktifkan manajemen jarak jauh TR-069 via VLAN 4000, salin skrip siap pakai di bawah ini.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
             <Button
-              variant="outline"
+              variant={showFullGuide ? "default" : "outline"}
               size="sm"
               onClick={() => setShowFullGuide(!showFullGuide)}
               className="text-xs gap-1.5 h-9"
             >
-              <BookOpen className="w-4 h-4 text-primary" />
-              <span>{showFullGuide ? 'Tutup Panduan' : 'Panduan Setting ONT'}</span>
+              <BookOpen className="w-4 h-4" />
+              <span>{showFullGuide ? 'Tutup Panduan' : 'Buka Panduan Setup TR-069'}</span>
               {showFullGuide ? (
-                <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
+                <ChevronUp className="w-3.5 h-3.5" />
               ) : (
-                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                <ChevronDown className="w-3.5 h-3.5" />
               )}
             </Button>
             <a
@@ -113,7 +177,7 @@ export default function AcsGuideCard({ initialHost }: AcsGuideCardProps) {
             <div className="space-y-1">
               <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5 text-primary" />
-                URL ACS EugineBill (Masukkan ke Menu TR-069 Modem)
+                URL ACS EugineBill (Masukkan ke Pengaturan TR-069 Modem)
               </span>
               <div className="flex items-center gap-2">
                 <code className="text-xs sm:text-sm font-mono font-semibold text-primary bg-background px-2.5 py-1 rounded border border-border select-all">
@@ -124,12 +188,12 @@ export default function AcsGuideCard({ initialHost }: AcsGuideCardProps) {
 
             <div className="flex items-center gap-2 flex-wrap">
               <Button
-                variant={copied ? "default" : "secondary"}
+                variant={copiedAcs ? "default" : "secondary"}
                 size="sm"
-                onClick={handleCopy}
+                onClick={handleCopyAcs}
                 className="text-xs gap-1.5 h-8 font-medium"
               >
-                {copied ? (
+                {copiedAcs ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-white" />
                     <span>Tersalin ke Clipboard</span>
@@ -150,10 +214,10 @@ export default function AcsGuideCard({ initialHost }: AcsGuideCardProps) {
               <span className="font-mono">/api/cwmp</span>
             </div>
             <div>
-              <span className="font-medium text-foreground">Metode:</span> VLAN 4000 (DHCP) / In-Band (VLAN 20)
+              <span className="font-medium text-foreground">VLAN Rekomendasi:</span> VLAN 4000 (DHCP)
             </div>
             <div>
-              <span className="font-medium text-foreground">Username / Pass:</span>{' '}
+              <span className="font-medium text-foreground">Username / Password:</span>{' '}
               <span className="italic">Kosongkan (Default)</span>
             </div>
             <div>
@@ -162,262 +226,353 @@ export default function AcsGuideCard({ initialHost }: AcsGuideCardProps) {
           </div>
         </div>
 
-        {/* Expandable Guide Section */}
+        {/* Expandable Step-by-Step Setup Guide */}
         {showFullGuide && (
           <div className="pt-2 border-t border-border space-y-4 animate-in fade-in-50 duration-200">
-            {/* Quick Principles */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="bg-background border border-border rounded-lg p-3.5 space-y-1.5">
-                <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                  <span className="p-1 rounded bg-blue-500/10 text-blue-600">
-                    <Layers className="w-4 h-4" />
-                  </span>
-                  1. Opsi A: Dedicated VLAN 4000 (Rekomendasi)
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Modem menggunakan WAN ke-2 mode IPoE/DHCP pada VLAN 4000. MikroTik otomatis memberi IP <span className="font-mono text-foreground font-semibold">10.40.10.x</span>. Modem tetap terpantau di ACS meski PPPoE mati/terisolir.
-                </p>
-              </div>
+            {/* Step Navigation Tabs */}
+            <div className="flex items-center gap-2 border-b border-border pb-3 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setMainStep('mikrotik')}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                  mainStep === 'mikrotik'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Terminal className="w-4 h-4" />
+                <span>Langkah 1: Setup MikroTik (VLAN 4000)</span>
+              </button>
 
-              <div className="bg-background border border-border rounded-lg p-3.5 space-y-1.5">
-                <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                  <span className="p-1 rounded bg-emerald-500/10 text-emerald-600">
-                    <Wifi className="w-4 h-4" />
-                  </span>
-                  2. Opsi B: In-Band PPPoE (VLAN 20)
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Cukup 1 WAN PPPoE di VLAN 20, ubah Service Type dari <span className="font-mono text-foreground font-semibold">INTERNET</span> menjadi <span className="font-mono text-foreground font-semibold">INTERNET,TR069</span> tanpa perlu WAN ke-2.
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setMainStep('olt')}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                  mainStep === 'olt'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Layers className="w-4 h-4" />
+                <span>Langkah 2: Setup OLT VSOL (VLAN 4000)</span>
+              </button>
 
-              <div className="bg-background border border-border rounded-lg p-3.5 space-y-1.5">
-                <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                  <span className="p-1 rounded bg-purple-500/10 text-purple-600">
-                    <Sparkles className="w-4 h-4" />
-                  </span>
-                  3. Auto-Mapping Akun Pelanggan
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  EugineBill otomatis memetakan serial number modem ke akun pelanggan berdasarkan sesi PPPoE aktif saat paket SOAP Inform masuk ke ACS.
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setMainStep('ont')}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                  mainStep === 'ont'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Laptop className="w-4 h-4" />
+                <span>Langkah 3: Setting Modem ONT Pelanggan</span>
+              </button>
             </div>
 
-            {/* Brand-Specific Steps Tabs */}
-            <div className="bg-background border border-border rounded-lg p-4 space-y-3">
-              <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-border">
-                <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Laptop className="w-4 h-4 text-primary" />
-                  Panduan Langkah per Merk Modem / ONT
-                </span>
-                <div className="inline-flex rounded-md border border-border p-0.5 bg-muted/30">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('zte')}
-                    className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${
-                      activeTab === 'zte'
-                        ? 'bg-primary text-primary-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
+            {/* STEP 1: MIKROTIK */}
+            {mainStep === 'mikrotik' && (
+              <div className="bg-background border border-border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h3 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Terminal className="w-4 h-4 text-primary" />
+                      Skrip Terminal Winbox MikroTik (VLAN 4000 & DHCP Server)
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Buka Winbox &rarr; klik <strong>New Terminal</strong> &rarr; paste skrip berikut.
+                    </p>
+                  </div>
+
+                  <Button
+                    variant={copiedMikrotik ? "default" : "outline"}
+                    size="sm"
+                    onClick={handleCopyMikrotik}
+                    className="text-xs gap-1.5 h-8 font-medium"
                   >
-                    ZTE (F609/F670L)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('huawei')}
-                    className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${
-                      activeTab === 'huawei'
-                        ? 'bg-primary text-primary-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Huawei (HG8245H/EG8145)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('fiberhome')}
-                    className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${
-                      activeTab === 'fiberhome'
-                        ? 'bg-primary text-primary-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Fiberhome (HG6243/6245)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('vsol')}
-                    className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${
-                      activeTab === 'vsol'
-                        ? 'bg-primary text-primary-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    VSOL / XPON Umum
-                  </button>
+                    {copiedMikrotik ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-white" />
+                        <span>Script Tersalin!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Salin Script MikroTik</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="relative">
+                  <pre className="bg-muted/60 text-foreground font-mono text-[11px] p-3 rounded-lg border border-border overflow-x-auto leading-relaxed">
+                    {mikrotikScript}
+                  </pre>
+                </div>
+
+                <div className="text-[11px] text-muted-foreground bg-muted/20 p-2.5 rounded border border-border/50">
+                  <strong>Catatan Teknis:</strong> Subnet <code className="text-foreground font-mono">10.40.10.0/24</code> akan otomatis membagikan IP dinamis ke modem pelanggan pada VLAN 4000 sehingga modem langsung dapat mengakses endpoint ACS EugineBill.
                 </div>
               </div>
+            )}
 
-              {/* ZTE */}
-              {activeTab === 'zte' && (
-                <div className="space-y-2.5 text-xs text-foreground leading-relaxed">
-                  <div className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    Konfigurasi ONT ZTE (F609, F670L, F660):
+            {/* STEP 2: OLT */}
+            {mainStep === 'olt' && (
+              <div className="bg-background border border-border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h3 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-primary" />
+                      Perintah CLI OLT VSOL V1600GS (Tagging VLAN 4000 ke Uplink)
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Akses OLT via Telnet / SSH / Serial Console lalu jalankan baris perintah ini.
+                    </p>
                   </div>
-                  <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
-                    <li>
-                      Buka web admin ONT ZTE (biasanya <code className="font-mono text-foreground">192.168.1.1</code>).
-                    </li>
-                    <li>
-                      Masuk ke menu <strong className="text-foreground">Network</strong> &rarr; <strong className="text-foreground">WAN</strong> &rarr; <strong className="text-foreground">WAN Connection</strong>.
-                    </li>
-                    <li>
-                      Pilih koneksi PPPoE yang aktif, cari opsi <strong className="text-foreground">Service List</strong>, lalu ganti dari <code className="font-mono text-foreground">INTERNET</code> menjadi <code className="font-mono text-foreground font-semibold">INTERNET_TR069</code>. Klik <strong className="text-foreground">Modify</strong>.
-                    </li>
-                    <li>
-                      Masuk ke menu <strong className="text-foreground">Administration</strong> &rarr; <strong className="text-foreground">TR-069</strong>.
-                    </li>
-                    <li>
-                      Centang <strong className="text-foreground">Enable CWMP</strong>.
-                    </li>
-                    <li>
-                      Pada kolom <strong className="text-foreground">ACS URL</strong>, masukkan:{' '}
-                      <code className="font-mono text-primary font-semibold bg-muted px-1.5 py-0.5 rounded border border-border">
-                        {acsUrl}
-                      </code>
-                    </li>
-                    <li>
-                      Username dan Password ACS dapat dikosongkan (default).
-                    </li>
-                    <li>
-                      Centang <strong className="text-foreground">Enable Periodic Inform</strong> dan set interval ke <strong className="text-foreground">300</strong> detik.
-                    </li>
-                    <li>
-                      Klik <strong className="text-foreground">Submit</strong>. Modem akan langsung mengirim Inform dan muncul di tabel ACS dalam 1-2 menit.
-                    </li>
-                  </ol>
-                </div>
-              )}
 
-              {/* HUAWEI */}
-              {activeTab === 'huawei' && (
-                <div className="space-y-2.5 text-xs text-foreground leading-relaxed">
-                  <div className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    Konfigurasi ONT Huawei (HG8245H, HG8245A, EG8145V5):
-                  </div>
-                  <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
-                    <li>
-                      Buka web ONT Huawei (biasanya <code className="font-mono text-foreground">192.168.100.1</code> atau <code className="font-mono text-foreground">192.168.18.1</code>).
-                    </li>
-                    <li>
-                      Masuk ke tab <strong className="text-foreground">WAN</strong> &rarr; <strong className="text-foreground">WAN Configuration</strong>.
-                    </li>
-                    <li>
-                      Pilih profil WAN PPPoE, pada kolom <strong className="text-foreground">Service Type</strong> pastikan dicentang atau dipilih <code className="font-mono text-foreground font-semibold">INTERNET, TR069</code>. Klik <strong className="text-foreground">Apply</strong>.
-                    </li>
-                    <li>
-                      Buka tab <strong className="text-foreground">System Tools</strong> &rarr; <strong className="text-foreground">TR-069</strong>.
-                    </li>
-                    <li>
-                      Centang <strong className="text-foreground">Enable TR-069</strong>.
-                    </li>
-                    <li>
-                      Pada kolom <strong className="text-foreground">URL</strong>, masukkan:{' '}
-                      <code className="font-mono text-primary font-semibold bg-muted px-1.5 py-0.5 rounded border border-border">
-                        {acsUrl}
-                      </code>
-                    </li>
-                    <li>
-                      Centang <strong className="text-foreground">Periodic Inform</strong> dengan interval <strong className="text-foreground">300</strong> detik.
-                    </li>
-                    <li>
-                      Klik <strong className="text-foreground">Apply</strong>. Status perangkat akan segera sinkron.
-                    </li>
-                  </ol>
+                  <Button
+                    variant={copiedOlt ? "default" : "outline"}
+                    size="sm"
+                    onClick={handleCopyOlt}
+                    className="text-xs gap-1.5 h-8 font-medium"
+                  >
+                    {copiedOlt ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-white" />
+                        <span>Perintah CLI Tersalin!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Salin CLI OLT</span>
+                      </>
+                    )}
+                  </Button>
                 </div>
-              )}
 
-              {/* FIBERHOME */}
-              {activeTab === 'fiberhome' && (
-                <div className="space-y-2.5 text-xs text-foreground leading-relaxed">
-                  <div className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    Konfigurasi ONT Fiberhome (HG6243C, HG6245D):
-                  </div>
-                  <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
-                    <li>
-                      Buka web ONT Fiberhome (<code className="font-mono text-foreground">192.168.1.1</code>).
-                    </li>
-                    <li>
-                      Masuk ke <strong className="text-foreground">Network</strong> &rarr; <strong className="text-foreground">Broadband Settings</strong> &rarr; <strong className="text-foreground">Internet Settings</strong>.
-                    </li>
-                    <li>
-                      Pada konfigurasi WAN PPPoE, pastikan <strong className="text-foreground">Service List</strong> disetel ke <code className="font-mono text-foreground font-semibold">INTERNET,TR069</code>. Klik simpan.
-                    </li>
-                    <li>
-                      Masuk ke menu <strong className="text-foreground">Management</strong> &rarr; <strong className="text-foreground">TR-069</strong>.
-                    </li>
-                    <li>
-                      Set <strong className="text-foreground">CWMP Enable</strong> ke <strong className="text-foreground">Yes</strong>.
-                    </li>
-                    <li>
-                      Isi <strong className="text-foreground">URL</strong> dengan:{' '}
-                      <code className="font-mono text-primary font-semibold bg-muted px-1.5 py-0.5 rounded border border-border">
-                        {acsUrl}
-                      </code>
-                    </li>
-                    <li>
-                      Set <strong className="text-foreground">Periodic Inform</strong> ke <strong className="text-foreground">Enable</strong> dengan interval <strong className="text-foreground">300</strong>.
-                    </li>
-                    <li>
-                      Klik <strong className="text-foreground">Apply</strong>.
-                    </li>
-                  </ol>
+                <div className="relative">
+                  <pre className="bg-muted/60 text-foreground font-mono text-[11px] p-3 rounded-lg border border-border overflow-x-auto leading-relaxed">
+                    {oltScript}
+                  </pre>
                 </div>
-              )}
 
-              {/* VSOL */}
-              {activeTab === 'vsol' && (
-                <div className="space-y-2.5 text-xs text-foreground leading-relaxed">
-                  <div className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    Konfigurasi ONT VSOL / XPON Generic:
-                  </div>
-                  <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
-                    <li>
-                      Buka web ONT VSOL (<code className="font-mono text-foreground">192.168.1.1</code>).
-                    </li>
-                    <li>
-                      Masuk ke menu <strong className="text-foreground">Network</strong> &rarr; <strong className="text-foreground">WAN Settings</strong>.
-                    </li>
-                    <li>
-                      Pada interface PPPoE VLAN 20, set <strong className="text-foreground">Service Mode / Type</strong> ke <code className="font-mono text-foreground font-semibold">INTERNET,TR069</code>. Simpan konfigurasi.
-                    </li>
-                    <li>
-                      Masuk ke menu <strong className="text-foreground">Management / Admin</strong> &rarr; <strong className="text-foreground">TR069 Config</strong>.
-                    </li>
-                    <li>
-                      Aktifkan <strong className="text-foreground">TR069 Enable</strong>.
-                    </li>
-                    <li>
-                      Masukkan <strong className="text-foreground">ACS Server URL</strong>:{' '}
-                      <code className="font-mono text-primary font-semibold bg-muted px-1.5 py-0.5 rounded border border-border">
-                        {acsUrl}
-                      </code>
-                    </li>
-                    <li>
-                      Centang <strong className="text-foreground">Periodic Inform</strong> interval <strong className="text-foreground">300</strong> detik.
-                    </li>
-                    <li>
-                      Klik <strong className="text-foreground">Apply</strong>. Selesai!
-                    </li>
-                  </ol>
+                <div className="text-[11px] text-muted-foreground bg-muted/20 p-2.5 rounded border border-border/50">
+                  <strong>Catatan OLT:</strong> Perintah di atas menambahkan VLAN 4000 ke database OLT dan menandai port uplink GE 0/1, 0/2, 0/3 sebagai tagged agar paket TR-069 dari PON dapat diteruskan ke MikroTik.
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* STEP 3: ONT MODEM */}
+            {mainStep === 'ont' && (
+              <div className="bg-background border border-border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-border">
+                  <div>
+                    <h3 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Laptop className="w-4 h-4 text-primary" />
+                      Panduan Setting di Modem ONT Pelanggan
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Pilih merk modem pelanggan untuk melihat langkah konfigurasi.
+                    </p>
+                  </div>
+
+                  <div className="inline-flex rounded-md border border-border p-0.5 bg-muted/30">
+                    <button
+                      type="button"
+                      onClick={() => setOntTab('zte')}
+                      className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${
+                        ontTab === 'zte'
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      ZTE (F609/F670L)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOntTab('huawei')}
+                      className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${
+                        ontTab === 'huawei'
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Huawei (HG8245H/EG8145)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOntTab('fiberhome')}
+                      className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${
+                        ontTab === 'fiberhome'
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Fiberhome (HG6243/6245)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOntTab('vsol')}
+                      className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${
+                        ontTab === 'vsol'
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      VSOL / Generic XPON
+                    </button>
+                  </div>
+                </div>
+
+                {/* ZTE */}
+                {ontTab === 'zte' && (
+                  <div className="space-y-2.5 text-xs text-foreground leading-relaxed">
+                    <div className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      Konfigurasi ONT ZTE (F609, F670L, F660):
+                    </div>
+                    <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
+                      <li>
+                        Buka web admin ONT ZTE (biasanya <code className="font-mono text-foreground">192.168.1.1</code>).
+                      </li>
+                      <li>
+                        <strong>Metode A (Dedicated VLAN 4000):</strong> Buka menu <strong className="text-foreground">Network</strong> &rarr; <strong className="text-foreground">WAN</strong> &rarr; <strong className="text-foreground">WAN Connection</strong>. Buat koneksi baru mode <strong className="text-foreground">IPoE / DHCP</strong>, VLAN ID <code className="font-mono text-foreground font-semibold">4000</code>, Service Type: <code className="font-mono text-foreground font-semibold">TR069</code>.
+                      </li>
+                      <li>
+                        <strong>Metode B (In-Band PPPoE):</strong> Pada koneksi PPPoE yang aktif, cukup ubah <strong className="text-foreground">Service List</strong> menjadi <code className="font-mono text-foreground font-semibold">INTERNET_TR069</code> lalu klik Modify.
+                      </li>
+                      <li>
+                        Buka menu <strong className="text-foreground">Administration</strong> &rarr; <strong className="text-foreground">TR-069</strong>.
+                      </li>
+                      <li>
+                        Centang <strong className="text-foreground">Enable CWMP</strong>.
+                      </li>
+                      <li>
+                        Pada kolom <strong className="text-foreground">ACS URL</strong>, masukkan:{' '}
+                        <code className="font-mono text-primary font-semibold bg-muted px-1.5 py-0.5 rounded border border-border select-all">
+                          {acsUrl}
+                        </code>
+                      </li>
+                      <li>
+                        Username dan Password ACS dapat dikosongkan (default).
+                      </li>
+                      <li>
+                        Centang <strong className="text-foreground">Enable Periodic Inform</strong> dan set interval ke <strong className="text-foreground">300</strong> detik.
+                      </li>
+                      <li>
+                        Klik <strong className="text-foreground">Submit</strong>. Modem akan segera muncul di tabel perangkat ACS dalam 1-2 menit.
+                      </li>
+                    </ol>
+                  </div>
+                )}
+
+                {/* HUAWEI */}
+                {ontTab === 'huawei' && (
+                  <div className="space-y-2.5 text-xs text-foreground leading-relaxed">
+                    <div className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      Konfigurasi ONT Huawei (HG8245H, HG8245A, EG8145V5):
+                    </div>
+                    <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
+                      <li>
+                        Buka web ONT Huawei (<code className="font-mono text-foreground">192.168.100.1</code> / <code className="font-mono text-foreground">192.168.18.1</code>).
+                      </li>
+                      <li>
+                        <strong>Metode A (VLAN 4000):</strong> Masuk ke tab <strong className="text-foreground">WAN</strong> &rarr; <strong className="text-foreground">WAN Configuration</strong> &rarr; buat profil WAN baru IPoE / DHCP dengan VLAN <code className="font-mono text-foreground font-semibold">4000</code> dan Service Type <code className="font-mono text-foreground font-semibold">TR069</code>.
+                      </li>
+                      <li>
+                        <strong>Metode B (In-Band):</strong> Pada profil PPPoE, ubah Service Type menjadi <code className="font-mono text-foreground font-semibold">INTERNET, TR069</code>.
+                      </li>
+                      <li>
+                        Buka tab <strong className="text-foreground">System Tools</strong> &rarr; <strong className="text-foreground">TR-069</strong>.
+                      </li>
+                      <li>
+                        Centang <strong className="text-foreground">Enable TR-069</strong>.
+                      </li>
+                      <li>
+                        Isi <strong className="text-foreground">URL</strong> dengan:{' '}
+                        <code className="font-mono text-primary font-semibold bg-muted px-1.5 py-0.5 rounded border border-border select-all">
+                          {acsUrl}
+                        </code>
+                      </li>
+                      <li>
+                        Centang <strong className="text-foreground">Periodic Inform</strong> interval <strong className="text-foreground">300</strong> detik lalu klik <strong className="text-foreground">Apply</strong>.
+                      </li>
+                    </ol>
+                  </div>
+                )}
+
+                {/* FIBERHOME */}
+                {ontTab === 'fiberhome' && (
+                  <div className="space-y-2.5 text-xs text-foreground leading-relaxed">
+                    <div className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      Konfigurasi ONT Fiberhome (HG6243C, HG6245D):
+                    </div>
+                    <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
+                      <li>
+                        Buka web ONT Fiberhome (<code className="font-mono text-foreground">192.168.1.1</code>).
+                      </li>
+                      <li>
+                        Buka <strong className="text-foreground">Network</strong> &rarr; <strong className="text-foreground">Broadband Settings</strong> &rarr; <strong className="text-foreground">Internet Settings</strong>.
+                      </li>
+                      <li>
+                        Tambahkan WAN VLAN 4000 DHCP mode TR069, atau ubah Service List PPPoE ke <code className="font-mono text-foreground font-semibold">INTERNET,TR069</code>.
+                      </li>
+                      <li>
+                        Buka <strong className="text-foreground">Management</strong> &rarr; <strong className="text-foreground">TR-069</strong>.
+                      </li>
+                      <li>
+                        Set <strong className="text-foreground">CWMP Enable</strong> ke <strong className="text-foreground">Yes</strong>.
+                      </li>
+                      <li>
+                        Isi <strong className="text-foreground">URL</strong> dengan:{' '}
+                        <code className="font-mono text-primary font-semibold bg-muted px-1.5 py-0.5 rounded border border-border select-all">
+                          {acsUrl}
+                        </code>
+                      </li>
+                      <li>
+                        Aktifkan Periodic Inform interval 300 detik, klik <strong className="text-foreground">Apply</strong>.
+                      </li>
+                    </ol>
+                  </div>
+                )}
+
+                {/* VSOL */}
+                {ontTab === 'vsol' && (
+                  <div className="space-y-2.5 text-xs text-foreground leading-relaxed">
+                    <div className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      Konfigurasi ONT VSOL / XPON Generic:
+                    </div>
+                    <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
+                      <li>
+                        Buka web ONT VSOL (<code className="font-mono text-foreground">192.168.1.1</code>).
+                      </li>
+                      <li>
+                        Buka menu <strong className="text-foreground">Network</strong> &rarr; <strong className="text-foreground">WAN Settings</strong> &rarr; buat WAN VLAN 4000 DHCP atau atur Service Mode PPPoE ke <code className="font-mono text-foreground font-semibold">INTERNET,TR069</code>.
+                      </li>
+                      <li>
+                        Buka menu <strong className="text-foreground">Management</strong> &rarr; <strong className="text-foreground">TR069 Config</strong>.
+                      </li>
+                      <li>
+                        Aktifkan <strong className="text-foreground">TR069 Enable</strong>.
+                      </li>
+                      <li>
+                        Masukkan <strong className="text-foreground">ACS Server URL</strong>:{' '}
+                        <code className="font-mono text-primary font-semibold bg-muted px-1.5 py-0.5 rounded border border-border select-all">
+                          {acsUrl}
+                        </code>
+                      </li>
+                      <li>
+                        Centang Periodic Inform interval 300 detik, lalu klik <strong className="text-foreground">Apply</strong>.
+                      </li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </CardContent>

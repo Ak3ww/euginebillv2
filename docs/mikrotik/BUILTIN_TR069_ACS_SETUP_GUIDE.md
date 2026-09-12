@@ -21,24 +21,66 @@ EugineBill dilengkapi dengan engine **Native Built-in CWMP (TR-069) Server** yan
 
 ---
 
-## 2. Pilihan Arsitektur Jaringan TR-069
+## 2. Arsitektur Jaringan & Skrip Aktivasi TR-069
 
-EugineBill mendukung dua metode koneksi TR-069 dari ONT ke VPS:
+Skrip deployment awal FTTH bawaan (`01-vsol-1600gs-clean.conf` dan `02-mikrotik-ftth-complete.rsc`) dirancang **ultra-lean** (hanya WAN, LAN bridge, VLAN 20 PPPoE, dan VLAN 30 MGMT OLT) tanpa bloatware.
+
+Jika Anda ingin mengaktifkan manajemen jarak jauh TR-069, EugineBill menyediakan dua metode fleksibel:
+
+---
 
 ### Metode A: Dedicated Management VLAN 4000 (Rekomendasi ISP)
-Topologi ini sudah terkonfigurasi secara *out-of-the-box* pada skrip MikroTik (`02-mikrotik-ftth-complete.rsc`) dan OLT VSOL (`01-vsol-1600gs-clean.conf`):
-1. **MikroTik**: Memiliki interface `vlan4000-tr069` (`10.40.10.1/24`) dengan DHCP Server aktif (`10.40.10.2 - 10.40.11.254`).
-2. **VSOL OLT**: Mengalirkan VLAN 4000 secara *tagged* pada seluruh uplink port GE `0/1` s/d `0/3`.
-3. **ONT Pelanggan**:
-   - WAN 1: PPPoE Internet (VLAN 20).
-   - WAN 2: IPoE / DHCP Management TR-069 (VLAN 4000).
-4. **Keuntungan**: Modem **selalu online dan dapat dipantau** di panel ACS meskipun sesi PPPoE internet pelanggan sedang mati, belum login, atau terisolir.
+Modem pelanggan menggunakan WAN ke-2 mode IPoE/DHCP pada VLAN 4000. Modem **selalu online dan dapat dipantau** di ACS EugineBill meskipun akun PPPoE internet pelanggan sedang mati, belum login, atau terisolir.
+
+#### 1. Skrip MikroTik (Jalankan di Winbox -> New Terminal):
+```routeros
+/interface vlan
+add comment="VLAN4000-TR069-ACS" interface=bridge-LAN name=vlan4000-tr069 vlan-id=4000
+
+/ip address
+add address=10.40.10.1/24 comment="IP-GATEWAY-TR069-ACS" interface=vlan4000-tr069 network=10.40.10.0
+
+/ip pool
+add comment="POOL-DHCP-TR069" name=dhcp_pool_tr069 ranges=10.40.10.2-10.40.11.254
+
+/ip dhcp-server
+add address-pool=dhcp_pool_tr069 comment="DHCP-SERVER-TR069" disabled=no interface=vlan4000-tr069 name=dhcp-tr069
+
+/ip dhcp-server network
+add address=10.40.10.0/24 comment="NET-TR069-ACS" dns-server=1.1.1.1,8.8.8.8 gateway=10.40.10.1
+```
+
+#### 2. Perintah CLI OLT VSOL V1600GS (Jalankan di Telnet/SSH OLT):
+```cli
+enable
+config
+vlan 4000
+description VLAN4000-TR069
+exit
+
+interface gigabitEthernet 0/1
+switchport hybrid vlan 4000 tagged
+exit
+
+interface gigabitEthernet 0/2
+switchport hybrid vlan 4000 tagged
+exit
+
+interface gigabitEthernet 0/3
+switchport hybrid vlan 4000 tagged
+exit
+
+write
+```
+
+---
 
 ### Metode B: In-Band PPPoE (VLAN 20)
-Topologi ringkas tanpa perlu membuat koneksi WAN ke-2 pada modem:
-1. ONT pelanggan hanya memiliki 1 koneksi WAN PPPoE di VLAN 20.
+Topologi ringkas tanpa perlu membuat koneksi WAN ke-2 maupun VLAN baru:
+1. ONT pelanggan hanya menggunakan koneksi WAN PPPoE di VLAN 20.
 2. Opsi `Service List` atau `Service Type` diatur ke **`INTERNET,TR069`**.
 3. Paket SOAP TR-069 mengalir langsung di dalam tunnel PPPoE pelanggan menuju endpoint ACS EugineBill.
+
 
 
 ---

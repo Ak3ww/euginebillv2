@@ -4,24 +4,24 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [2.39.6] — 2026-09-12
-### Built-in TR-069 ACS Engine, Dedicated VLAN 4000 Retention, CWMP Endpoint & Admin Guide UI
-- **Standarisasi TR-069: Dedicated Management VLAN 4000 & In-Band PPPoE Ready**:
+### Built-in TR-069 ACS Engine, On-Demand VLAN 4000 Activation UI & Lean Base Scripts
+- **Standarisasi TR-069: Skrip Pondasi Lean & Aktivasi On-Demand VLAN 4000 di UI**:
   - *Context / User Request*:
-    Pengguna menegaskan bahwa arsitektur FTTH tetap menggunakan Dedicated Management VLAN (VLAN 4000) untuk TR-069 agar modem pelanggan selalu dapat dipantau di ACS bahkan saat sesi PPPoE internet mati atau terisolir. Selain itu, sistem Built-in ACS bawaan EugineBill (bukan GenieACS) harus dipastikan otomatis aktif di VPS dan didukung panduan lengkap di UI serta GitHub.
+    Pengguna menginstruksikan bahwa skrip pondasi awal OLT dan MikroTik harus dijaga tetap bersih dan ringan (*ultra-lean*) tanpa memuat VLAN 4000 secara default. Jika admin ingin menggunakan TR-069 dengan Dedicated VLAN, EugineBill menyediakan panduan interaktif dan skrip aktivasi 1-klik siap salin langsung di halaman Admin `/admin/acs` serta dokumentasi GitHub.
   - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Integrasi Dedicated VLAN 4000 pada OLT & MikroTik**:
-       - **VSOL OLT V1600GS (`01-vsol-1600gs-clean.conf`)**: Mendeklarasikan `vlan 4000` (`VLAN4000-TR069`) dan men-tag VLAN 4000 pada seluruh uplink port GigabitEthernet `0/1`, `0/2`, dan `0/3`.
-       - **MikroTik FTTH (`02-mikrotik-ftth-complete.rsc`)**: Mengaktifkan interface `vlan4000-tr069` (`10.40.10.1/24`), IP pool `dhcp_pool_tr069` (`10.40.10.2-10.40.11.254`), dan DHCP Server TR-069 otomatis.
-    2. **Dukungan Dual-Mode Koneksi TR-069**:
-       - **Mode A (Dedicated VLAN 4000 - Rekomendasi ISP)**: ONT dikonfigurasi WAN ke-2 IPoE/DHCP VLAN 4000 sehingga selalu online di ACS independen dari sesi PPPoE.
-       - **Mode B (In-Band PPPoE - VLAN 20)**: ONT menggunakan 1 koneksi PPPoE dengan Service Type `INTERNET,TR069`.
+    1. **Skrip Pondasi FTTH Ultra-Lean (`01-vsol-1600gs-clean.conf` & `02-mikrotik-ftth-complete.rsc`)**:
+       - Hanya memuat port uplink WAN (`ether1`), LAN distribution bridge (`ether2-5`), VLAN 20 (`VLAN20-PPPOE`), dan VLAN 30 (`VLAN30-MGMT-OLT`).
+       - Bebas dari konfigurasi awal VLAN 4000 agar tidak membebani teknisi yang baru memasang jaringan awal.
+    2. **Komponen Panduan & Generator Skrip Aktivasi TR-069 di UI (`src/components/admin/AcsGuideCard.tsx`)**:
+       - Menyediakan tab navigasi interaktif 3 langkah:
+         - **Langkah 1 (MikroTik)**: Skrip terminal Winbox siap salin 1-klik untuk membuat interface `vlan4000-tr069`, IP `10.40.10.1/24`, pool, dan DHCP Server TR-069.
+         - **Langkah 2 (OLT VSOL)**: Perintah CLI OLT siap salin 1-klik untuk deklarasi `vlan 4000` dan tagging pada port uplink GE 0/1-0/3.
+         - **Langkah 3 (Modem ONT Pelanggan)**: Panduan konfigurasi modem per vendor (ZTE, Huawei, Fiberhome, VSOL) untuk opsi Dedicated VLAN 4000 maupun In-Band PPPoE.
     3. **100% Otomatis Aktif di VPS (`/api/cwmp`)**:
        - Engine Built-in ACS ditanam langsung di Next.js monolith (`src/app/api/cwmp/route.ts` & `CwmpService`). Begitu PM2 `EugineBill-radius` running, endpoint langsung aktif tanpa perlu instalasi Docker, tanpa MongoDB, dan tanpa daemon tambahan.
        - Menyediakan HTTP GET handler untuk health check yang mengembalikan status JSON online dan informasi layanan.
-    4. **Komponen Panduan Built-in ACS Terintegrasi di UI (`src/components/admin/AcsGuideCard.tsx`)**:
-       - Menampilkan card interaktif Shadcn UI dengan deteksi dinamis URL ACS (`http://<domain_or_ip>/api/cwmp`), tombol 1-klik salin ke clipboard, dan panduan konfigurasi untuk merk ZTE, Huawei, Fiberhome, dan VSOL.
-    5. **Dokumentasi Lengkap di GitHub (`docs/mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md`)**:
-       - Menguraikan arsitektur dual-mode (VLAN 4000 & In-Band), konfigurasi modem per vendor, pembacaan redaman optik (Rx/Tx dBm), manajemen WiFi, reboot, dan diagnostik.
+    4. **Dokumentasi Terintegrasi di GitHub (`docs/mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md`)**:
+       - Merinci arsitektur on-demand VLAN 4000, skrip aktivasi terminal, dan alur kerja integrasi Built-in ACS.
   - *Files*:
     - `deployment-pack-client/01-vsol-1600gs-clean.conf`
     - `deployment-pack-client/02-mikrotik-ftth-complete.rsc`
