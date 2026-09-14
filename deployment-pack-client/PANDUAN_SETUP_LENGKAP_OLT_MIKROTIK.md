@@ -4,34 +4,44 @@ Panduan praktis lapangan untuk instalasi cepat paket FTTH (1 PON = maks 128 pela
 
 ---
 
-## 1. Skema Pengkabelan Fisik (Topologi Lapangan)
+## 1. Skema Pengkabelan Fisik (Topologi Lapangan 100% Work)
 
 ```text
 [ SUMBER INTERNET KLIEN ] (Indihome / Biznet / Dedicated)
             │
-            ▼ (Port WAN Klien, misal ether1)
+            ▼ (Port WAN Klien: ether1-ISP via DHCP-Client)
    ┌─────────────────┐
-   │ MIKROTIK ROUTER │ (CCR / RB Series)
+   │ MIKROTIK ROUTER │ (RB2011 / CCR / Hex / RB Series)
    └─────────────────┘
-            │ (Port Distribusi, misal ether3)
-            ▼
-    [ Kabel LAN UTP ]
-            ▼
+     │             │
+     │             └───► [ Port ether2, 3, 4: bridge-LAN ] ──► (Laptop Teknisi / AP Kantor: 192.168.50.x)
+     │
+     ▼ (Port ether5-DISTRIBUSI - Dedicated Trunk, BUKAN anggota bridge-LAN)
+[ Kabel LAN UTP Cat6 ]
+     ▼
    ┌─────────────────┐
-   │  OLT VSOL 1 PON │ (Port Uplink: GE 0/1 atau GE 0/2)
+   │  OLT VSOL 1 PON │ (Port Uplink: GE 0/1, GE 0/2, atau GE 0/3 - Speed 1000)
    └─────────────────┘
-            │ (Port PON 1 - Kabel Optik Dropcore / Feeder)
-            ▼
-        [ ODC / ODP ]
-            │ (Dropcore 1 Core)
-            ▼
-     [ MODEM ONT KLIEN ] (ZTE F609/F670, Huawei HG8245, Skyworth)
+     │ (Port PON 1 - Kabel Optik Dropcore / Feeder)
+     ▼
+ [ ODC / ODP ]
+     │ (Dropcore 1 Core)
+     ▼
+ [ MODEM ONT KLIEN ] (ZTE F609/F670, Huawei HG8245, Skyworth)
 ```
 
 ---
 
-## 2. LANGKAH 1: Setup OLT VSOL V1600GS (3 Menit)
+## 2. LANGKAH 1: Setup OLT VSOL (3 Menit)
 
+### A. Tentukan Varian Seri OLT VSOL:
+1. **Seri V1600GS-ZF (ZTE Falcon Chipset Variant)**:
+   - File Konfigurasi: **`01-vsol-1600gs-zf.conf`**
+   - **PERINGATAN KRUSIAL**: Seri ZF **wajib** menyertakan baris `service-port 1 gemport 1 uservlan 20 vlan 20` di bawah profile line. Tanpa baris ini, OLT akan men-drop seluruh frame PPPoE dari ONT.
+2. **Seri V1600GS Standar (Cortina Chipset Variant)**:
+   - File Konfigurasi: **`01-vsol-1600gs-standard.conf`**
+
+### B. Prosedur Import:
 1. Tancapkan adaptor listrik OLT VSOL.
 2. Colok kabel LAN dari laptop ke port **MGMT** atau port **GE 0/1** OLT.
 3. Atur IP statis di laptop Anda:
@@ -41,87 +51,61 @@ Panduan praktis lapangan untuk instalasi cepat paket FTTH (1 PON = maks 128 pela
    * URL: **`http://192.168.8.100`**
    * Username: **`admin`** | Password: **`admin`** (atau `admin123`)
 5. Masuk ke menu: **System Management** -> **Configuration Management** (atau **System** -> **Config**).
-6. Klik tombol **Choose File / Browse**, pilih file:
-   - **`01-vsol-1600gs-clean.conf`**
-7. Klik **Upload / Import Configuration**.
-8. Klik **Save Configuration** -> lalu klik **Reboot OLT**.
-9. Tunggu OLT selesai reboot (sekitar 1–2 menit).
-
-> [!IMPORTANT]
-> **AKSES WEB MANAGEMENT OLT & SNMP UDP VIA MIKROTIK:**
-> Di MikroTik telah disiapkan DST-NAT port:
-> - **Web GUI OLT**: Port `8001` (dan fallback `8003`) -> `http://192.168.30.1:8001` atau `http://192.168.50.1:8001`.
-> - **SNMP UDP OLT**: Port UDP `1611` (forward ke UDP `161` OLT) untuk monitoring traffic/optical power.
-> *(Kredensial login admin OLT: admin / admin)*.
+6. Klik tombol **Choose File / Browse**, pilih file sesuai seri (`01-vsol-1600gs-zf.conf` atau `01-vsol-1600gs-standard.conf`).
+7. Klik **Upload / Import Configuration** -> **Save Configuration** -> lalu klik **Reboot OLT**.
+8. Tunggu OLT selesai reboot (sekitar 1–2 menit).
 
 ---
 
 ## 3. LANGKAH 2: Setup MikroTik Klien (5 Menit)
 
-1. Buka Winbox $\rightarrow$ Connect ke MikroTik klien.
+1. Buka Winbox -> Connect ke MikroTik klien.
 2. Buka menu **New Terminal**.
 3. Buka file **`02-mikrotik-ftth-complete.rsc`** di Notepad laptop Anda, **Copy Seluruh Isinya**, lalu **Paste di New Terminal Winbox**.
 4. Tekan **Enter** sampai baris terakhir selesai dieksekusi.
-5. Hubungkan kabel LAN dari port distribusi MikroTik (misal **ether2**) ke port Uplink OLT (**GE 0/1** atau **GE 0/2**).
+5. Hubungkan kabel LAN:
+   - **ether1-ISP**: Ke modem internet ISP (Indihome / Biznet / Dedicated).
+   - **ether2/3/4**: Ke laptop teknisi atau Switch/AP kantor.
+   - **ether5-DISTRIBUSI**: Ke port Uplink OLT (**GE 0/1** atau **GE 0/2**).
 
 ---
 
-## 4. LANGKAH 3: Uji Coba Remote OLT dari MikroTik (1 Menit)
+## 4. LANGKAH 3: Uji Coba Akses Web OLT dari MikroTik (1 Menit)
 
 Setelah kabel MikroTik dan OLT tersambung:
-1. Pastikan laptop Anda tersambung ke port MikroTik (misal colok LAN di `ether3-5` atau via Wi-Fi).
-2. Buka browser di laptop Anda, akses Web OLT via IP Gateway MikroTik:
-   * **`http://192.168.30.1:8001`** (atau `http://192.168.50.1:8001`)
-3. Jika halaman login OLT VSOL langsung terbuka, **SELAMAT! Jalur Management OLT (VLAN 30) SUDAH 100% SUKSES!**
-   *(Mulai detik ini, Anda tidak perlu lagi repot colok-cabut kabel ke OLT jika ingin memantau redaman optik atau register ONT).*
+1. Laptop Anda yang dicolok ke port `ether2`, `ether3`, atau `ether4` otomatis mendapat IP `192.168.50.x` dari DHCP server.
+2. Buka browser di laptop Anda, langsung ketik IP Management OLT:
+   * URL: **`http://192.168.30.2`**
+3. Jika halaman login OLT VSOL langsung terbuka, **Jalur Management OLT (VLAN 30) SUDAH 100% SUKSES!**
+   *(Inter-VLAN routing ditangani secara native oleh MikroTik tanpa perlu ribet setting IP statis di laptop)*.
 
 ---
 
 ## 5. LANGKAH 4: Uji Coba Modem ONT Pelanggan (3 Menit)
 
 1. Pasang modul SFP GPON (C+ atau C++) ke slot PON OLT.
-2. Colok kabel optik (pigtail/patch cord) dari OLT menuju modem ONT (misal ZTE F609).
+2. Colok kabel optik (patch cord) dari OLT menuju modem ONT (misal ZTE F609 / Skyworth).
 3. Tunggu 30–60 detik hingga lampu **PON** di modem ONT menyala hijau diam (*solid*).
-   *(Karena mode `onu auto-learn` sudah aktif, OLT otomatis mengenali dan meng-auth ONT baru).*
+   *(Karena mode `onu auto-learn` aktif, OLT otomatis me-registrasikan ONT baru ke profile line FTTH)*.
 4. Masuk ke web admin modem ONT (misal `192.168.1.1`):
-   * Masuk ke menu **Network** $\rightarrow$ **WAN Connection**.
-   * Mode: **Route**
-   * Service Type: **INTERNET**
-   * Enable VLAN: **Centang (ON)**
-   * **VLAN ID**: **`20`** (Wajib 20!)
-   * 802.1p: `0`
-   * Link Type: **PPPoE**
-   * Username: **`test`**
-   * Password: **`123`**
+   * Masuk ke menu **Network** -> **WAN Connection**.
+   * Mode: **Route** | Service Type: **INTERNET**
+   * Enable VLAN: **Centang (ON)** | **VLAN ID**: **`20`** (Wajib VLAN 20!)
+   * 802.1p: `0` | Link Type: **PPPoE**
+   * Username / Password: Gunakan akun test yang sudah dibuat di MikroTik (misal `RTE` / `eugine0909` atau `Amar12` / `Eugine0909`).
    * Binding Port: Centang LAN 1 - 4 dan SSID 1.
    * Klik **Apply / Save**.
-5. Buka Winbox MikroTik $\rightarrow$ menu **PPP** $\rightarrow$ tab **Active Connections**.
-   * Anda akan langsung melihat user **`test`** aktif dan mendapat IP `192.168.20.x`.
-6. Tes browsing / speedtest dari Wi-Fi modem ONT. Internet langsung jalan kencang dengan limitasi profile 20 Mbps native RouterOS!
+5. Buka Winbox MikroTik -> menu **PPP** -> tab **Active Connections**.
+   * Anda akan langsung melihat user PPPoE aktif dan mendapat IP `192.168.20.x`.
+   * Di menu **Queue Simple**, otomatis muncul antrean dinamis sesuai limit profile (misal 10 Mbps).
+6. Tes browsing / speedtest dari Wi-Fi modem ONT. Internet langsung jalan kencang dengan DNS Cloudflare (`1.1.1.1, 1.0.0.1`) dan TCP MSS Clamping aktif!
 
 ---
 
-## 6. Apa Saja Fitur yang Sudah Otomatis Aktif di MikroTik Klien?
+## 6. Standar Emas Arsitektur Lapangan (Hard Invariants)
 
-1. **WAN DHCP Client Otomatis (Port ether1)**:
-   MikroTik otomatis mengambil IP, Gateway, dan DNS dari modem ISP. Begitu kabel dari modem dicolok ke ether1, MikroTik langsung terhubung ke internet.
-2. **DHCP Server LAN Plug & Play (Port ether2 - ether5)**:
-   Teknisi atau klien bisa langsung mencolok laptop atau Access Point ke port ether2 s/d ether5 dan otomatis mendapatkan IP `192.168.50.x` serta akses internet langsung.
-3. **Standard Simple Queue Limiting**:
-   Limitasi bandwidth rapi, ringan, dan stabil sesuai profil langganan tanpa beban lonjakan CPU.
-4. **VLAN FTTH OLT Siap Pakai**:
-   VLAN 20 (PPPoE) dan VLAN 30 (Management OLT) langsung aktif di atas bridge distribusi. Jika ingin mengaktifkan TR-069 via VLAN 4000, skrip aktivasi siap salin tersedia di UI EugineBill menu **TR-069 ACS**.
-5. **Universal Masquerade NAT**:
-   Semua segmen jaringan (PPPoE pelanggan, LAN teknisi) otomatis bisa browsing ke internet tanpa kendala routing.
-6. **Auto-Maintenance Subuh (03.00 Pagi)**:
-   MikroTik otomatis membersihkan cache DNS sampah dan merapikan log sistem setiap jam 3 subuh.
-
----
-
-## 7. Checklist Barang Bawaan Sebelum Berangkat:
-- [ ] Laptop & Charger
-- [ ] Flashdisk (berisi folder `deployment-pack-client`)
-- [ ] Patch cord kabel LAN UTP minimal 2 buah (1m - 2m)
-- [ ] SFP GPON Module C+ / C++
-- [ ] 1 unit Modem ONT untuk tes dial di tempat klien
-- [ ] Laser OLS / Tang Stripper / Cleaver (jika perlu tes redaman optik)
+1. **Dedicated OLT Trunk Port**: Port trunk ke OLT (misal `ether5-DISTRIBUSI`) **HARUS BERDIRI SENDIRI**, jangan pernah dimasukkan ke dalam `bridge-LAN` agar trunk VLAN tidak tercampur dengan trafik bridge lokal.
+2. **VLAN Attachment**: `vlan20-PPPOE` dan `vlan30-MGMT` ditempelkan langsung pada interface fisik ethernet (`ether5-DISTRIBUSI`).
+3. **DNS Cloudflare Bebas Blokir**: Selalu gunakan DNS `1.1.1.1, 1.0.0.1` pada IP DNS MikroTik, DHCP Network LAN, dan PPP Profile pelanggan.
+4. **TCP MSS Clamping Wajib**: Selalu pasang rule mangle MSS clamping (`new-mss=clamp-to-pmtu`) untuk mencegah website/m-Banking timeout di pelanggan.
+5. **Native Queue**: Gunakan parameter `rate-limit` pada `/ppp profile` untuk memanfaatkan Simple Queue dinamis otomatis tanpa membebani CPU router.

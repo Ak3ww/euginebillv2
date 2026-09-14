@@ -4,6 +4,26 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.15] — 2026-09-14
+### FTTH Deployment Pack Standards (VSOL V1600GS-ZF vs Standard & MikroTik FTTH Master)
+- **Standarisasi Toolkit Deployment Lapangan OLT VSOL & MikroTik FTTH (100% Verified Work)**:
+  - *Context / User Request*:
+    1. Mengabadikan konfigurasi 100% work dari OLT VSOL klien (`RADIANTO`) dan MikroTik RB2011 (RouterOS 6.49.21) dari deployment nyata di lapangan.
+    2. Mendokumentasikan akar masalah kegagalan konfigurasi kits awal: pada OLT VSOL seri **V1600GS-ZF (ZTE Falcon chipset)**, perintah `service-port 1 gemport 1 uservlan 20 vlan 20` **wajib mutlak** disertakan pada line profile agar frame PPPoE tidak di-drop oleh OLT. Sedangkan pada seri **V1600GS standar (Cortina chipset)**, deklarasi eksplisit `service-port` bersifat opsional.
+    3. Memisahkan template OLT menjadi 2 file definitif: `01-vsol-1600gs-zf.conf` dan `01-vsol-1600gs-standard.conf`.
+    4. Menyusun skrip MikroTik FTTH master (`02-mikrotik-ftth-complete.rsc`) dengan standar arsitektur: WAN DHCP-client, dedicated OLT trunk port (terpisah dari bridge), DNS Cloudflare (`1.1.1.1, 1.0.0.1`), pre-configured NAT remote OLT, TCP MSS Clamping, dan native Simple Queue rate-limiting.
+    5. Menambahkan aturan workspace baru `FTTH Deployment Pack Standard` pada `.agents/AGENTS.md`.
+  - *Files*:
+    - `deployment-pack-client/01-vsol-1600gs-zf.conf`
+    - `deployment-pack-client/01-vsol-1600gs-standard.conf`
+    - `deployment-pack-client/01-vsol-radianto-final.conf`
+    - `deployment-pack-client/02-mikrotik-ftth-complete.rsc`
+    - `deployment-pack-client/02-mikrotik-radianto-final.rsc`
+    - `deployment-pack-client/PANDUAN_SETUP_LENGKAP_OLT_MIKROTIK.md`
+    - `.agents/AGENTS.md`
+    - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.39.14] — 2026-09-14
 ### Network UI Standard, ACS TR-069 Clean Guide, & VPN Architecture Clarification
 - **Pembaruan UI Jaringan, Panduan ACS TR-069, & Penegasan Arsitektur Native VPN VPS**:

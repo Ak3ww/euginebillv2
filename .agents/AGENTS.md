@@ -60,3 +60,17 @@ For ALL customer-facing UI development (customer portal, payment pages, public l
 3. **Integritas Dokumentasi**: Selalu pastikan apa yang dituliskan pada dokumentasi sesuai 100% dengan kode yang diimplementasikan (*write what we do, and do what we write*).
 4. **Agent Memory Synchronization (`docs/AI_PROJECT_MEMORY.md`)**: Setiap kali `CHANGELOG.md` diperbarui dengan penambahan fitur, bugfix krusial, atau keputusan arsitektur, WAJIB menyinkronkan intisari keputusan arsitektural dan batasan teknis (*hard invariants*) ke dalam file `docs/AI_PROJECT_MEMORY.md`. Hal ini menjamin memori jangka panjang AI agent di masa mendatang tidak akan pernah mengalami amnesia atau mengulangi kesalahan arsitektural yang telah dipecahkan.
 
+## FTTH Deployment Pack Standard (OLT VSOL & MikroTik Client)
+1. **OLT Hardware Variants**:
+   - **Seri V1600GS-ZF (ZTE Falcon Chipset)**: WAJIB menyertakan baris `service-port 1 gemport 1 uservlan 20 vlan 20` di bawah `profile line`. Tanpa baris ini, traffic PPPoE dari ONT akan di-drop oleh OLT dan tidak akan sampai ke MikroTik. Gunakan template `deployment-pack-client/01-vsol-1600gs-zf.conf`.
+   - **Seri V1600GS Standar (Cortina Chipset)**: Tidak mewajibkan deklarasi eksplisit `service-port`. Gunakan template `deployment-pack-client/01-vsol-1600gs-standard.conf`.
+   - **Uplink Port Speed**: Selalu kunci port uplink OLT ke `speed 1000` (jangan `speed auto` untuk mencegah negotiation flapping), dan hapus/matikan Spanning Tree pada port uplink.
+2. **MikroTik FTTH Standards**:
+   - **WAN Uplink**: `ether1-ISP` via DHCP Client (`add-default-route=yes use-peer-dns=no`).
+   - **Dedicated OLT Trunk Port**: Port trunk ke OLT (misal `ether5-DISTRIBUSI`) WAJIB berdiri sendiri sebagai routed port fisik, DILARANG KERAS dimasukkan ke dalam `bridge-LAN` agar trunk VLAN tidak tercampur dengan traffic bridge lokal.
+   - **VLAN Attachment**: `vlan20-PPPOE` (PPPoE subscriber) dan `vlan30-MGMT` (Management OLT 192.168.30.1/24) ditempelkan langsung pada interface fisik ethernet (`ether5-DISTRIBUSI`).
+   - **Local LAN**: `bridge-LAN` murni untuk akses teknisi/AP (`ether2-ether4`) dengan IP `192.168.50.1/24`.
+   - **DNS Resolver**: Selalu gunakan DNS Cloudflare `1.1.1.1, 1.0.0.1` pada IP DNS MikroTik, DHCP Network LAN, dan PPP Profile pelanggan.
+   - **Mangle Mandatory**: Wajib pasang TCP MSS Clamping (`/ip firewall mangle add action=change-mss chain=forward comment="TCP-MSS-CLAMPING" new-mss=clamp-to-pmtu passthrough=yes protocol=tcp tcp-flags=syn`) untuk mencegah website/banking timeout di pelanggan PPPoE.
+   - **Native Queuing**: Selalu andalkan parameter `rate-limit` pada `/ppp profile` (Simple Queue dinamis otomatis). Hindari queue manual atau mangle packet-mark berlebihan.
+

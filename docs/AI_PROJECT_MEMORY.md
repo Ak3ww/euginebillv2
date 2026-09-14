@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.14
+- **Version**: 2.39.15
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 14, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,17 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 14, 2026 — v2.39.15: FTTH Deployment Pack Standards: VSOL V1600GS-ZF vs Standard & MikroTik Master RSC)
+- **Architectural Invariant: OLT VSOL V1600GS-ZF Mandatory service-port**:
+  - **The Context / Fatal Bug**: Pada instalasi lapangan OLT VSOL seri **V1600GS-ZF** (ZTE Falcon chipset variant), modem ONT berhasil registrasi (lampu PON solid hijau), namun paket PPPoE Discovery (PADI) tidak pernah sampai ke MikroTik.
+  - **The Root Cause & Fix**: Seri ZF mewajibkan baris `service-port 1 gemport 1 uservlan 20 vlan 20` pada line profile sebagai cross-connect bridge antara GEM port dan switch fabric uplink. Tanpa baris ini, OLT men-drop traffic data pelanggan. Seri standar (Cortina chipset) tidak mewajibkan deklarasi eksplisit ini. Template dipisahkan menjadi `01-vsol-1600gs-zf.conf` dan `01-vsol-1600gs-standard.conf`.
+- **Architectural Invariant: Dedicated Routed OLT Trunk on MikroTik**:
+  - Port trunk ke OLT (misal `ether5-DISTRIBUSI`) **DILARANG** dimasukkan ke dalam `bridge-LAN`.
+  - `vlan20-PPPOE` dan `vlan30-MGMT` wajib ditempelkan langsung pada interface ethernet fisik (`ether5-DISTRIBUSI`).
+  - `bridge-LAN` murni untuk port lokal teknisi/AP (`ether2-ether4`).
+  - TCP MSS Clamping (`clamp-to-pmtu`) wajib dipasang pada firewall mangle untuk mencegah web/banking timeout pada PPPoE clients.
+  - DNS Cloudflare (`1.1.1.1, 1.0.0.1`) wajib disuntikkan ke DHCP LAN dan PPP Profile.
 
 ### Recent Patch Log (September 14, 2026 — v2.39.14: Network UI Standard, ACS TR-069 Clean Guide, & VPN Architecture Clarification)
 - **Architectural Invariant: Native VPS Built-in VPN Server vs External MikroTik CHR**:

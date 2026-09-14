@@ -1,6 +1,8 @@
 # ==============================================================================
-# SCRIPT DEPLOYMENT MIKROTIK FTTH (TEMPLATE UNIVERSAL 100% WORK)
-# Disusun untuk : MikroTik RouterOS v6.x & v7.x (RB Series, CCR, Hex)
+# SCRIPT DEPLOYMENT MIKROTIK FTTH (100% WORK VERIFIED CLIENT CONFIG)
+# Disusun untuk : MikroTik RouterOS v6.x & v7.x (RB2011 / CCR / Hex Series)
+# Klien         : RADIANTO FTTH
+# Hardware      : RB2011UiAS-2HnD / Standard RouterBOARD
 # Topologi Fisik:
 #   - ether1-ISP        : Sumber Internet (Uplink Modem ISP via DHCP Client)
 #   - ether2, 3, 4      : bridge-LAN (Akses PC Teknisi, Laptop, atau AP Kantor)
@@ -66,6 +68,8 @@ add address-pool=dhcp_pool_lan comment="DHCP-SERVER-LOCAL" disabled=no interface
 
 /ip dhcp-server network
 add address=192.168.50.0/24 comment="NET-LAN-TEKNISI" dns-server=1.1.1.1,1.0.0.1 gateway=192.168.50.1
+# Komentari DHCP bawaan pabrik agar tidak mengganggu
+set [ find address=192.168.88.0/24 ] comment="DEFAULT-FACTORY-UNUSED"
 
 # ------------------------------------------------------------------------------
 # 8. POOL IP & PROFIL PPPOE PELANGGAN FTTH
@@ -74,11 +78,9 @@ add address=192.168.50.0/24 comment="NET-LAN-TEKNISI" dns-server=1.1.1.1,1.0.0.1
 add comment="POOL-PELANGGAN-PPPOE" name=POOL-PPPOE ranges=192.168.20.2-192.168.20.254
 
 /ppp profile
-# rate-limit otomatis membuat Simple Queue dinamis tanpa perlu antrean manual
+# rate-limit otomatis membuat Simple Queue dinamis tanpa perlu queue manual
 add dns-server=1.1.1.1,1.0.0.1 local-address=192.168.20.1 name=10mbps only-one=yes rate-limit=10M/10M remote-address=POOL-PPPOE comment="PROFIL-10-MBPS"
 add dns-server=1.1.1.1,1.0.0.1 local-address=192.168.20.1 name=20mbps only-one=yes rate-limit=20M/20M remote-address=POOL-PPPOE comment="PROFIL-20-MBPS"
-add dns-server=1.1.1.1,1.0.0.1 local-address=192.168.20.1 name=30mbps only-one=yes rate-limit=30M/30M remote-address=POOL-PPPOE comment="PROFIL-30-MBPS"
-add dns-server=1.1.1.1,1.0.0.1 local-address=192.168.20.1 name=50mbps only-one=yes rate-limit=50M/50M remote-address=POOL-PPPOE comment="PROFIL-50-MBPS"
 
 # ------------------------------------------------------------------------------
 # 9. PPPOE SERVER SERVICE (KONSENTRATOR BRAS DI VLAN 20)
@@ -87,7 +89,15 @@ add dns-server=1.1.1.1,1.0.0.1 local-address=192.168.20.1 name=50mbps only-one=y
 add authentication=pap disabled=no interface=vlan20-PPPOE max-mru=1492 max-mtu=1492 one-session-per-host=yes service-name=PPPOE-SERVER
 
 # ------------------------------------------------------------------------------
-# 10. FIREWALL NAT (INTERNET MASQUERADE & PRE-CONFIGURED REMOTE OLT)
+# 10. AKUN TEST / PELANGGAN PPPOE LIVE
+# ------------------------------------------------------------------------------
+/ppp secret
+add comment="PELANGGAN-LIVE" name=RTE password=eugine0909 profile=10mbps service=pppoe
+add comment="PELANGGAN-LIVE" name=Amar12 password=Eugine0909 profile=10mbps service=pppoe
+add comment="PELANGGAN-LIVE" name=EMG000 password=eugine0909 profile=10mbps service=pppoe
+
+# ------------------------------------------------------------------------------
+# 11. FIREWALL NAT (INTERNET MASQUERADE & PRE-CONFIGURED REMOTE OLT)
 # ------------------------------------------------------------------------------
 /ip firewall nat
 # Akses Internet Pelanggan & LAN via WAN ISP
@@ -99,13 +109,13 @@ add action=dst-nat chain=dstnat comment="DSTNAT-WEB-OLT-8001 (Enable saat butuh 
 add action=dst-nat chain=dstnat comment="DSTNAT-SNMP-OLT-1611 (Enable saat butuh remote)" disabled=yes dst-port=1611 protocol=udp to-addresses=192.168.30.2 to-ports=161
 
 # ------------------------------------------------------------------------------
-# 11. TCP MSS CLAMPING (MENCEGAH WEB TERTENTU / STREAMING BLANK DI HP PELANGGAN)
+# 12. TCP MSS CLAMPING (MENCEGAH WEB TERTENTU / STREAMING BLANK DI HP PELANGGAN)
 # ------------------------------------------------------------------------------
 /ip firewall mangle
 add action=change-mss chain=forward comment="TCP-MSS-CLAMPING" new-mss=clamp-to-pmtu passthrough=yes protocol=tcp tcp-flags=syn
 
 # ------------------------------------------------------------------------------
-# 12. TIMEZONE & SINKRONISASI JAM OTOMATIS (NTP CLIENT)
+# 13. TIMEZONE & SINKRONISASI JAM OTOMATIS (NTP CLIENT)
 # ------------------------------------------------------------------------------
 /system clock
 set time-zone-name=Asia/Jakarta
@@ -114,7 +124,7 @@ set time-zone-name=Asia/Jakarta
 set enabled=yes primary-ntp=103.83.142.30 secondary-ntp=14.102.153.110
 
 # ------------------------------------------------------------------------------
-# 13. HOUSEKEEPING WIRELESS BAWAAN (OFF SUPAYA AMAN)
+# 14. HOUSEKEEPING WIRELESS BAWAAN (OFF SUPAYA AMAN)
 # ------------------------------------------------------------------------------
 /interface wireless
 set [ find default-name=wlan1 ] disabled=yes comment="WIFI-INTERNAL-OFF"
