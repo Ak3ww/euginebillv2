@@ -10,15 +10,58 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.11
+- **Version**: 2.39.14
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
-- **Last Updated**: September 12, 2026
+- **Last Updated**: September 14, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
 - **Turnkey 1-Command Installer**: `curl -fsSL https://raw.githubusercontent.com/Ak3ww/euginebillv2/main/scripts/install.sh | sudo bash`
 
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 14, 2026 — v2.39.14: Network UI Standard, ACS TR-069 Clean Guide, & VPN Architecture Clarification)
+- **Architectural Invariant: Native VPS Built-in VPN Server vs External MikroTik CHR**:
+  - **The Context**: Admin dan teknisi baru sering mengalami kebingungan melihat terminologi "MikroTik CHR" di menu VPN Server, mengira bahwa mereka diwajibkan menyewa router MikroTik Cloud Hosted Router (CHR) terpisah di cloud agar VPN EugineBill dapat berfungsi.
+  - **The Architecture Truth**:
+    - **VPS Built-in VPN Server (WireGuard & L2TP/IPsec — Rekomendasi Utama)**: EugineBill telah memiliki server VPN native langsung di Linux VPS (WireGuard kernel module dan xl2tpd/strongSwan). Semua router MikroTik pelanggan (NAS) di lapangan dapat langsung terhubung ke IP VPS EugineBill tanpa memerlukan lisensi atau router CHR perantara.
+    - **External MikroTik CHR (Mode Alternatif Opsional)**: Hanya disediakan sebagai opsi sekunder jika ISP telah memiliki router MikroTik CHR mandiri di data center yang ingin difungsikan sebagai konsentrator VPN terpisah.
+  - **Admin UI & Guide Hardening**:
+    - `src/components/admin/AcsGuideCard.tsx`: Tautan eksternal ke GitHub dihapus. Panduan terintegrasi penuh (*self-contained*) melalui accordion "Buka Panduan Setup TR-069" yang mencakup MikroTik VLAN 4000, OLT VSOL CLI, dan ONT Multi-Vendor (ZTE, Huawei, Fiberhome, VSOL).
+    - `src/app/admin/network/routers/page.tsx`: Panduan "Alur NAS / Router" dan "Troubleshooting FreeRADIUS: unknown client" direfaktor ke standar Shadcn UI bersih (`bg-card`, `border-border`, code block `bg-zinc-950`).
+    - `src/app/admin/network/vpn-server/page.tsx` & `vpn-client/page.tsx`: Diberikan penegasan banner arsitektur VPN EugineBill, font berkontras tinggi pada light dan dark mode, perapian pengaturan IP pool WireGuard & L2TP, serta penghapusan seluruh text emoji pada modal dan opsi select (100% Lucide React icons).
+
+### Recent Patch Log (September 14, 2026 — v2.39.13: WhatsApp Delivery Audit Hardening & Safe Batch Resend Engine)
+- **Architectural Invariant: WhatsApp Audit Log Matching & Safe Batch Resend**:
+  - **The Problem**: Log pengiriman WhatsApp sebelumnya mencocokkan invoice dengan log hanya berdasarkan nomor HP dan tanggal pembuatan invoice (`logTime >= invCreatedAt`). Akibatnya, pesan transaksi non-invoice (seperti OTP, welcome message, pesan isolasi, atau tanda terima pembayaran sebelumnya) salah dideteksi sebagai bukti pengiriman reminder invoice bulan berjalan, sehingga tagihan yang sebenarnya belum terkirim dianggap sudah terkirim. Selain itu, proses resend sebelumnya membombardir gateway WA sekaligus tanpa jeda batch.
+  - **Accurate Log Matching Rule**:
+    - Pencocokan log WhatsApp (`whatsapp_history`) dengan invoice WAJIB memverifikasi bahwa `inv.invoiceNumber` tercantum pada isi pesan (`l.message`) atau metadata/respons provider (`l.response`).
+    - Pengecekan tidak boleh mengandalkan nomor telepon pelanggan saja.
+  - **Safe Batch Resend Engine**:
+    - Nilai `batchSize` (default: 10) dan `batchDelay` (default: 120 detik) diambil langsung dari tabel `whatsapp_reminder_settings`.
+    - Di sisi backend route (`/api/admin/whatsapp/audit-delivery`), pengiriman dieksekusi per-batch dengan jeda `await new Promise(r => setTimeout(r, batchDelay * 1000))`.
+    - Di sisi UI admin (`/admin/whatsapp/audit`), antarmuka membagi antrean per-batch dan menyediakan live progress bar, penghitung counter real-time (Berhasil, Gagal, Sisa), serta hitung mundur (countdown) jeda delay dengan tombol *Lewati Jeda* dan *Hentikan Pengiriman*.
+  - **Admin UI Standard Compliance**:
+    - Menggunakan standar Shadcn UI (`Card`, `Badge`, `Button`, `Input`, `Table`, `Dialog`, `Checkbox`).
+    - 5 kartu ringkasan bento interaktif langsung memfilter tabel ketika diklik.
+    - Bersih 100% dari text emoji dengan representasi visual dedicated Lucide React icons.
+
+### Recent Patch Log (September 14, 2026 — v2.39.12: WhatsApp Notification Settings & Anti-Banned Batch Sending Enhancements)
+- **Architectural Invariant: WhatsApp Dual Quota Mode & Anti-Banned Batch Sending**:
+  - **The Context**: Admin memerlukan keleluasaan memilih antara proteksi anti-spam nomor WhatsApp (Mode Aman / Aturan Ketat 3 pesan) atau kebebasan penjadwalan reminder tanpa batas kuota (Mode Fleksibel / Bebas Kuota). Di samping itu, pengiriman massal pesan otomatis rentan diblokir WhatsApp jika tidak memakai batching, jeda istirahat, dan pengacakan antrean.
+  - **Dual-Mode Quota Architecture (`strictQuotaEnabled`)**:
+    - **Mode Aman / Strict (`strictQuotaEnabled = true`)**:
+      - `maxInvoiceReminders = 2` dan `maxTotalMessagesPerCycle = 3`.
+      - Jadwal `reminderDays` dibatasi maksimal 2 hari hanya sebelum jatuh tempo (`<= 0`, misal: H-6 dan H-1).
+      - Menjamin perlindungan skor reputasi nomor WhatsApp dari laporan spam pelanggan.
+    - **Mode Fleksibel / Uncapped (`strictQuotaEnabled = false`)**:
+      - `maxInvoiceReminders = 99` dan `maxTotalMessagesPerCycle = 99`.
+      - Jadwal `reminderDays` bebas sebelum (`<= 0`) dan/atau sesudah (`> 0`) jatuh tempo.
+      - Pengecekan kuota pesan siklus di bypass / unblocked sehingga invoice reminder lanjutan tidak tertahan.
+  - **Anti-Banned Batch Engine (`RateLimitConfig` + Fisher-Yates)**:
+    - Nilai `batchSize` (default: 10) dan `batchDelay` (default: 120s) WAJIB dibaca dinamis dari tabel `whatsapp_reminder_settings` dan diteruskan ke `sendWithRateLimit(messages, fn, rateLimitConfig)`.
+    - Jika `settings.randomize === true`, antrean pesan wajib diacak dengan algoritma *Fisher-Yates shuffle* sebelum dikirim untuk memecah pola pengiriman deterministik yang mudah dideteksi oleh provider WhatsApp.
+    - Pada Admin UI, selalu sertakan kalkulasi estimasi durasi pengiriman otomatis dan WAJIB mematuhi aturan bebas text emoji dengan Lucide React icons.
 
 ### Recent Patch Log (September 12, 2026 — v2.39.11: Client Deployment Toolkit Hardening - OLT VSOL V1600GS & MikroTik FTTH Pack)
 - **Architectural Invariant: Toolkit Synchronization & Zero-Friction Field Deployment**:

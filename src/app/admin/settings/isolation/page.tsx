@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -490,13 +490,13 @@ export default function IsolationSettingsPage() {
               <li>{t('isolation.mikrotikStep3')} <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded">{settings.isolationRateLimit}</code></li>
               <li>{t('isolation.mikrotikStep4')}</li>
             </ol>
-            <p className="mt-2">
+            <p className="mt-3">
               <a 
-                href="/docs/isolation" 
-                target="_blank"
-                className="text-amber-800 dark:text-amber-300 underline hover:text-amber-900"
+                href="/admin/settings/isolation/mikrotik" 
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-xs transition-colors"
               >
-                {t('isolation.viewFullDocs')}
+                <span>Buka Script Generator MikroTik (RouterOS 6 &amp; 7)</span>
+                <span>&rarr;</span>
               </a>
             </p>
           </div>

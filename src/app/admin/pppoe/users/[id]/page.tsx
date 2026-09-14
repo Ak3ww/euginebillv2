@@ -84,9 +84,24 @@ interface Invoice {
   amount: number;
   status: string;
   dueDate: string;
+  paidAt?: string | null;
   createdAt: string;
   paymentLink: string | null;
   paymentToken: string | null;
+  payments?: Array<{
+    id: string;
+    amount: number;
+    method: string;
+    status: string;
+    paidAt: string;
+  }>;
+  manualPayments?: Array<{
+    id: string;
+    amount: number;
+    status: string;
+    bankName?: string;
+    paidAt?: string;
+  }>;
 }
 
 function formatBytes(bytes: number) {
@@ -123,6 +138,16 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
   const [profiles, setProfiles] = useState<any[]>([]);
   const [routers, setRouters] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
+  const [userModal, setUserModal] = useState<{
+    isOpen: boolean;
+    user?: PppoeUserDetail | null;
+  }>({ isOpen: false });
+  const [ontModal, setOntModal] = useState<{
+    isOpen: boolean;
+    username?: string;
+    targetIp?: string;
+    routerName?: string;
+  }>({ isOpen: false });
 
   const [remoteModalTarget, setRemoteModalTarget] = useState<{
     isOpen: boolean;
@@ -142,7 +167,7 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
   const [expandMikrotik, setExpandMikrotik] = useState(true);
   const [expandHardware, setExpandHardware] = useState(true);
   const [expandWorkOrders, setExpandWorkOrders] = useState(true);
-  const [expandInvoices, setExpandInvoices] = useState(false);
+  const [expandInvoices, setExpandInvoices] = useState(true);
 
   // Create SPK Modal State
   const [isSpkModalOpen, setIsSpkModalOpen] = useState(false);
@@ -174,15 +199,17 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
     try {
       const res = await fetch(`/api/pppoe/users/${id}`);
       const data = await res.json();
+      let targetUserId = id;
       if (res.ok && data.user) {
         setUser(data.user);
         setActiveSession(data.activeSession || null);
+        targetUserId = data.user.id;
       } else {
         addToast({ type: 'error', title: 'Gagal', description: data.error || 'Pelanggan tidak ditemukan' });
       }
 
-      // Fetch invoices
-      const invRes = await fetch(`/api/invoices?userId=${id}`);
+      // Fetch invoices using resolved target user ID
+      const invRes = await fetch(`/api/invoices?userId=${targetUserId}`);
       if (invRes.ok) {
         const invData = await invRes.json();
         setInvoices(invData.invoices || []);
@@ -706,23 +733,55 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
                       <th className="px-3 py-2 text-left font-mono font-bold uppercase">Jumlah</th>
                       <th className="px-3 py-2 text-left font-mono font-bold uppercase">Jatuh Tempo</th>
                       <th className="px-3 py-2 text-left font-mono font-bold uppercase">Status</th>
+                      <th className="px-3 py-2 text-left font-mono font-bold uppercase">Detail Pembayaran</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {invoices.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-muted/40">
-                        <td className="px-3 py-2 font-mono font-bold text-primary">{inv.invoiceNumber}</td>
-                        <td className="px-3 py-2 font-mono font-bold">Rp {inv.amount.toLocaleString('id-ID')}</td>
-                        <td className="px-3 py-2 font-mono">{formatWIB(inv.dueDate, 'dd/MM/yyyy')}</td>
-                        <td className="px-3 py-2">
-                          <span className={cn('px-2 py-0.5 rounded font-mono text-[10px] font-bold uppercase',
-                            inv.status === 'PAID' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'
-                          )}>
-                            {inv.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {invoices.map((inv) => {
+                      const latestPayment = inv.payments?.[0];
+                      const manual = inv.manualPayments?.[0];
+                      return (
+                        <tr key={inv.id} className="hover:bg-muted/40">
+                          <td className="px-3 py-2 font-mono font-bold text-primary">
+                            <a
+                              href={`/admin/invoices?search=${encodeURIComponent(inv.invoiceNumber)}`}
+                              className="hover:underline inline-flex items-center gap-1"
+                              title="Lihat di Menu Tagihan"
+                            >
+                              {inv.invoiceNumber}
+                              <ExternalLink className="w-3 h-3 opacity-60" />
+                            </a>
+                          </td>
+                          <td className="px-3 py-2 font-mono font-bold">Rp {inv.amount.toLocaleString('id-ID')}</td>
+                          <td className="px-3 py-2 font-mono">{formatWIB(inv.dueDate, 'dd/MM/yyyy')}</td>
+                          <td className="px-3 py-2">
+                            <span className={cn('px-2 py-0.5 rounded font-mono text-[10px] font-bold uppercase',
+                              inv.status === 'PAID' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                            )}>
+                              {inv.status === 'PAID' ? 'Lunas' : inv.status}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 font-mono text-[11px]">
+                            {inv.status === 'PAID' ? (
+                              <div className="text-emerald-600 dark:text-emerald-400 font-medium">
+                                <span>
+                                  {inv.paidAt || latestPayment?.paidAt || manual?.paidAt
+                                    ? formatWIB(inv.paidAt || latestPayment?.paidAt || manual?.paidAt!, 'dd/MM/yyyy HH:mm')
+                                    : 'Lunas'}
+                                </span>
+                                {latestPayment?.method ? (
+                                  <span className="text-muted-foreground ml-1.5 font-normal">({latestPayment.method})</span>
+                                ) : manual?.bankName ? (
+                                  <span className="text-muted-foreground ml-1.5 font-normal">({manual.bankName})</span>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">Belum Lunas</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

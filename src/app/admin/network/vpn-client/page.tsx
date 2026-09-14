@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { useTranslation } from '@/hooks/useTranslation';
-import { Shield, Plus, Trash2, Eye, Loader2, Users, Server, Copy, CheckCircle, XCircle, Wifi, Radio, Terminal, ChevronDown, ChevronUp, Route, Zap, Info, Key, Settings, Globe } from 'lucide-react';
+import { Shield, Plus, Trash2, Eye, Loader2, Users, Server, Copy, CheckCircle, XCircle, Wifi, Radio, Terminal, ChevronDown, ChevronUp, Route, Zap, Info, Key, Settings, Globe, CheckCircle2, ArrowRight, AlertTriangle, Router } from 'lucide-react';
 
 interface VpnClient {
   id: string
@@ -1165,249 +1165,311 @@ export default function VpnClientPage() {
             </div>
           </div>
 
-          {/* ── Tutorial / Flow Banner ───────────────────────────────── */}
-          <div className="mb-8">
-            <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl border border-[#00f7ff]/20 rounded-2xl overflow-hidden">
-              <button
-                onClick={() => setShowTutorial(!showTutorial)}
-                className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-[#00f7ff]/5 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-1.5 bg-[#00f7ff]/20 rounded-lg flex items-center justify-center">
-                    <Info className="w-4 h-4 text-[#00f7ff]" />
-                  </div>
-                  <span className="text-sm font-bold text-[#00f7ff] uppercase tracking-wider">Cara Penggunaan — Alur VPN Client</span>
+          {/* ── Architecture Explanation Callout ──────────────────────── */}
+          <div className="mb-6 rounded-xl border border-border bg-card shadow-sm p-5 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <Shield className="w-5 h-5" />
                 </div>
-                {showTutorial ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-              </button>
-              {showTutorial && (
-                <div className="px-6 pb-6 border-t border-[#00f7ff]/10">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
-                    {[
-                      { step: 1, icon: <Server className="w-5 h-5 text-[#bc13fe]" />, color: 'border-[#bc13fe]/40 bg-[#bc13fe]/5', title: 'VPN Server Dulu', desc: 'Pastikan VPN Server sudah dikonfigurasi di menu VPN Server (MikroTik CHR atau WireGuard VPS).', link: '/admin/network/vpn-server', linkLabel: '→ Menu VPN Server' },
-                      { step: 2, icon: <Plus className="w-5 h-5 text-[#00f7ff]" />, color: 'border-[#00f7ff]/40 bg-[#00f7ff]/5', title: 'Buat VPN Client', desc: 'Klik "+ Tambah VPN Client", pilih protokol (WireGuard/L2TP/SSTP/PPTP), dan nama NAS. Sistem otomatis generate user & konfigurasi di CHR.', link: null, linkLabel: null },
-                      { step: 3, icon: <Terminal className="w-5 h-5 text-green-500" />, color: 'border-green-500/40 bg-green-500/5', title: 'Apply Script ke NAS', desc: 'Copy script RouterOS yang dihasilkan → paste di terminal MikroTik/WinBox pada router/NAS pelanggan. VPN akan tersambung otomatis.', link: null, linkLabel: null },
-                      { step: 4, icon: <Radio className="w-5 h-5 text-amber-500" />, color: 'border-amber-500/40 bg-amber-500/5', title: 'Tandai RADIUS Server', desc: 'Centang "Jadikan RADIUS Server" pada client yang jalan di VPS/Raspberry Pi. Lalu daftarkan NAS di menu NAS/Router.', link: '/admin/network/routers', linkLabel: '→ Menu NAS/Router' },
-                    ].map(item => (
-                      <div key={item.step} className={`rounded-xl border ${item.color} p-4`}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="p-1 rounded-md bg-background/50">{item.icon}</div>
-                          <span className="text-xs font-bold text-muted-foreground bg-muted/50 dark:bg-slate-800/80 px-2 py-0.5 rounded-full">Step {item.step}</span>
-                        </div>
-                        <p className="text-sm font-bold text-foreground mb-1">{item.title}</p>
-                        <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
-                        {item.link && (
-                          <a href={item.link} className="inline-block mt-2 text-xs font-medium text-[#00f7ff] hover:underline">{item.linkLabel}</a>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-4 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
-                    <p className="text-xs text-amber-400/90 flex items-center gap-1.5"><Info className="w-4 h-4 text-amber-400 flex-shrink-0" /><span className="font-bold">Tips protokol:</span> Gunakan <strong>WireGuard</strong> untuk RouterOS 7+ (lebih cepat &amp; modern). Gunakan <strong>L2TP/SSTP</strong> untuk RouterOS 6 atau jika WireGuard tidak support. PPTP sudah deprecated, hindari untuk keamanan.</p>
-                  </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Arsitektur VPN EugineBill &amp; Panduan Konsentrator
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Memahami peran VPS Native VPN Server vs External MikroTik CHR
+                  </p>
                 </div>
-              )}
+              </div>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 w-fit">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Native Linux VPN Aktif
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Rekomendasi Utama: VPS Native */}
+              <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded bg-primary/10 text-primary">
+                    <Server className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-semibold text-foreground">
+                    VPS Built-in VPN Server (WireGuard &amp; L2TP/IPsec — Rekomendasi Utama)
+                  </h4>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  EugineBill sudah memiliki server VPN native langsung di Linux VPS (WireGuard dan L2TP/IPsec). Teknisi <strong>TIDAK PERLU</strong> repot menyewa atau men-setup MikroTik CHR tambahan. Cukup pilih server <em>VPS WireGuard</em> atau <em>VPS L2TP/IPsec</em> saat membuat VPN Client baru.
+                </p>
+                <div className="pt-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  Rekomendasi Utama — 100% Native di Linux VPS tanpa lisensi CHR.
+                </div>
+              </div>
+
+              {/* Mode Alternatif: External MikroTik CHR */}
+              <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded bg-muted text-muted-foreground">
+                    <Router className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-semibold text-foreground">
+                    External MikroTik CHR (Mode Alternatif Opsional)
+                  </h4>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Pilihan server CHR pada opsi VPN Server adalah mode alternatif opsional jika jaringan ISP Anda telah memiliki Cloud Hosted Router (CHR) terpisah sebagai konsentrator VPN khusus.
+                </p>
+                <div className="pt-1 text-[11px] text-muted-foreground">
+                  Status: <em>Opsional — Gunakan jika memiliki MikroTik CHR tersendiri.</em>
+                </div>
+              </div>
             </div>
           </div>
 
-
+          {/* ── Tutorial / Flow Banner ───────────────────────────────── */}
+          <div className="mb-8 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <button
+              onClick={() => setShowTutorial(!showTutorial)}
+              className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
+                  <Info className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-foreground">Cara Penggunaan — Alur VPN Client</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">Panduan menyambungkan router MikroTik klien ke VPN EugineBill</p>
+                </div>
+              </div>
+              {showTutorial ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            </button>
+            {showTutorial && (
+              <div className="px-6 pb-6 pt-2 border-t border-border space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                  {[
+                    { step: 1, icon: <Server className="w-4 h-4 text-primary" />, title: 'Pilih Server VPN', desc: 'Gunakan VPS Built-in VPN Server (WireGuard/L2TP) sebagai pilihan utama, atau External CHR jika ada.', link: '/admin/network/vpn-server', linkLabel: 'Kelola VPN Server' },
+                    { step: 2, icon: <Plus className="w-4 h-4 text-primary" />, title: 'Buat VPN Client', desc: 'Klik "+ Tambah VPN Client", pilih protokol (WireGuard / L2TP), masukkan nama NAS router pelanggan.', link: null, linkLabel: null },
+                    { step: 3, icon: <Terminal className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />, title: 'Terapkan Script ke NAS', desc: 'Salin script RouterOS yang dihasilkan lalu paste di Winbox Terminal router klien. VPN akan tersambung otomatis.', link: null, linkLabel: null },
+                    { step: 4, icon: <Radio className="w-4 h-4 text-blue-600 dark:text-blue-400" />, title: 'Daftarkan NAS / Router', desc: 'Daftarkan IP VPN router tersebut di menu Router / NAS agar terintegrasi dengan FreeRADIUS & monitoring.', link: '/admin/network/routers', linkLabel: 'Buka Menu NAS/Router' },
+                  ].map(item => (
+                    <div key={item.step} className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="p-1.5 rounded-md bg-background border border-border/60">{item.icon}</div>
+                        <span className="text-[11px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded border border-border">Langkah {item.step}</span>
+                      </div>
+                      <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+                      {item.link && (
+                        <a href={item.link} className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline pt-1">
+                          <span>{item.linkLabel}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="p-3.5 rounded-lg border border-border bg-muted/40 text-xs text-muted-foreground flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                  <p><strong className="text-foreground">Tips Protokol:</strong> Gunakan <strong>WireGuard</strong> untuk RouterOS 7+ (performa lebih cepat, stabil, dan modern). Gunakan <strong>L2TP/IPsec</strong> untuk RouterOS 6 atau jika router tidak mendukung WireGuard. Protokol PPTP sudah usang dan sebaiknya dihindari untuk keamanan.</p>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* ── VPS Built-in VPN Settings ─────────────────────────────── */}
-          <div className="mb-8">
-            <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl border border-[#00f7ff]/30 rounded-2xl overflow-hidden">
-              <button
-                onClick={() => {
-                  setShowVpsSettings(!showVpsSettings);
-                  if (!showVpsSettings) {
-                    loadWgServerInfo();
-                    loadL2tpServerInfo();
-                  }
-                }}
-                className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-[#00f7ff]/5 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-1.5 bg-[#00f7ff]/20 rounded-lg flex items-center justify-center">
-                    <Settings className="w-4 h-4 text-[#00f7ff]" />
-                  </div>
-                  <div>
-                    <span className="text-sm font-bold text-[#00f7ff] uppercase tracking-wider">Konfigurasi VPS Built-in VPN</span>
-                    <span className="ml-2 text-xs text-muted-foreground">— Pool IP &amp; Gateway untuk WireGuard dan L2TP yang terinstall di VPS</span>
-                  </div>
+          <div className="mb-8 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <button
+              onClick={() => {
+                setShowVpsSettings(!showVpsSettings);
+                if (!showVpsSettings) {
+                  loadWgServerInfo();
+                  loadL2tpServerInfo();
+                }
+              }}
+              className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
+                  <Settings className="w-4 h-4" />
                 </div>
-                {showVpsSettings ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-              </button>
-              {showVpsSettings && (
-                <div className="border-t border-[#00f7ff]/20 px-6 py-5 space-y-6">
-                  <p className="text-xs text-muted-foreground">Atur range IP pool yang akan di-assign otomatis ke setiap VPN client baru. Konfigurasi ini khusus untuk VPN WireGuard dan L2TP yang berjalan langsung di VPS (bukan MikroTik CHR).</p>
-
-                  {/* WireGuard Pool Config */}
-                  {wgServerInfoLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="w-4 h-4 animate-spin" /> Memuat info WireGuard...
-                    </div>
-                  ) : wgServerInfo?.installed ? (
-                    <div className="p-4 rounded-xl border border-teal-500/30 bg-teal-500/5">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-bold text-teal-300 flex items-center gap-2">
-                          <Wifi className="w-4 h-4" /> Pool IP WireGuard VPS
-                        </p>
-                        {!wgPoolEdit && (
-                          <button
-                            onClick={() => {
-                              // Derive base from existing poolStart if it's a full IP, else from subnet
-                              const existingStart = wgServerInfo.poolStart;
-                              const base = (typeof existingStart === 'string' && existingStart.includes('.'))
-                                ? existingStart.split('.').slice(0,3).join('.')
-                                : wgServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.');
-                              const toFullIp = (v: number | string | undefined, def: number) =>
-                                v === undefined ? (base ? `${base}.${def}` : '') :
-                                (typeof v === 'string' && v.includes('.')) ? v :
-                                (base ? `${base}.${v}` : String(v));
-                              setWgPoolEdit(true);
-                              setWgPoolForm({
-                                poolStart: toFullIp(wgServerInfo.poolStart, 2),
-                                poolEnd: toFullIp(wgServerInfo.poolEnd, 254),
-                                gatewayIp: wgServerInfo.gatewayIp || (base ? `${base}.1` : ''),
-                              });
-                            }}
-                            className="text-xs text-teal-400 hover:text-teal-300 border border-teal-500/40 px-2 py-1 rounded-lg"
-                          >
-                            Edit
-                          </button>
-                        )}
-                      </div>
-                      {!wgPoolEdit ? (
-                        <div className="grid grid-cols-3 gap-3 text-xs">
-                          <div>
-                            <p className="text-muted-foreground mb-0.5">IP Mulai</p>
-                            <p className="font-mono text-foreground">{typeof wgServerInfo.poolStart === 'string' ? wgServerInfo.poolStart : `${wgServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.${wgServerInfo.poolStart ?? 2}`}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground mb-0.5">IP Akhir</p>
-                            <p className="font-mono text-foreground">{typeof wgServerInfo.poolEnd === 'string' ? wgServerInfo.poolEnd : `${wgServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.${wgServerInfo.poolEnd ?? 254}`}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground mb-0.5">Gateway VPS</p>
-                            <p className="font-mono text-foreground">{wgServerInfo.gatewayIp || `${wgServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.1`}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-xs text-muted-foreground mb-1 block">IP Mulai <span className="text-gray-500">(IP lengkap, mis. 10.200.0.2)</span></label>
-                              <input type="text" value={wgPoolForm.poolStart} onChange={(e) => setWgPoolForm(p => ({...p, poolStart: e.target.value}))} className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-sm focus:border-teal-400 focus:ring-1 focus:ring-teal-400/30" placeholder="mis. 10.200.0.2" />
-                            </div>
-                            <div>
-                              <label className="text-xs text-muted-foreground mb-1 block">IP Akhir <span className="text-gray-500">(IP lengkap, mis. 10.200.0.254)</span></label>
-                              <input type="text" value={wgPoolForm.poolEnd} onChange={(e) => setWgPoolForm(p => ({...p, poolEnd: e.target.value}))} className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-sm focus:border-teal-400 focus:ring-1 focus:ring-teal-400/30" placeholder="mis. 10.200.0.254" />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground mb-1 block">Gateway IP VPS <span className="text-gray-500">(IP wg0 di VPS, default .1)</span></label>
-                            <input type="text" value={wgPoolForm.gatewayIp} onChange={(e) => setWgPoolForm(p => ({...p, gatewayIp: e.target.value}))} className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-sm focus:border-teal-400 focus:ring-1 focus:ring-teal-400/30" placeholder={`${wgServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.1`} />
-                          </div>
-                          <div className="flex gap-2 pt-1">
-                            <button onClick={handleWgSavePoolConfig} disabled={wgPoolSaving} className="flex-1 py-2 bg-teal-500 text-white text-sm font-bold rounded-lg hover:bg-teal-400 disabled:opacity-50 transition-colors">{wgPoolSaving ? 'Menyimpan...' : 'Simpan'}</button>
-                            <button onClick={() => setWgPoolEdit(false)} className="flex-1 py-2 bg-muted border border-border text-foreground text-sm rounded-lg hover:bg-accent transition-colors">Batal</button>
-                          </div>
-                        </div>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-2">Pool subnet: <span className="font-mono text-teal-300">{(() => { const s = wgServerInfo.poolStart; const b = (typeof s === 'string' && s.includes('.')) ? s.split('.').slice(0,3).join('.') : wgServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.'); return b ? `${b}.0/24` : wgServerInfo.subnet || '-'; })()}</span> · Server: {wgServerInfo.publicIp}:{wgServerInfo.listenPort}</p>
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-xl border border-slate-700/40 bg-slate-900/40 text-center">
-                      <Wifi className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">WireGuard belum terinstall di VPS.</p>
-                      <a href="/admin/network/vpn-server" className="text-xs text-[#00f7ff] hover:underline mt-1 inline-block">→ Install dari menu VPN Server</a>
-                    </div>
-                  )}
-
-                  {/* L2TP Pool Config */}
-                  {l2tpServerInfoLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="w-4 h-4 animate-spin" /> Memuat info L2TP...
-                    </div>
-                  ) : l2tpServerInfo?.installed ? (
-                    <div className="p-4 rounded-xl border border-[#bc13fe]/30 bg-[#bc13fe]/5">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-bold text-[#bc13fe] flex items-center gap-2">
-                          <Radio className="w-4 h-4" /> Pool IP L2TP/IPsec VPS
-                        </p>
-                        {!l2tpPoolEdit && (
-                          <button
-                            onClick={() => {
-                              // Derive base from existing poolStart if it's a full IP, else from subnet
-                              const existingStart = l2tpServerInfo.poolStart;
-                              const base = (typeof existingStart === 'string' && existingStart.includes('.'))
-                                ? existingStart.split('.').slice(0,3).join('.')
-                                : l2tpServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.');
-                              const toFullIp = (v: number | string | undefined, def: number) =>
-                                v === undefined ? (base ? `${base}.${def}` : '') :
-                                (typeof v === 'string' && v.includes('.')) ? v :
-                                (base ? `${base}.${v}` : String(v));
-                              setL2tpPoolEdit(true);
-                              setL2tpPoolForm({
-                                poolStart: toFullIp(l2tpServerInfo.poolStart, 10),
-                                poolEnd: toFullIp(l2tpServerInfo.poolEnd, 254),
-                                gateway: l2tpServerInfo.gateway || (base ? `${base}.1` : ''),
-                              });
-                            }}
-                            className="text-xs text-[#bc13fe] hover:text-[#d060ff] border border-[#bc13fe]/40 px-2 py-1 rounded-lg"
-                          >
-                            Edit
-                          </button>
-                        )}
-                      </div>
-                      {!l2tpPoolEdit ? (
-                        <div className="grid grid-cols-3 gap-3 text-xs">
-                          <div>
-                            <p className="text-muted-foreground mb-0.5">IP Mulai</p>
-                            <p className="font-mono text-foreground">{typeof l2tpServerInfo.poolStart === 'string' ? l2tpServerInfo.poolStart : `${l2tpServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.${l2tpServerInfo.poolStart ?? 10}`}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground mb-0.5">IP Akhir</p>
-                            <p className="font-mono text-foreground">{typeof l2tpServerInfo.poolEnd === 'string' ? l2tpServerInfo.poolEnd : `${l2tpServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.${l2tpServerInfo.poolEnd ?? 254}`}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground mb-0.5">Gateway</p>
-                            <p className="font-mono text-foreground">{l2tpServerInfo.gateway || `${l2tpServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.1`}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-xs text-muted-foreground mb-1 block">IP Mulai <span className="text-gray-500">(IP lengkap, mis. 10.201.0.10)</span></label>
-                              <input type="text" value={l2tpPoolForm.poolStart} onChange={(e) => setL2tpPoolForm(p => ({...p, poolStart: e.target.value}))} className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-sm" placeholder="mis. 10.201.0.10" />
-                            </div>
-                            <div>
-                              <label className="text-xs text-muted-foreground mb-1 block">IP Akhir <span className="text-gray-500">(IP lengkap, mis. 10.201.0.254)</span></label>
-                              <input type="text" value={l2tpPoolForm.poolEnd} onChange={(e) => setL2tpPoolForm(p => ({...p, poolEnd: e.target.value}))} className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-sm" placeholder="mis. 10.201.0.254" />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground mb-1 block">Gateway <span className="text-gray-500">(IP lokal VPS L2TP, kosong = auto .1)</span></label>
-                            <input type="text" value={l2tpPoolForm.gateway} onChange={(e) => setL2tpPoolForm(p => ({...p, gateway: e.target.value}))} className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-sm" placeholder="mis. 10.201.0.1" />
-                          </div>
-                          <div className="flex gap-2 pt-1">
-                            <button onClick={handleL2tpSavePoolConfig} disabled={l2tpPoolSaving} className="flex-1 py-2 bg-[#bc13fe] text-white text-sm font-bold rounded-lg hover:bg-[#d060ff] disabled:opacity-50 transition-colors">{l2tpPoolSaving ? 'Menyimpan...' : 'Simpan'}</button>
-                            <button onClick={() => setL2tpPoolEdit(false)} className="flex-1 py-2 bg-muted border border-border text-foreground text-sm rounded-lg hover:bg-accent transition-colors">Batal</button>
-                          </div>
-                        </div>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-2">Pool subnet: <span className="font-mono text-[#bc13fe]">{(() => { const s = l2tpServerInfo.poolStart; const b = (typeof s === 'string' && s.includes('.')) ? s.split('.').slice(0,3).join('.') : l2tpServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.'); return b ? `${b}.0/24` : l2tpServerInfo.subnet || '-'; })()}</span> · Server: {l2tpServerInfo.publicIp}</p>
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-xl border border-slate-700/40 bg-slate-900/40 text-center">
-                      <Radio className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">L2TP/IPsec belum terinstall di VPS.</p>
-                      <a href="/admin/network/vpn-server" className="text-xs text-[#00f7ff] hover:underline mt-1 inline-block">→ Install dari menu VPN Server</a>
-                    </div>
-                  )}
+                <div>
+                  <span className="text-sm font-semibold text-foreground">Konfigurasi VPS Built-in VPN</span>
+                  <span className="ml-2 text-xs text-muted-foreground">— Pool IP &amp; Gateway untuk WireGuard dan L2TP yang terinstall di VPS</span>
                 </div>
-              )}
-            </div>
+              </div>
+              {showVpsSettings ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            </button>
+            {showVpsSettings && (
+              <div className="border-t border-border px-6 py-5 space-y-6">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Atur range IP pool yang akan di-assign otomatis ke setiap VPN client baru. Konfigurasi ini khusus untuk VPN WireGuard dan L2TP yang berjalan langsung di Linux VPS EugineBill (bukan MikroTik CHR).
+                </p>
+
+                {/* WireGuard Pool Config */}
+                {wgServerInfoLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" /> Memuat info WireGuard...
+                  </div>
+                ) : wgServerInfo?.installed ? (
+                  <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Wifi className="w-4 h-4 text-primary" /> Pool IP WireGuard VPS
+                      </p>
+                      {!wgPoolEdit && (
+                        <button
+                          onClick={() => {
+                            const existingStart = wgServerInfo.poolStart;
+                            const base = (typeof existingStart === 'string' && existingStart.includes('.'))
+                              ? existingStart.split('.').slice(0,3).join('.')
+                              : wgServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.');
+                            const toFullIp = (v: number | string | undefined, def: number) =>
+                              v === undefined ? (base ? `${base}.${def}` : '') :
+                              (typeof v === 'string' && v.includes('.')) ? v :
+                              (base ? `${base}.${v}` : String(v));
+                            setWgPoolEdit(true);
+                            setWgPoolForm({
+                              poolStart: toFullIp(wgServerInfo.poolStart, 2),
+                              poolEnd: toFullIp(wgServerInfo.poolEnd, 254),
+                              gatewayIp: wgServerInfo.gatewayIp || (base ? `${base}.1` : ''),
+                            });
+                          }}
+                          className="text-xs text-primary hover:underline border border-border bg-background px-2.5 py-1 rounded-md font-medium"
+                        >
+                          Edit Pool
+                        </button>
+                      )}
+                    </div>
+                    {!wgPoolEdit ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div className="p-2.5 rounded-md border border-border/60 bg-background">
+                          <p className="text-muted-foreground mb-1">IP Mulai</p>
+                          <p className="font-mono text-foreground font-medium">{typeof wgServerInfo.poolStart === 'string' ? wgServerInfo.poolStart : `${wgServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.${wgServerInfo.poolStart ?? 2}`}</p>
+                        </div>
+                        <div className="p-2.5 rounded-md border border-border/60 bg-background">
+                          <p className="text-muted-foreground mb-1">IP Akhir</p>
+                          <p className="font-mono text-foreground font-medium">{typeof wgServerInfo.poolEnd === 'string' ? wgServerInfo.poolEnd : `${wgServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.${wgServerInfo.poolEnd ?? 254}`}</p>
+                        </div>
+                        <div className="p-2.5 rounded-md border border-border/60 bg-background">
+                          <p className="text-muted-foreground mb-1">Gateway VPS</p>
+                          <p className="font-mono text-foreground font-medium">{wgServerInfo.gatewayIp || `${wgServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.1`}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 pt-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-medium text-foreground mb-1 block">IP Mulai <span className="text-muted-foreground font-normal">(IP lengkap, mis. 10.200.0.2)</span></label>
+                            <input type="text" value={wgPoolForm.poolStart} onChange={(e) => setWgPoolForm(p => ({...p, poolStart: e.target.value}))} className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-sm focus:border-ring focus:ring-1 focus:ring-ring" placeholder="mis. 10.200.0.2" />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-foreground mb-1 block">IP Akhir <span className="text-muted-foreground font-normal">(IP lengkap, mis. 10.200.0.254)</span></label>
+                            <input type="text" value={wgPoolForm.poolEnd} onChange={(e) => setWgPoolForm(p => ({...p, poolEnd: e.target.value}))} className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-sm focus:border-ring focus:ring-1 focus:ring-ring" placeholder="mis. 10.200.0.254" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-foreground mb-1 block">Gateway IP VPS <span className="text-muted-foreground font-normal">(IP wg0 di VPS, default .1)</span></label>
+                          <input type="text" value={wgPoolForm.gatewayIp} onChange={(e) => setWgPoolForm(p => ({...p, gatewayIp: e.target.value}))} className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-sm focus:border-ring focus:ring-1 focus:ring-ring" placeholder={`${wgServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.1`} />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={handleWgSavePoolConfig} disabled={wgPoolSaving} className="flex-1 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">{wgPoolSaving ? 'Menyimpan...' : 'Simpan'}</button>
+                          <button onClick={() => setWgPoolEdit(false)} className="flex-1 py-2 bg-muted border border-border text-foreground text-sm rounded-lg hover:bg-accent transition-colors">Batal</button>
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground pt-1 border-t border-border/60">Pool subnet: <span className="font-mono text-foreground font-medium">{(() => { const s = wgServerInfo.poolStart; const b = (typeof s === 'string' && s.includes('.')) ? s.split('.').slice(0,3).join('.') : wgServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.'); return b ? `${b}.0/24` : wgServerInfo.subnet || '-'; })()}</span> · Server: <span className="font-mono text-foreground font-medium">{wgServerInfo.publicIp}:{wgServerInfo.listenPort}</span></p>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-lg border border-border bg-muted/20 text-center space-y-2">
+                    <Wifi className="w-5 h-5 text-muted-foreground mx-auto" />
+                    <p className="text-xs text-muted-foreground">WireGuard belum terinstall di VPS.</p>
+                    <a href="/admin/network/vpn-server" className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"><span>Install dari menu VPN Server</span><ArrowRight className="w-3 h-3" /></a>
+                  </div>
+                )}
+
+                {/* L2TP Pool Config */}
+                {l2tpServerInfoLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" /> Memuat info L2TP...
+                  </div>
+                ) : l2tpServerInfo?.installed ? (
+                  <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Radio className="w-4 h-4 text-primary" /> Pool IP L2TP/IPsec VPS
+                      </p>
+                      {!l2tpPoolEdit && (
+                        <button
+                          onClick={() => {
+                            const existingStart = l2tpServerInfo.poolStart;
+                            const base = (typeof existingStart === 'string' && existingStart.includes('.'))
+                              ? existingStart.split('.').slice(0,3).join('.')
+                              : l2tpServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.');
+                            const toFullIp = (v: number | string | undefined, def: number) =>
+                              v === undefined ? (base ? `${base}.${def}` : '') :
+                              (typeof v === 'string' && v.includes('.')) ? v :
+                              (base ? `${base}.${v}` : String(v));
+                            setL2tpPoolEdit(true);
+                            setL2tpPoolForm({
+                              poolStart: toFullIp(l2tpServerInfo.poolStart, 10),
+                              poolEnd: toFullIp(l2tpServerInfo.poolEnd, 254),
+                              gateway: l2tpServerInfo.gateway || (base ? `${base}.1` : ''),
+                            });
+                          }}
+                          className="text-xs text-primary hover:underline border border-border bg-background px-2.5 py-1 rounded-md font-medium"
+                        >
+                          Edit Pool
+                        </button>
+                      )}
+                    </div>
+                    {!l2tpPoolEdit ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div className="p-2.5 rounded-md border border-border/60 bg-background">
+                          <p className="text-muted-foreground mb-1">IP Mulai</p>
+                          <p className="font-mono text-foreground font-medium">{typeof l2tpServerInfo.poolStart === 'string' ? l2tpServerInfo.poolStart : `${l2tpServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.${l2tpServerInfo.poolStart ?? 10}`}</p>
+                        </div>
+                        <div className="p-2.5 rounded-md border border-border/60 bg-background">
+                          <p className="text-muted-foreground mb-1">IP Akhir</p>
+                          <p className="font-mono text-foreground font-medium">{typeof l2tpServerInfo.poolEnd === 'string' ? l2tpServerInfo.poolEnd : `${l2tpServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.${l2tpServerInfo.poolEnd ?? 254}`}</p>
+                        </div>
+                        <div className="p-2.5 rounded-md border border-border/60 bg-background">
+                          <p className="text-muted-foreground mb-1">Gateway</p>
+                          <p className="font-mono text-foreground font-medium">{l2tpServerInfo.gateway || `${l2tpServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.')}.1`}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 pt-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-medium text-foreground mb-1 block">IP Mulai <span className="text-muted-foreground font-normal">(IP lengkap, mis. 10.201.0.10)</span></label>
+                            <input type="text" value={l2tpPoolForm.poolStart} onChange={(e) => setL2tpPoolForm(p => ({...p, poolStart: e.target.value}))} className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-sm focus:border-ring focus:ring-1 focus:ring-ring" placeholder="mis. 10.201.0.10" />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-foreground mb-1 block">IP Akhir <span className="text-muted-foreground font-normal">(IP lengkap, mis. 10.201.0.254)</span></label>
+                            <input type="text" value={l2tpPoolForm.poolEnd} onChange={(e) => setL2tpPoolForm(p => ({...p, poolEnd: e.target.value}))} className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-sm focus:border-ring focus:ring-1 focus:ring-ring" placeholder="mis. 10.201.0.254" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-foreground mb-1 block">Gateway <span className="text-muted-foreground font-normal">(IP lokal VPS L2TP, kosong = auto .1)</span></label>
+                          <input type="text" value={l2tpPoolForm.gateway} onChange={(e) => setL2tpPoolForm(p => ({...p, gateway: e.target.value}))} className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono text-sm focus:border-ring focus:ring-1 focus:ring-ring" placeholder="mis. 10.201.0.1" />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={handleL2tpSavePoolConfig} disabled={l2tpPoolSaving} className="flex-1 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">{l2tpPoolSaving ? 'Menyimpan...' : 'Simpan'}</button>
+                          <button onClick={() => setL2tpPoolEdit(false)} className="flex-1 py-2 bg-muted border border-border text-foreground text-sm rounded-lg hover:bg-accent transition-colors">Batal</button>
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground pt-1 border-t border-border/60">Pool subnet: <span className="font-mono text-foreground font-medium">{(() => { const s = l2tpServerInfo.poolStart; const b = (typeof s === 'string' && s.includes('.')) ? s.split('.').slice(0,3).join('.') : l2tpServerInfo.subnet?.split('/')[0].split('.').slice(0,3).join('.'); return b ? `${b}.0/24` : l2tpServerInfo.subnet || '-'; })()}</span> · Server: <span className="font-mono text-foreground font-medium">{l2tpServerInfo.publicIp}</span></p>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-lg border border-border bg-muted/20 text-center space-y-2">
+                    <Radio className="w-5 h-5 text-muted-foreground mx-auto" />
+                    <p className="text-xs text-muted-foreground">L2TP/IPsec belum terinstall di VPS.</p>
+                    <a href="/admin/network/vpn-server" className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"><span>Install dari menu VPN Server</span><ArrowRight className="w-3 h-3" /></a>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Clients List */}
@@ -1652,20 +1714,20 @@ export default function VpnClientPage() {
                       <option value="" className="bg-slate-800">{t('network.selectVpnClient')}</option>
                       {/* VPS WireGuard option */}
                       {formData.vpnType === 'wireguard' && wgServerInfoLoading && (
-                        <option disabled className="bg-slate-800">⏳ Memeriksa VPS WireGuard...</option>
+                        <option disabled className="bg-slate-800">Memeriksa status VPS WireGuard...</option>
                       )}
                       {formData.vpnType === 'wireguard' && wgServerInfo?.installed && (
                         <option value="__vps_wg__" className="bg-slate-800">
-                          🖥️ VPS WireGuard Server ({wgServerInfo.publicIp || 'VPS'} :{wgServerInfo.listenPort || 51820})
+                          [VPS Native] WireGuard Server ({wgServerInfo.publicIp || 'VPS'} :{wgServerInfo.listenPort || 51820}) — Rekomendasi Utama
                         </option>
                       )}
                       {/* VPS L2TP option */}
                       {formData.vpnType === 'l2tp' && l2tpServerInfoLoading && (
-                        <option disabled className="bg-slate-800">⏳ Memeriksa VPS L2TP...</option>
+                        <option disabled className="bg-slate-800">Memeriksa status VPS L2TP...</option>
                       )}
                       {formData.vpnType === 'l2tp' && l2tpServerInfo?.installed && (
                         <option value="__vps_l2tp__" className="bg-slate-800">
-                          🖥️ VPS L2TP/IPsec Server ({l2tpServerInfo.publicIp || 'VPS'})
+                          [VPS Native] L2TP/IPsec Server ({l2tpServerInfo.publicIp || 'VPS'}) — Rekomendasi Utama
                         </option>
                       )}
                       {/* CHR servers */}
@@ -1679,20 +1741,22 @@ export default function VpnClientPage() {
                         })
                         .map((server) => (
                           <option key={server.id} value={server.id} className="bg-slate-800">
-                            🔷 CHR: {server.name} ({server.host})
+                            [External CHR] {server.name} ({server.host})
                           </option>
                         ))}
                     </select>
                     {formData.vpnType === 'wireguard' && !wgServerInfoLoading && wgServerInfo && !wgServerInfo.installed && vpnServers.filter(s => s.wgEnabled).length === 0 && (
-                      <p className="text-xs text-amber-400 mt-1.5">
-                        ⚠️ WireGuard belum terinstall di VPS dan tidak ada CHR dengan WireGuard aktif.
-                        <a href="/admin/network/vpn-server" className="text-[#00f7ff] underline ml-1">Setup di menu VPN Server</a>.
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5 flex items-center gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
+                        <span>WireGuard belum terinstall di VPS dan tidak ada CHR dengan WireGuard aktif.</span>
+                        <a href="/admin/network/vpn-server" className="text-primary hover:underline ml-1">Setup di menu VPN Server</a>.
                       </p>
                     )}
                     {formData.vpnType === 'l2tp' && !l2tpServerInfoLoading && l2tpServerInfo && !l2tpServerInfo.installed && vpnServers.filter(s => s.l2tpEnabled).length === 0 && (
-                      <p className="text-xs text-amber-400 mt-1.5">
-                        ⚠️ L2TP belum terinstall di VPS dan tidak ada CHR dengan L2TP aktif.
-                        <a href="/admin/network/vpn-server" className="text-[#00f7ff] underline ml-1">Setup di menu VPN Server</a>.
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5 flex items-center gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
+                        <span>L2TP belum terinstall di VPS dan tidak ada CHR dengan L2TP aktif.</span>
+                        <a href="/admin/network/vpn-server" className="text-primary hover:underline ml-1">Setup di menu VPN Server</a>.
                       </p>
                     )}
                   </div>
@@ -2046,8 +2110,11 @@ export default function VpnClientPage() {
                 Terapkan routing script ke VPS: <span className="text-[#00f7ff] font-medium">{applyRoutingClient.name}</span>
               </p>
 
-              <div className="p-4 rounded-xl border border-[#00f7ff]/30 bg-muted/50 dark:bg-slate-900/60 mb-4">
-                <p className="text-xs font-bold text-[#00f7ff] mb-3">🔑 SSH Credentials VPS RADIUS</p>
+              <div className="p-4 rounded-xl border border-border bg-muted/40 mb-4">
+                <p className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-primary" />
+                  SSH Credentials VPS RADIUS
+                </p>
                 <input
                     className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground text-sm mb-2"
                     placeholder="IP VPS RADIUS (contoh: 103.151.140.110)"

@@ -810,6 +810,7 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
     const reminderDays: number[] = JSON.parse(settings.reminderDays || '[-6, -1]')
     const maxInvoiceReminders: number = (settings as any).maxInvoiceReminders ?? 2
     const maxTotalMessages: number = (settings as any).maxTotalMessagesPerCycle ?? 3
+    const isStrictQuota = !(maxTotalMessages >= 99 || maxInvoiceReminders >= 99)
     const [targetHour, targetMinute] = settings.reminderTime.split(':').map(Number)
 
     // Get current WIB time (WIB-as-UTC format)
@@ -840,13 +841,14 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
     let sentCount = 0
     let skippedCount = 0
 
-    // 🛑 STRICT 3-WA RULE: Only process configured reminderDays (e.g. [-6, -1]) up to maxInvoiceReminders (default: 2)
-    // Overdue arrays (1..28) are completely eliminated to prevent spamming
-    const allReminderDays = reminderDays
-      .filter((d: any) => typeof d === 'number' && d <= 0)
-      .slice(0, maxInvoiceReminders);
+    // Quota Filter for reminderDays:
+    // If strict quota: only process negative or 0 days (<= 0), up to maxInvoiceReminders (default: 2)
+    // If flexible quota: allow any configured reminder days (before and/or after due date), up to maxInvoiceReminders
+    const allReminderDays = isStrictQuota
+      ? reminderDays.filter((d: any) => typeof d === 'number' && d <= 0).slice(0, maxInvoiceReminders)
+      : reminderDays.filter((d: any) => typeof d === 'number').slice(0, maxInvoiceReminders);
 
-    console.log(`[Invoice Reminder] Processing ${allReminderDays.length} reminder schedule(s): ${allReminderDays.join(', ')} (Max per invoice: ${maxInvoiceReminders}, Max cycle: ${maxTotalMessages})`)
+    console.log(`[Invoice Reminder] Processing ${allReminderDays.length} reminder schedule(s): ${allReminderDays.join(', ')} (Mode: ${isStrictQuota ? 'Strict' : 'Flexible'}, Max per invoice: ${maxInvoiceReminders}, Max cycle: ${maxTotalMessages})`)
 
     // For each reminder day, find invoices that match
     for (const reminderDay of allReminderDays) {
@@ -945,8 +947,8 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           continue
         }
 
-        // 🛑 STRICT QUOTA CHECK 1: Max invoice reminders reached for this invoice (default: 2)
-        if (invoiceSentReminders.length >= maxInvoiceReminders) {
+        // 🛑 QUOTA CHECK 1: Max invoice reminders reached for this invoice (enforced in strict mode)
+        if (isStrictQuota && invoiceSentReminders.length >= maxInvoiceReminders) {
           console.log(`[Invoice Reminder] 🛑 Skipped ${invoice.invoiceNumber}: Max invoice reminders quota reached (${invoiceSentReminders.length}/${maxInvoiceReminders})`)
           skippedCount++
           continue
@@ -1002,26 +1004,28 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
           continue;
         }
 
-        // 🛑 STRICT QUOTA CHECK 2: Overall customer cycle quota (maxTotalMessages, default 3)
-        // Count successful messages (status !== 'failed') sent to this customer in this billing cycle
-        const cycleStart = invoice.createdAt ? new Date(invoice.createdAt) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const digitsOnly = targetPhone.replace(/[^0-9]/g, '');
-        const phone62 = digitsOnly.startsWith('0') ? `62${digitsOnly.slice(1)}` : (digitsOnly.startsWith('62') ? digitsOnly : `62${digitsOnly}`);
-        const phone08 = digitsOnly.startsWith('62') ? `0${digitsOnly.slice(2)}` : digitsOnly;
-        const phoneCandidates = Array.from(new Set([targetPhone, digitsOnly, phone62, phone08, `+${phone62}`]));
+        // 🛑 QUOTA CHECK 2: Overall customer cycle quota (maxTotalMessages)
+        // If flexible mode (maxTotalMessages >= 99), do not block additional messages per cycle
+        if (isStrictQuota && maxTotalMessages < 99) {
+          const cycleStart = invoice.createdAt ? new Date(invoice.createdAt) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+          const digitsOnly = targetPhone.replace(/[^0-9]/g, '');
+          const phone62 = digitsOnly.startsWith('0') ? `62${digitsOnly.slice(1)}` : (digitsOnly.startsWith('62') ? digitsOnly : `62${digitsOnly}`);
+          const phone08 = digitsOnly.startsWith('62') ? `0${digitsOnly.slice(2)}` : digitsOnly;
+          const phoneCandidates = Array.from(new Set([targetPhone, digitsOnly, phone62, phone08, `+${phone62}`]));
 
-        const successfulCycleMessages = await prisma.whatsapp_history.count({
-          where: {
-            phone: { in: phoneCandidates },
-            status: { not: 'failed' },
-            sentAt: { gte: cycleStart },
+          const successfulCycleMessages = await prisma.whatsapp_history.count({
+            where: {
+              phone: { in: phoneCandidates },
+              status: { not: 'failed' },
+              sentAt: { gte: cycleStart },
+            }
+          });
+
+          if (successfulCycleMessages >= maxTotalMessages) {
+            console.log(`[Invoice Reminder] 🛑 Skipped ${invoice.invoiceNumber}: Total cycle message cap reached (${successfulCycleMessages}/${maxTotalMessages})`);
+            skippedCount++;
+            continue;
           }
-        });
-
-        if (successfulCycleMessages >= maxTotalMessages) {
-          console.log(`[Invoice Reminder] 🛑 Skipped ${invoice.invoiceNumber}: Total cycle message cap reached (${successfulCycleMessages}/${maxTotalMessages})`);
-          skippedCount++;
-          continue;
         }
 
         // Auto-sync invoice.customerPhone and invoice.customerName in DB if outdated
@@ -1052,14 +1056,36 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
         });
       }
 
-      // Send messages with rate limiting (5 msg per 10 seconds)
+      // Send messages with rate limiting
       if (messagesToSend.length > 0) {
-        console.log(`[Invoice Reminder] Sending ${messagesToSend.length} reminders with rate limiting...`);
+        // Apply Fisher-Yates shuffle if randomize is enabled in settings
+        if (settings.randomize) {
+          console.log(`[Invoice Reminder] Randomizing message order (${messagesToSend.length} messages) using Fisher-Yates shuffle...`);
+          for (let i = messagesToSend.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [messagesToSend[i], messagesToSend[j]] = [messagesToSend[j], messagesToSend[i]];
+          }
+        }
 
         const { sendWithRateLimit, estimateSendTime, formatEstimatedTime } = await import('@/lib/utils/rateLimiter');
         const { sendInvoiceReminder } = await import('@/server/services/notifications/whatsapp-templates.service');
 
-        const estimatedTime = estimateSendTime(messagesToSend.length);
+        // Extract batchSize and batchDelay from DB settings (default: 10 msg per 120s)
+        const configuredBatchSize = typeof settings.batchSize === 'number' && settings.batchSize > 0
+          ? settings.batchSize
+          : 10;
+        const configuredBatchDelaySec = typeof settings.batchDelay === 'number' && settings.batchDelay > 0
+          ? settings.batchDelay
+          : 120;
+        const rateLimitConfig = {
+          messagesPerBatch: configuredBatchSize,
+          delayBetweenBatches: configuredBatchDelaySec * 1000, // convert seconds to ms
+          delayBetweenMessages: 500, // 0.5s between individual messages in a batch
+        };
+
+        console.log(`[Invoice Reminder] Sending ${messagesToSend.length} reminders with rate limiting (${configuredBatchSize} msg/batch, ${configuredBatchDelaySec}s delay)...`);
+
+        const estimatedTime = estimateSendTime(messagesToSend.length, rateLimitConfig);
         console.log(`[Invoice Reminder] Estimated time: ${formatEstimatedTime(estimatedTime)}`);
 
         const result = await sendWithRateLimit(
@@ -1099,7 +1125,7 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
               return;
             }
 
-            if (currentSent.length >= maxInvoiceReminders) {
+            if (isStrictQuota && currentSent.length >= maxInvoiceReminders) {
               console.log(`[Invoice Reminder] 🛡️ Skipped ${invoice.invoiceNumber}: Max invoice reminders quota reached (${currentSent.length}/${maxInvoiceReminders}) (atomic concurrency check)`);
               skippedCount++;
               return;
@@ -1221,7 +1247,7 @@ export async function sendInvoiceReminders(force: boolean = false): Promise<{ su
             }
             sentCount++
           },
-          {}, // Use default config: 5 msg/10sec
+          rateLimitConfig, // Pass configured batchSize and batchDelay from DB settings
           (progress) => {
             console.log(`[Invoice Reminder] Progress: ${progress.current}/${progress.total} (Batch ${progress.batch}/${progress.totalBatches})`)
           }

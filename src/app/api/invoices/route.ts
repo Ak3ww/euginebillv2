@@ -107,8 +107,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (userId) {
-      const pppUser = await prisma.pppoeUser.findUnique({
-        where: { id: userId },
+      const pppUser = await prisma.pppoeUser.findFirst({
+        where: {
+          OR: [
+            { id: userId },
+            { customerId: userId },
+            { username: userId },
+          ]
+        },
         select: { id: true, username: true, customerId: true, phone: true },
       }).catch(() => null);
 
@@ -190,6 +196,27 @@ export async function GET(request: NextRequest) {
     const invoices = await prisma.invoice.findMany({
       where,
       include: {
+        payments: {
+          select: {
+            id: true,
+            amount: true,
+            method: true,
+            status: true,
+            paidAt: true,
+          },
+          orderBy: { paidAt: 'desc' },
+        },
+        manualPayments: {
+          select: {
+            id: true,
+            amount: true,
+            status: true,
+            bankName: true,
+            paymentDate: true,
+            approvedAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
         user: {
           select: {
             customerId: true,  // ID Pelanggan

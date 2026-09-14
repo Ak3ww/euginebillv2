@@ -41,37 +41,49 @@ Tabel \whatsapp_reminder_settings\ menyimpan aturan dinamis:
 
 | Kolom | Tipe | Default | Keterangan |
 | :--- | :--- | :--- | :--- |
-| \eminderDays\ | TEXT (JSON) | \"[-6, -1]"\ | Array hari pengingat invoice sebelum jatuh tempo (maksimal 2 item). |
-| \eminderTime\ | VARCHAR | \"09:00"\ | Waktu pengiriman cron (WIB). |
-| \isolationDelayDays\ | INT | \7\ | Jeda hari setelah isolir sebelum pesan isolasi dikirimkan (H+7). |
-| \maxInvoiceReminders\ | INT | \2\ | Kuota maksimal pengingat invoice sebelum jatuh tempo. |
-| \maxTotalMessagesPerCycle\ | INT | \3\ | Batas total pesan WhatsApp sukses per siklus penagihan. |
+| \eminderDays\ | TEXT (JSON) | \"[-6, -1]"\ | Array hari pengingat invoice sebelum jatuh tempo (maksimal 2 item). |
+| \eminderTime\ | VARCHAR | \"09:00"\ | Waktu pengiriman cron (WIB). |
+| `isolationDelayDays` | INT | `7` | Jeda hari setelah isolir sebelum pesan isolasi dikirimkan (H+7). |
+| `maxInvoiceReminders` | INT | `2` | Kuota maksimal pengingat invoice sebelum jatuh tempo (mode ketat = 2, fleksibel = 99). |
+| `maxTotalMessagesPerCycle` | INT | `3` | Batas total pesan WhatsApp sukses per siklus penagihan (mode ketat = 3, fleksibel = 99). |
+| `batchSize` | INT | `10` | Ukuran kelompok pesan terkirim per batch. |
+| `batchDelay` | INT | `120` | Jeda istirahat antar batch dalam detik (anti-banned). |
+| `randomize` | BOOLEAN | `true` | Mengaktifkan pengacakan urutan antrean pesan (Fisher-Yates shuffle). |
 
-### Migrasi SQL
-File migrasi terletak di \prisma/migrations/add_wa_reminder_limits.sql\:
-\\\sql
-ALTER TABLE \whatsapp_reminder_settings\ 
-ADD COLUMN IF NOT EXISTS \isolationDelayDays\ INT NOT NULL DEFAULT 7,
-ADD COLUMN IF NOT EXISTS \maxInvoiceReminders\ INT NOT NULL DEFAULT 2,
-ADD COLUMN IF NOT EXISTS \maxTotalMessagesPerCycle\ INT NOT NULL DEFAULT 3;
-\\\
+### Mode Operasional: Strict vs Flexible Quota
+Sistem kini mendukung toggle `strictQuotaEnabled`:
+- **Mode Aman / Anti-Spam (`strictQuotaEnabled = true`)**:
+  - `maxInvoiceReminders = 2` dan `maxTotalMessagesPerCycle = 3`.
+  - `reminderDays` dibatasi maksimal 2 entri dan bernilai `<= 0` (hanya sebelum jatuh tempo, misal H-6 dan H-1).
+  - Menjaga reputasi nomor pengirim WhatsApp agar terhindar dari pemblokiran atau penandaan spam.
+- **Mode Fleksibel / Bebas Kuota (`strictQuotaEnabled = false`)**:
+  - `maxInvoiceReminders = 99` dan `maxTotalMessagesPerCycle = 99`.
+  - `reminderDays` bebas diatur tanpa batasan jumlah entri dan dapat mencakup hari sebelum (`< 0`) maupun sesudah jatuh tempo (`> 0`).
+  - Quota checks per siklus dilewati sehingga tidak memblokir pesan pengingat lanjutan.
 
 ---
 
 ## Modul & File Terkait
 
-1. **\src/server/jobs/voucher-sync.ts\ (\sendInvoiceReminders\)**:
-   - Membaca \eminderDays\ dari database dan hanya memproses maksimal \maxInvoiceReminders\ (2 jadwal).
-   - Memeriksa \invoiceSentReminders.length < maxInvoiceReminders\ dan total pesan sukses siklus pelanggan sebelum mengirim.
+1. **`src/server/jobs/voucher-sync.ts` (`sendInvoiceReminders`)**:
+   - Membaca konfigurasi `batchSize` dan `batchDelay` dari database dan meneruskannya ke `sendWithRateLimit` serta `estimateSendTime`.
+   - Mengacak antrean pesan dengan *Fisher-Yates shuffle* jika `settings.randomize === true`.
+   - Menghormati batasan kuota: Jika mode fleksibel (`maxTotalMessagesPerCycle >= 99`), kuota pesan per siklus tidak memblokir pengiriman.
    - Rollback atomik pada kegagalan pengiriman agar pengulangan (retry) diizinkan.
 
-2. **\src/server/jobs/auto-isolation.ts\ (\sendIsolationNotification\ & \sendPendingIsolationNotifications\)**:
-   - Menahan pengiriman WA saat isolir awal pada hari H jika pelanggan belum mencapai \isolationDelayDays\ (H+7).
-   - Memeriksa seluruh pelanggan berstatus \isolated\ setiap jam via \sendPendingIsolationNotifications()\ untuk mengirim pesan tepat saat hari H+7 tiba.
-   - Menghentikan pengiriman jika pesan isolir sudah pernah sukses terkirim atau kuota total 3 pesan siklus telah tercapai.
+2. **`src/app/api/whatsapp/reminder-settings/route.ts`**:
+   - Menangani `GET` dan `PUT` untuk `strictQuotaEnabled`.
+   - Memastikan `batchSize`, `batchDelay`, `randomize`, dan `strictQuotaEnabled` selalu dipersist dan dikembalikan.
 
-3. **\src/server/jobs/pppoe-sync.ts\ (\utoIsolatePPPoEUsers\)**:
-   - Menjalankan isolasi teknis ke MikroTik/RADIUS dan memicu \sendPendingIsolationNotifications()\ di setiap putaran cron.
+3. **`src/app/admin/whatsapp/notifications/page.tsx`**:
+   - Admin UI interaktif dengan switch toggle aturan ketat (Mode Aman vs Mode Fleksibel).
+   - Formulir pengaturan batch anti-banned dengan kalkulasi estimasi waktu pengiriman otomatis.
+   - Standar Shadcn UI & Lucide React tanpa emoji teks.
 
-4. **\src/app/admin/whatsapp/notifications/page.tsx\**:
-   - Halaman Admin UI untuk mengatur jadwal pengingat tagihan (dibatasi maksimal 2 slot) dan jeda hari pengiriman isolir (H+7).
+4. **`src/server/jobs/auto-isolation.ts` (`sendIsolationNotification` & `sendPendingIsolationNotifications`)**:
+   - Menahan pengiriman WA saat isolir awal pada hari H jika pelanggan belum mencapai `isolationDelayDays` (H+7).
+   - Memeriksa seluruh pelanggan berstatus `isolated` setiap jam via `sendPendingIsolationNotifications()` untuk mengirim pesan tepat saat hari H+7 tiba.
+   - Menghentikan pengiriman jika pesan isolir sudah pernah sukses terkirim atau kuota total 3 pesan siklus telah tercapai dalam mode ketat.
+
+5. **`src/server/jobs/pppoe-sync.ts` (`autoIsolatePPPoEUsers`)**:
+   - Menjalankan isolasi teknis ke MikroTik/RADIUS dan memicu `sendPendingIsolationNotifications()` di setiap putaran cron.

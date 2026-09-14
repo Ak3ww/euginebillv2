@@ -7,6 +7,7 @@ import { WhatsAppService } from '@/server/services/notifications/whatsapp.servic
 import { sendInvoiceReminder } from '@/server/services/notifications/whatsapp-templates.service';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 function normalizePhone(phone: string): string {
   if (!phone) return '';
@@ -19,19 +20,45 @@ function normalizePhone(phone: string): string {
 }
 
 /**
+ * Checks whether a WhatsApp history log matches an invoice by its invoiceNumber.
+ * Inspects both the rendered log message and any response/metadata.
+ */
+function isLogMatchingInvoice(
+  log: { message?: string | null; response?: string | null },
+  invoiceNumber?: string | null
+): boolean {
+  if (!invoiceNumber) return false;
+  const inv = invoiceNumber.trim().toLowerCase();
+  if (!inv) return false;
+  const msg = (log.message || '').toLowerCase();
+  const res = (log.response || '').toLowerCase();
+  return msg.includes(inv) || res.includes(inv);
+}
+
+/**
  * GET /api/admin/whatsapp/audit-delivery
  * Audits all PENDING & OVERDUE invoices against actual whatsapp_history logs.
  * Classifies customers into:
- *   - verifiedSent: Really received WA (found in whatsapp_history with status='sent')
- *   - unsent: Has NOT received WA (no sent log entry)
- *   - duplicates: Received WA more than once before fix
+ *   - verifiedSent: Really received WA (found in whatsapp_history with status='sent' AND matching invoiceNumber)
+ *   - unsent: Has NOT received WA (no matching sent log entry)
+ *   - failed: Has attempt history but marked with waRetryCount > 0
+ *   - duplicates: Received WA more than once for the same invoice
  */
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return unauthorized();
 
   try {
-    // 1. Fetch all unpaid invoices (PENDING & OVERDUE)
+    // 1. Fetch reminder settings for batch config
+    const reminderSettings = await prisma.whatsapp_reminder_settings.findFirst().catch(() => null);
+    const batchSize = (typeof reminderSettings?.batchSize === 'number' && reminderSettings.batchSize > 0)
+      ? reminderSettings.batchSize
+      : 10;
+    const batchDelay = (typeof reminderSettings?.batchDelay === 'number' && reminderSettings.batchDelay > 0)
+      ? reminderSettings.batchDelay
+      : 120; // Default 120 detik
+
+    // 2. Fetch all unpaid invoices (PENDING & OVERDUE)
     const invoices = await prisma.invoice.findMany({
       where: {
         status: { in: ['PENDING', 'OVERDUE'] },
@@ -52,7 +79,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // 2. Fetch all successful WhatsApp logs from whatsapp_history
+    // 3. Fetch all successful WhatsApp logs from whatsapp_history
     const waLogs = await prisma.whatsapp_history.findMany({
       where: { status: 'sent' },
       select: {
@@ -83,15 +110,25 @@ export async function GET(request: NextRequest) {
     for (const inv of invoices) {
       const custPhone = inv.customerPhone || inv.user?.phone || '';
       const normPhone = normalizePhone(custPhone);
-      const logs = normPhone ? (phoneLogsMap.get(normPhone) || []) : [];
+      const userNormPhone = normalizePhone(inv.user?.phone || '');
 
-      // Check if invoice number or customer phone has a matching sent log created near or after invoice creation
-      const invCreatedAt = new Date(inv.createdAt).getTime() - 24 * 60 * 60 * 1000; // -24h tolerance
-      const matchingLogs = logs.filter(l => {
-        const logTime = new Date(l.sentAt).getTime();
-        const containsInvoice = inv.invoiceNumber && l.message.includes(inv.invoiceNumber);
-        return containsInvoice || logTime >= invCreatedAt;
-      });
+      // Collect logs matching customer's phone numbers
+      const candidateLogs: typeof waLogs = [];
+      const seenLogIds = new Set<string>();
+
+      const phoneKeys = [normPhone, userNormPhone].filter(Boolean);
+      for (const pk of phoneKeys) {
+        const logs = phoneLogsMap.get(pk) || [];
+        for (const l of logs) {
+          if (!seenLogIds.has(l.id)) {
+            seenLogIds.add(l.id);
+            candidateLogs.push(l);
+          }
+        }
+      }
+
+      // Strictly match log with invoiceNumber (never rely solely on phone number or creation date)
+      const matchingLogs = candidateLogs.filter(l => isLogMatchingInvoice(l, inv.invoiceNumber));
 
       const isLockedInDb = Boolean(inv.waNotifiedAt) || (inv.sentReminders && inv.sentReminders.length > 2);
 
@@ -109,7 +146,7 @@ export async function GET(request: NextRequest) {
           status: inv.status,
           sentCount: matchingLogs.length,
           lastSentAt: matchingLogs[0]?.sentAt || inv.waNotifiedAt,
-          providerName: matchingLogs[0]?.providerName || 'WhatsApp Service',
+          providerName: matchingLogs[0]?.providerName || (isLockedInDb ? 'Terkunci di Database' : 'WhatsApp Service'),
           isLocked: isLockedInDb,
         });
 
@@ -136,7 +173,7 @@ export async function GET(request: NextRequest) {
           area: inv.user?.area?.name || '-',
           status: inv.status,
           paymentLink: inv.paymentLink,
-          waRetryCount: inv.waRetryCount,
+          waRetryCount: inv.waRetryCount || 0,
         });
       }
     }
@@ -146,6 +183,10 @@ export async function GET(request: NextRequest) {
 
     return ok({
       success: true,
+      batchSettings: {
+        batchSize,
+        batchDelay,
+      },
       summary: {
         totalInvoices: invoices.length,
         verifiedSent: verifiedSentList.length,
@@ -168,7 +209,7 @@ export async function GET(request: NextRequest) {
  * POST /api/admin/whatsapp/audit-delivery
  * Actions:
  *   - lock_sent : Permanently locks sentReminders for verified sent customers so they NEVER receive repeat WA.
- *   - send_unsent: Safely sends WA ONLY to unsent list with 100% atomic locks.
+ *   - send_unsent: Safely sends WA in batches with configurable delay to prevent gateway spam.
  */
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -192,13 +233,20 @@ export async function POST(request: NextRequest) {
     if (action === 'lock_sent') {
       let targetIds = invoiceIds;
       if (!targetIds || targetIds.length === 0) {
-        // Find all invoices with at least 1 sent log or waNotified
+        // Fetch all sent logs
         const waLogs = await prisma.whatsapp_history.findMany({
           where: { status: 'sent' },
-          select: { phone: true, sentAt: true },
+          select: { id: true, phone: true, message: true, response: true },
         });
 
-        const normPhones = new Set(waLogs.map(l => normalizePhone(l.phone)).filter(Boolean));
+        const phoneLogsMap = new Map<string, typeof waLogs>();
+        for (const log of waLogs) {
+          const norm = normalizePhone(log.phone);
+          if (!norm) continue;
+          const list = phoneLogsMap.get(norm) || [];
+          list.push(log);
+          phoneLogsMap.set(norm, list);
+        }
 
         const invoicesToLock = await prisma.invoice.findMany({
           where: {
@@ -207,10 +255,21 @@ export async function POST(request: NextRequest) {
           include: { user: { select: { phone: true } } },
         });
 
+        // Filter invoices: must match invoiceNumber in actual logs OR already waNotifiedAt
         targetIds = invoicesToLock
           .filter(inv => {
-            const p = normalizePhone(inv.customerPhone || inv.user?.phone || '');
-            return normPhones.has(p) || Boolean(inv.waNotifiedAt);
+            if (inv.waNotifiedAt) return true;
+            if (!inv.invoiceNumber) return false;
+            const phones = [inv.customerPhone, inv.user?.phone]
+              .map(p => normalizePhone(p || ''))
+              .filter(Boolean);
+            for (const p of phones) {
+              const logs = phoneLogsMap.get(p) || [];
+              if (logs.some(l => isLogMatchingInvoice(l, inv.invoiceNumber))) {
+                return true;
+              }
+            }
+            return false;
           })
           .map(inv => inv.id);
       }
@@ -239,6 +298,15 @@ export async function POST(request: NextRequest) {
         return badRequest('Pilih minimal 1 tagihan belum terkirim untuk diproses');
       }
 
+      // Ambil konfigurasi batchSize dan batchDelay dari whatsapp_reminder_settings (default batchSize: 10, batchDelay: 120 detik)
+      const reminderSettings = await prisma.whatsapp_reminder_settings.findFirst().catch(() => null);
+      const batchSize = (typeof reminderSettings?.batchSize === 'number' && reminderSettings.batchSize > 0)
+        ? reminderSettings.batchSize
+        : 10;
+      const batchDelay = (typeof reminderSettings?.batchDelay === 'number' && reminderSettings.batchDelay > 0)
+        ? reminderSettings.batchDelay
+        : 120; // Default 120 detik
+
       const invoicesToSend = await prisma.invoice.findMany({
         where: {
           id: { in: targetInvoiceIds },
@@ -258,69 +326,89 @@ export async function POST(request: NextRequest) {
       let sentCount = 0;
       let failedCount = 0;
 
-      for (const inv of invoicesToSend) {
-        const phone = inv.customerPhone || inv.user?.phone || '';
-        const customerName = inv.customerName || inv.user?.name || 'Pelanggan';
+      // Bagi invoicesToSend menjadi batches sesuai batchSize
+      const batches: (typeof invoicesToSend)[] = [];
+      for (let i = 0; i < invoicesToSend.length; i += batchSize) {
+        batches.push(invoicesToSend.slice(i, i + batchSize));
+      }
 
-        if (!phone) {
-          results.push({ invoiceNumber: inv.invoiceNumber, phone: '-', customerName, success: false, error: 'Nomor telepon kosong' });
-          failedCount++;
-          continue;
-        }
+      for (let bIndex = 0; bIndex < batches.length; bIndex++) {
+        const batch = batches[bIndex];
 
-        // 🛡️ DOUBLE ATOMIC LOCK BEFORE SENDING
-        const fresh = await prisma.invoice.findUnique({
-          where: { id: inv.id },
-          select: { waNotifiedAt: true, sentReminders: true },
-        });
+        for (const inv of batch) {
+          const phone = inv.customerPhone || inv.user?.phone || '';
+          const customerName = inv.customerName || inv.user?.name || 'Pelanggan';
 
-        if (fresh?.waNotifiedAt) {
-          results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: false, error: 'Tagihan ini sudah terkirim sebelumnya (proteksi duplikat)' });
-          failedCount++;
-          continue;
-        }
+          if (!phone) {
+            results.push({ invoiceNumber: inv.invoiceNumber, phone: '-', customerName, success: false, error: 'Nomor telepon kosong' });
+            failedCount++;
+            continue;
+          }
 
-        // Lock in DB first (Pre-mark)
-        await prisma.invoice.update({
-          where: { id: inv.id },
-          data: {
-            waNotifiedAt: new Date(),
-            sentReminders: ALL_DAYS_LOCK,
-          },
-        });
-
-        try {
-          // Send WA
-          await sendInvoiceReminder({
-            phone,
-            customerName,
-            customerId: (inv.user as any)?.customerId || undefined,
-            customerUsername: inv.customerUsername || inv.user?.username,
-            profileName: (inv.user as any)?.profile?.name || (inv.user as any)?.profile?.name || '-',
-            area: (inv.user as any)?.area?.name || '-',
-            invoiceNumber: inv.invoiceNumber,
-            amount: inv.amount,
-            dueDate: inv.dueDate,
-            paymentLink: inv.paymentLink || '',
-            companyName: companyName,
-            companyPhone: companyPhone,
-            isOverdue: inv.status === 'OVERDUE',
+          // Atomic Lock check: hindari duplikasi jika sudah diproses
+          const fresh = await prisma.invoice.findUnique({
+            where: { id: inv.id },
+            select: { waNotifiedAt: true, sentReminders: true },
           });
 
-          sentCount++;
-          results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: true });
-        } catch (sendErr: any) {
-          failedCount++;
-          // Unlock on failure so admin can retry later
+          if (fresh?.waNotifiedAt) {
+            results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: false, error: 'Tagihan ini sudah terkirim sebelumnya (proteksi duplikat)' });
+            failedCount++;
+            continue;
+          }
+
+          // Lock in DB first (Pre-mark)
           await prisma.invoice.update({
             where: { id: inv.id },
             data: {
-              waNotifiedAt: null,
-              sentReminders: '[]',
+              waNotifiedAt: new Date(),
+              sentReminders: ALL_DAYS_LOCK,
             },
-          }).catch(() => {});
+          });
 
-          results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: false, error: sendErr.message || 'Gagal via provider' });
+          try {
+            // Send WA
+            const sendRes = await sendInvoiceReminder({
+              phone,
+              customerName,
+              customerId: (inv.user as any)?.customerId || undefined,
+              customerUsername: inv.customerUsername || inv.user?.username,
+              profileName: (inv.user as any)?.profile?.name || '-',
+              area: (inv.user as any)?.area?.name || '-',
+              invoiceNumber: inv.invoiceNumber,
+              amount: inv.amount,
+              dueDate: inv.dueDate,
+              paymentLink: inv.paymentLink || '',
+              companyName: companyName,
+              companyPhone: companyPhone,
+              isOverdue: inv.status === 'OVERDUE',
+            });
+
+            if (sendRes && sendRes.success === false) {
+              throw new Error(sendRes.error || 'Gagal mengirim pesan via WhatsApp');
+            }
+
+            sentCount++;
+            results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: true });
+          } catch (sendErr: any) {
+            failedCount++;
+            // Unlock on failure so admin can retry later
+            await prisma.invoice.update({
+              where: { id: inv.id },
+              data: {
+                waNotifiedAt: null,
+                sentReminders: '[]',
+              },
+            }).catch(() => {});
+
+            results.push({ invoiceNumber: inv.invoiceNumber, phone, customerName, success: false, error: sendErr.message || 'Gagal via provider' });
+          }
+        }
+
+        // Jeda delay antar batch agar tidak membombardir gateway WA
+        if (bIndex < batches.length - 1) {
+          console.log(`[WA Audit] Jeda batch ${bIndex + 1}/${batches.length}: menunggu ${batchDelay} detik...`);
+          await new Promise(r => setTimeout(r, batchDelay * 1000));
         }
       }
 
@@ -328,6 +416,9 @@ export async function POST(request: NextRequest) {
         success: true,
         sentCount,
         failedCount,
+        totalProcessed: invoicesToSend.length,
+        batchSize,
+        batchDelay,
         results,
       });
     }

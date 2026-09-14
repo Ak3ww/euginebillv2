@@ -3,6 +3,22 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { showSuccess, showError } from '@/lib/sweetalert';
+import { Switch } from '@/components/ui/switch';
+import {
+  Bell,
+  Clock,
+  Sliders,
+  Shuffle,
+  Info,
+  Plus,
+  X,
+  Save,
+  ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
+  KeyRound,
+  Loader2,
+} from 'lucide-react';
 
 interface ReminderSettings {
   id: string;
@@ -17,6 +33,7 @@ interface ReminderSettings {
   isolationDelayDays?: number;
   maxInvoiceReminders?: number;
   maxTotalMessagesPerCycle?: number;
+  strictQuotaEnabled?: boolean;
   updatedAt: string;
 }
 
@@ -25,13 +42,15 @@ export default function NotificationSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<ReminderSettings | null>(null);
+
   const [enabled, setEnabled] = useState(true);
+  const [strictQuotaEnabled, setStrictQuotaEnabled] = useState(true);
   const [reminderDays, setReminderDays] = useState<number[]>([-6, -1]);
   const [reminderTime, setReminderTime] = useState('09:00');
   const [otpEnabled, setOtpEnabled] = useState(true);
   const [otpExpiry, setOtpExpiry] = useState(5);
   const [batchSize, setBatchSize] = useState(10);
-  const [batchDelay, setBatchDelay] = useState(60);
+  const [batchDelay, setBatchDelay] = useState(120);
   const [randomize, setRandomize] = useState(true);
   const [isolationDelayDays, setIsolationDelayDays] = useState(7);
   const [maxInvoiceReminders, setMaxInvoiceReminders] = useState(2);
@@ -46,20 +65,29 @@ export default function NotificationSettingsPage() {
     try {
       const res = await fetch('/api/whatsapp/reminder-settings');
       const data = await res.json();
-      
+
       if (data.success && data.settings) {
         setSettings(data.settings);
         setEnabled(data.settings.enabled);
         setReminderDays(data.settings.reminderDays ?? [-6, -1]);
-        setReminderTime(data.settings.reminderTime);
+        setReminderTime(data.settings.reminderTime || '09:00');
         setOtpEnabled(data.settings.otpEnabled ?? true);
         setOtpExpiry(data.settings.otpExpiry ?? 5);
         setBatchSize(data.settings.batchSize ?? 10);
-        setBatchDelay(data.settings.batchDelay ?? 60);
+        setBatchDelay(data.settings.batchDelay ?? 120);
         setRandomize(data.settings.randomize ?? true);
         setIsolationDelayDays(data.settings.isolationDelayDays ?? 7);
-        setMaxInvoiceReminders(data.settings.maxInvoiceReminders ?? 2);
-        setMaxTotalMessages(data.settings.maxTotalMessagesPerCycle ?? 3);
+
+        const isStrict = typeof data.settings.strictQuotaEnabled === 'boolean'
+          ? data.settings.strictQuotaEnabled
+          : !(
+              (data.settings.maxTotalMessagesPerCycle ?? 3) >= 99 ||
+              (data.settings.maxInvoiceReminders ?? 2) >= 99
+            );
+
+        setStrictQuotaEnabled(isStrict);
+        setMaxInvoiceReminders(isStrict ? 2 : (data.settings.maxInvoiceReminders ?? 99));
+        setMaxTotalMessages(isStrict ? 3 : (data.settings.maxTotalMessagesPerCycle ?? 99));
       }
     } catch (error) {
       console.error('Load settings error:', error);
@@ -68,52 +96,86 @@ export default function NotificationSettingsPage() {
     }
   };
 
+  const handleToggleStrictQuota = (checked: boolean) => {
+    setStrictQuotaEnabled(checked);
+    if (checked) {
+      setMaxInvoiceReminders(2);
+      setMaxTotalMessages(3);
+      // Clean up reminderDays for strict mode: only <= 0 and max 2 entries
+      setReminderDays((prev) => {
+        const sanitized = prev.filter((d) => d <= 0).slice(0, 2);
+        return sanitized.length > 0 ? sanitized : [-6, -1];
+      });
+    } else {
+      setMaxInvoiceReminders(99);
+      setMaxTotalMessages(99);
+    }
+  };
+
   const addReminderDay = () => {
-    const day = parseInt(newDay);
+    const day = parseInt(newDay, 10);
     if (isNaN(day)) {
-      showError(t('whatsapp.enterValidNumber'));
+      showError(t('whatsapp.enterValidNumber') || 'Masukkan angka yang valid');
       return;
     }
-    if (day > 0) {
-      showError(t('whatsapp.valueMustBeZeroOrNegative'));
+    if (strictQuotaEnabled && day > 0) {
+      showError('Dalam mode aturan ketat, jadwal pengingat hanya boleh sebelum jatuh tempo (angka <= 0, cth: -6, -1).');
       return;
     }
     if (reminderDays.includes(day)) {
-      showError(t('whatsapp.dayAlreadyInList'));
+      showError(t('whatsapp.dayAlreadyInList') || 'Jadwal hari sudah ada di daftar');
       return;
     }
-    if (reminderDays.length >= maxInvoiceReminders) {
-      showError(`Maksimal ${maxInvoiceReminders} jadwal pengingat invoice sebelum jatuh tempo (aturan batas 2 tagihan + 1 isolasi)`);
+
+    const maxAllowed = strictQuotaEnabled ? 2 : 99;
+    if (reminderDays.length >= maxAllowed) {
+      showError(`Maksimal ${maxAllowed} jadwal pengingat invoice.`);
       return;
     }
-    
+
     const newDays = [...reminderDays, day].sort((a, b) => a - b);
     setReminderDays(newDays);
     setNewDay('');
   };
 
   const removeReminderDay = (day: number) => {
-    setReminderDays(reminderDays.filter(d => d !== day));
+    setReminderDays(reminderDays.filter((d) => d !== day));
   };
 
   const handleSave = async () => {
     if (reminderDays.length === 0) {
-      await showError(t('whatsapp.minOneReminderDay'));
+      await showError(t('whatsapp.minOneReminderDay') || 'Minimal satu jadwal pengingat');
       return;
     }
 
-    if (reminderDays.length > maxInvoiceReminders) {
-      await showError(`Maksimal ${maxInvoiceReminders} jadwal pengingat invoice.`);
+    const maxAllowed = strictQuotaEnabled ? 2 : 99;
+    if (reminderDays.length > maxAllowed) {
+      await showError(`Maksimal ${maxAllowed} jadwal pengingat invoice.`);
+      return;
+    }
+
+    if (strictQuotaEnabled && reminderDays.some((d) => d > 0)) {
+      await showError('Mode aturan ketat hanya memperbolehkan pengingat sebelum jatuh tempo (<= 0).');
       return;
     }
 
     if (otpExpiry < 1 || otpExpiry > 60) {
-      await showError(t('whatsapp.otpExpiryRange'));
+      await showError(t('whatsapp.otpExpiryRange') || 'Masa berlaku OTP harus antara 1-60 menit');
       return;
     }
 
     if (isolationDelayDays < 0) {
       await showError('Jeda hari isolir tidak boleh negatif.');
+      return;
+    }
+
+    if (batchSize < 1 || batchSize > 100) {
+      await showError('Ukuran batch harus antara 1-100 pesan.');
+      return;
+    }
+
+    if (batchDelay < 5 || batchDelay > 600) {
+      await showError('Jeda antar batch harus antara 5-600 detik.');
       return;
     }
 
@@ -132,182 +194,239 @@ export default function NotificationSettingsPage() {
           batchDelay,
           randomize,
           isolationDelayDays,
-          maxInvoiceReminders,
-          maxTotalMessagesPerCycle: maxTotalMessages,
-        })
+          maxInvoiceReminders: strictQuotaEnabled ? 2 : 99,
+          maxTotalMessagesPerCycle: strictQuotaEnabled ? 3 : 99,
+          strictQuotaEnabled,
+        }),
       });
 
       const data = await res.json();
 
       if (data.success) {
-        await showSuccess(t('whatsapp.settingsSavedSuccess'));
+        await showSuccess(t('whatsapp.settingsSavedSuccess') || 'Pengaturan berhasil disimpan');
         loadSettings();
       } else {
-        await showError(t('whatsapp.failedSaveSettings') + ': ' + data.error);
+        await showError((t('whatsapp.failedSaveSettings') || 'Gagal menyimpan pengaturan') + ': ' + data.error);
       }
     } catch (error) {
       console.error('Save error:', error);
-      await showError(t('whatsapp.failedSaveSettings'));
+      await showError(t('whatsapp.failedSaveSettings') || 'Gagal menyimpan pengaturan');
     } finally {
       setSaving(false);
     }
   };
 
   const formatDayLabel = (day: number) => {
-    if (day === 0) return t('whatsapp.hDayLabel');
-    return `H${day} (${t('whatsapp.hMinusDaysLabel').replace('{days}', String(Math.abs(day)))})`;
+    if (day === 0) return 'H0 (Hari Jatuh Tempo)';
+    if (day < 0) return `H${day} (${Math.abs(day)} hari sebelum)`;
+    return `H+${day} (${day} hari sesudah)`;
   };
+
+  // Estimated batch sending calculation
+  const sampleMessages = 100;
+  const currentBatchSize = Math.max(1, batchSize || 10);
+  const currentBatchDelay = Math.max(0, batchDelay || 120);
+  const totalBatches = Math.ceil(sampleMessages / currentBatchSize);
+  const totalSeconds = ((totalBatches - 1) * currentBatchDelay) + Math.ceil(sampleMessages * 0.5);
+  const estMinutes = Math.floor(totalSeconds / 60);
+  const estSecs = totalSeconds % 60;
+  const estTimeStr = estMinutes > 0
+    ? `${estMinutes} menit${estSecs > 0 ? ` ${estSecs} detik` : ''}`
+    : `${estSecs} detik`;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#bc13fe]/20 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#00f7ff]/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        </div>
-        <div className="w-12 h-12 border-4 border-brand-500 dark:border-[#00f7ff] border-t-transparent rounded-full animate-spin dark:drop-shadow-[0_0_20px_rgba(0,247,255,0.6)] relative z-10"></div>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="bg-background relative">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#bc13fe]/20 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#00f7ff]/20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-[#ff44cc]/20 rounded-full blur-3xl"></div>
-        <div className="hidden dark:block absolute inset-0 bg-[linear-gradient(rgba(188,19,254,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(188,19,254,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
-      </div>
-      <div className="relative z-10 space-y-6">
-      <div className="max-w-3xl mx-auto space-y-3">
-        {/* Header */}
+    <div className="space-y-6">
+      <div className="max-w-3xl mx-auto space-y-4">
+        {/* Page Header */}
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc] dark:drop-shadow-[0_0_30px_rgba(0,247,255,0.5)]">{t('whatsapp.notificationsTitle')}</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('whatsapp.notificationsSubtitle')}</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+            {t('whatsapp.notificationsTitle')}
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            {t('whatsapp.notificationsSubtitle')}
+          </p>
         </div>
 
-        {/* Strict 3-WA Message Rule Banner */}
-        <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg space-y-1.5">
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <h4 className="text-xs font-semibold text-blue-900 dark:text-blue-200">
-              Aturan Ketat Pengiriman WhatsApp (Maksimal 3 Pesan / Siklus)
-            </h4>
+        {/* Strict Quota Switch & Anti-Spam Explanation Card */}
+        <div className="bg-card rounded-lg border border-border p-4 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+            <div className="flex items-center gap-2.5">
+              {strictQuotaEnabled ? (
+                <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              ) : (
+                <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+              )}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Aturan Ketat Pengiriman (Maksimal 3 Pesan / Siklus)
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {strictQuotaEnabled ? 'Mode Aman (Anti-Spam) Aktif' : 'Mode Fleksibel / Bebas Kuota Aktif'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <span className="text-xs font-medium text-muted-foreground">
+                {strictQuotaEnabled ? 'Aktif' : 'Nonaktif'}
+              </span>
+              <Switch
+                checked={strictQuotaEnabled}
+                onCheckedChange={handleToggleStrictQuota}
+              />
+            </div>
           </div>
-          <p className="text-[11px] text-blue-800 dark:text-blue-300 leading-relaxed">
-            Sistem membatasi pengiriman WhatsApp maksimal <strong>3 pesan per siklus penagihan</strong>:
-            <br />• <strong>Pesan 1 & 2:</strong> Pengingat tagihan invoice sebelum jatuh tempo (default: H-6 dan H-1).
-            <br />• <strong>Pesan 3:</strong> Notifikasi isolasi dikirim tepat pada <strong>H+{isolationDelayDays} setelah isolasi</strong>.
-            <br />• <em>Catatan:</em> Pesan gagal tidak memotong kuota dan otomatis dicoba ulang oleh cron hingga berhasil.
-          </p>
+
+          {/* Friendly Description Based on Toggle */}
+          {strictQuotaEnabled ? (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-md space-y-2">
+              <div className="flex items-start gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-emerald-900 dark:text-emerald-200 leading-relaxed space-y-1.5">
+                  <p className="font-medium">
+                    Mode Aman (Anti-Spam). Pesan dibatasi maksimal 2x pengingat sebelum jatuh tempo (H-6 dan H-1) + 1x notifikasi isolasi (H+{isolationDelayDays}) untuk menjaga skor reputasi nomor WhatsApp Anda.
+                  </p>
+                  <ul className="list-disc list-inside text-[11px] text-emerald-800 dark:text-emerald-300 space-y-0.5">
+                    <li>
+                      <strong>Pesan 1 & 2:</strong> Pengingat tagihan invoice sebelum jatuh tempo (default: H-6 dan H-1).
+                    </li>
+                    <li>
+                      <strong>Pesan 3:</strong> Notifikasi isolasi dikirim tepat pada <strong>H+{isolationDelayDays} setelah isolasi</strong>.
+                    </li>
+                    <li>
+                      <strong>Proteksi:</strong> Pesan gagal tidak memotong kuota dan otomatis dicoba ulang oleh cron hingga berhasil.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-md space-y-2">
+              <div className="flex items-start gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed space-y-1">
+                  <p className="font-medium">
+                    Mode Fleksibel / Bebas Kuota. Anda dapat mengatur jadwal pengingat tanpa batasan 3 pesan, termasuk pengingat sebelum dan sesudah jatuh tempo.
+                  </p>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                    Perhatian: Pengiriman pesan berulang tanpa batasan berpotensi meningkatkan risiko nomor WhatsApp dilaporkan sebagai spam oleh penerima.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Invoice Reminder Card */}
         <div className="bg-card rounded-lg border border-border">
-          <div className="px-3 py-2.5 border-b border-border">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">{t('whatsapp.invoiceReminder')} (Pesan 1 & 2)</h3>
-                <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">Maksimal 2 pengingat sebelum jatuh tempo (cth: H-6 dan H-1)</p>
+          <div className="px-4 py-3 border-b border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bell className="w-4 h-4 text-primary" />
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {t('whatsapp.invoiceReminder')} {strictQuotaEnabled ? '(Pesan 1 & 2)' : '(Mode Fleksibel)'}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    {strictQuotaEnabled
+                      ? 'Maksimal 2 pengingat sebelum jatuh tempo (cth: H-6 dan H-1)'
+                      : 'Bebas mengatur jadwal pengingat sebelum dan sesudah jatuh tempo'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-          <div className="p-3 space-y-3">
+          <div className="p-4 space-y-4">
             {/* Enable Toggle */}
-            <div className="flex items-center justify-between p-2.5 bg-muted/50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-muted/40 rounded-lg">
               <div>
                 <p className="text-xs font-medium text-foreground">{t('whatsapp.enableAutoReminder')}</p>
-                <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('whatsapp.enableAutoReminderDesc')}</p>
+                <p className="text-[11px] text-muted-foreground">{t('whatsapp.enableAutoReminderDesc')}</p>
               </div>
-              <button
-                onClick={() => setEnabled(!enabled)}
-                className={`relative w-10 h-5 rounded-full transition-colors ${enabled ? 'bg-teal-600' : 'bg-muted/80'}`}
-              >
-                <span className={`absolute top-[2px] left-[2px] w-[16px] h-[16px] bg-card rounded-full shadow transition-transform ${enabled ? 'translate-x-[20px]' : 'translate-x-0'}`} />
-              </button>
+              <Switch checked={enabled} onCheckedChange={setEnabled} />
             </div>
 
             {/* Reminder Time */}
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider mb-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {t('whatsapp.sendTime')}
+              <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                {t('whatsapp.sendTime')} (WIB)
               </label>
               <input
                 type="time"
                 value={reminderTime}
                 onChange={(e) => setReminderTime(e.target.value)}
-                className="w-40 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:ring-1 focus:ring-primary focus:border-teal-500 text-foreground"
+                className="w-40 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
               />
-              <p className="text-[10px] text-muted-foreground dark:text-muted-foreground mt-0.5">{t('whatsapp.sendTimeNote')}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{t('whatsapp.sendTimeNote')}</p>
             </div>
 
             {/* Reminder Days */}
             <div>
-              <label className="block text-[10px] font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider mb-1.5">
-                {t('whatsapp.reminderSchedule')} (Maksimal {maxInvoiceReminders} Jadwal)
+              <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                {t('whatsapp.reminderSchedule')} {strictQuotaEnabled ? `(Maksimal ${maxInvoiceReminders} Jadwal)` : '(Bebas Kuota)'}
               </label>
-              <p className="text-[10px] text-muted-foreground dark:text-muted-foreground mb-2">
-                Pilih maksimal {maxInvoiceReminders} jadwal pengingat sebelum jatuh tempo. Sistem tidak lagi mengirim pengingat beruntun harian setelah jatuh tempo.
+              <p className="text-[11px] text-muted-foreground mb-2.5">
+                {strictQuotaEnabled
+                  ? `Pilih maksimal 2 jadwal pengingat sebelum jatuh tempo (angka negatif). Sistem tidak mengirim pengingat spam setelah jatuh tempo.`
+                  : `Tentukan jadwal pengingat invoice. Angka negatif (misal: -6) untuk sebelum jatuh tempo, dan angka positif (misal: 1) untuk sesudah jatuh tempo.`}
               </p>
 
-              <div className="flex flex-wrap gap-1.5 mb-2">
+              <div className="flex flex-wrap gap-1.5 mb-2.5">
                 {reminderDays.length === 0 ? (
-                  <span className="text-[10px] text-muted-foreground italic">{t('whatsapp.noSchedule')}</span>
+                  <span className="text-[11px] text-muted-foreground italic">{t('whatsapp.noSchedule')}</span>
                 ) : (
                   reminderDays.map((day) => (
                     <span
                       key={day}
-                      className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-muted text-foreground border border-border rounded"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-muted text-foreground border border-border rounded-md"
                     >
                       {formatDayLabel(day)}
                       <button
+                        type="button"
                         onClick={() => removeReminderDay(day)}
-                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        className="text-muted-foreground hover:text-destructive transition-colors ml-0.5"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <X className="w-3 h-3" />
                       </button>
                     </span>
                   ))
                 )}
               </div>
 
-              {reminderDays.length < maxInvoiceReminders ? (
-                <div className="flex gap-2">
+              {reminderDays.length < (strictQuotaEnabled ? 2 : 99) ? (
+                <div className="flex gap-2 items-center">
                   <input
                     type="number"
-                    placeholder="-6"
+                    placeholder={strictQuotaEnabled ? '-6' : '-1 atau 2'}
                     value={newDay}
                     onChange={(e) => setNewDay(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addReminderDay()}
-                    className="w-24 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:ring-1 focus:ring-primary focus:border-teal-500 text-foreground"
+                    className="w-28 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
                   />
                   <button
+                    type="button"
                     onClick={addReminderDay}
-                    className="h-8 px-3 text-xs font-medium text-foreground bg-card border border-border rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1.5"
+                    className="h-8 px-3 text-xs font-medium text-foreground bg-muted hover:bg-muted/80 border border-border rounded-md transition-colors flex items-center gap-1.5"
                   >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
+                    <Plus className="w-3.5 h-3.5" />
                     {t('whatsapp.addSchedule')}
                   </button>
                 </div>
               ) : (
-                <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                <p className="text-xs text-amber-600 dark:text-amber-400">
                   Sudah mencapai batas maksimal {maxInvoiceReminders} jadwal pengingat invoice. Hapus salah satu jadwal jika ingin mengganti.
                 </p>
               )}
-              <p className="text-[9px] text-muted-foreground dark:text-muted-foreground mt-1">
-                Contoh rekomendasi: <strong>-6</strong> (H-6) dan <strong>-1</strong> (H-1 sehari sebelum jatuh tempo).
+              <p className="text-[10px] text-muted-foreground mt-1.5">
+                Contoh: <strong>-6</strong> (H-6 sebelum tempo) dan <strong>-1</strong> (H-1 sehari sebelum tempo).
               </p>
             </div>
           </div>
@@ -315,38 +434,40 @@ export default function NotificationSettingsPage() {
 
         {/* Isolation Notification Card */}
         <div className="bg-card rounded-lg border border-border">
-          <div className="px-3 py-2.5 border-b border-border">
+          <div className="px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Pemberitahuan Isolir WhatsApp (Pesan Ke-3)</h3>
-                <p className="text-[10px] text-muted-foreground">Pengaturan jadwal pengiriman pesan isolasi ke pelanggan</p>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Pemberitahuan Isolir WhatsApp {strictQuotaEnabled ? '(Pesan Ke-3)' : ''}
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Pengaturan jadwal pengiriman pesan isolasi ke pelanggan
+                </p>
               </div>
             </div>
           </div>
-          <div className="p-3 space-y-3">
+          <div className="p-4 space-y-3">
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+              <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                 Jeda Hari Kirim Notifikasi Isolir (H+X Setelah Isolasi)
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <input
                   type="number"
                   min="0"
                   max="30"
                   value={isolationDelayDays}
-                  onChange={(e) => setIsolationDelayDays(parseInt(e.target.value) || 0)}
-                  className="w-24 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:ring-1 focus:ring-primary focus:border-teal-500 text-foreground"
+                  onChange={(e) => setIsolationDelayDays(parseInt(e.target.value, 10) || 0)}
+                  className="w-24 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
                 />
-                <span className="text-xs text-muted-foreground">Hari setelah pelanggan diisolir (Default: 7 = H+7)</span>
+                <span className="text-xs text-muted-foreground">
+                  Hari setelah pelanggan diisolir (Default: 7 = H+7)
+                </span>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Pelanggan langsung diisolasi teknis pada hari jatuh tempo, namun notifikasi WhatsApp isolasi baru akan dikirimkan tepat pada <strong>H+{isolationDelayDays}</strong> (1x saja).
+              <p className="text-[10px] text-muted-foreground mt-1.5">
+                Pelanggan diisolir teknis otomatis pada hari jatuh tempo, namun notifikasi WhatsApp isolir akan dikirimkan tepat pada <strong>H+{isolationDelayDays}</strong> (1x saja).
               </p>
             </div>
           </div>
@@ -354,67 +475,58 @@ export default function NotificationSettingsPage() {
 
         {/* OTP Settings Card */}
         <div className="bg-card rounded-lg border border-border">
-          <div className="px-3 py-2.5 border-b border-border">
+          <div className="px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
+              <KeyRound className="w-4 h-4 text-primary" />
               <div>
                 <h3 className="text-sm font-semibold text-foreground">{t('whatsapp.otpLogin')}</h3>
-                <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('whatsapp.otpLoginDesc')}</p>
+                <p className="text-[11px] text-muted-foreground">{t('whatsapp.otpLoginDesc')}</p>
               </div>
             </div>
           </div>
-          <div className="p-3 space-y-3">
+          <div className="p-4 space-y-4">
             {/* OTP Enable Toggle */}
-            <div className="flex items-center justify-between p-2.5 bg-muted/50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-muted/40 rounded-lg">
               <div>
                 <p className="text-xs font-medium text-foreground">{t('whatsapp.enableOtp')}</p>
-                <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('whatsapp.enableOtpDesc')}</p>
+                <p className="text-[11px] text-muted-foreground">{t('whatsapp.enableOtpDesc')}</p>
               </div>
-              <button
-                onClick={() => setOtpEnabled(!otpEnabled)}
-                className={`relative w-10 h-5 rounded-full transition-colors ${otpEnabled ? 'bg-teal-600' : 'bg-muted/80'}`}
-              >
-                <span className={`absolute top-[2px] left-[2px] w-[16px] h-[16px] bg-card rounded-full shadow transition-transform ${otpEnabled ? 'translate-x-[20px]' : 'translate-x-0'}`} />
-              </button>
+              <Switch checked={otpEnabled} onCheckedChange={setOtpEnabled} />
             </div>
 
             {/* OTP Expiry */}
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider mb-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                 {t('whatsapp.otpExpiry')}
               </label>
-              <input
-                type="number"
-                min="1"
-                max="60"
-                value={otpExpiry}
-                onChange={(e) => setOtpExpiry(parseInt(e.target.value))}
-                className="w-24 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:ring-1 focus:ring-primary focus:border-teal-500 text-foreground"
-              />
-              <p className="text-[10px] text-muted-foreground dark:text-muted-foreground mt-0.5">
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={otpExpiry}
+                  onChange={(e) => setOtpExpiry(parseInt(e.target.value, 10) || 5)}
+                  className="w-24 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+                />
+                <span className="text-xs text-muted-foreground">{t('whatsapp.minutes')}</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
                 {t('whatsapp.otpExpiryNote')} {otpExpiry} {t('whatsapp.minutes')}
               </p>
             </div>
 
             {/* OTP Warning */}
             {!otpEnabled && (
-              <div className="p-3 bg-warning/10 border border-warning/30 rounded-lg space-y-2">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-md">
                 <div className="flex items-start gap-2">
-                  <svg className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-200 mb-1">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-0.5">
                       OTP Login Dinonaktifkan
                     </p>
-                    <p className="text-[10px] text-yellow-700 dark:text-yellow-300 leading-relaxed">
-                      Customer dapat login langsung tanpa kode OTP. Sistem akan membuat session otomatis setelah validasi nomor telepon. 
-                      Fitur ini berguna jika layanan WhatsApp sedang bermasalah atau untuk mempercepat akses customer.
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                      Customer dapat login langsung tanpa verifikasi kode OTP. Fitur ini berguna saat gateway WhatsApp mengalami kendala sementara.
                     </p>
                   </div>
                 </div>
@@ -423,90 +535,87 @@ export default function NotificationSettingsPage() {
           </div>
         </div>
 
-        {/* Batch Sending Settings Card */}
+        {/* Batch Anti-Banned Settings Card */}
         <div className="bg-card rounded-lg border border-border">
-          <div className="px-3 py-2.5 border-b border-border">
+          <div className="px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+              <Sliders className="w-4 h-4 text-primary" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground">{t('whatsapp.batchSendingSettings')}</h3>
-                <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('whatsapp.batchSendingDesc')}</p>
+                <h3 className="text-sm font-semibold text-foreground">Pengaturan Pengiriman Batch Anti-Banned</h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Konfigurasi ukuran kelompok pesan dan jeda antar batch agar aman dari deteksi pemblokiran WhatsApp
+                </p>
               </div>
             </div>
           </div>
-          <div className="p-3 space-y-3">
+          <div className="p-4 space-y-4">
             {/* Batch Size */}
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider mb-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                </svg>
-                Jumlah Pesan Per Batch
+              <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                <Sliders className="w-3.5 h-3.5 text-muted-foreground" />
+                Ukuran Batch (Jumlah Pesan)
               </label>
-              <input
-                type="number"
-                min="1"
-                max="100"
-                value={batchSize}
-                onChange={(e) => setBatchSize(parseInt(e.target.value) || 10)}
-                className="w-24 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:ring-1 focus:ring-primary focus:border-teal-500 text-foreground"
-              />
-              <p className="text-[10px] text-muted-foreground dark:text-muted-foreground mt-0.5">
-                Kirim {batchSize} pesan sekaligus, lalu jeda sebelum batch berikutnya
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={batchSize}
+                  onChange={(e) => setBatchSize(parseInt(e.target.value, 10) || 10)}
+                  className="w-24 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+                />
+                <span className="text-xs text-muted-foreground">pesan per batch (Default: 10)</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Kirim {batchSize} pesan sekaligus, lalu tunggu jeda sebelum memproses batch selanjutnya.
               </p>
             </div>
 
             {/* Batch Delay */}
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider mb-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                 Jeda Antar Batch (Detik)
               </label>
-              <input
-                type="number"
-                min="10"
-                max="300"
-                value={batchDelay}
-                onChange={(e) => setBatchDelay(parseInt(e.target.value) || 60)}
-                className="w-24 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:ring-1 focus:ring-primary focus:border-teal-500 text-foreground"
-              />
-              <p className="text-[10px] text-muted-foreground dark:text-muted-foreground mt-0.5">
-                Tunggu {batchDelay} detik sebelum mengirim batch berikutnya
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="5"
+                  max="600"
+                  value={batchDelay}
+                  onChange={(e) => setBatchDelay(parseInt(e.target.value, 10) || 120)}
+                  className="w-24 h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+                />
+                <span className="text-xs text-muted-foreground">detik jeda istirahat (Default: 120)</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Waktu jeda selama {batchDelay} detik setelah setiap batch terkirim.
               </p>
             </div>
 
             {/* Randomize Toggle */}
-            <div className="flex items-center justify-between p-2.5 bg-muted/50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-muted/40 rounded-lg">
               <div>
                 <p className="text-xs font-medium text-foreground">{t('whatsapp.randomOrder')}</p>
-                <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">{t('whatsapp.randomOrderDesc')}</p>
+                <p className="text-[11px] text-muted-foreground">{t('whatsapp.randomOrderDesc')}</p>
               </div>
-              <button
-                onClick={() => setRandomize(!randomize)}
-                className={`relative w-10 h-5 rounded-full transition-colors ${randomize ? 'bg-teal-600' : 'bg-muted/80'}`}
-              >
-                <span className={`absolute top-[2px] left-[2px] w-[16px] h-[16px] bg-card rounded-full shadow transition-transform ${randomize ? 'translate-x-[20px]' : 'translate-x-0'}`} />
-              </button>
+              <Switch checked={randomize} onCheckedChange={setRandomize} />
             </div>
 
-            {/* Info Box */}
-            <div className="p-2.5 bg-primary/10 border border-primary/30 rounded-lg">
-              <p className="text-[10px] text-blue-800 dark:text-blue-200 leading-relaxed">
-                💡 <strong>Tips:</strong> Untuk menghindari banned WhatsApp, gunakan batch size 10-20 pesan dengan jeda 60-120 detik. 
-                Aktifkan pengacakan urutan untuk menghindari deteksi pattern otomatis.
+            {/* Tips Anti-Banned */}
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-md flex items-start gap-2.5">
+              <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-900 dark:text-blue-200 leading-relaxed">
+                <strong>Tips Anti-Banned:</strong> Untuk menghindari pemblokiran nomor oleh WhatsApp, gunakan ukuran batch 10-20 pesan dengan jeda 60-120 detik. Aktifkan pengacakan urutan untuk memecah pola pengiriman otomatis.
               </p>
             </div>
 
-            {/* Example Calculation */}
+            {/* Automatic Estimated Calculation */}
             {batchSize > 0 && batchDelay > 0 && (
-              <div className="p-2 bg-muted/50 rounded-lg">
-                <p className="text-[10px] text-foreground">
-                  📊 <strong>Estimasi:</strong> Untuk 100 reminder, akan dikirim dalam {Math.ceil(100 / batchSize)} batch, 
-                  total waktu ~{Math.ceil((100 / batchSize) * batchDelay / 60)} menit
+              <div className="p-3 bg-muted/40 border border-border rounded-md flex items-start gap-2.5">
+                <Clock className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-foreground leading-relaxed">
+                  <strong>Estimasi Pengiriman:</strong> Untuk 100 reminder, antrean akan dibagi ke dalam {totalBatches} batch dengan perkiraan durasi selesai ~{estTimeStr}.
                 </p>
               </div>
             )}
@@ -514,30 +623,25 @@ export default function NotificationSettingsPage() {
         </div>
 
         {/* Save Button */}
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-2">
           <button
+            type="button"
             onClick={handleSave}
             disabled={saving}
-            className="h-8 px-4 bg-primary hover:bg-primary/90 text-primary-foreground text-white text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            className="h-9 px-4 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 shadow-sm"
           >
             {saving ? (
               <>
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                {t('whatsapp.saving')}
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>{t('whatsapp.saving')}</span>
               </>
             ) : (
               <>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                </svg>
-                {t('whatsapp.saveSettings')}
+                <Save className="w-4 h-4" />
+                <span>{t('whatsapp.saveSettings')}</span>
               </>
             )}
           </button>
-        </div>
         </div>
       </div>
     </div>

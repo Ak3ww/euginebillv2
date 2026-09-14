@@ -4,6 +4,89 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.14] — 2026-09-14
+### Network UI Standard, ACS TR-069 Clean Guide, & VPN Architecture Clarification
+- **Pembaruan UI Jaringan, Panduan ACS TR-069, & Penegasan Arsitektur Native VPN VPS**:
+  - *Context / User Request*:
+    1. Membersihkan panduan TR-069 ACS pada `src/components/admin/AcsGuideCard.tsx` dengan menghapus tombol eksternal "Dokumentasi GitHub" dan memastikan tombol interaktif "Buka Panduan Setup TR-069" accordion 3-langkah (MikroTik, OLT, ONT) tetap aktif.
+    2. Merapikan bagian alur NAS/Router dan Troubleshooting FreeRADIUS "unknown client" di `src/app/admin/network/routers/page.tsx` dari styling cyberpunk/neon glow menjadi standar clean Shadcn UI, code block berkontras tinggi, dan bebas text emoji.
+    3. Memberikan penjelasan arsitektur VPN yang tegas pada antarmuka `src/app/admin/network/vpn-server/page.tsx` dan `src/app/admin/network/vpn-client/page.tsx`: bahwa EugineBill memiliki "VPS Built-in VPN Server (WireGuard & L2TP/IPsec - Rekomendasi Utama)" native di Linux VPS sehingga teknisi tidak perlu menyewa/setup MikroTik CHR tambahan. External MikroTik CHR adalah mode alternatif opsional jika pengguna memiliki CHR terpisah.
+    4. Memperbaiki kontras font, styling tutorial, dan formulir IP pool VPS pada `src/app/admin/network/vpn-client/page.tsx`, serta menghapus seluruh text emoji pada modal dan select options (100% Lucide React icons).
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Kartu Panduan ACS (`src/components/admin/AcsGuideCard.tsx`)**:
+       - Menghapus tautan eksternal GitHub dan import `ExternalLink` yang tidak terpakai.
+       - Mempertahankan state accordion `showFullGuide` dan tombol toggle "Buka Panduan Setup TR-069" yang menampilkan langkah 1 (MikroTik VLAN 4000), langkah 2 (OLT VSOL), dan langkah 3 (tab ONT ZTE, Huawei, Fiberhome, VSOL).
+    2. **Halaman Router / NAS (`src/app/admin/network/routers/page.tsx`)**:
+       - Mengganti kontainer cyberpunk gradient (`#00f7ff`, `#bc13fe`) pada bagian Alur NAS dan Troubleshooting FreeRADIUS dengan komponen Shadcn UI standar (`bg-card`, `border-border`, `bg-muted/30`, `bg-muted/40`).
+       - Memformat code block troubleshooting menggunakan `bg-zinc-950` berkontras tinggi dan teks rapi.
+       - Menghapus text emoji dan karakter simbol (seperti `✓` dan `★`), menggantinya dengan dedicated Lucide icons (`<CheckCircle2 />`, `<AlertTriangle />`, `<Info />`, `<ArrowRight />`, `<ExternalLink />`, `<Router />`, `<Terminal />`).
+    3. **Halaman VPN Server & VPN Client (`vpn-server/page.tsx` & `vpn-client/page.tsx`)**:
+       - Menambahkan Architecture Explanation Callout Card di bagian atas halaman yang menegaskan:
+         - **VPS Built-in VPN Server (WireGuard & L2TP/IPsec — Rekomendasi Utama)**: 100% native di Linux VPS EugineBill, berkecepatan tinggi, tanpa memerlukan lisensi atau setup MikroTik CHR tambahan.
+         - **External MikroTik CHR (Mode Alternatif Opsional)**: Hanya digunakan jika pengguna ingin memanfaatkan router MikroTik CHR eksternal di data center sebagai konsentrator terpisah.
+       - Merefaktor tutorial alur kerja VPN ke standar Shadcn UI dengan kontras tinggi pada light dan dark mode.
+       - Merombak panel "Konfigurasi VPS Built-in VPN" (pengaturan Pool IP WireGuard & L2TP/IPsec) di `vpn-client/page.tsx` menjadi kartu Shadcn UI dengan input berkontras tinggi dan tombol standar.
+       - Menghapus text emoji pada opsi select (`⏳`, `🖥️`, `🔷`) dan pesan peringatan (`⚠️`, `🔑`, `📋`, `🔐`, `🔌`), menggantinya dengan label teks deskriptif dan Lucide React icons.
+  - *Files*:
+    - `src/components/admin/AcsGuideCard.tsx`
+    - `src/app/admin/network/routers/page.tsx`
+    - `src/app/admin/network/vpn-server/page.tsx`
+    - `src/app/admin/network/vpn-client/page.tsx`
+    - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
+
+## [2.39.13] — 2026-09-14
+### WhatsApp Delivery Audit Hardening & Safe Batch Resend Engine
+- **Akurasi Audit Pengiriman WhatsApp & Engine Pengiriman Batch Aman**:
+  - *Context / User Request*:
+    Menyempurnakan sistem Audit Pengiriman WhatsApp (`/admin/whatsapp/audit`):
+    1. Memperbaiki algoritma pencocokan log WhatsApp dengan invoice pelanggan agar akurat dengan mewajibkan pencocokan nomor invoice (`invoiceNumber`) pada isi pesan atau metadata log, bukan hanya mencocokkan nomor telepon pelanggan (mencegah pesan transaksi lain atau OTP terdeteksi keliru sebagai invoice reminder).
+    2. Pada handler pengiriman pesan yang belum terkirim (`send_unsent`), mengambil konfigurasi `batchSize` dan `batchDelay` dari `whatsapp_reminder_settings` (default batchSize: 10, batchDelay: 120 detik) dan mengirimkan pesan dalam batch dengan jeda delay antar batch (`setTimeout`) agar tidak membombardir gateway WA, serta memberikan respons jumlah berhasil, gagal, dan status pengiriman.
+    3. Merapikan antarmuka UI audit menjadi standar Shadcn UI (`Card`, `Badge`, `Button`, `Input`, `Table`, `Dialog`, `Checkbox`), ringkasan audit interaktif (Total Tagihan Aktif, Terkirim, Belum Terkirim, Gagal, Duplikat), filter status, tombol aksi "Kirim Ulang yang Belum Terkirim" dengan dialog konfirmasi dan progress indikator (beserta countdown jeda batch), serta mematuhi aturan bebas text emoji (100% Lucide React icons).
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Endpoint Audit Delivery (`src/app/api/admin/whatsapp/audit-delivery/route.ts`)**:
+       - Mengganti filter pencocokan `logTime >= invCreatedAt` yang longgar dengan fungsi akurat `isLogMatchingInvoice()` yang mewajibkan `inv.invoiceNumber` tercantum pada isi `l.message` atau `l.response` log WhatsApp.
+       - Pada aksi `lock_sent`, hanya mengunci tagihan yang terbukti memiliki log pengiriman nomor invoice yang cocok atau `waNotifiedAt`.
+       - Pada aksi `send_unsent`, memuat `batchSize` dan `batchDelay` dari `whatsapp_reminder_settings` (default 10 pesan, 120 detik), membagi tagihan ke dalam chunk batch, melakukan pre-mark atomic lock, mengeksekusi pengiriman, dan memberikan jeda delay antar batch (`await new Promise(r => setTimeout(r, batchDelay * 1000))`).
+       - Memperbaiki penanganan respons `sendInvoiceReminder` agar kegagalan provider secara akurat tercatat sebagai gagal dan kunci DB dibuka kembali untuk retry.
+    2. **Antarmuka Admin Audit (`src/app/admin/whatsapp/audit/page.tsx`)**:
+       - Merefaktor UI ke standar Shadcn UI (`Card`, `Badge`, `Button`, `Input`, `Table`, `Dialog`, `Checkbox`).
+       - Menghubungkan 5 kartu ringkasan bento interaktif langsung ke filter tabel (Semua, Belum Terkirim, Gagal, Terkirim, Duplikat).
+       - Menambahkan dialog konfirmasi pengiriman ulang dengan rincian jumlah target, ukuran batch, jeda antar batch, dan estimasi waktu.
+       - Menambahkan progress indikator modal dengan visual progress bar, metrik counter (Berhasil, Gagal, Sisa, Batch saat ini), live countdown delay dengan tombol "Lewati Jeda" dan "Hentikan Pengiriman".
+       - Menghapus seluruh text emoji (🎉, ⚠️, 🛡️) dan menggantinya dengan Lucide React icons.
+  - *Files*:
+    - `src/app/api/admin/whatsapp/audit-delivery/route.ts`
+    - `src/app/admin/whatsapp/audit/page.tsx`
+    - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
+
+## [2.39.12] — 2026-09-14
+### WhatsApp Notification Settings & Anti-Banned Batch Sending Enhancements
+- **Penyempurnaan Pengaturan Notifikasi WhatsApp, Mode Fleksibel vs Ketat, & Pengiriman Batch Anti-Banned**:
+  - *Context / User Request*:
+    Penyempurnaan sistem notifikasi WhatsApp untuk memberikan fleksibilitas penuh kepada admin antara **Mode Aman (Anti-Spam)** dan **Mode Fleksibel (Bebas Kuota)**, serta mengoptimalkan sistem pengiriman pesan invoice otomatis agar tidak terblokir oleh provider WhatsApp melalui pembagian batch, jeda istirahat dinamis, dan pengacakan antrean pesan.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Endpoint API Reminder Settings (`src/app/api/whatsapp/reminder-settings/route.ts`)**:
+       - Menambahkan dukungan toggle `strictQuotaEnabled`:
+         - `GET`: Menghitung status `strictQuotaEnabled: !(settings.maxTotalMessagesPerCycle >= 99 || settings.maxInvoiceReminders >= 99)`.
+         - `PUT`: Jika `strictQuotaEnabled === true`, memaksa `maxInvoiceReminders = 2` dan `maxTotalMessagesPerCycle = 3`, serta membatasi `reminderDays` maksimal 2 hari hanya sebelum jatuh tempo (`<= 0`). Jika `strictQuotaEnabled === false`, menyimpan `maxInvoiceReminders = 99` dan `maxTotalMessagesPerCycle = 99`, mengizinkan `reminderDays` bebas tanpa batasan kuota.
+         - Memastikan konfigurasi batch (`batchSize`, `batchDelay`, `randomize`, `strictQuotaEnabled`) disimpan dan dikembalikan secara lengkap.
+    2. **Antarmuka Admin Notifikasi (`src/app/admin/whatsapp/notifications/page.tsx`)**:
+       - Menambahkan Switch UI "Aturan Ketat Pengiriman (Maksimal 3 Pesan / Siklus)" dengan deskripsi ramah untuk Mode Aman (Anti-Spam) vs Mode Fleksibel (Bebas Kuota).
+       - Menghilangkan elemen cyberpunk/neon glow menjadi standar clean SaaS Shadcn UI.
+       - Menghapus seluruh text emoji dan menggantinya dengan dedicated Lucide React icons (`<ShieldCheck />`, `<ShieldAlert />`, `<Clock />`, `<Sliders />`, `<Shuffle />`, `<Bell />`, `<Info />`, `<AlertTriangle />`, `<KeyRound />`).
+       - Menampilkan formulir Pengaturan Pengiriman Batch Anti-Banned (`batchSize`, `batchDelay`, switch `randomize`, dan kalkulator otomatis estimasi durasi pengiriman).
+    3. **Cron Worker Pengingat Invoice (`src/server/jobs/voucher-sync.ts`)**:
+       - Mengambil konfigurasi `batchSize` (default: 10) dan `batchDelay` (default: 120s) dari database dan meneruskannya ke `sendWithRateLimit` serta `estimateSendTime`.
+       - Menerapkan pengacakan antrean pesan menggunakan algoritma *Fisher-Yates shuffle* jika `settings.randomize === true`.
+       - Menyesuaikan batas kuota: Jika `maxTotalMessagesPerCycle >= 99` (mode fleksibel), proses tidak memblokir pengiriman pesan per siklus penagihan.
+  - *Files*:
+    - `src/app/api/whatsapp/reminder-settings/route.ts`
+    - `src/app/admin/whatsapp/notifications/page.tsx`
+    - `src/server/jobs/voucher-sync.ts`
+    - `docs/notifications/STRICT_3_WA_MESSAGE_SYSTEM.md`
+
 ## [2.39.11] — 2026-09-12
 ### Client Deployment Toolkit Hardening (OLT VSOL V1600GS & MikroTik FTTH Pack)
 - **Verifikasi & Harmonisasi Toolkit Lapangan OLT & MikroTik**:
