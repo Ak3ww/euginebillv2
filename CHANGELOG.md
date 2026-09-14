@@ -4,6 +4,21 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.39.16] — 2026-09-14
+### VPN Server UI Native Modernization & Legacy CHR Elimination
+- **Pembersihan Antarmuka `/admin/network/vpn-server` dari Kolom & Tombol Legacy MikroTik CHR**:
+  - *Context / User Request*:
+    Pengguna bingung melihat kartu VPN Server di `/admin/network/vpn-server` menampilkan Alamat Host `43.173.14.236`, Username `admin`, Port API `8728`, serta tombol *Test Koneksi*, *Setup Otomatis*, *Script Manual*, dan *L2TP Control (SSH)* seolah-olah VPS Linux EugineBill adalah sebuah router MikroTik CHR.
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Eliminasi Field Legacy**: Menghapus tampilan `Port API: 8728` dan `Username: admin` dari kartu server dan modal edit, menggantinya dengan data teknis native yang akurat: Host VPS Endpoint (`43.173.14.236`), Subnet Tunnel VPN (`10.200.0.0/24`), Port WireGuard (`51820 / UDP`), dan Port L2TP/IPsec (`1701, 500, 4500 / UDP`).
+    2. **Eliminasi Tombol Redundan**: Menghapus tombol *Test Koneksi*, *Setup Otomatis*, *Script Manual*, dan *L2TP Control (SSH root)* yang tidak terpakai pada Linux VPS native.
+    3. **Penyederhanaan Aksi**: Menyediakan 3 aksi esensial: **Panel WireGuard** (melihat handshake & transfer peer), **Kelola Router Klien (VPN Client)** (link langsung ke `/admin/network/vpn-client`), dan **Edit Konfigurasi Pool** (hanya edit subnet dan rentang IP pool).
+    4. **Penyelarasan Header**: Mengganti tombol "+ Tambah Server VPN" dengan tombol navigasi cepat `Kelola VPN Client`.
+  - *Files*:
+    - `src/app/admin/network/vpn-server/page.tsx`
+    - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.39.15] — 2026-09-14
 ### FTTH Deployment Pack Standards (VSOL V1600GS-ZF vs Standard & MikroTik FTTH Master)
 - **Standarisasi Toolkit Deployment Lapangan OLT VSOL & MikroTik FTTH (100% Verified Work)**:

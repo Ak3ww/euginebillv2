@@ -866,13 +866,14 @@ export default function VpnServerPage() {
                   {t('network.vpnServerManagementDesc')}
                 </p>
               </div>
-              <button
-                onClick={handleAdd}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00f7ff] to-[#00d4e6] text-black font-bold rounded-xl hover:shadow-[0_0_30px_rgba(0,247,255,0.5)] transition-all duration-300 transform hover:scale-105"
+              <a
+                href="/admin/network/vpn-client"
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 transition-all text-sm shadow-sm"
               >
-                <Plus className="w-5 h-5" />
-                {t('network.addVpnServer')}
-              </button>
+                <Router className="w-4 h-4" />
+                Kelola VPN Client
+                <ArrowRight className="w-4 h-4" />
+              </a>
             </div>
           </div>
 
@@ -1130,115 +1131,56 @@ export default function VpnServerPage() {
                   <div className="p-6">
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                       <div>
-                        <p className="text-[#00f7ff] text-xs uppercase tracking-wider mb-1">{t('network.hostAddress')}</p>
-                        <p className="font-mono text-foreground">{server.host}</p>
+                        <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Host VPS (Endpoint)</p>
+                        <p className="font-mono text-foreground font-semibold">{server.host}</p>
                       </div>
                       <div>
-                        <p className="text-[#00f7ff] text-xs uppercase tracking-wider mb-1">{t('network.username')}</p>
-                        <p className="font-mono text-foreground">{server.username}</p>
+                        <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Subnet Tunnel VPN</p>
+                        <p className="font-mono text-foreground font-semibold">{server.subnet}</p>
                       </div>
                       <div>
-                        <p className="text-[#00f7ff] text-xs uppercase tracking-wider mb-1">{t('network.apiPort')}</p>
-                        <p className="font-mono text-foreground">{server.apiPort}</p>
+                        <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Port WireGuard</p>
+                        <p className="font-mono text-foreground font-semibold">51820 / UDP</p>
                       </div>
                       <div>
-                        <p className="text-[#00f7ff] text-xs uppercase tracking-wider mb-1">{t('network.vpnSubnet')}</p>
-                        <p className="font-mono text-foreground text-sm">{server.subnet}</p>
+                        <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Port L2TP / IPsec</p>
+                        <p className="font-mono text-foreground font-semibold">1701, 500, 4500 / UDP</p>
                       </div>
                     </div>
 
                     {/* Pool Config Info */}
-                    <div className="mb-4 px-4 py-3 rounded-xl bg-[#00f7ff]/5 border border-[#00f7ff]/20 flex flex-wrap gap-4 text-xs">
-                      <span className="text-muted-foreground">Pool IP: <span className="font-mono text-foreground">{server.subnet.split('.').slice(0,3).join('.')}.{server.poolStart ?? 10} – {server.subnet.split('.').slice(0,3).join('.')}.{server.poolEnd ?? 254}</span></span>
-                      <span className="text-muted-foreground">Gateway: <span className="font-mono text-foreground">{server.gateway || (server.subnet.split('.').slice(0,3).join('.') + '.1')}</span></span>
-                      <button onClick={() => handleEdit(server)} className="ml-auto text-[#00f7ff] hover:underline flex items-center gap-1"><Settings className="w-3 h-3" /> Edit Pool</button>
+                    <div className="mb-6 px-4 py-3 rounded-xl bg-muted/40 border border-border flex flex-wrap gap-4 text-xs items-center">
+                      <span className="text-muted-foreground">Pool IP: <span className="font-mono text-foreground font-medium">{server.subnet.split('.').slice(0,3).join('.')}.{server.poolStart ?? 10} – {server.subnet.split('.').slice(0,3).join('.')}.{server.poolEnd ?? 254}</span></span>
+                      <span className="text-muted-foreground">Gateway: <span className="font-mono text-foreground font-medium">{server.gateway || (server.subnet.split('.').slice(0,3).join('.') + '.1')}</span></span>
+                      <button onClick={() => handleEdit(server)} className="ml-auto text-primary hover:underline flex items-center gap-1 font-medium"><Settings className="w-3.5 h-3.5" /> Edit Pool IP</button>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex flex-wrap gap-3">
-                      <button
-                        onClick={() => handleTest(server)}
-                        disabled={testingId === server.id}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-muted border border-border text-foreground rounded-xl hover:bg-accent hover:border-[#00f7ff]/50 transition-all disabled:opacity-50"
-                      >
-                        {testingId === server.id ? (
-                          <RefreshCw className="w-4 h-4 animate-spin text-[#00f7ff]" />
-                        ) : (
-                          <Activity className="w-4 h-4" />
-                        )}
-                        <span className="text-sm font-medium">{testingId === server.id ? t('network.testing') : t('network.testConnection')}</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleSetup(server)}
-                        disabled={settingUpId === server.id}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#00f7ff] to-[#00d4e6] text-black font-bold rounded-xl hover:shadow-[0_0_20px_rgba(0,247,255,0.4)] transition-all disabled:opacity-50"
-                      >
-                        {settingUpId === server.id ? (
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Zap className="w-4 h-4" />
-                        )}
-                        <span className="text-sm">{settingUpId === server.id ? t('network.settingUp') : t('network.autoSetup')}</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleManualScript(server)}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/20 border border-amber-500/50 text-amber-300 rounded-xl hover:bg-amber-500/30 transition-all"
-                      >
-                        <FileText className="w-4 h-4" />
-                        <span className="text-sm font-medium">Script Manual</span>
-                      </button>
-
-                      {server.l2tpEnabled && (
-                        <button
-                          onClick={() => {
-                            setShowL2tpControl(true);
-                            setEditingServer(server);
-                            setL2tpSshForm(f => ({
-                              ...f,
-                              host: savedSshCredentials?.host || '',
-                              port: savedSshCredentials?.port || '22',
-                              username: savedSshCredentials?.username || 'root',
-                              password: savedSshCredentials?.password || '',
-                              vpnServerIp: l2tpConfig.vpnServerIp || server.host,
-                              l2tpUsername: l2tpConfig.l2tpUsername,
-                              l2tpPassword: l2tpConfig.l2tpPassword,
-                            }));
-                            if (savedSshCredentials) {
-                              setTimeout(() => executeL2tpAction('status', server, savedSshCredentials), 150);
-                            }
-                          }}
-                          className="flex items-center gap-2 px-4 py-2.5 bg-[#bc13fe]/20 border border-[#bc13fe]/50 text-[#bc13fe] rounded-xl hover:bg-[#bc13fe]/30 transition-all"
-                        >
-                          <Terminal className="w-4 h-4" />
-                          <span className="text-sm font-medium">L2TP Control</span>
-                        </button>
-                      )}
-
+                    <div className="flex flex-wrap gap-3 items-center">
                       <button
                         onClick={() => openWgPanel(server)}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-teal-500/20 border border-teal-500/50 text-teal-300 rounded-xl hover:bg-teal-500/30 transition-all"
-                        title="WireGuard VPN Server (VPS as server)"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400 rounded-xl hover:bg-teal-500/20 transition-all font-medium text-sm"
+                        title="Buka panel WireGuard VPS"
                       >
                         <Wifi className="w-4 h-4" />
-                        <span className="text-sm font-medium">WireGuard</span>
+                        <span>Panel WireGuard</span>
                       </button>
+
+                      <a
+                        href="/admin/network/vpn-client"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 border border-primary/30 text-primary rounded-xl hover:bg-primary/20 transition-all font-medium text-sm"
+                      >
+                        <Router className="w-4 h-4" />
+                        <span>Kelola Router Klien (VPN Client)</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </a>
 
                       <button
                         onClick={() => handleEdit(server)}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-muted border border-border text-foreground rounded-xl hover:bg-accent hover:border-amber-500/50 transition-all"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-muted border border-border text-foreground rounded-xl hover:bg-accent transition-all text-sm font-medium ml-auto"
                       >
                         <Pencil className="w-4 h-4" />
-                        <span className="text-sm font-medium">{t('common.edit')}</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleDelete(server.id, server.name)}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/20 hover:border-red-500/50 transition-all ml-auto"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span className="text-sm font-medium">{t('common.delete')}</span>
+                        <span>Edit Konfigurasi Pool</span>
                       </button>
                     </div>
                   </div>
@@ -1263,86 +1205,49 @@ export default function VpnServerPage() {
                   </h2>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-[#00f7ff] mb-2">{t('network.serverName')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Nama Server</label>
                     <input
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
-                      placeholder={t('network.mainVpnServerPlaceholder')}
+                      className="w-full px-3.5 py-2.5 bg-input border border-border rounded-xl text-foreground text-sm"
+                      placeholder="EUGINEBILL"
                       required
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-[#00f7ff] mb-2">{t('network.hostIp')}</label>
-                      <input
-                        type="text"
-                        value={formData.host}
-                        onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-                        className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
-                        placeholder={t('network.ipAddressPlaceholder')}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#00f7ff] mb-2">{t('network.apiPort')}</label>
-                      <input
-                        type="number"
-                        value={formData.apiPort}
-                        onChange={(e) => setFormData({ ...formData, apiPort: e.target.value })}
-                        className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
-                        placeholder={t('network.apiPortPlaceholder')}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-[#00f7ff] mb-2">{t('network.username')}</label>
-                      <input
-                        type="text"
-                        value={formData.username}
-                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                        className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
-                        placeholder={t('network.adminPlaceholder')}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#00f7ff] mb-2">{t('network.password')}</label>
-                      <input
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all"
-                        placeholder={t('network.passwordPlaceholder')}
-                        required={!editingServer}
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Host / IP Publik VPS</label>
+                    <input
+                      type="text"
+                      value={formData.host}
+                      onChange={(e) => setFormData({ ...formData, host: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-input border border-border rounded-xl text-foreground font-mono text-sm"
+                      placeholder="43.173.14.236"
+                      required
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-[#00f7ff] mb-2">{t('network.vpnSubnet')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Subnet Tunnel VPN</label>
                     <input
                       type="text"
                       value={formData.subnet}
                       onChange={(e) => setFormData({ ...formData, subnet: e.target.value })}
-                      className="w-full px-4 py-3 bg-input border border-border rounded-xl text-foreground placeholder-gray-500 focus:border-[#00f7ff] focus:ring-2 focus:ring-[#00f7ff]/30 transition-all font-mono"
-                      placeholder={t('network.vpnSubnetPlaceholder')}
+                      className="w-full px-3.5 py-2.5 bg-input border border-border rounded-xl text-foreground font-mono text-sm"
+                      placeholder="10.200.0.0/24"
                       required
                     />
                   </div>
 
                   {/* Pool Config */}
-                  <div className="p-4 rounded-xl border border-[#00f7ff]/20 bg-[#00f7ff]/5">
-                    <label className="block text-sm font-semibold text-[#00f7ff] mb-3">Konfigurasi Pool IP</label>
-                    <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="p-4 rounded-xl border border-border bg-muted/30 space-y-3">
+                    <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">Konfigurasi Alokasi Pool IP</label>
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs text-muted-foreground mb-1">IP Mulai (pool start)</label>
+                        <label className="block text-xs text-muted-foreground mb-1">IP Mulai (Pool Start)</label>
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-muted-foreground font-mono">x.x.x.</span>
                           <input
@@ -1351,13 +1256,13 @@ export default function VpnServerPage() {
                             max={253}
                             value={formData.poolStart}
                             onChange={(e) => setFormData({ ...formData, poolStart: e.target.value })}
-                            className="flex-1 px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono focus:border-[#00f7ff] focus:ring-1 focus:ring-[#00f7ff]/30 transition-all"
+                            className="flex-1 px-3 py-1.5 bg-input border border-border rounded-lg text-foreground font-mono text-sm"
                             placeholder="10"
                           />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs text-muted-foreground mb-1">IP Akhir (pool end)</label>
+                        <label className="block text-xs text-muted-foreground mb-1">IP Akhir (Pool End)</label>
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-muted-foreground font-mono">x.x.x.</span>
                           <input
@@ -1366,80 +1271,38 @@ export default function VpnServerPage() {
                             max={254}
                             value={formData.poolEnd}
                             onChange={(e) => setFormData({ ...formData, poolEnd: e.target.value })}
-                            className="flex-1 px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono focus:border-[#00f7ff] focus:ring-1 focus:ring-[#00f7ff]/30 transition-all"
+                            className="flex-1 px-3 py-1.5 bg-input border border-border rounded-lg text-foreground font-mono text-sm"
                             placeholder="254"
                           />
                         </div>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">Gateway Override <span className="text-gray-500">(kosongkan = otomatis .1 dari subnet)</span></label>
+                      <label className="block text-xs text-muted-foreground mb-1">Gateway Tunnel Override <span className="text-muted-foreground/70">(default otomatis .1)</span></label>
                       <input
                         type="text"
                         value={formData.gateway}
                         onChange={(e) => setFormData({ ...formData, gateway: e.target.value })}
-                        className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground font-mono placeholder-gray-500 focus:border-[#00f7ff] focus:ring-1 focus:ring-[#00f7ff]/30 transition-all"
-                        placeholder="mis. 10.20.30.1 (opsional)"
+                        className="w-full px-3 py-1.5 bg-input border border-border rounded-lg text-foreground font-mono text-sm"
+                        placeholder="mis. 10.200.0.1 (opsional)"
                       />
                     </div>
-                    <p className="mt-2 text-xs text-muted-foreground">Pool: x.x.x.<strong>{formData.poolStart || '10'}</strong> – x.x.x.<strong>{formData.poolEnd || '254'}</strong> · Gateway: <strong>{formData.gateway || (formData.subnet ? formData.subnet.split('.').slice(0,3).join('.') + '.1' : 'auto')}</strong></p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#00f7ff] mb-3">Protokol VPN</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { key: 'l2tpEnabled', label: 'L2TP/IPSec', color: 'green' },
-                        { key: 'sstpEnabled', label: 'SSTP (port 992)', color: 'cyan' },
-                        { key: 'pptpEnabled', label: 'PPTP', color: 'purple' },
-                      ].map(({ key, label, color }) => (
-                        <label key={key} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${(formData as any)[key] ? `bg-${color}-500/20 border-${color}-500/40` : 'bg-muted/50 dark:bg-slate-900/50 border-border/50 dark:border-slate-700/50 hover:border-slate-600'}`}>
-                          <input
-                            type="checkbox"
-                            checked={(formData as any)[key]}
-                            onChange={(e) => setFormData({ ...formData, [key]: e.target.checked })}
-                            className="w-4 h-4 rounded accent-[#00f7ff]"
-                          />
-                          <span className={`text-sm font-medium ${(formData as any)[key] ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
-                        </label>
-                      ))}
-                    </div>
+                    <p className="text-xs text-muted-foreground pt-1">
+                      Rentang IP Client: <strong className="text-foreground font-mono">{formData.subnet ? formData.subnet.split('.').slice(0,3).join('.') : '10.200.0'}.{formData.poolStart || '10'}</strong> – <strong className="text-foreground font-mono">{formData.subnet ? formData.subnet.split('.').slice(0,3).join('.') : '10.200.0'}.{formData.poolEnd || '254'}</strong>
+                    </p>
                   </div>
 
-                  {/* Test Result */}
-                  {testResult && (
-                    <div className={`p-4 rounded-xl border ${testResult.success ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                      <div className="flex items-center gap-2">
-                        {testResult.success ? (
-                          <CheckCircle className="w-5 h-5 text-green-400" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-400" />
-                        )}
-                        <span className={testResult.success ? 'text-green-400' : 'text-red-400'}>
-                          {testResult.success ? `Connected: ${testResult.identity}` : testResult.message}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex gap-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={handleTestInModal}
-                      disabled={testingId === 'modal'}
-                      className="flex-1 px-4 py-3 bg-muted border border-border text-foreground rounded-xl hover:bg-accent transition-all font-medium disabled:opacity-50"
-                    >
-                      {testingId === 'modal' ? t('network.testing') : t('network.testConnection')}
-                    </button>
+                  <div className="flex gap-3 pt-3">
                     <button
                       type="button"
                       onClick={() => setShowModal(false)}
-                      className="flex-1 px-4 py-3 bg-muted border border-border text-foreground rounded-xl hover:bg-accent transition-all font-medium"
+                      className="flex-1 px-4 py-2.5 bg-muted border border-border text-foreground rounded-xl hover:bg-accent transition-all font-medium text-sm"
                     >
                       {t('common.cancel')}
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 px-4 py-3 bg-gradient-to-r from-[#00f7ff] to-[#00d4e6] text-black font-bold rounded-xl hover:shadow-[0_0_20px_rgba(0,247,255,0.4)] transition-all"
+                      className="flex-1 px-4 py-2.5 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all text-sm shadow-sm"
                     >
                       {editingServer ? t('common.update') : t('common.save')}
                     </button>

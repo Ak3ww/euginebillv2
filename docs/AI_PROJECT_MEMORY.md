@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.15
+- **Version**: 2.39.16
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 14, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,16 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+
+### Recent Patch Log (September 14, 2026 — v2.39.16: VPN Server UI Native Modernization & Legacy CHR Elimination)
+- **Architectural Invariant: Complete Separation of Native Linux VPS VPN vs Legacy CHR UI**:
+  - **The Context**: Admin kebingungan melihat kartu VPN Server menampilkan parameter MikroTik CHR (Port API 8728, User admin, tombol Test Koneksi / Setup Otomatis / Script Manual, dan L2TP Control SSH root) di kartu Linux VPS bawaan EugineBill.
+  - **The Fix**:
+    - Seluruh parameter legacy MikroTik CHR (`Port API 8728`, `Username admin`) dihapus dari tampilan kartu server dan modal konfigurasi.
+    - Tombol *Test Koneksi*, *Setup Otomatis*, *Script Manual*, dan *L2TP Control (SSH)* dihapus permanen dari kartu VPS native.
+    - Data yang ditampilkan murni parameter native Linux VPS: Host Endpoint (`43.173.14.236`), Subnet Tunnel (`10.200.0.0/24`), Port WireGuard (`51820 / UDP`), dan Port L2TP/IPsec (`1701, 500, 4500 / UDP`).
+    - Tombol aksi disederhanakan menjadi 3 fungsi esensial: **Panel WireGuard**, **Kelola Router Klien (VPN Client)**, dan **Edit Konfigurasi Pool**.
+    - Tombol "+ Tambah Server VPN" di header diganti dengan link cepat `Kelola VPN Client`.
 
 ### Recent Patch Log (September 14, 2026 — v2.39.15: FTTH Deployment Pack Standards: VSOL V1600GS-ZF vs Standard & MikroTik Master RSC)
 - **Architectural Invariant: OLT VSOL V1600GS-ZF Mandatory service-port**:
