@@ -4,6 +4,37 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.12] — 2026-09-16
+### Standarisasi Turnkey Clean Client Seeder & Pembersihan Data Spesifik Operator (Commercial Appliance Ready)
+
+- **Latar Belakang / Context**:
+  1. Pengguna meminta persiapan sistem agar EugineBill siap dijual/diinstal ke klien baru (*managed single-tenant VPS / turnkey appliance*).
+  2. Kebutuhan agar instalasi klien baru tidak kosong melompong (kategori keuangan, template dokumen, template WA, kamus SKU, dan role sudah harus terisi otomatis), namun database dan antarmuka UI wajib 100% bersih dari perangkat fisik pribadi (OLT Cibinong, Router Cibinong, IP lokal, dan koordinat pribadi).
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Pembersihan Antarmuka OLT Admin (`src/app/admin/network/olts/page.tsx`)**:
+     - Menghapus tombol hardcoded "Seed OLT Lapangan" dan referensi nama Cibinong dari toolbar OLT admin. Halaman kembali ke standar Shadcn UI murni yang universal untuk semua ISP klien.
+  2. **Unified Master Clean Seeder (`prisma/seeds/client-clean-seed.ts`)**:
+     - Menyediakan modul seeding terpusat yang aman untuk klien baru yang mencakup:
+       - Baseline System Seeds: Kategori Keuangan (Income/Expense), Hak Akses (Permissions & Role Templates), Template Notifikasi WhatsApp & Email, Template Isolir RADIUS, dan Ticket Categories.
+       - Dynamic SKU Dictionary: 10 Kategori resmi EMG (`HW`, `CPE`, `PAS`, `CAB`, `CON`, `PWR`, `TLS`, `ACC`, `MKT`, `SUP`) dan 35+ Subkategori.
+       - Katalog Master Unit ONT 7 Vendor Standar FTTH (ZTE, Huawei, FiberHome, VSOL, HSGQ, Skyworth, Realtek) dan varian dropcore precon roll.
+       - Document Maker Templates & Numbering Rules: MOU, Faktur Tagihan, Kwitansi, Surat Jalan, BAST, dan SPK Teknisi.
+     - **Invarian Kebersihan**: 100% Bebas dari router fisik, OLT lapangan, data pelanggan, atau koordinat GPS pribadi.
+  3. **Auto-Trigger pada Setup Wizard Pertama Kali (`src/app/api/setup/route.ts`)**:
+     - Saat klien baru mengisi nama ISP dan membuat akun Super Admin pada wizard `/setup`, backend otomatis mengeksekusi `seedClientClean()` di latar belakang.
+     - Klien baru langsung disambut dengan sistem yang lengkap dan siap operasional pada saat login pertama kali.
+  4. **Shortcut NPM Script (`package.json`)**:
+     - Menambahkan script `npm run db:seed:clean` untuk inisialisasi master katalog kapan saja di lingkungan deployment baru.
+
+- **Files**:
+  - `prisma/seeds/client-clean-seed.ts`
+  - `src/app/admin/network/olts/page.tsx`
+  - `src/app/api/setup/route.ts`
+  - `package.json`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.11] — 2026-09-16
 ### Fase 1 OLT: Verifikasi Arsitektur Poller VSOL/HSGQ & Auto-Linking ONU ke Pelanggan PPPoE/Inventaris
 

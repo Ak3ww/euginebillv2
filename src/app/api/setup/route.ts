@@ -152,6 +152,16 @@ export async function POST(req: Request) {
       } catch {}
     }
 
+    // Auto-seed clean master catalogs (Templates, SKU Dictionary, Permissions) in background
+    (async () => {
+      try {
+        const { seedClientClean } = await import('@/../prisma/seeds/client-clean-seed');
+        await seedClientClean(false);
+      } catch (seedErr) {
+        console.error('[Setup] Auto-seed master catalogs warning:', seedErr);
+      }
+    })();
+
     return NextResponse.json({
       success: true,
       message: 'Inisialisasi sistem berhasil! Silakan login.',

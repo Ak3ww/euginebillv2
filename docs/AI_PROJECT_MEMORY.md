@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.11
+- **Version**: 2.40.12
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,17 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.12: Commercial Turnkey Clean Client Seeder & Data Isolation)
+
+- **Architectural Invariant: Zero Physical Data in Clean Client Seeder (`prisma/seeds/client-clean-seed.ts`)**:
+  - DILARANG KERAS memasukkan router fisik, IP MikroTik spesifik operator, nama OLT lapangan pribadi, koordinat GPS lokal, atau data pelanggan ke dalam skrip installer umum atau seed default.
+  - Modul `seedClientClean()` WAJIB HANYA men-seed data master katalog standar:
+    1. Kategori Keuangan (Income/Expense) & Role Templates/Permissions lengkap.
+    2. Kamus SKU Dinamis (10 kategori & 35+ subkategori) beserta katalog master ONT 7 vendor & varian kabel dropcore roll.
+    3. Document Maker Templates (MOU, Faktur, Kwitansi, SJ, BAST, SPK) & Numbering Rules.
+    4. Template WhatsApp & Email notifikasi tagihan/isolir.
+  - Setup Wizard (`src/app/api/setup/route.ts`) mengeksekusi `seedClientClean()` secara non-blocking di latar belakang saat akun Super Admin pertama kali dibuat, memastikan klien baru langsung memiliki ekosistem siap pakai tanpa tercemar data pribadi operator.
 
 ### Recent Patch Log (September 16, 2026 — v2.40.11: Fase 1 OLT Architecture & Intelligent Customer Auto-Linking)
 

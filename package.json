@@ -13,6 +13,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "tsx prisma/seeds/seed-all.ts",
+    "db:seed:clean": "tsx prisma/seeds/client-clean-seed.ts",
     "db:seed:company": "tsx prisma/seeds/seed-company.ts",
     "db:seed:templates": "tsx prisma/seeds/seed-isolation-templates.ts",
     "db:seed:reset-templates": "tsx prisma/seeds/seed-all.ts --force-templates",
