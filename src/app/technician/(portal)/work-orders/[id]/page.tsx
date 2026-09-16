@@ -448,6 +448,10 @@ export default function TechnicianWorkOrderWizardPage() {
   const [selectedOdp, setSelectedOdp] = useState<OdpOption | null>(null);
   const [suggestedOdp, setSuggestedOdp] = useState<{ name: string; distMeters: number; odp: OdpOption } | null>(null);
 
+  // Cable roll picker (Step 2 — ODP step)
+  const [selectedRollId, setSelectedRollId] = useState<string | null>(null);
+  const [availableRolls, setAvailableRolls] = useState<any[]>([]);
+
   // GPS
   const odpGps = useAccurateGps();
   const customerGps = useAccurateGps();
@@ -561,6 +565,17 @@ export default function TechnicianWorkOrderWizardPage() {
       .then(d => { if (d.success) setExistingOdps(d.odps); })
       .catch(() => {});
   }, []);
+
+  // ─── Fetch available cable rolls when entering Step 2 ────────────────────
+  useEffect(() => {
+    const isDismantleWo = wo?.issueType?.toUpperCase().includes('DISMANTLE') || wo?.issueType?.toUpperCase().includes('CABUT');
+    if (step === 2 && !isDismantleWo) {
+      fetch('/api/inventory/assets?assetType=CABLE_ROLL&status=AVAILABLE')
+        .then(r => r.json())
+        .then(d => setAvailableRolls(d.assets || []))
+        .catch(() => {});
+    }
+  }, [step, wo?.issueType]);
 
   // ─── ODP name change ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -818,6 +833,7 @@ export default function TechnicianWorkOrderWizardPage() {
             customerLat: lockedCustomerGps?.lat,
             customerLng: lockedCustomerGps?.lng,
             performanceRating: rating,
+            selectedRollId,
           },
           reportPhotos: photos,
           customerLat: lockedCustomerGps?.lat,
@@ -825,6 +841,7 @@ export default function TechnicianWorkOrderWizardPage() {
           notes: reportData.notes,
         }),
       });
+
 
       const data = await res.json();
       if (res.ok && data.success) {
@@ -1214,6 +1231,32 @@ export default function TechnicianWorkOrderWizardPage() {
             )}
           </div>
 
+          {/* Cable Roll Picker */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-foreground flex items-center gap-1">
+              <Package className="w-3.5 h-3.5 text-primary" /> Roll Kabel Dropwire
+              <span className="ml-1 text-[10px] text-muted-foreground font-normal">(Opsional — deduct otomatis dari inventori)</span>
+            </label>
+            {availableRolls.length > 0 ? (
+              <select
+                value={selectedRollId || ''}
+                onChange={e => setSelectedRollId(e.target.value || null)}
+                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono text-xs"
+              >
+                <option value="">— Pilih Roll Kabel (opsional) —</option>
+                {availableRolls.map((roll: any) => {
+                  const label = `(${roll.serialNumber || roll.id.slice(-6).toUpperCase()}) ${roll.vendor || ''} ${roll.model || ''} — Sisa: ${roll.remainingLength ?? roll.initialLength ?? '?'}m`.trim();
+                  return <option key={roll.id} value={roll.id}>{label}</option>;
+                })}
+              </select>
+            ) : (
+              <p className="text-[11px] text-muted-foreground italic">Tidak ada roll kabel tersedia di inventori, atau data sedang dimuat.</p>
+            )}
+            {selectedRollId && (
+              <p className="text-[11px] text-emerald-600 font-bold">Roll dipilih — pemakaian meter akan dideduct otomatis saat SPK diselesaikan.</p>
+            )}
+          </div>
+
           <div className="grid grid-cols-3 gap-3 text-xs">
             <div>
               <label className="block font-bold text-foreground mb-1">DW Roll (m)</label>
@@ -1231,6 +1274,7 @@ export default function TechnicianWorkOrderWizardPage() {
                 className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono" />
             </div>
           </div>
+
 
           <div className="space-y-3">
             <label className="block text-xs font-bold text-foreground flex items-center gap-1">

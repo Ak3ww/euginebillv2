@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
 import { generateManualInvoiceNumber } from '@/server/services/billing/invoice.service';
+import { issueNextNumber } from '@/server/services/document-numbering.service';
 import { nanoid } from 'nanoid';
 import { startOfDayWIBtoUTC, endOfDayWIBtoUTC } from '@/lib/timezone';
 import { ok, created, badRequest, unauthorized, serverError } from '@/lib/api-response';
@@ -185,7 +186,15 @@ export async function POST(request: NextRequest) {
     const discount = Math.max(0, parseInt(String(discountAmount)) || 0);
     const totalAmount = Math.max(0, subtotal - discount);
 
-    const invoiceNumber = generateManualInvoiceNumber();
+    // Try new centralized numbering service first; fall back to legacy generator on error
+    let invoiceNumber: string;
+    try {
+      const { issuedNumber } = await issueNextNumber({ category: 'FAK', dept: 'BILL' });
+      invoiceNumber = issuedNumber;
+    } catch (numErr: any) {
+      console.warn('[manual-invoices] issueNextNumber fallback to legacy:', numErr?.message);
+      invoiceNumber = generateManualInvoiceNumber();
+    }
 
     const invoice = await prisma.manualInvoice.create({
       data: {

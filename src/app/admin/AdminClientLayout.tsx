@@ -305,6 +305,7 @@ const menuGroups: MenuGroup[] = [
         requiredPermission: 'settings.view',
         children: [
           { titleKey: 'nav.inventoryItems', href: '/admin/inventory/items', requiredPermission: 'settings.view' },
+          { titleKey: 'nav.inventoryAssets', href: '/admin/inventory/assets', requiredPermission: 'inventory.view' },
           { titleKey: 'nav.inventoryMovements', href: '/admin/inventory/movements', requiredPermission: 'settings.view' },
           { titleKey: 'nav.inventoryCategories', href: '/admin/inventory/categories', requiredPermission: 'settings.view' },
           { titleKey: 'nav.inventorySuppliers', href: '/admin/inventory/suppliers', requiredPermission: 'settings.view' },
@@ -315,6 +316,12 @@ const menuGroups: MenuGroup[] = [
         icon: <FileText className="w-4 h-4" />,
         href: '/admin/work-orders',
         requiredPermission: 'users.view',
+      },
+      {
+        titleKey: 'Dokumen Perusahaan',
+        icon: <FileText className="w-4 h-4" />,
+        href: '/admin/documents',
+        requiredPermission: 'documents.view',
       },
       {
         titleKey: 'nav.manageTechnicians',

@@ -73,6 +73,18 @@ export const PERMISSIONS = [
   { key: 'notifications.view', name: 'View Notifications', category: 'NOTIFICATIONS', description: 'View system notifications' },
   { key: 'notifications.manage', name: 'Manage Notifications', category: 'NOTIFICATIONS', description: 'Manage notification settings' },
 
+  // INVENTORY
+  { key: 'inventory.view', name: 'View Inventory', category: 'INVENTORY', description: 'View inventory items and stock' },
+  { key: 'inventory.manage', name: 'Manage Inventory', category: 'INVENTORY', description: 'Create and edit items and stock movements' },
+  { key: 'inventory.assets', name: 'Manage Assets', category: 'INVENTORY', description: 'Manage serialized devices and cable rolls' },
+  { key: 'inventory.export', name: 'Export Inventory', category: 'INVENTORY', description: 'Export inventory reports' },
+
+  // DOCUMENTS
+  { key: 'documents.view', name: 'View Documents', category: 'DOCUMENTS', description: 'View generated documents' },
+  { key: 'documents.create', name: 'Create Documents', category: 'DOCUMENTS', description: 'Create documents via Document Maker' },
+  { key: 'documents.issue', name: 'Issue Documents', category: 'DOCUMENTS', description: 'Issue and void documents' },
+  { key: 'documents.templates', name: 'Manage Document Templates', category: 'DOCUMENTS', description: 'Create and edit document templates' },
+
   // SETTINGS
   { key: 'settings.view', name: 'View Settings', category: 'SETTINGS', description: 'View system settings' },
   { key: 'settings.edit', name: 'Edit Settings', category: 'SETTINGS', description: 'Edit system settings' },
@@ -85,6 +97,19 @@ export const PERMISSIONS = [
 // Define role permission templates
 export const ROLE_TEMPLATES: Record<AdminRole, string[]> = {
   SUPER_ADMIN: PERMISSIONS.map(p => p.key), // All permissions
+
+  WAREHOUSE: [
+    'dashboard.view',
+    'inventory.view',
+    'inventory.manage',
+    'inventory.assets',
+    'inventory.export',
+    'documents.view',
+    'documents.create',
+    'documents.issue',
+    'reports.view',
+    'notifications.view',
+  ],
 
   FINANCE: [
     'dashboard.view',

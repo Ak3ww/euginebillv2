@@ -4,6 +4,54 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.0] — 2026-09-16
+### Sistem Inventori Aset, Penomoran Dokumen, & Document Maker (Fase A–F)
+
+- **Latar Belakang / Context**:
+  Dibutuhkan sistem manajemen inventori fisik (modem ONT, roll kabel dropwire, aksesori) yang terintegrasi langsung dengan alur kerja SPK teknisi, pendaftaran pelanggan baru (PSB), dan penerbitan dokumen resmi perusahaan (MOU, Faktur, KWT, Surat Jalan, BAST, SPK) dengan nomor terstruktur dan bisa di-audit.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Fase A — Prisma Schema**: Tambah model `inventoryAsset`, `customerDeviceHistory`, `workOrderMaterial`, `numberingRule`, `issuedNumber`, `documentTemplate`, `generatedDocument`. Tambah `WAREHOUSE` ke `AdminRole`. Extend `inventoryItem` dengan `categoryCode`, `subCategory`, `isSerialized`, `stockQuantity`.
+  2. **Fase B — Document Numbering Service**: `document-numbering.service.ts` dengan `previewNextNumber()` (read-only) dan `issueNextNumber()` (consume dalam $transaction). REST API: `/api/documents/numbering/preview`, `/issue`, `/rules`. Manual invoice sudah terintegrasi (FAK/BILL, fallback ke legacy).
+  3. **Fase C — Seed Data & Assets UI**: Endpoint seed `/api/admin/inventory/seed-defaults` (seeds 6 numbering rules + SKU catalog). Admin UI `/admin/inventory/assets` (full Shadcn, summary cards, CABLE_ROLL support). API CRUD `/api/inventory/assets` + `/:id`. Deduct service `inventory-deduct.service.ts` dengan optimistic locking.
+  4. **Fase D — Document Maker**: 7 API routes (templates CRUD, generate preview, generate issue, documents list, void). Admin UI `/admin/documents` dengan 3 tab: Dokumen Terbit, Buat Dokumen (wizard 5 langkah), Kelola Template.
+  5. **Fase E — SPK Wizard & Ganti Modem**: Cable roll picker di wizard teknisi Step 2 (auto-deduct saat complete). PSB baru: SN autocomplete dengan live inventori search + auto-fill MAC. Halaman detail pelanggan: section Perangkat ONT + riwayat device history + modal Ganti Modem. API: `/api/pppoe/users/:id/device-history`, `/replace-device`.
+  6. **Fase F — Validasi & Dokumentasi**: `npx tsc --noEmit` → 0 errors. Fix WAREHOUSE di role-templates route. Fix `isDismantle` used-before-declaration di wizard.
+
+- **Files**:
+  - `prisma/schema.prisma` — Schema extensions
+  - `prisma/seeds/permissions.ts` — INVENTORY/DOCUMENTS permissions + WAREHOUSE role
+  - `src/server/services/document-numbering.service.ts` — [NEW]
+  - `src/server/services/inventory-deduct.service.ts` — [NEW]
+  - `src/app/api/documents/numbering/preview/route.ts` — [NEW]
+  - `src/app/api/documents/numbering/issue/route.ts` — [NEW]
+  - `src/app/api/documents/numbering/rules/route.ts` — [NEW]
+  - `src/app/api/documents/templates/route.ts` — [NEW]
+  - `src/app/api/documents/templates/[id]/route.ts` — [NEW]
+  - `src/app/api/documents/generate/preview/route.ts` — [NEW]
+  - `src/app/api/documents/generate/issue/route.ts` — [NEW]
+  - `src/app/api/documents/route.ts` — [NEW]
+  - `src/app/api/documents/[id]/route.ts` — [NEW]
+  - `src/app/api/documents/[id]/void/route.ts` — [NEW]
+  - `src/app/api/inventory/assets/route.ts` — [NEW]
+  - `src/app/api/inventory/assets/[id]/route.ts` — [NEW]
+  - `src/app/api/admin/inventory/seed-defaults/route.ts` — [NEW]
+  - `src/app/api/pppoe/users/[id]/device-history/route.ts` — [NEW]
+  - `src/app/api/pppoe/users/[id]/replace-device/route.ts` — [NEW]
+  - `src/app/api/permissions/role-templates/route.ts` — Fix WAREHOUSE
+  - `src/app/api/manual-invoices/route.ts` — Integrate issueNextNumber
+  - `src/app/admin/documents/page.tsx` — [NEW] Document Maker UI
+  - `src/app/admin/inventory/assets/page.tsx` — [NEW] Asset management UI
+  - `src/app/admin/AdminClientLayout.tsx` — Nav: Inventori Aset + Dokumen Perusahaan
+  - `src/app/admin/pppoe/users/[id]/page.tsx` — Perangkat ONT section + Ganti Modem
+  - `src/app/admin/pppoe/users/new/page.tsx` — ONT SN autocomplete
+  - `src/app/technician/(portal)/work-orders/[id]/page.tsx` — Cable roll picker + fix TS
+  - `src/app/api/technician/work-orders/[id]/complete/route.ts` — Auto-deduct cable
+  - `docs/inventory/INVENTORY_AND_SKU_STANDARDS.md` — [NEW]
+  - `docs/DOCUMENT_NUMBERING_STANDARD.md` — [NEW]
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.39.16] — 2026-09-14
 ### VPN Server UI Native Modernization & Legacy CHR Elimination
 - **Pembersihan Antarmuka `/admin/network/vpn-server` dari Kolom & Tombol Legacy MikroTik CHR**:

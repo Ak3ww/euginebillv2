@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
@@ -16,8 +16,10 @@ export async function GET(request: NextRequest) {
     const supplierId = searchParams.get('supplierId');
     const search = searchParams.get('search');
     const lowStock = searchParams.get('lowStock') === 'true';
+    const isSerializedParam = searchParams.get('isSerialized');
+    const categoryCode = searchParams.get('categoryCode');
 
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     if (categoryId) {
       where.categoryId = categoryId;
@@ -25,6 +27,14 @@ export async function GET(request: NextRequest) {
 
     if (supplierId) {
       where.supplierId = supplierId;
+    }
+
+    if (categoryCode) {
+      where.categoryCode = categoryCode;
+    }
+
+    if (isSerializedParam !== null) {
+      where.isSerialized = isSerializedParam === 'true';
     }
 
     if (search) {

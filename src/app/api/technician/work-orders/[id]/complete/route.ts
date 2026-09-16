@@ -412,6 +412,38 @@ export async function POST(
       }
     }
 
+    // Auto-Deduct Cable Roll if selected
+    const selectedRollId = reportData?.selectedRollId;
+    const dwRoll = reportData?.dwRoll;
+    if (selectedRollId && dwRoll && parseFloat(String(dwRoll)) > 0) {
+      try {
+        const cableAsset = await prisma.inventoryAsset.findUnique({
+          where: { id: selectedRollId },
+          include: { item: true },
+        });
+
+        if (cableAsset && cableAsset.assetType === 'CABLE_ROLL') {
+          const material = await prisma.workOrderMaterial.create({
+            data: {
+              workOrderId: updated.id,
+              itemId: cableAsset.itemId,
+              assetId: selectedRollId,
+              quantityRequested: parseFloat(String(dwRoll)),
+              quantityUsed: parseFloat(String(dwRoll)),
+              unit: 'meter',
+              isDeducted: false,
+            },
+          });
+
+          const { deductWorkOrderMaterial } = await import('@/server/services/inventory-deduct.service');
+          await deductWorkOrderMaterial(material.id);
+          console.log(`[WorkOrder Complete] Cable roll ${selectedRollId} deducted: ${dwRoll}m`);
+        }
+      } catch (deductErr) {
+        console.error('[WorkOrder Complete] Cable deduct warning (non-fatal):', deductErr);
+      }
+    }
+
     return NextResponse.json({ success: true, workOrder: updated });
   } catch (error: any) {
     console.error('Work order completion error:', error);

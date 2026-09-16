@@ -60,6 +60,14 @@ export default function NewPppoeUserPage() {
   const [firstInvoice, setFirstInvoice] = useState<'none' | 'prorate' | 'full'>('prorate');
   const [installationDueDateDays, setInstallationDueDateDays] = useState<string>('3');
 
+  // ONT SN autocomplete
+  const [ontSerialNumber, setOntSerialNumber] = useState('');
+  const [ontSuggestions, setOntSuggestions] = useState<any[]>([]);
+  const [ontSearching, setOntSearching] = useState(false);
+  const [ontNotFound, setOntNotFound] = useState(false);
+  const [showOntDropdown, setShowOntDropdown] = useState(false);
+
+
   const [formData, setFormData] = useState<UserFormData>({
     username: '',
     password: 'eugine0909',
@@ -129,6 +137,31 @@ export default function NewPppoeUserPage() {
     finally { setUploadingInstallation(false); }
   };
 
+  const handleOntSnChange = async (value: string) => {
+    setOntSerialNumber(value);
+    setOntNotFound(false);
+    if (value.length < 3) { setOntSuggestions([]); setShowOntDropdown(false); return; }
+    setOntSearching(true);
+    try {
+      const res = await fetch(`/api/inventory/assets?assetType=MODEM&status=AVAILABLE&search=${encodeURIComponent(value)}&limit=10`);
+      const data = await res.json();
+      const assets = data.assets || [];
+      setOntSuggestions(assets);
+      setShowOntDropdown(assets.length > 0);
+      if (assets.length === 0 && value.length >= 5) setOntNotFound(true);
+    } catch { setOntSuggestions([]); }
+    finally { setOntSearching(false); }
+  };
+
+  const handleSelectOntAsset = (asset: any) => {
+    setOntSerialNumber(asset.serialNumber || '');
+    setShowOntDropdown(false);
+    setOntNotFound(false);
+    if (asset.macAddress) {
+      setFormData(prev => ({ ...prev, macAddress: asset.macAddress }));
+    }
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!formData.profileId) { await showError('Paket harus dipilih'); setActiveTab(0); return; }
@@ -145,6 +178,7 @@ export default function NewPppoeUserPage() {
         noPppoeAccount: !hasPppoeAccount,
         firstInvoice,
         installationDueDateDays,
+        ontSerialNumber: ontSerialNumber || undefined,
         ...(formData.expiredAt && {
           expiredAt: (() => {
             const raw = formData.expiredAt;
@@ -169,6 +203,7 @@ export default function NewPppoeUserPage() {
     } catch { await showError('Gagal menyimpan pelanggan'); }
     finally { setSaving(false); }
   };
+
 
   const field = (key: keyof typeof formData, val: string | boolean) => {
     setFormData(prev => {
@@ -543,12 +578,51 @@ export default function NewPppoeUserPage() {
             <>
               <div className="bg-card border border-border rounded-xl p-4 space-y-3">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Perangkat</p>
+                {/* ONT SN Autocomplete */}
+                <div className="relative">
+                  <ModalLabel>Serial Number ONT</ModalLabel>
+                  <div className="relative">
+                    <ModalInput
+                      type="text"
+                      value={ontSerialNumber}
+                      onChange={(e) => handleOntSnChange(e.target.value)}
+                      onBlur={() => setTimeout(() => setShowOntDropdown(false), 200)}
+                      placeholder="ZTEGD4A3C19B (cari dari inventori)"
+                      className="pr-8 font-mono uppercase"
+                    />
+                    {ontSearching && (
+                      <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  {showOntDropdown && ontSuggestions.length > 0 && (
+                    <div className="absolute z-30 mt-1 w-full bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                      {ontSuggestions.map((asset: any) => (
+                        <button
+                          key={asset.id}
+                          type="button"
+                          onMouseDown={() => handleSelectOntAsset(asset)}
+                          className="w-full text-left px-3 py-2.5 text-xs hover:bg-muted flex flex-col gap-0.5 border-b border-border last:border-0"
+                        >
+                          <span className="font-mono font-bold text-foreground">{asset.serialNumber}</span>
+                          <span className="text-muted-foreground">{[asset.vendor, asset.model].filter(Boolean).join(' ')} &mdash; <span className="text-emerald-600 font-bold">Tersedia</span></span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {ontNotFound && ontSerialNumber.length >= 5 && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
+                      Modem tidak ditemukan di inventori — akan didaftarkan otomatis saat simpan.
+                    </p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-1">Ketik SN untuk cari dari inventori, atau input manual.</p>
+                </div>
                 <div>
-                  <ModalLabel>MAC Address / Serial Number</ModalLabel>
+                  <ModalLabel>MAC Address / Serial Number (Legacy)</ModalLabel>
                   <ModalInput type="text" value={formData.macAddress} onChange={(e) => field('macAddress', e.target.value)} placeholder="AA:BB:CC:DD:EE:FF atau Serial" />
                   <p className="text-[10px] text-muted-foreground mt-1">Untuk autentikasi MAC-based atau identifikasi perangkat.</p>
                 </div>
               </div>
+
               <div className="bg-card border border-border rounded-xl p-4 space-y-3">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">📸 Foto Instalasi (opsional)</p>
                 <input type="file" accept="image/*" onChange={handleUploadInstallation} disabled={uploadingInstallation} className="hidden" id="installUpload" />

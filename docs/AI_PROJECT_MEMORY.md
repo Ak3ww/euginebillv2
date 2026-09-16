@@ -10,15 +10,48 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.39.16
+- **Version**: 2.40.0
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
-- **Last Updated**: September 14, 2026
+- **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
 - **Turnkey 1-Command Installer**: `curl -fsSL https://raw.githubusercontent.com/Ak3ww/euginebillv2/main/scripts/install.sh | sudo bash`
 
 ---
 
-## 🧠 Master Patch Log & Hard Architecture Lessons (v2.39.x)
+## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.0: Sistem Inventori Aset, Penomoran Dokumen, & Document Maker)
+
+- **Architectural Invariant: Inventory — Serialized Assets vs Quantity Stock**:
+  - MODEM dan CABLE_ROLL = `isSerialized = true` → setiap unit punya record `inventoryAsset` sendiri dengan SN, status, currentCustomerId, version (optimistic locking).
+  - CABLE_ROLL tracking per meter: `remainingLength` dikurangi tiap kali dipakai (via `workOrderMaterial` + `deductWorkOrderMaterial()`). Jika `remainingLength ≤ 10m` → status otomatis `DEPLETED`.
+  - Aksesori/supplies = qty-based → deduct dari `inventoryItem.stockQuantity` langsung.
+  - **NEVER confuse**: `inventoryAsset` (serialized unit) vs `inventoryItem` (catalog item dengan qty stock).
+  - Idempotency guard: `workOrderMaterial.isDeducted` cek sebelum deduct → tidak double-deduct.
+
+- **Architectural Invariant: Document Numbering — preview vs issue**:
+  - `previewNextNumber()` = read-only, TIDAK mengkonsumsi nomor. Aman dipanggil berkali-kali.
+  - `issueNextNumber()` = increment `currentSeq` dalam `$transaction` + catat `issuedNumber`. HANYA panggil saat user betul-betul konfirmasi.
+  - Format: `{PREFIX}/{DEPT}/{COUNTER}/{BULAN}/{TAHUN}` (contoh: `MOU/RW01/001/09/2026`).
+  - Seed wajib via `/api/admin/inventory/seed-defaults` setelah deploy ke VPS agar numbering rules tersedia.
+  - Invoice manual (FAK/BILL) sudah terintegrasi dengan fallback ke legacy generator.
+
+- **Architectural Invariant: Ganti Modem Flow**:
+  - API: `POST /api/pppoe/users/:id/replace-device` dengan body `{ newSerialNumber, reason, technicianName }`.
+  - Flow: (1) Cari modem lama (`status=IN_USE, currentCustomerId=id`) → set USED_GOOD + log REPLACED_OLD. (2) Cari modem baru by SN → set IN_USE + currentCustomerId + log REPLACED_NEW. (3) Update `pppoeUser.macAddress` jika modem baru punya MAC. Semua dalam `$transaction`.
+  - Modem baru tidak HARUS ada di inventori — jika tidak ditemukan, tetap dilanjutkan (buat record baru atau log saja).
+  - Device history ditampilkan di halaman detail pelanggan (`/admin/pppoe/users/:id`) → Section "Perangkat ONT".
+
+- **Architectural Invariant: SPK Wizard Cable Roll Deduction**:
+  - Step 2 wizard teknisi: dropdown `availableRolls` (CABLE_ROLL, AVAILABLE) + field `dwRoll` (meter dipakai).
+  - Submit → `selectedRollId` + `dwRoll` dikirim ke complete API.
+  - Backend: `deductWorkOrderMaterial()` dipanggil non-fatal (error tidak gagalkan submit SPK).
+  - `isDismantle` di wizard HARUS dideklarasikan SEBELUM useEffect yang mereferensikannya (atau gunakan `wo?.issueType` langsung di dalam useEffect).
+
+- **Architectural Invariant: ONT SN on PSB Form**:
+  - Form PSB (`/admin/pppoe/users/new`) mencari MODEM AVAILABLE realtime saat user ketik SN.
+  - Tidak blocking: jika SN tidak ditemukan di inventori, tetap bisa simpan (pelanggan terdaftar, SN dicatat sebagai-is).
+  - Jika SN ditemukan & asset ada di inventori → setelah simpan, POST `/api/pppoe/users` harus update `status=IN_USE`, `currentCustomerId`, log `customerDeviceHistory`.
 
 ### Recent Patch Log (September 14, 2026 — v2.39.16: VPN Server UI Native Modernization & Legacy CHR Elimination)
 - **Architectural Invariant: Complete Separation of Native Linux VPS VPN vs Legacy CHR UI**:

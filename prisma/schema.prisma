@@ -642,6 +642,8 @@ model pppoeUser {
   oltOnuStatuses    oltOnuStatus[]
   acsDevices        acsDevice[]
   customerNotifications customerNotification[]
+  inventoryAssets   inventoryAsset[]
+  deviceHistories   customerDeviceHistory[]
 
   @@index([profileId], map: "pppoe_users_profileId_fkey")
   @@index([routerId], map: "pppoe_users_routerId_fkey")
@@ -1662,6 +1664,7 @@ enum AdminRole {
   TECHNICIAN
   MARKETING
   VIEWER
+  WAREHOUSE
 }
 
 enum SubscriptionType {
@@ -1944,10 +1947,12 @@ model inventorySupplier {
 
 model inventoryItem {
   id              String              @id @default(cuid())
-  sku             String              @unique // Stock Keeping Unit
+  sku             String              @unique // Stock Keeping Unit (EMG-[KATEGORI]-[SUB-KATEGORI]-[DETAIL/VARIAN])
   name            String
   description     String?             @db.Text
   categoryId      String?
+  categoryCode    String?             // HW, CPE, PAS, CAB, CON, MKT
+  subCategory     String?             // OLT, ONT, DRP, PRC, TIE, TAP, etc.
   supplierId      String?
   unit            String              @default("pcs") // Unit of measurement (pcs, box, meter, etc)
   minimumStock    Int                 @default(0) // Alert when stock below this
@@ -1957,15 +1962,21 @@ model inventoryItem {
   location        String?             // Storage location
   notes           String?             @db.Text
   isActive        Boolean             @default(true)
+  isSerialized    Boolean             @default(true) // FALSE = quantity-based (consumable generic)
+  stockQuantity   Float?              // dipakai HANYA kalau isSerialized = false
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   category        inventoryCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   supplier        inventorySupplier?  @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   movements       inventoryMovement[]
+  assets          inventoryAsset[]
+  workOrderUsages workOrderMaterial[]
 
   @@index([categoryId])
+  @@index([categoryCode])
   @@index([supplierId])
   @@index([sku])
+  @@index([isSerialized])
   @@map("inventory_items")
 }
 
@@ -1987,6 +1998,182 @@ model inventoryMovement {
   @@index([movementType])
   @@index([createdAt])
   @@map("inventory_movements")
+}
+
+enum AssetType {
+  MODEM
+  CABLE_ROLL
+  ROUTER
+  OTHER
+}
+
+enum AssetStatus {
+  AVAILABLE
+  RESERVED
+  IN_USE
+  DEFECTIVE
+  USED_GOOD
+  DEPLETED // khusus roll kabel yang sisanya habis/tak ekonomis
+}
+
+enum AssetCondition {
+  NEW
+  USED_GOOD
+  DEFECTIVE
+}
+
+model inventoryAsset {
+  id                 String          @id @default(cuid())
+  itemId             String
+  assetType          AssetType       @default(MODEM)
+
+  serialNumber       String          @unique // SN pabrik ATAU kode roll (ROLL-001)
+  macAddress         String?
+  vendor             String?
+  model              String?
+
+  // Khusus CABLE_ROLL
+  initialLength      Float?
+  remainingLength    Float?
+
+  condition          AssetCondition  @default(NEW)
+  status             AssetStatus     @default(AVAILABLE)
+
+  currentCustomerId  String?
+  currentWorkOrderId String?
+  location           String?
+  notes              String?         @db.Text
+
+  version            Int             @default(0) // optimistic locking, WAJIB dicek saat deduct
+
+  installedAt        DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  item               inventoryItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  customer           pppoeUser?      @relation(fields: [currentCustomerId], references: [id], onDelete: SetNull)
+  workOrder          workOrder?      @relation(fields: [currentWorkOrderId], references: [id], onDelete: SetNull)
+  deviceHistories    customerDeviceHistory[]
+  workOrderMaterials workOrderMaterial[]
+
+  @@index([itemId])
+  @@index([assetType])
+  @@index([status])
+  @@index([serialNumber])
+  @@index([currentCustomerId])
+  @@map("inventory_assets")
+}
+
+model customerDeviceHistory {
+  id             String          @id @default(cuid())
+  customerId     String
+  assetId        String?
+  serialNumber   String
+  macAddress     String?
+  vendor         String?
+  model          String?
+  action         String          // INSTALLED, REPLACED_OLD, REPLACED_NEW, DISMANTLED
+  reason         String?
+  workOrderId    String?
+  technicianName String?
+  installedAt    DateTime        @default(now())
+  removedAt      DateTime?
+  createdAt      DateTime        @default(now())
+
+  customer       pppoeUser       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  asset          inventoryAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([serialNumber])
+  @@map("customer_device_histories")
+}
+
+model workOrderMaterial {
+  id                String          @id @default(cuid())
+  workOrderId       String
+  itemId            String
+
+  // Jalur A: barang serialized (roll kabel, modem tertentu)
+  assetId           String?
+
+  // Jalur B: barang quantity-based (consumable generic)
+  quantityRequested Float           @default(1)
+  quantityUsed      Float           @default(0) // untuk roll: dwRoll (meter terpakai); untuk consumable: qty terpakai
+  unit              String          @default("pcs")
+
+  isDeducted        Boolean         @default(false)
+  deductedAt        DateTime?
+
+  workOrder         workOrder       @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  item              inventoryItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  asset             inventoryAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@index([workOrderId])
+  @@index([itemId])
+  @@map("work_order_materials")
+}
+
+// Document Numbering Models (Token-Based)
+model numberingRule {
+  id               String   @id @default(cuid())
+  category         String   @unique // MOU, FAK, KWT, SJ, BAST, SPK
+  pattern          String   // e.g. "MOU/{DEPT}/{ROMAN_MM}/{YYYY}/{SEQ:3}"
+  resetFrequency   String   @default("none") // "none" | "monthly" | "yearly"
+  lastResetPeriod  String?  // "2026" atau "202609", dicek tiap generate
+  currentSeq       Int      @default(0)
+  updatedAt        DateTime @updatedAt
+
+  @@map("numbering_rules")
+}
+
+model issuedNumber {
+  id               String   @id @default(cuid())
+  category         String
+  generatedNumber  String   @unique
+  dept             String?
+  issuedAt         DateTime @default(now())
+  referenceId      String?  // link ke dokumen asli (MOU id, invoice id, dst)
+
+  @@index([category])
+  @@map("issued_numbers")
+}
+
+// Document Maker Universal Generator Models
+model documentTemplate {
+  id            String   @id @default(cuid())
+  category      String   // MOU, SJ, BAST, SPK, KWT, FAK
+  name          String   // "Template MOU Pemasangan RW"
+  bodyHtml      String   @db.LongText // isi dokumen dengan placeholder {{field_key}}
+  fieldsSchema  Json     // [{ key: "nama_pihak_pertama", label: "Nama Pihak Pertama", type: "text" }, ...]
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  documents     generatedDocument[]
+
+  @@index([category])
+  @@map("document_templates")
+}
+
+model generatedDocument {
+  id             String           @id @default(cuid())
+  templateId     String
+  category       String
+  documentNumber String?          @unique // null selama draft, terisi saat ISSUED
+  status         String           @default("DRAFT") // DRAFT | ISSUED | VOID
+  dataJson       Json             // nilai tiap field yang diisi user, sesuai fieldsSchema
+  pdfPath        String?          // lokasi file PDF hasil render, terisi saat ISSUED
+  relatedEntity  String?          // opsional: customerId / workOrderId / kode RW terkait
+  createdBy      String?
+  issuedAt       DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  template       documentTemplate @relation(fields: [templateId], references: [id])
+
+  @@index([category])
+  @@index([status])
+  @@map("generated_documents")
 }
 
 // Work Order & Technician Management Models
@@ -2057,6 +2244,8 @@ model workOrder {
   reportPhotos       Json?
   wizardStep        Int      @default(1)
   wizardDraftData   Json?
+  assignedAssets    inventoryAsset[]
+  materials         workOrderMaterial[]
 
   @@index([technicianId])
   @@index([status])

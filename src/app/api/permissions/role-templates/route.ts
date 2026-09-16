@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { AdminRole } from '@prisma/client';
 import { getServerSession } from 'next-auth';
@@ -37,6 +37,7 @@ export async function GET() {
       TECHNICIAN: [],
       MARKETING: [],
       VIEWER: [],
+      WAREHOUSE: [],
     };
 
     rolePermissions.forEach((rp) => {

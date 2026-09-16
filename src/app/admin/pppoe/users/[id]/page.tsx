@@ -169,6 +169,67 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
   const [expandWorkOrders, setExpandWorkOrders] = useState(true);
   const [expandInvoices, setExpandInvoices] = useState(true);
 
+  // Perangkat ONT / Ganti Modem State
+  const [deviceHistory, setDeviceHistory] = useState<any[]>([]);
+  const [currentDevice, setCurrentDevice] = useState<any | null>(null);
+  const [expandDevice, setExpandDevice] = useState(true);
+  const [showGantiModemModal, setShowGantiModemModal] = useState(false);
+  const [gantiModemSN, setGantiModemSN] = useState('');
+  const [gantiModemReason, setGantiModemReason] = useState('');
+  const [gantiModemTech, setGantiModemTech] = useState('');
+  const [gantiModemLoading, setGantiModemLoading] = useState(false);
+  const [gantiModemAssetPreview, setGantiModemAssetPreview] = useState<any | null>(null);
+  const [gantiModemSearching, setGantiModemSearching] = useState(false);
+
+  const fetchDeviceHistory = async () => {
+    try {
+      const res = await fetch(`/api/pppoe/users/${id}/device-history`);
+      if (res.ok) {
+        const data = await res.json();
+        setDeviceHistory(data.histories || []);
+        setCurrentDevice(data.currentAsset || null);
+      }
+    } catch { /* non-fatal */ }
+  };
+
+  const handleGantiModemSNChange = async (val: string) => {
+    setGantiModemSN(val.toUpperCase());
+    setGantiModemAssetPreview(null);
+    if (val.length < 4) return;
+    setGantiModemSearching(true);
+    try {
+      const res = await fetch(`/api/inventory/assets?assetType=MODEM&search=${encodeURIComponent(val)}&limit=5`);
+      const data = await res.json();
+      const found = (data.assets || []).find((a: any) =>
+        a.serialNumber?.toUpperCase() === val.toUpperCase() ||
+        a.serialNumber?.toUpperCase().includes(val.toUpperCase())
+      );
+      setGantiModemAssetPreview(found || null);
+    } catch { /* ignore */ }
+    finally { setGantiModemSearching(false); }
+  };
+
+  const handleGantiModem = async () => {
+    if (!gantiModemSN.trim()) { addToast({ type: 'error', title: 'SN wajib diisi' }); return; }
+    setGantiModemLoading(true);
+    try {
+      const res = await fetch(`/api/pppoe/users/${id}/replace-device`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newSerialNumber: gantiModemSN, reason: gantiModemReason, technicianName: gantiModemTech }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addToast({ type: 'success', title: 'Modem berhasil diganti', description: data.message });
+        setShowGantiModemModal(false);
+        setGantiModemSN(''); setGantiModemReason(''); setGantiModemTech(''); setGantiModemAssetPreview(null);
+        fetchDeviceHistory();
+      } else {
+        addToast({ type: 'error', title: 'Gagal ganti modem', description: data.error });
+      }
+    } finally { setGantiModemLoading(false); }
+  };
+
   // Create SPK Modal State
   const [isSpkModalOpen, setIsSpkModalOpen] = useState(false);
   const [spkSubmitting, setSpkSubmitting] = useState(false);
@@ -225,6 +286,7 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
   useEffect(() => {
     fetchUserDetail();
     fetchMetadata();
+    fetchDeviceHistory();
   }, [id]);
 
   const handleSaveUser = async (data: any) => {
@@ -706,6 +768,162 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
           </div>
         )}
       </div>
+
+      {/* SECTION 5A: Perangkat ONT & Riwayat Ganti Modem */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <button
+          onClick={() => setExpandDevice(!expandDevice)}
+          className="w-full px-6 py-4 bg-muted/30 hover:bg-muted/60 flex justify-between items-center transition-colors border-b border-border"
+        >
+          <div className="flex items-center gap-2.5">
+            <Laptop className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-bold text-foreground">Perangkat ONT</h2>
+            {currentDevice && (
+              <span className="ml-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-full font-mono text-[10px] font-bold">
+                {currentDevice.serialNumber}
+              </span>
+            )}
+          </div>
+          {expandDevice ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+        </button>
+
+        {expandDevice && (
+          <div className="p-6 space-y-4">
+            {/* Current Device Card */}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                {currentDevice ? (
+                  <div className="space-y-1 text-xs">
+                    <p><span className="text-muted-foreground">SN:</span> <span className="font-mono font-bold text-foreground">{currentDevice.serialNumber}</span></p>
+                    {currentDevice.macAddress && <p><span className="text-muted-foreground">MAC:</span> <span className="font-mono">{currentDevice.macAddress}</span></p>}
+                    {currentDevice.vendor && <p><span className="text-muted-foreground">Vendor/Model:</span> {currentDevice.vendor} {currentDevice.model}</p>}
+                    {currentDevice.item && <p><span className="text-muted-foreground">SKU:</span> <span className="font-mono text-muted-foreground">{currentDevice.item.sku}</span></p>}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">Tidak ada modem terdaftar di inventori untuk pelanggan ini.</p>
+                )}
+              </div>
+              <button
+                onClick={() => setShowGantiModemModal(true)}
+                className="shrink-0 px-3.5 py-2 bg-amber-500/10 text-amber-600 border border-amber-500/30 hover:bg-amber-500/20 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> Ganti Modem
+              </button>
+            </div>
+
+            {/* Device History Table */}
+            {deviceHistory.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-2">Riwayat Pergantian Modem</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted border-b border-border">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-mono font-bold uppercase">SN</th>
+                        <th className="px-3 py-2 text-left font-mono font-bold uppercase">Aksi</th>
+                        <th className="px-3 py-2 text-left font-mono font-bold uppercase">Alasan</th>
+                        <th className="px-3 py-2 text-left font-mono font-bold uppercase">Teknisi</th>
+                        <th className="px-3 py-2 text-left font-mono font-bold uppercase">Tanggal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {deviceHistory.map((h: any) => (
+                        <tr key={h.id} className="hover:bg-muted/40">
+                          <td className="px-3 py-2 font-mono font-bold">{h.serialNumber}</td>
+                          <td className="px-3 py-2">
+                            <span className={cn('px-2 py-0.5 rounded font-mono text-[10px] font-bold uppercase border',
+                              h.action === 'REPLACED_NEW' || h.action === 'INSTALLED'
+                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                : 'bg-muted text-muted-foreground border-border'
+                            )}>
+                              {h.action === 'REPLACED_NEW' ? 'Pasang Baru' : h.action === 'REPLACED_OLD' ? 'Ditarik' : h.action === 'INSTALLED' ? 'Instalasi' : h.action}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground">{h.reason || '—'}</td>
+                          <td className="px-3 py-2">{h.technicianName || '—'}</td>
+                          <td className="px-3 py-2 font-mono text-muted-foreground">
+                            {h.installedAt ? formatWIB(h.installedAt, 'dd/MM/yy') : h.removedAt ? formatWIB(h.removedAt, 'dd/MM/yy') : formatWIB(h.createdAt, 'dd/MM/yy')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Ganti Modem Modal */}
+      {showGantiModemModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setShowGantiModemModal(false); }}>
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md space-y-5 p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-base flex items-center gap-2"><RefreshCw className="w-4 h-4 text-amber-500" /> Ganti Modem ONT</h3>
+              <button onClick={() => setShowGantiModemModal(false)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1">Serial Number Modem Baru <span className="text-destructive">*</span></label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={gantiModemSN}
+                    onChange={e => handleGantiModemSNChange(e.target.value)}
+                    placeholder="ZTEGD4A3C19B"
+                    className="w-full px-3 py-2.5 text-xs border border-border rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-primary font-mono uppercase"
+                  />
+                  {gantiModemSearching && <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+                </div>
+                {gantiModemAssetPreview && (
+                  <div className="mt-1.5 p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                    <p className="text-[11px] font-bold text-emerald-600">Ditemukan di inventori</p>
+                    <p className="text-[11px] text-foreground font-mono">{gantiModemAssetPreview.serialNumber} — {gantiModemAssetPreview.vendor} {gantiModemAssetPreview.model}</p>
+                    <p className="text-[11px] text-muted-foreground">Status: <span className={gantiModemAssetPreview.status === 'AVAILABLE' ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>{gantiModemAssetPreview.status}</span></p>
+                  </div>
+                )}
+                {gantiModemSN.length >= 6 && !gantiModemAssetPreview && !gantiModemSearching && (
+                  <p className="text-[11px] text-amber-600 mt-1">Tidak ditemukan di inventori — dapat tetap dilanjutkan jika SN valid.</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1">Alasan Pergantian</label>
+                <input
+                  type="text"
+                  value={gantiModemReason}
+                  onChange={e => setGantiModemReason(e.target.value)}
+                  placeholder="Cth: Modem rusak, upgrade ke versi baru"
+                  className="w-full px-3 py-2.5 text-xs border border-border rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1">Nama Teknisi</label>
+                <input
+                  type="text"
+                  value={gantiModemTech}
+                  onChange={e => setGantiModemTech(e.target.value)}
+                  placeholder="Cth: Andi"
+                  className="w-full px-3 py-2.5 text-xs border border-border rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowGantiModemModal(false)} className="px-4 py-2 text-xs font-bold border border-border rounded-xl bg-muted text-muted-foreground hover:bg-muted/80">Batal</button>
+              <button
+                onClick={handleGantiModem}
+                disabled={gantiModemLoading || !gantiModemSN.trim()}
+                className="px-4 py-2 text-xs font-bold bg-amber-600 text-white rounded-xl hover:bg-amber-700 flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {gantiModemLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                Konfirmasi Ganti Modem
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SECTION 5: Riwayat Tagihan & Transaksi (Collapsible) */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
