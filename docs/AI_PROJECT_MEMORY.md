@@ -43,6 +43,13 @@
   - Standalone runner PM2 `EugineBill-cron` (`src/cron/runner.ts`) mengeksekusi `pollAllOLTs()` secara native tanpa melalui HTTP layer, mencatat metrik ke `cronHistory` dan mencegah overlapping lewat `LOCK_JOBS`.
   - Sistem juga menyediakan endpoint HTTP trigger `POST /api/cron/olt-poll` dan fallback di `cron-service.js`.
 
+- **Architectural Invariant: Field OLT Automated Seeder & Uplink Binding (`src/app/api/admin/olt/seed/route.ts`, `scripts/seed-olts.ts`)**:
+  - 3 OLT lapangan produksi terdaftar dengan uplink router MIKROTIK CIBINONG SITE (`10.200.0.2`):
+    1. HSGQ-G02ID Cibinong (`192.168.30.2`, vendor `hsgq`, model `HSGQ-G02ID`, community `public`, port 161).
+    2. VSOL-GPON Cibinong (`192.168.30.6`, vendor `vsol`, model `V1600GS`, community `public`, port 161).
+    3. VSOL-1600GT Cibinong (`192.168.30.7`, vendor `vsol`, model `V1600GT`, community `public`, port 161).
+  - Menyediakan endpoint 1-klik `POST /api/admin/olt/seed` dan tombol "Seed OLT Lapangan" di toolbar UI `/admin/network/olts` serta skrip CLI `scripts/seed-olts.ts`.
+
 ### Recent Patch Log (September 16, 2026 — v2.40.10: Dynamic SKU Dictionary, Smart SKU Generator, Redesigned Add Item Wizard, & ONT Reconciliation)
 
 - **Architectural Invariant: Dynamic Database-Driven SKU Dictionary (`skuCategoryCode` & `skuSubCategoryCode`)**:

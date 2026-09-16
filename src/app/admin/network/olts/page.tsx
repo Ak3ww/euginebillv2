@@ -158,6 +158,7 @@ export default function OLTsPage() {
   const [connectionTestResult, setConnectionTestResult] = useState<any>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
@@ -429,6 +430,30 @@ export default function OLTsPage() {
     }
   };
 
+  const handleSeedOLTs = async () => {
+    const confirmed = await showConfirm(
+      'Seed 3 OLT Lapangan?',
+      'Sistem akan mendaftarkan / memperbarui 3 OLT lapangan (HSGQ 192.168.30.2, VSOL GPON 192.168.30.6, VSOL V1600GT 192.168.30.7) yang terhubung ke Router Cibinong Site.'
+    );
+    if (!confirmed) return;
+
+    setSeeding(true);
+    try {
+      const res = await fetch('/api/admin/olt/seed', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        await showSuccess('Berhasil', data.message);
+        await loadData();
+      } else {
+        await showError(data.error || 'Terjadi kesalahan saat seed OLT');
+      }
+    } catch (err: any) {
+      await showError(err.message || 'Gagal seed OLT');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -508,6 +533,15 @@ export default function OLTsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={handleSeedOLTs}
+            disabled={seeding}
+            className="inline-flex items-center px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded disabled:opacity-50"
+            title="Seed 3 OLT Lapangan: HSGQ 192.168.30.2, VSOL 192.168.30.6, VSOL 192.168.30.7 (Uplink Cibinong)"
+          >
+            <Server className={`h-3 w-3 mr-1 ${seeding ? 'animate-spin' : ''}`} />
+            {seeding ? 'Menyimpan...' : 'Seed OLT Lapangan'}
+          </button>
           <button
             onClick={() => setIsImportDialogOpen(true)}
             className="inline-flex items-center px-3 py-1.5 text-xs bg-green-600 hover:bg-green-700 text-white rounded"

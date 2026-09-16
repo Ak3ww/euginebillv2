@@ -34,6 +34,13 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
      - Menambahkan `olt_poll` ke `LOCK_JOBS` pada `src/cron/runner.ts` guna mencegah tumpang tindih proses (*overlapping execution*) jika waktu polling OLT melampaui interval.
      - Terintegrasi langsung dengan PM2 daemon `EugineBill-cron` di VPS Linux sehingga polling redaman, status ONT, dan auto-link pelanggan berjalan 100% otomatis di latar belakang tanpa perlu membuka browser atau menekan tombol apapun.
      - Menyediakan logging otomatis durasi, timestamp, dan status sukses/gagal pada tabel `cronHistory`.
+  6. **Seed Otomatis 3 OLT Lapangan Terikat Router Cibinong Site (`src/app/api/admin/olt/seed/route.ts`, `scripts/seed-olts.ts`, `src/app/admin/network/olts/page.tsx`)**:
+     - Menyediakan endpoint API `POST /api/admin/olt/seed` dan tombol UI "Seed OLT Lapangan" di toolbar OLT admin.
+     - Menyediakan skrip mandiri `scripts/seed-olts.ts` untuk registrasi instan 3 OLT produksi:
+       - HSGQ-G02ID (`192.168.30.2`, vendor `hsgq`, model `HSGQ-G02ID`, SNMP port 161, community `public`).
+       - VSOL-GPON (`192.168.30.6`, vendor `vsol`, model `V1600GS`, SNMP port 161, community `public`).
+       - VSOL-1600GT (`192.168.30.7`, vendor `vsol`, model `V1600GT`, SNMP port 161, community `public`).
+     - Mengaitkan ketiga OLT tersebut secara otomatis ke uplink router "MIKROTIK CIBINONG SITE" (`10.200.0.2`) dengan status aktif dan monitoring enabled.
 
 - **Files**:
   - `src/lib/olt/poller.ts`
@@ -44,6 +51,9 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `src/cron/runner.ts`
   - `cron-service.js`
   - `src/app/api/cron/route.ts`
+  - `src/app/api/admin/olt/seed/route.ts`
+  - `scripts/seed-olts.ts`
+  - `src/app/admin/network/olts/page.tsx`
   - `CHANGELOG.md`
   - `docs/AI_PROJECT_MEMORY.md`
 
