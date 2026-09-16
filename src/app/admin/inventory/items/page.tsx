@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAppStore } from '@/lib/store';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
@@ -64,6 +65,24 @@ interface Item {
 
 export default function InventoryItemsPage() {
   const { t } = useTranslation();
+  const { company } = useAppStore();
+
+  const getCompanyPrefix = () => {
+    if (company?.customerIdPrefix) {
+      const clean = company.customerIdPrefix.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (clean) return clean;
+    }
+    if (company?.name) {
+      const words = company.name.trim().split(/\s+/).filter(Boolean);
+      if (words.length > 1) {
+        return words.map(w => w[0]).join('').toUpperCase().slice(0, 4);
+      } else if (words[0]) {
+        return words[0].slice(0, 3).toUpperCase();
+      }
+    }
+    return 'EMG';
+  };
+
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -615,41 +634,68 @@ export default function InventoryItemsPage() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <ModalLabel required>{t('inventory.sku')}</ModalLabel>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const selectedCat = categories.find((c) => c.id === formData.categoryId);
-                          let catCode = 'GEN';
-                          if (selectedCat) {
-                            const match = selectedCat.name.match(/\(([A-Z]{2,4})\)/);
-                            if (match) catCode = match[1];
-                            else catCode = selectedCat.name.slice(0, 3).toUpperCase();
-                          }
-                          const namePart = (formData.name || 'BARANG')
-                            .toUpperCase()
-                            .replace(/[^A-Z0-9]/g, '-')
-                            .replace(/-+/g, '-')
-                            .slice(0, 18)
-                            .replace(/^-|-$/g, '');
-                          setFormData((prev) => ({ ...prev, sku: `EMG-${catCode}-${namePart}` }));
-                        }}
-                        className="text-[10px] text-primary hover:underline flex items-center gap-1 font-semibold"
-                        title="Generate SKU format EMG-[KATEGORI]-[NAMA]"
-                      >
-                        <Sparkles className="w-3 h-3" />
-                        Auto-Generate SKU
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const selectedCat = categories.find((c) => c.id === formData.categoryId);
+                            let catCode = 'GEN';
+                            if (selectedCat) {
+                              const match = selectedCat.name.match(/\(([A-Z]{2,4})\)/);
+                              if (match) catCode = match[1];
+                              else catCode = selectedCat.name.slice(0, 3).toUpperCase();
+                            }
+                            const namePart = (formData.name || 'BARANG')
+                              .toUpperCase()
+                              .replace(/[^A-Z0-9]/g, '-')
+                              .replace(/-+/g, '-')
+                              .slice(0, 18)
+                              .replace(/^-|-$/g, '');
+                            const pfx = getCompanyPrefix();
+                            setFormData((prev) => ({ ...prev, sku: `${pfx}-${catCode}-${namePart}` }));
+                          }}
+                          className="text-[10px] text-primary hover:underline flex items-center gap-1 font-semibold"
+                          title={`Generate SKU format [PREFIX]-[KATEGORI]-[NAMA]`}
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          Auto ({getCompanyPrefix()})
+                        </button>
+                        <span className="text-[10px] text-muted-foreground/60">|</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const selectedCat = categories.find((c) => c.id === formData.categoryId);
+                            let catCode = 'GEN';
+                            if (selectedCat) {
+                              const match = selectedCat.name.match(/\(([A-Z]{2,4})\)/);
+                              if (match) catCode = match[1];
+                              else catCode = selectedCat.name.slice(0, 3).toUpperCase();
+                            }
+                            const namePart = (formData.name || 'BARANG')
+                              .toUpperCase()
+                              .replace(/[^A-Z0-9]/g, '-')
+                              .replace(/-+/g, '-')
+                              .slice(0, 18)
+                              .replace(/^-|-$/g, '');
+                            setFormData((prev) => ({ ...prev, sku: `${catCode}-${namePart}` }));
+                          }}
+                          className="text-[10px] text-muted-foreground hover:text-foreground hover:underline font-medium"
+                          title="Generate SKU format standar tanpa nama perusahaan [KATEGORI]-[NAMA]"
+                        >
+                          Standar GS1
+                        </button>
+                      </div>
                     </div>
                     <ModalInput
                       type="text"
                       value={formData.sku}
                       onChange={(e) => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
-                      placeholder="EMG-CPE-ONT-ZTE-F609V3"
+                      placeholder={`${getCompanyPrefix()}-CPE-ONT-ZTE-F609V3`}
                       className="font-mono text-xs"
                       required
                     />
                     <p className="text-[9px] text-muted-foreground mt-0.5">
-                      Format: EMG-[KATEGORI]-[SUB]-[VARIAN] (misal: EMG-CPE-ONT-ZTE-F609)
+                      Pilihan: <span className="font-mono text-foreground/80">{getCompanyPrefix()}-[KAT]-[NAMA]</span> atau standar warehouse <span className="font-mono text-foreground/80">[KAT]-[NAMA]</span>
                     </p>
                   </div>
                   <div>

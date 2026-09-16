@@ -155,6 +155,12 @@ const menuGroups: MenuGroup[] = [
         requiredPermission: 'invoices.view',
       },
       {
+        titleKey: 'nav.documents',
+        icon: <FileText className="w-4 h-4" />,
+        href: '/admin/documents',
+        requiredPermission: 'invoices.view',
+      },
+      {
         titleKey: 'nav.payment',
         icon: <CreditCard className="w-4 h-4" />,
         requiredPermission: 'settings.payment',
@@ -319,10 +325,10 @@ const menuGroups: MenuGroup[] = [
         requiredPermission: 'users.view',
       },
       {
-        titleKey: 'Dokumen Perusahaan',
+        titleKey: 'nav.documents',
         icon: <FileText className="w-4 h-4" />,
         href: '/admin/documents',
-        requiredPermission: 'documents.view',
+        requiredPermission: 'dashboard.view',
       },
       {
         titleKey: 'nav.manageTechnicians',
@@ -413,7 +419,7 @@ const menuGroups: MenuGroup[] = [
   },
 ];
 
-function CategoryItem({ titleKey, items, pendingCount, manualPaymentsCount, unreadNotifications, userPermissions, radiusEnabled, t, onNavigate }: {
+function CategoryItem({ titleKey, items, pendingCount, manualPaymentsCount, unreadNotifications, userPermissions, radiusEnabled, isSuperAdmin, t, onNavigate }: {
   titleKey: string;
   items: MenuItem[];
   pendingCount: number;
@@ -421,6 +427,7 @@ function CategoryItem({ titleKey, items, pendingCount, manualPaymentsCount, unre
   unreadNotifications: number;
   userPermissions: string[];
   radiusEnabled: boolean;
+  isSuperAdmin?: boolean;
   t: (key: string, params?: Record<string, string | number>) => string;
   onNavigate?: () => void;
 }) {
@@ -431,11 +438,11 @@ function CategoryItem({ titleKey, items, pendingCount, manualPaymentsCount, unre
   const [isOpen, setIsOpen] = useState(true);
 
   const visibleItems = items
-    .filter(item => !item.requiredPermission || userPermissions.includes(item.requiredPermission))
+    .filter(item => isSuperAdmin || !item.requiredPermission || userPermissions.includes(item.requiredPermission))
     .filter(item => !(item.requiresRadius && radiusEnabled === false))
     .map(item => ({
       ...item,
-      children: item.children?.filter(child => !child.requiredPermission || userPermissions.includes(child.requiredPermission)),
+      children: item.children?.filter(child => isSuperAdmin || !child.requiredPermission || userPermissions.includes(child.requiredPermission)),
     }))
     .filter(item => !item.children || item.children.length > 0);
 
@@ -1076,6 +1083,7 @@ function AdminLayoutContent({
                 unreadNotifications={unreadNotifications}
                 userPermissions={userPermissions}
                 radiusEnabled={company.radiusEnabled ?? false}
+                isSuperAdmin={(session?.user as any)?.role === 'SUPER_ADMIN'}
                 t={t}
                 onNavigate={() => setSidebarOpen(false)}
               />

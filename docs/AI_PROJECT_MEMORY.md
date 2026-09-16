@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.2
+- **Version**: 2.40.3
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,14 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.3: Navigasi Terpadu Document Maker (/admin/documents), Super Admin Bypass, & Dinamis SKU Generator)
+
+- **Architectural Invariant: Document Maker Accessibility & Super Admin Bypass**:
+  - `AdminClientLayout.tsx` kini memiliki bypass `isSuperAdmin` sehingga akun `SUPER_ADMIN` selalu dapat melihat seluruh menu navigasi baru secara instan tanpa terhalang permission database yang belum ter-seed.
+  - Menu `nav.documents` diletakkan ganda: di bawah *Tagihan & Transaksi* (`nav.catBillingTransactions` di bawah `Invoice Manual` dengan permission `invoices.view`) dan di bawah *Manajemen* (`nav.catManagement` dengan permission `dashboard.view`).
+  - Halaman `/admin/manual-invoices` dan `/admin/documents` dihubungkan dengan *Top Sub-Navigation Bar* terpadu (`Tagihan Bulanan` $\leftrightarrow$ `Invoice Manual` $\leftrightarrow$ `Document Maker`).
+  - SKU Generator di `/admin/inventory/items` membaca inisial perusahaan secara dinamis (`company.customerIdPrefix` atau `company.name`) dan menyediakan opsi format `Auto ([PREFIX])` serta `Standar GS1` (`[KAT]-[NAMA]`).
 
 ### Recent Patch Log (September 16, 2026 — v2.40.2: Dedicated Halaman ONT Modem Pelanggan (/admin/inventory/ont), Seeding Kategori Default, & Import 360 ONT Awal)
 

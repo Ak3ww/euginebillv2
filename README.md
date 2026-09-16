@@ -374,6 +374,36 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
 
 <!-- AUTO-CHANGELOG:START -->
 
+### v2.40.3 — 2026-09-16
+
+### Navigasi Terpadu Document Maker (/admin/documents), Super Admin Bypass, & Dinamis SKU Generator
+
+- **Latar Belakang / Context**:
+  1. Pengguna mencari UI Document Maker setelah membuka halaman Invoice Manual, namun tidak menemukannya karena menu Dokumen Perusahaan berada di grup terpisah dan sempat terfilter jika akun admin belum memiliki izin `documents.view`.
+  2. Kebutuhan fleksibilitas format SKU: Apakah SKU harus selalu menggunakan awalan `EMG-` jika sistem dipakai oleh ISP/klien lain, atau adakah format standar industri.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Aksesibilitas Document Maker (`/admin/documents`)**:
+     - Ditambahkan menu navigasi **"Dokumen Resmi & Maker"** di sidebar di bawah grup *Tagihan & Transaksi* (`nav.catBillingTransactions`) persis di bawah Invoice Manual, serta tetap dapat diakses di grup *Manajemen* (`nav.catManagement`).
+     - Super Admin Bypass: Pada `AdminClientLayout.tsx`, ditambahkan proteksi bypass `isSuperAdmin` sehingga akun dengan role `SUPER_ADMIN` selalu dapat melihat seluruh menu navigasi baru tanpa terhalang permission database yang belum ter-seed.
+  2. **Top Sub-Navigation Antar Modul Tagihan & Dokumen**:
+     - Pada `/admin/manual-invoices` dan `/admin/documents`, ditambahkan tab navigasi atas yang saling menghubungkan: `Tagihan Bulanan PPPoE` $\leftrightarrow$ `Invoice Manual` $\leftrightarrow$ `Document Maker Resmi (MOU, BAST, SPK, SJ, KWT)`.
+  3. **SKU Generator Dinamis & Standar GS1 (`/admin/inventory/items`)**:
+     - Menghubungkan pembacaan kode perusahaan dari `company.customerIdPrefix` atau inisial nama perusahaan via `useAppStore()`.
+     - Memberikan 2 tombol generator di modal Tambah Barang:
+       1. `Auto ([PREFIX])`: Format `[PREFIX_PERUSAHAAN]-[KAT]-[NAMA]` (misal `EMG-CPE-ZTE-F609`).
+       2. `Standar GS1`: Format standar warehouse internasional tanpa nama perusahaan `[KAT]-[NAMA]` (misal `CPE-ONT-ZTE-F609`).
+
+- **Files**:
+  - `src/app/admin/AdminClientLayout.tsx`
+  - `src/app/admin/manual-invoices/page.tsx`
+  - `src/app/admin/documents/page.tsx`
+  - `src/app/admin/inventory/items/page.tsx`
+  - `src/lib/store.ts`
+  - `src/locales/id.json`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ### v2.40.2 — 2026-09-16
 
 ### Dedicated Halaman ONT Modem Pelanggan (/admin/inventory/ont), Seeding Kategori Default, & Import 360 ONT Awal
@@ -515,27 +545,6 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
     4. **Penyelarasan Header**: Mengganti tombol "+ Tambah Server VPN" dengan tombol navigasi cepat `Kelola VPN Client`.
   - *Files*:
     - `src/app/admin/network/vpn-server/page.tsx`
-    - `CHANGELOG.md`
-    - `docs/AI_PROJECT_MEMORY.md`
-
-### v2.39.15 — 2026-09-14
-
-### FTTH Deployment Pack Standards (VSOL V1600GS-ZF vs Standard & MikroTik FTTH Master)
-- **Standarisasi Toolkit Deployment Lapangan OLT VSOL & MikroTik FTTH (100% Verified Work)**:
-  - *Context / User Request*:
-    1. Mengabadikan konfigurasi 100% work dari OLT VSOL klien (`RADIANTO`) dan MikroTik RB2011 (RouterOS 6.49.21) dari deployment nyata di lapangan.
-    2. Mendokumentasikan akar masalah kegagalan konfigurasi kits awal: pada OLT VSOL seri **V1600GS-ZF (ZTE Falcon chipset)**, perintah `service-port 1 gemport 1 uservlan 20 vlan 20` **wajib mutlak** disertakan pada line profile agar frame PPPoE tidak di-drop oleh OLT. Sedangkan pada seri **V1600GS standar (Cortina chipset)**, deklarasi eksplisit `service-port` bersifat opsional.
-    3. Memisahkan template OLT menjadi 2 file definitif: `01-vsol-1600gs-zf.conf` dan `01-vsol-1600gs-standard.conf`.
-    4. Menyusun skrip MikroTik FTTH master (`02-mikrotik-ftth-complete.rsc`) dengan standar arsitektur: WAN DHCP-client, dedicated OLT trunk port (terpisah dari bridge), DNS Cloudflare (`1.1.1.1, 1.0.0.1`), pre-configured NAT remote OLT, TCP MSS Clamping, dan native Simple Queue rate-limiting.
-    5. Menambahkan aturan workspace baru `FTTH Deployment Pack Standard` pada `.agents/AGENTS.md`.
-  - *Files*:
-    - `deployment-pack-client/01-vsol-1600gs-zf.conf`
-    - `deployment-pack-client/01-vsol-1600gs-standard.conf`
-    - `deployment-pack-client/01-vsol-radianto-final.conf`
-    - `deployment-pack-client/02-mikrotik-ftth-complete.rsc`
-    - `deployment-pack-client/02-mikrotik-radianto-final.rsc`
-    - `deployment-pack-client/PANDUAN_SETUP_LENGKAP_OLT_MIKROTIK.md`
-    - `.agents/AGENTS.md`
     - `CHANGELOG.md`
     - `docs/AI_PROJECT_MEMORY.md`
 

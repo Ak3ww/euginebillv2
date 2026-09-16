@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -393,6 +394,29 @@ export default function ManualInvoicesPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {/* Top Module Navigation */}
+      <div className="flex items-center gap-2 border-b border-border pb-3 overflow-x-auto text-xs font-medium">
+        <Link
+          href="/admin/invoices"
+          className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        >
+          Tagihan Bulanan PPPoE
+        </Link>
+        <Link
+          href="/admin/manual-invoices"
+          className="px-3 py-1.5 rounded-lg bg-[#002C60] text-white font-semibold shadow-sm transition-colors"
+        >
+          Invoice Manual
+        </Link>
+        <Link
+          href="/admin/documents"
+          className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5"
+        >
+          <FileText className="w-3.5 h-3.5 text-[#002C60]" />
+          Document Maker (MOU, BAST, SPK, SJ, KWT)
+        </Link>
+      </div>
+
       {/* Page Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
