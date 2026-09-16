@@ -139,20 +139,19 @@ export async function deductWorkOrderMaterial(
       }
     } else {
       // ─── Jalur B: Consumable Generic (Kabel Tis, Isolasi, Paku Klem) ──
-      const currentStock = item.stockQuantity ?? item.currentStock ?? 0;
+      // Soft-limit: boleh minus, jangan diblokir (SPK tetap selesai, angka minus tanda restock)
+      const currentStock = item.currentStock ?? 0;
       const used = material.quantityUsed || 0;
-
-      if (currentStock < used) {
-        throw new Error(`Stok ${item.name} (${item.sku}) tidak mencukupi (tersedia ${currentStock}, butuh ${used})`);
-      }
-
       const newStock = currentStock - used;
+
+      if (newStock < 0) {
+        console.warn(`[Stock Warning] ${item.sku} minus: ${newStock} (perlu restock)`);
+      }
 
       await prismaTx.inventoryItem.update({
         where: { id: item.id },
         data: {
-          stockQuantity: newStock,
-          currentStock: Math.round(newStock),
+          currentStock: newStock,
         },
       });
 
@@ -161,9 +160,9 @@ export async function deductWorkOrderMaterial(
         data: {
           itemId: item.id,
           movementType: 'OUT',
-          quantity: Math.round(used),
-          previousStock: Math.round(currentStock),
-          newStock: Math.round(newStock),
+          quantity: used,
+          previousStock: currentStock,
+          newStock: newStock,
           referenceNo: `SPK-${material.workOrderId.slice(-6)}`,
           notes: `Auto-deduct pemakaian consumable ${item.name} di SPK #${material.workOrderId}`,
         },

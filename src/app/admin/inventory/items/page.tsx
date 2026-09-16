@@ -302,6 +302,12 @@ export default function InventoryItemsPage() {
             Riwayat Masuk/Keluar
           </Link>
           <Link
+            href="/admin/inventory/kits"
+            className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            Kit Standar SPK
+          </Link>
+          <Link
             href="/admin/inventory/categories"
             className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           >

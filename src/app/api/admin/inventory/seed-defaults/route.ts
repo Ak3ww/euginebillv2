@@ -69,20 +69,46 @@ const DEFAULT_INVENTORY_ITEMS = [
   { sku: 'EMG-CAB-PRC-1C-250M', name: 'Kabel Precon 1 Core 250M', categoryCode: 'CAB', subCategory: 'PRC', unit: 'roll', isSerialized: true },
   { sku: 'EMG-CAB-PRC-1C-500M', name: 'Kabel Precon 1 Core 500M', categoryCode: 'CAB', subCategory: 'PRC', unit: 'roll', isSerialized: true },
   { sku: 'EMG-CAB-UTP-CAT6-305M', name: 'Kabel UTP Cat6 305M', categoryCode: 'CAB', subCategory: 'UTP', unit: 'roll', isSerialized: true },
-  // PAS types — serialized
+  // Dropcore Cable types (CAB/DRP) — serialized, roll
+  { sku: 'EMG-CAB-DRP-1C-50M',  name: 'Kabel Dropcore 1 Core 50M',  categoryCode: 'CAB', subCategory: 'DRP', unit: 'roll', isSerialized: true },
+  { sku: 'EMG-CAB-DRP-1C-100M', name: 'Kabel Dropcore 1 Core 100M', categoryCode: 'CAB', subCategory: 'DRP', unit: 'roll', isSerialized: true },
+  { sku: 'EMG-CAB-DRP-1C-200M', name: 'Kabel Dropcore 1 Core 200M', categoryCode: 'CAB', subCategory: 'DRP', unit: 'roll', isSerialized: true },
+  { sku: 'EMG-CAB-DRP-1C-250M', name: 'Kabel Dropcore 1 Core 250M', categoryCode: 'CAB', subCategory: 'DRP', unit: 'roll', isSerialized: true },
+  { sku: 'EMG-CAB-DRP-1C-300M', name: 'Kabel Dropcore 1 Core 300M', categoryCode: 'CAB', subCategory: 'DRP', unit: 'roll', isSerialized: true },
+  // PAS types — serialized & non-serialized
   { sku: 'EMG-PAS-ODP-16P', name: 'ODP 16 Port', categoryCode: 'PAS', subCategory: 'ODP', unit: 'pcs', isSerialized: true },
   { sku: 'EMG-PAS-SPL-1X8-PLC', name: 'Splitter PLC 1x8', categoryCode: 'PAS', subCategory: 'SPL', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-PAS-RST-1P-SCUPC', name: 'Roset Fiber 1 Port SC/UPC', categoryCode: 'PAS', subCategory: 'RST', unit: 'pcs', isSerialized: false },
   // Consumables (CON) — not serialized
-  { sku: 'EMG-CON-TIE-30CM-BLK', name: 'Kabel Tis 30cm Hitam', categoryCode: 'CON', subCategory: 'TIE', unit: 'pcs', isSerialized: false, stockQuantity: 0 },
-  { sku: 'EMG-CON-TAP-60MM', name: 'Isolasi Hitam 60mm', categoryCode: 'CON', subCategory: 'TAP', unit: 'pcs', isSerialized: false, stockQuantity: 0 },
-  { sku: 'EMG-CON-KLM-16MM', name: 'Paku Klem 16mm', categoryCode: 'CON', subCategory: 'KLM', unit: 'pcs', isSerialized: false, stockQuantity: 0 },
-  { sku: 'EMG-CON-PTC-FC-APC', name: 'Konektor FC-APC', categoryCode: 'CON', subCategory: 'PTC', unit: 'pcs', isSerialized: false, stockQuantity: 0 },
-  { sku: 'EMG-CON-FOD-CLEAVE', name: 'Fiber Cleaver Blade', categoryCode: 'CON', subCategory: 'FOD', unit: 'pcs', isSerialized: false, stockQuantity: 0 },
-  { sku: 'EMG-CON-PAP-A4', name: 'Kertas HVS A4', categoryCode: 'CON', subCategory: 'PAP', unit: 'rim', isSerialized: false, stockQuantity: 0 },
+  { sku: 'EMG-CON-TIE-30CM-BLK', name: 'Kabel Tis 30cm Hitam', categoryCode: 'CON', subCategory: 'TIE', unit: 'pcs', isSerialized: false },
+  { sku: 'EMG-CON-TAP-60MM', name: 'Isolasi Hitam 60mm', categoryCode: 'CON', subCategory: 'TAP', unit: 'pcs', isSerialized: false },
+  { sku: 'EMG-CON-KLM-16MM', name: 'Paku Klem 16mm', categoryCode: 'CON', subCategory: 'KLM', unit: 'pcs', isSerialized: false },
+  { sku: 'EMG-CON-PTC-FC-APC', name: 'Konektor FC-APC', categoryCode: 'CON', subCategory: 'PTC', unit: 'pcs', isSerialized: false },
+  { sku: 'EMG-CON-PTC-SC-UPC-3M', name: 'Patch Cord SC-UPC 3M', categoryCode: 'CON', subCategory: 'PTC', unit: 'pcs', isSerialized: false },
+  { sku: 'EMG-CON-SLV-60MM', name: 'Protection Sleeve 60mm', categoryCode: 'CON', subCategory: 'SLV', unit: 'pcs', isSerialized: false },
+  { sku: 'EMG-CON-FOD-CLEAVE', name: 'Fiber Cleaver Blade', categoryCode: 'CON', subCategory: 'FOD', unit: 'pcs', isSerialized: false },
+  { sku: 'EMG-CON-PAP-A4', name: 'Kertas HVS A4', categoryCode: 'CON', subCategory: 'PAP', unit: 'rim', isSerialized: false },
+  { sku: 'EMG-CON-BAT-AAA-PAIR', name: 'Baterai Remote AAA (sepasang)', categoryCode: 'CON', subCategory: 'BAT', unit: 'pasang', isSerialized: false },
   // MKT types — not serialized
-  { sku: 'EMG-MKT-BRC-A5', name: 'Brosur A5', categoryCode: 'MKT', subCategory: 'BRC', unit: 'pcs', isSerialized: false, stockQuantity: 0 },
-  { sku: 'EMG-MKT-STK-ODP-LOGO', name: 'Stiker Logo ODP', categoryCode: 'MKT', subCategory: 'STK', unit: 'pcs', isSerialized: false, stockQuantity: 0 },
+  { sku: 'EMG-MKT-BRC-A5', name: 'Brosur A5', categoryCode: 'MKT', subCategory: 'BRC', unit: 'pcs', isSerialized: false },
+  { sku: 'EMG-MKT-STK-ODP-LOGO', name: 'Stiker Logo ODP', categoryCode: 'MKT', subCategory: 'STK', unit: 'pcs', isSerialized: false },
 ];
+
+// ─── Standard Initial Stock Levels & Pack Size for Consumables ────────────────
+const STANDARD_STOCK_LEVELS: Record<string, { qty: number; packSize?: number }> = {
+  'EMG-CON-TIE-30CM-BLK': { qty: 500, packSize: 200 },
+  'EMG-CON-TAP-60MM': { qty: 50, packSize: 10 },
+  'EMG-CON-KLM-16MM': { qty: 300, packSize: 100 },
+  'EMG-CON-PTC-FC-APC': { qty: 100, packSize: 50 },
+  'EMG-CON-FOD-CLEAVE': { qty: 5 },
+  'EMG-CON-PAP-A4': { qty: 5 },
+  'EMG-MKT-BRC-A5': { qty: 200 },
+  'EMG-MKT-STK-ODP-LOGO': { qty: 100 },
+  'EMG-CON-PTC-SC-UPC-3M': { qty: 50 },
+  'EMG-CON-SLV-60MM': { qty: 200 },
+  'EMG-PAS-RST-1P-SCUPC': { qty: 50 },
+  'EMG-CON-BAT-AAA-PAIR': { qty: 20 },
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -141,6 +167,7 @@ export async function POST(req: NextRequest) {
     let itemsSeeded = 0;
     for (const item of DEFAULT_INVENTORY_ITEMS) {
       const categoryId = categoryMap[item.categoryCode] || null;
+      const initialPackSize = STANDARD_STOCK_LEVELS[item.sku]?.packSize || null;
       await prisma.inventoryItem.upsert({
         where: { sku: item.sku },
         create: {
@@ -151,8 +178,8 @@ export async function POST(req: NextRequest) {
           categoryId,
           unit: item.unit,
           isSerialized: item.isSerialized,
-          stockQuantity: item.isSerialized ? null : (item.stockQuantity ?? 0),
           currentStock: 0,
+          packSize: initialPackSize,
           isActive: true,
         },
         update: {
@@ -160,6 +187,7 @@ export async function POST(req: NextRequest) {
           categoryCode: item.categoryCode,
           subCategory: item.subCategory,
           ...(categoryId ? { categoryId } : {}),
+          ...(initialPackSize ? { packSize: initialPackSize } : {}),
         },
       });
       itemsSeeded++;
@@ -173,13 +201,128 @@ export async function POST(req: NextRequest) {
       console.warn('Warning seeding permissions from seed-defaults:', permErr);
     }
 
+    // ── 5. Seed 25 Physical Dropcore Rolls (5 rolls per length variant) ──────
+    let rollsSeeded = 0;
+    const DROPCORE_LENGTHS = [50, 100, 200, 250, 300];
+    const ROLLS_PER_LENGTH = 5;
+
+    for (const length of DROPCORE_LENGTHS) {
+      const sku = `EMG-CAB-DRP-1C-${length}M`;
+      const item = await prisma.inventoryItem.findUnique({ where: { sku } });
+      if (!item) continue;
+
+      for (let i = 1; i <= ROLLS_PER_LENGTH; i++) {
+        const serialNumber = `ROLL-${length}M-${String(i).padStart(2, '0')}`;
+        await prisma.inventoryAsset.upsert({
+          where: { serialNumber },
+          create: {
+            itemId: item.id,
+            assetType: 'CABLE_ROLL',
+            serialNumber,
+            initialLength: length,
+            remainingLength: length,
+            condition: 'NEW',
+            status: 'AVAILABLE',
+            notes: `Seeding fisik dropcore roll ${length}M unit #${i}`,
+          },
+          update: {}, // Jangan timpa roll yang sudah dipakai
+        });
+        rollsSeeded++;
+      }
+    }
+
+    // ── 6. Seed Standard Initial Stock for Consumables ───────────────────────
+    let stockItemsInitialized = 0;
+    for (const [sku, { qty, packSize }] of Object.entries(STANDARD_STOCK_LEVELS)) {
+      const item = await prisma.inventoryItem.findUnique({ where: { sku } });
+      if (!item) continue;
+
+      const hasMovement = await prisma.inventoryMovement.findFirst({ where: { itemId: item.id } });
+      if (!hasMovement) {
+        await prisma.$transaction([
+          prisma.inventoryItem.update({
+            where: { id: item.id },
+            data: {
+              currentStock: qty,
+              ...(packSize ? { packSize } : {}),
+            },
+          }),
+          prisma.inventoryMovement.create({
+            data: {
+              itemId: item.id,
+              movementType: 'IN',
+              quantity: qty,
+              previousStock: 0,
+              newStock: qty,
+              referenceNo: 'SEED-INITIAL',
+              notes: 'Stok awal seeding sistem inventori',
+            },
+          }),
+        ]);
+        stockItemsInitialized++;
+      } else if (packSize && !item.packSize) {
+        await prisma.inventoryItem.update({
+          where: { id: item.id },
+          data: { packSize },
+        });
+      }
+    }
+
+    // ── 7. Seed Default Kit Standar PSB (workOrderTypeKit) ───────────────────
+    let kitItemsSeeded = 0;
+    const psbKit = await prisma.workOrderTypeKit.upsert({
+      where: { issueType: 'INSTALLATION' },
+      create: {
+        issueType: 'INSTALLATION',
+        name: 'Kit Standar PSB',
+        isActive: true,
+      },
+      update: {
+        name: 'Kit Standar PSB',
+        isActive: true,
+      },
+    });
+
+    const DEFAULT_PSB_KIT_ITEMS = [
+      { sku: 'EMG-CON-TIE-30CM-BLK', defaultQty: 6 },
+      { sku: 'EMG-CON-TAP-60MM', defaultQty: 1 },
+      { sku: 'EMG-CON-KLM-16MM', defaultQty: 8 },
+      { sku: 'EMG-CON-PTC-FC-APC', defaultQty: 1 },
+    ];
+
+    for (const kitItemDef of DEFAULT_PSB_KIT_ITEMS) {
+      const targetItem = await prisma.inventoryItem.findUnique({ where: { sku: kitItemDef.sku } });
+      if (targetItem) {
+        await prisma.workOrderTypeKitItem.upsert({
+          where: {
+            kitId_itemId: {
+              kitId: psbKit.id,
+              itemId: targetItem.id,
+            },
+          },
+          create: {
+            kitId: psbKit.id,
+            itemId: targetItem.id,
+            defaultQty: kitItemDef.defaultQty,
+          },
+          update: {
+            defaultQty: kitItemDef.defaultQty,
+          },
+        });
+        kitItemsSeeded++;
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Default data seeded successfully',
+      message: 'Default data, cable rolls, and standard kit seeded successfully',
       seeded: {
         numberingRules: rulesSeeded,
         categories: categoriesSeeded,
         inventoryItems: itemsSeeded,
+        cableRolls: rollsSeeded,
+        stockItemsInitialized,
+        kitStandarPsbItems: kitItemsSeeded,
         permissionsUpdated: true,
       },
     });

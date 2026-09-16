@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
       location,
       notes,
       isActive,
+      packSize,
     } = body;
 
     if (!sku || !name) {
@@ -132,7 +133,8 @@ export async function POST(request: NextRequest) {
         supplierId: supplierId || null,
         unit: unit || 'pcs',
         minimumStock: minimumStock || 0,
-        currentStock: currentStock || 0,
+        currentStock: currentStock ? parseFloat(currentStock) : 0,
+        packSize: packSize ? parseInt(packSize) : null,
         purchasePrice: purchasePrice || 0,
         sellingPrice: sellingPrice || 0,
         location,
@@ -200,6 +202,7 @@ export async function PUT(request: NextRequest) {
       location,
       notes,
       isActive,
+      packSize,
     } = body;
 
     if (!id) {
@@ -219,6 +222,7 @@ export async function PUT(request: NextRequest) {
         supplierId: supplierId || null,
         unit,
         minimumStock,
+        packSize: packSize !== undefined ? (packSize ? parseInt(packSize) : null) : undefined,
         purchasePrice,
         sellingPrice,
         location,

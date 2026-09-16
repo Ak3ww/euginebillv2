@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.5
+- **Version**: 2.40.6
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,33 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.6: Unifikasi Stok Float, Auto-Deduct Kit Standar SPK, & Master Dropcore 25 Rolls)
+
+- **Architectural Invariant: Single Source of Truth for Inventory Stock (`currentStock` Float)**:
+  - Kolom `stockQuantity` telah DIHAPUS PERMANEN dari model `inventoryItem`. DILARANG KERAS merujuk atau mendefinisikan ulang `stockQuantity`.
+  - Seluruh pencatatan stok di `inventoryItem.currentStock` dan pergerakan di `inventoryMovement.quantity`, `previousStock`, `newStock` WAJIB bertipe `Float` (didukung desimal untuk kabel dan material meteran/cairan).
+  - Field `packSize Int?` pada `inventoryItem` digunakan untuk barang kemasan (pack/box). Form mutasi stok (`/admin/inventory/movements`) wajib mendukung konversi otomatis pack ke pcs (`quantity = packCount * packSize`).
+  - Field `periodLabel String?` (format `YYYY-MM`) pada `inventoryMovement` digunakan untuk pelabelan audit Stock Opname bulanan (`movementType === 'ADJUSTMENT'`).
+
+- **Architectural Invariant: Soft-Limit on Consumable Deductions (Jalur B)**:
+  - Pada `inventory-deduct.service.ts`, pemotongan material consumable generic (kabel ties, isolasi, paku klem, fast connector) DILARANG KERAS melempar exception atau memblokir teknisi saat stok gudang bernilai 0 atau negatif.
+  - Jika stok habis, sistem WAJIB mencatat warning log dan tetap merekam transaksi `inventoryMovement` bertipe `OUT` sehingga stok menjadi negatif secara transparan di sistem untuk kemudian disesuaikan saat restock/opname.
+
+- **Architectural Invariant: Work Order Type Standard Kits (`workOrderTypeKit`)**:
+  - Model `workOrderTypeKit` dan `workOrderTypeKitItem` menghubungkan tipe SPK (`issueType`, e.g. `INSTALLATION`) dengan material default yang wajib dipotong.
+  - Saat handler `/api/technician/work-orders/[id]/complete` dipanggil, setelah roll kabel dipotong, sistem WAJIB memproses auto-deduct kit standar dengan `try/catch` terisolasi per item agar kegagalan satu material tidak membatalkan penutupan SPK.
+  - Admin UI tersedia di `/admin/inventory/kits`.
+
+- **Architectural Invariant: 25 Precon Dropcore Physical Rolls & Idempotent Seeding**:
+  - Master item dropcore terdiri dari 5 varian (`EMG-CAB-DRP-1C-50M` s/d `300M`).
+  - 25 unit roll fisik (`ROLL-50M-01` s/d `ROLL-300M-05`) di-seed ke `inventoryAsset` tipe `CABLE_ROLL` dengan status `AVAILABLE`.
+  - Seeding roll fisik WAJIB menggunakan `upsert` dengan `update: {}` agar sisa meteran kabel (`remainingLength`) yang sedang digunakan teknisi tidak ter-reset.
+  - Initial stock consumable di-seed melalui mutasi `IN` berlabel `SEED-INITIAL` hanya jika barang belum memiliki riwayat mutasi sama sekali.
+
+- **Architectural Invariant: Realtime MAC Address Formatting (`formatMacAddress`)**:
+  - Utility `src/lib/mac-format.ts` WAJIB digunakan pada seluruh form input MAC address.
+  - Otomatis mengubah karakter ke huruf kapital dan menambahkan separator `:` setiap 2 karakter heksadesimal (`XX:XX:XX:XX:XX:XX`), dengan penanganan backspace yang tidak tersangkut pada separator.
 
 ### Recent Patch Log (September 16, 2026 — v2.40.5: Serial Number (SN ONT) Autocomplete & Universal Device Linking pada Modal Edit Pelanggan (UserDetailModal))
 

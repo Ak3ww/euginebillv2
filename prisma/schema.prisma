@@ -1956,14 +1956,14 @@ model inventoryItem {
   supplierId      String?
   unit            String              @default("pcs") // Unit of measurement (pcs, box, meter, etc)
   minimumStock    Int                 @default(0) // Alert when stock below this
-  currentStock    Int                 @default(0)
+  currentStock    Float               @default(0)
+  packSize        Int?                // jumlah pcs per pack/dus untuk kemudahan restock
   purchasePrice   Int                 @default(0) // Harga beli
   sellingPrice    Int                 @default(0) // Harga jual
   location        String?             // Storage location
   notes           String?             @db.Text
   isActive        Boolean             @default(true)
   isSerialized    Boolean             @default(true) // FALSE = quantity-based (consumable generic)
-  stockQuantity   Float?              // dipakai HANYA kalau isSerialized = false
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   category        inventoryCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -1971,6 +1971,7 @@ model inventoryItem {
   movements       inventoryMovement[]
   assets          inventoryAsset[]
   workOrderUsages workOrderMaterial[]
+  kits            workOrderTypeKitItem[]
 
   @@index([categoryId])
   @@index([categoryCode])
@@ -1984,9 +1985,10 @@ model inventoryMovement {
   id            String        @id @default(cuid())
   itemId        String
   movementType  String        // IN (masuk), OUT (keluar), ADJUSTMENT (penyesuaian)
-  quantity      Int
-  previousStock Int
-  newStock      Int
+  quantity      Float
+  previousStock Float
+  newStock      Float
+  periodLabel   String?       // diisi khusus untuk movementType = ADJUSTMENT, format "YYYY-MM"
   referenceNo   String?       // Nomor referensi (PO, DO, invoice, etc)
   notes         String?       @db.Text
   userId        String?       // User yang melakukan transaksi
@@ -1996,6 +1998,7 @@ model inventoryMovement {
 
   @@index([itemId])
   @@index([movementType])
+  @@index([periodLabel])
   @@index([createdAt])
   @@map("inventory_movements")
 }
@@ -2111,6 +2114,30 @@ model workOrderMaterial {
   @@index([workOrderId])
   @@index([itemId])
   @@map("work_order_materials")
+}
+
+// ─── Standard Kit per Work Order Type ──────────────────────────────────────────
+model workOrderTypeKit {
+  id            String                 @id @default(cuid())
+  issueType     String                 @unique // cocokkan ke workOrder.issueType, mis. "INSTALLATION"
+  name          String                 // "Kit Standar PSB"
+  isActive      Boolean                @default(true)
+  updatedAt     DateTime               @updatedAt
+
+  items         workOrderTypeKitItem[]
+  @@map("work_order_type_kits")
+}
+
+model workOrderTypeKitItem {
+  id            String           @id @default(cuid())
+  kitId         String
+  itemId        String           // relasi ke inventoryItem (harus isSerialized = false)
+  defaultQty    Float            // qty standar yang otomatis dipotong tiap SPK jenis ini
+
+  kit           workOrderTypeKit @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  item          inventoryItem    @relation(fields: [itemId], references: [id])
+  @@unique([kitId, itemId])
+  @@map("work_order_type_kit_items")
 }
 
 // Document Numbering Models (Token-Based)

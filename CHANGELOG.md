@@ -4,6 +4,73 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.6] — 2026-09-16
+### Unifikasi Field Stok (Float), Auto-Deduct Kit Standar SPK (Addendum 1), dan Master Dropcore 25 Rolls (Addendum 2)
+
+- **Latar Belakang / Context**:
+  1. Inkonsistensi data stok pada `inventoryItem` karena keberadaan dua field (`stockQuantity` dan `currentStock`).
+  2. Penyelesaian SPK pasang baru (PSB) atau maintenance oleh teknisi terancam terblokir jika material consumable (kabel ties, isolasi, paku klem) belum diinput restock-nya oleh admin gudang.
+  3. Ketiadaan template material standar per jenis SPK yang menyebabkan teknisi atau admin harus menginput material satu per satu secara manual.
+  4. Belum adanya master item kabel dropcore precon (50m, 100m, 150m, 200m, 300m) serta 25 roll fisik terdaftar di gudang.
+  5. Kebutuhan konversi otomatis satuan kemasan (*pack* ke *pcs*), penandaan periode audit bulanan (*periodLabel* untuk stock opname), dan auto-formatting input MAC Address (titik dua dan huruf kapital otomatis).
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Auto-Formatting MAC Address (`src/lib/mac-format.ts`)**:
+     - Utility realtime untuk memformat pengetikan MAC Address: otomatis kapital dan menyisipkan separator `:` setiap 2 karakter heksadesimal (`BD:CG...`).
+     - Penanganan tombol *backspace* yang mulus tanpa macet pada separator.
+     - Diterapkan pada `UserDetailModal.tsx`, `/admin/pppoe/users/new`, `/admin/inventory/ont`, dan `/admin/inventory/assets`.
+  2. **Unifikasi Stok & Tipe Float (`prisma/schema.prisma`)**:
+     - Menghapus shadow field `stockQuantity` dari `inventoryItem`.
+     - Mengubah `currentStock` di `inventoryItem` dan `quantity`, `previousStock`, `newStock` di `inventoryMovement` menjadi `Float` `@default(0)`.
+     - Menambahkan kolom `packSize Int?` pada `inventoryItem`.
+     - Menambahkan kolom `periodLabel String?` (format `YYYY-MM`, berindeks) pada `inventoryMovement`.
+     - Menambahkan model `workOrderTypeKit` dan `workOrderTypeKitItem`.
+     - Disediakan SQL migration file: `prisma/migrations/20260916_unify_inventory_stock_field_and_kits.sql`.
+  3. **Soft-Limit pada Material Consumable (`src/server/services/inventory-deduct.service.ts`)**:
+     - Jalur B (consumable/pasif) menerapkan soft-limit: jika stok tidak mencukupi atau bernilai 0, sistem TIDAK melempar exception pemblokir SPK.
+     - Sistem mencatat warning log dan tetap merekam transaksi `inventoryMovement` bertipe `OUT` sehingga stok negatif tercatat akurat dan transparan untuk diaudit kemudian.
+  4. **Auto-Deduct Kit Standar SPK**:
+     - Diintegrasikan langsung pada `src/app/api/technician/work-orders/[id]/complete/route.ts`.
+     - Setelah pemotongan roll kabel (Jalur C), sistem mencari kit aktif berdasarkan `wo.issueType` (misal `INSTALLATION`), lalu memotong setiap material secara otomatis dengan blok `try/catch` terisolasi per item.
+     - API kit lengkap: `GET/POST /api/inventory/kits`, `GET/PUT/DELETE /api/inventory/kits/[id]`, `GET/POST /api/inventory/kits/[id]/items`, `DELETE /api/inventory/kits/[id]/items/[itemId]`.
+     - UI Manajemen Kit di `/admin/inventory/kits`: Desain Shadcn UI bersih, hairline border, Lucide icons, bebas teks emoji.
+  5. **Master Dropcore & 25 Physical Rolls (`src/app/api/admin/inventory/seed-defaults/route.ts`)**:
+     - Mendaftarkan 5 varian master kabel dropcore precon 1C (`EMG-CAB-DRP-1C-50M` s/d `300M`).
+     - Meng-generate 25 roll fisik (`ROLL-50M-01` s/d `ROLL-300M-05`) dengan `upsert` dan `update: {}` agar sisa meteran roll operasional tidak ter-reset.
+     - Mengisi stok awal consumable standar dengan pencatatan mutasi `IN` (`SEED-INITIAL`) jika belum ada mutasi sebelumnya.
+     - Mendaftarkan Kit Standar PSB default: 6 kabel ties, 1 isolasi, 8 paku klem, 1 fast connector.
+  6. **Pembaruan Mutasi Stok (`/admin/inventory/movements`)**:
+     - Mendukung mode input Pack jika barang memiliki `packSize > 1`, otomatis mengkonversi ke pcs.
+     - Mendukung input dan filter `periodLabel` pada mutasi bertipe `ADJUSTMENT` (Stock Opname).
+     - Tampilan Shadcn UI modern dan responsif.
+
+- **Files**:
+  - `src/lib/mac-format.ts`
+  - `src/components/UserDetailModal.tsx`
+  - `src/app/admin/pppoe/users/new/page.tsx`
+  - `src/app/admin/inventory/ont/page.tsx`
+  - `src/app/admin/inventory/assets/page.tsx`
+  - `src/app/admin/inventory/movements/page.tsx`
+  - `src/app/admin/inventory/kits/page.tsx`
+  - `src/app/admin/inventory/items/page.tsx`
+  - `src/app/admin/AdminClientLayout.tsx`
+  - `src/locales/id.json`
+  - `prisma/schema.prisma`
+  - `prisma/migrations/20260916_unify_inventory_stock_field_and_kits.sql`
+  - `src/server/services/inventory-deduct.service.ts`
+  - `src/server/services/pppoe.service.ts`
+  - `src/app/api/inventory/items/route.ts`
+  - `src/app/api/inventory/movements/route.ts`
+  - `src/app/api/inventory/kits/route.ts`
+  - `src/app/api/inventory/kits/[id]/route.ts`
+  - `src/app/api/inventory/kits/[id]/items/route.ts`
+  - `src/app/api/inventory/kits/[id]/items/[itemId]/route.ts`
+  - `src/app/api/technician/work-orders/[id]/complete/route.ts`
+  - `src/app/api/admin/inventory/seed-defaults/route.ts`
+  - `docs/inventory/EMG_KIT_STANDAR_DAN_PERBAIKAN_STOK.md`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.5] — 2026-09-16
 ### Serial Number (SN ONT) Autocomplete & Universal Device Linking pada Modal Edit Pelanggan (UserDetailModal)
 

@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { formatMacAddress } from '@/lib/mac-format';
 import {
   Dialog,
   DialogContent,
@@ -467,8 +468,10 @@ function AssetFormModal({
               <Label>MAC Address (opsional)</Label>
               <Input
                 value={form.macAddress}
-                onChange={(e) => set('macAddress', e.target.value)}
+                onChange={(e) => set('macAddress', formatMacAddress(e.target.value, form.macAddress))}
                 placeholder="AA:BB:CC:DD:EE:FF"
+                maxLength={17}
+                className="font-mono text-xs"
               />
             </div>
           )}
@@ -708,6 +711,12 @@ export default function InventoryAssetsPage() {
           className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
         >
           Riwayat Masuk/Keluar
+        </Link>
+        <Link
+          href="/admin/inventory/kits"
+          className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        >
+          Kit Standar SPK
         </Link>
         <Link
           href="/admin/inventory/categories"

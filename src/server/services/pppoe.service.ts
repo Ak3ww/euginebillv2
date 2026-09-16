@@ -660,7 +660,6 @@ export async function createPppoeUser(
                 unit: 'pcs',
                 minimumStock: 5,
                 isSerialized: true,
-                stockQuantity: 0,
               },
             });
           } catch {

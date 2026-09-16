@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Map, Eye, EyeOff, Loader2, X, ChevronRight, ChevronL
 import MapPicker from '@/components/MapPicker';
 import { ModalInput, ModalSelect, ModalLabel } from '@/components/cyberpunk';
 import { compressImage } from '@/lib/utils';
+import { formatMacAddress } from '@/lib/mac-format';
 
 interface Profile { id: string; name: string; groupName: string; price: number; proratePricePerDay: number; }
 interface Router { id: string; name: string; nasname: string; ipAddress: string; }
@@ -158,7 +159,7 @@ export default function NewPppoeUserPage() {
     setShowOntDropdown(false);
     setOntNotFound(false);
     if (asset.macAddress) {
-      setFormData(prev => ({ ...prev, macAddress: asset.macAddress }));
+      setFormData(prev => ({ ...prev, macAddress: formatMacAddress(asset.macAddress) }));
     }
   };
 
@@ -636,17 +637,24 @@ export default function NewPppoeUserPage() {
                   <p className="text-[10px] text-muted-foreground mt-1">Ketik SN untuk cari dari inventori, atau input manual.</p>
                 </div>
                 <div>
-                  <ModalLabel>MAC Address / Serial Number (Legacy)</ModalLabel>
-                  <ModalInput type="text" value={formData.macAddress} onChange={(e) => field('macAddress', e.target.value)} placeholder="AA:BB:CC:DD:EE:FF atau Serial" />
-                  <p className="text-[10px] text-muted-foreground mt-1">Untuk autentikasi MAC-based atau identifikasi perangkat.</p>
+                  <ModalLabel>MAC Address ONT</ModalLabel>
+                  <ModalInput
+                    type="text"
+                    value={formData.macAddress}
+                    onChange={(e) => field('macAddress', formatMacAddress(e.target.value, formData.macAddress))}
+                    placeholder="AA:BB:CC:DD:EE:FF"
+                    maxLength={17}
+                    className="font-mono"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">Format MAC Address ONT (otomatis format colon & uppercase).</p>
                 </div>
               </div>
 
               <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">📸 Foto Instalasi (opsional)</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Foto Instalasi (opsional)</p>
                 <input type="file" accept="image/*" onChange={handleUploadInstallation} disabled={uploadingInstallation} className="hidden" id="installUpload" />
                 <label htmlFor="installUpload" className={`w-full block px-3 py-3 text-xs text-center border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted text-muted-foreground ${uploadingInstallation ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                  {uploadingInstallation ? <span className="flex items-center justify-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Mengupload...</span> : '📸 Tambah Foto Instalasi'}
+                  {uploadingInstallation ? <span className="flex items-center justify-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Mengupload...</span> : 'Tambah Foto Instalasi'}
                 </label>
                 <p className="text-[10px] text-muted-foreground">Maks. 5 foto @ 5MB ({formData.installationPhotos.length}/5)</p>
                 {formData.installationPhotos.length > 0 && (
@@ -665,7 +673,7 @@ export default function NewPppoeUserPage() {
                 )}
               </div>
               <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">📍 Lokasi GPS (opsional)</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Lokasi GPS (opsional)</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <ModalLabel>Latitude</ModalLabel>

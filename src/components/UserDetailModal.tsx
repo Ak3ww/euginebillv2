@@ -10,6 +10,7 @@ import { CameraPhotoInput } from '@/components/CameraPhotoInput';
 import { CameraViewfinder } from '@/components/CameraViewfinder';
 import { getFastLocation } from '@/lib/geo-utils';
 import { compressImage } from '@/lib/utils';
+import { formatMacAddress } from '@/lib/mac-format';
 
 interface User {
   id: string;
@@ -228,7 +229,7 @@ export default function UserDetailModal({
     setOntNotFound(false);
     setOntAssetPreview(asset);
     if (asset.macAddress) {
-      setFormData(prev => ({ ...prev, macAddress: asset.macAddress }));
+      setFormData(prev => ({ ...prev, macAddress: formatMacAddress(asset.macAddress) }));
     }
   };
 
@@ -771,8 +772,9 @@ export default function UserDetailModal({
                   <input
                     type="text"
                     value={formData.macAddress}
-                    onChange={(e) => setFormData({ ...formData, macAddress: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, macAddress: formatMacAddress(e.target.value, prev.macAddress) }))}
                     placeholder="AA:BB:CC:DD:EE:FF"
+                    maxLength={17}
                     className={`${inputCls} font-mono`}
                   />
                   <p className="text-xs text-muted-foreground dark:text-[#e0d0ff]/50 mt-1">

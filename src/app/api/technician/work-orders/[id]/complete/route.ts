@@ -444,6 +444,45 @@ export async function POST(
       }
     }
 
+    // Auto-Deduct Kit Standar (consumable generic) berdasarkan issueType
+    try {
+      const issueTypeUpper = (wo.issueType || '').toUpperCase();
+      const kit = await prisma.workOrderTypeKit.findFirst({
+        where: {
+          OR: [
+            { issueType: issueTypeUpper },
+            ...(issueTypeUpper.includes('INSTAL') ? [{ issueType: 'INSTALLATION' }] : []),
+          ],
+          isActive: true,
+        },
+        include: { items: true },
+      });
+
+      if (kit?.isActive && kit.items?.length > 0) {
+        const { deductWorkOrderMaterial } = await import('@/server/services/inventory-deduct.service');
+        for (const kitItem of kit.items) {
+          try {
+            const material = await prisma.workOrderMaterial.create({
+              data: {
+                workOrderId: updated.id,
+                itemId: kitItem.itemId,
+                quantityRequested: kitItem.defaultQty,
+                quantityUsed: kitItem.defaultQty,
+                unit: 'pcs',
+                isDeducted: false,
+              },
+            });
+            await deductWorkOrderMaterial(material.id);
+          } catch (kitItemErr) {
+            console.warn(`[WorkOrder Complete] Kit item ${kitItem.itemId} deduct warning (non-fatal):`, kitItemErr);
+          }
+        }
+        console.log(`[WorkOrder Complete] Kit standar "${kit.name}" (${kit.items.length} items) processed for WO #${updated.id}`);
+      }
+    } catch (kitErr) {
+      console.error('[WorkOrder Complete] Kit deduct warning (non-fatal):', kitErr);
+    }
+
     return NextResponse.json({ success: true, workOrder: updated });
   } catch (error: any) {
     console.error('Work order completion error:', error);

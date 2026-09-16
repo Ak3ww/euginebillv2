@@ -415,6 +415,7 @@
     "inventoryOnt": "Modem ONT Pelanggan",
     "inventoryAssets": "Unit Aset",
     "inventoryMovements": "Mutasi Stok",
+    "inventoryKits": "Kit Standar SPK",
     "inventoryCategories": "Kategori",
     "inventorySuppliers": "Supplier",
     "technician": "Akses Teknisi",

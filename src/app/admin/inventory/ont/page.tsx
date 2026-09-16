@@ -23,6 +23,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatMacAddress } from '@/lib/mac-format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -459,8 +460,9 @@ function OntFormModal({
                 <Input
                   className="font-mono text-xs h-9 mt-1"
                   placeholder="AA:BB:CC:DD:EE:FF"
+                  maxLength={17}
                   value={form.macAddress}
-                  onChange={(e) => setForm({ ...form, macAddress: e.target.value })}
+                  onChange={(e) => setForm({ ...form, macAddress: formatMacAddress(e.target.value, form.macAddress) })}
                 />
               </div>
 
@@ -723,6 +725,12 @@ export default function OntInventoryPage() {
           className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
         >
           Riwayat Masuk/Keluar
+        </Link>
+        <Link
+          href="/admin/inventory/kits"
+          className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        >
+          Kit Standar SPK
         </Link>
         <Link
           href="/admin/inventory/categories"

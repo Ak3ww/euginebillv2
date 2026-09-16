@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const itemId = searchParams.get('itemId');
     const movementType = searchParams.get('movementType');
+    const periodLabel = searchParams.get('periodLabel');
     const limit = parseInt(searchParams.get('limit') || '100');
 
     const where: any = {};
@@ -26,6 +27,10 @@ export async function GET(request: NextRequest) {
       where.movementType = movementType;
     }
 
+    if (periodLabel) {
+      where.periodLabel = periodLabel;
+    }
+
     const movements = await prisma.inventoryMovement.findMany({
       where,
       include: {
@@ -35,6 +40,8 @@ export async function GET(request: NextRequest) {
             sku: true,
             name: true,
             unit: true,
+            packSize: true,
+            currentStock: true,
           },
         },
       },
@@ -61,9 +68,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { itemId, movementType, quantity, referenceNo, notes } = body;
+    const { itemId, movementType, quantity, referenceNo, notes, periodLabel } = body;
 
-    if (!itemId || !movementType || !quantity) {
+    if (!itemId || !movementType || quantity === undefined || quantity === null) {
       return NextResponse.json(
         { error: 'ItemId, movementType, and quantity are required' },
         { status: 400 }
@@ -73,6 +80,14 @@ export async function POST(request: NextRequest) {
     if (!['IN', 'OUT', 'ADJUSTMENT'].includes(movementType)) {
       return NextResponse.json(
         { error: 'Invalid movement type. Must be IN, OUT, or ADJUSTMENT' },
+        { status: 400 }
+      );
+    }
+
+    const numQty = parseFloat(quantity);
+    if (isNaN(numQty) || numQty < 0) {
+      return NextResponse.json(
+        { error: 'Quantity must be a valid positive number' },
         { status: 400 }
       );
     }
@@ -91,19 +106,22 @@ export async function POST(request: NextRequest) {
 
     // Calculate new stock
     if (movementType === 'IN') {
-      newStock = previousStock + quantity;
+      newStock = previousStock + numQty;
     } else if (movementType === 'OUT') {
-      if (previousStock < quantity) {
+      if (previousStock < numQty) {
         return NextResponse.json(
           { error: 'Insufficient stock' },
           { status: 400 }
         );
       }
-      newStock = previousStock - quantity;
+      newStock = previousStock - numQty;
     } else if (movementType === 'ADJUSTMENT') {
       // For adjustment, quantity is the new stock value
-      newStock = quantity;
+      newStock = numQty;
     }
+
+    // Auto-generate periodLabel for ADJUSTMENT if not provided (YYYY-MM)
+    const effectivePeriodLabel = periodLabel || (movementType === 'ADJUSTMENT' ? new Date().toISOString().slice(0, 7) : null);
 
     // Create movement and update item stock in a transaction
     const [movement] = await prisma.$transaction([
@@ -111,9 +129,10 @@ export async function POST(request: NextRequest) {
         data: {
           itemId,
           movementType,
-          quantity: movementType === 'ADJUSTMENT' ? newStock - previousStock : quantity,
+          quantity: movementType === 'ADJUSTMENT' ? Math.abs(newStock - previousStock) : numQty,
           previousStock,
           newStock,
+          periodLabel: effectivePeriodLabel,
           referenceNo,
           notes,
           userId: session.user.id,
@@ -126,6 +145,8 @@ export async function POST(request: NextRequest) {
               sku: true,
               name: true,
               unit: true,
+              packSize: true,
+              currentStock: true,
             },
           },
         },

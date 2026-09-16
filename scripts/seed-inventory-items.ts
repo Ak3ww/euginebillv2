@@ -292,7 +292,6 @@ export async function seedMasterItems() {
         subCategory: it.subCategory,
         unit: it.unit,
         isSerialized: it.isSerialized,
-        stockQuantity: it.stockQuantity || 0,
         currentStock: Math.round(it.stockQuantity || 0),
         purchasePrice: it.purchasePrice,
         sellingPrice: it.sellingPrice,
