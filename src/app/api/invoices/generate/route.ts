@@ -140,8 +140,15 @@ export async function POST(request: NextRequest) {
         // Determine if user is truly a new PSB installation customer registered in targetMonth
         const isPendingInstallation = (user.status || '').toUpperCase() === 'PENDING_INSTALLATION';
         const userCreated = user.createdAt ? new Date(user.createdAt) : new Date();
-        const userRegMonth = `${userCreated.getFullYear()}-${String(userCreated.getMonth() + 1).padStart(2, '0')}`;
-        const isNewPsbInTargetMonth = isPendingInstallation && userRegMonth === targetMonth;
+        const regDate = (user as any).registeredAt ? new Date((user as any).registeredAt + 'T00:00:00') : userCreated;
+        const userRegMonth = `${regDate.getFullYear()}-${String(regDate.getMonth() + 1).padStart(2, '0')}`;
+
+        // Check if user has any prior paid invoices
+        const hasPriorPaidInvoice = await prisma.invoice.count({
+          where: { userId: user.id, status: 'PAID' }
+        }) > 0;
+
+        const isNewPsbInTargetMonth = !hasPriorPaidInvoice && (userRegMonth === targetMonth || isPendingInstallation);
 
         // Determine due date & invoice type
         const subscriptionType = (user as any).subscriptionType || 'POSTPAID';
@@ -149,7 +156,18 @@ export async function POST(request: NextRequest) {
         let invoiceType: string;
 
         if (isNewPsbInTargetMonth) {
-          dueDate = getDueDatePostpaid((user as any).billingDay ?? null);
+          const now = new Date();
+          const targetBillingDueDate = getDueDatePostpaid((user as any).billingDay ?? null);
+
+          // For new installation registered mid-month: if billing day already passed, give 2 days from now
+          if (targetBillingDueDate <= now) {
+            const safeDue = new Date(Math.max(regDate.getTime(), now.getTime()));
+            safeDue.setDate(safeDue.getDate() + 2);
+            safeDue.setHours(23, 59, 59, 999);
+            dueDate = safeDue;
+          } else {
+            dueDate = targetBillingDueDate;
+          }
           invoiceType = 'INSTALLATION';
         } else if (subscriptionType === 'PREPAID') {
           // If expiredAt falls within targetMonth, use it; otherwise use billingDay of targetMonth
@@ -164,16 +182,20 @@ export async function POST(request: NextRequest) {
           invoiceType = 'MONTHLY';
         }
 
-        // Calculate amount (ONLY auto-prorate for new PSB registered in targetMonth)
-        let baseAmount = user.profile.price;
-        if (isNewPsbInTargetMonth) {
-          const regDay = userCreated.getDate();
-          const targetBillingDay = (user as any).billingDay || 1;
+        // Calculate amount (auto-prorate for new PSB registered in targetMonth)
+        let baseAmount = Number(user.profile.price);
+        if (isNewPsbInTargetMonth && subscriptionType !== 'PREPAID') {
+          const regDay = regDate.getDate();
           const daysInMonth = new Date(year, month, 0).getDate();
-          const daysRemaining = daysInMonth - regDay + 1;
 
-          if (regDay !== targetBillingDay && daysRemaining > 0 && daysRemaining < daysInMonth) {
-            baseAmount = Math.round((user.profile.price / daysInMonth) * daysRemaining);
+          if (regDay >= 1 && regDay <= 5) {
+            baseAmount = Number(user.profile.price);
+          } else {
+            const remainingDays = Math.max(1, daysInMonth - regDay + 1);
+            const rawProrate = (user.profile as any).proratePricePerDay;
+            const proratePrice = rawProrate ? Number(rawProrate) : Math.ceil(Number(user.profile.price) / daysInMonth);
+            const pricePerDay = proratePrice > 0 ? proratePrice : Math.ceil(Number(user.profile.price) / daysInMonth);
+            baseAmount = Math.min(Number(user.profile.price), Math.max(pricePerDay, remainingDays * pricePerDay));
           }
         }
         let amount = baseAmount;

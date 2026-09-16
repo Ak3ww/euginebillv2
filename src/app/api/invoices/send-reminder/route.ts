@@ -80,15 +80,17 @@ export async function POST(request: NextRequest) {
       dueDate = new Date();
     }
 
-    // Auto-detect if invoice is overdue based on status or due date
+    // Auto-detect if invoice is overdue
+    // IMPORTANT: If status is PENDING, this is a standard pending bill, NOT a suspension warning.
+    // Never send "PERINGATAN PENANGGUHAN LAYANAN" (invoice-overdue) for PENDING invoices.
     const now = new Date()
-    const isOverdue = invoice.status === 'OVERDUE' || dueDate < now
+    const isOverdue = invoice.status === 'OVERDUE'
 
     // Calculate days overdue if applicable
     let daysOverdue = 0
-    if (isOverdue) {
+    if (isOverdue || dueDate < now) {
       const diffTime = now.getTime() - dueDate.getTime()
-      daysOverdue = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      daysOverdue = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
     }
 
     // Auto-generate paymentLink if missing (for invoices created without one)

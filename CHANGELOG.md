@@ -4,6 +4,42 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.7] — 2026-09-16
+### Perbaikan Tagihan Pertama PSB (Auto-Create Int Amount), Prorata pada Generate Tagihan Manual, Fallback SPK Complete, dan Proteksi Pesan Penangguhan (Suspension Warning Guard)
+
+- **Latar Belakang / Context**:
+  1. Pelanggan baru (PSB) yang dibuat tidak ter-generate tagihan pertamanya secara otomatis. Akibatnya, saat teknisi menyelesaikan SPK (klik "Selesai"), WhatsApp bot tidak mengirimkan rincian tagihan/pembayaran kepada pelanggan baru tersebut.
+  2. Saat admin melakukan generate tagihan manual melalui `/tagihans` (`/admin/invoices`), pelanggan baru yang baru saja dipasang malah dikenakan tagihan penuh Rp 150.000,- bukan nominal prorata sesuai sisa hari di bulan berjalan.
+  3. Saat admin mengklik ikon chat WhatsApp (kirim pengingat tagihan) pada invoice berstatus `PENDING` di `/admin/invoices`, pesan yang terkirim ke pelanggan adalah "Pesan Penangguhan Layanan / Isolir" alih-alih invoice permintaan pembayaran yang wajar.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Perbaikan Typecasting Nominal Invoice (`src/server/services/pppoe.service.ts`)**:
+     - Investigasi menemukan bahwa `invoice.amount` dan `invoice.baseAmount` pada skema Prisma bertipe `Int`. Perhitungan prorata menghasilkan desimal (`Float`), dan `profile.price` berupa objek Prisma `Decimal`.
+     - Melewatkan nilai desimal ke `prisma.invoice.create` memicu validasi error `Expected Int, got Decimal/Float` pada runtime Prisma yang tertelan oleh blok `catch (invoiceError)`.
+     - Dilakukan pembulatan integer eksplisit menggunakan `Math.round(Number(invoiceAmount))` pada `amount` dan `baseAmount`.
+     - Ditambahkan dukungan tarif PPN profil (`ppnActive`, `ppnRate`).
+     - Dipastikan `shouldCreateFirstInvoice` bernilai default `true` (`prorate`) untuk langganan pascabayar bahkan jika parameter `firstInvoice` tidak terdefinisi/omitted.
+     - Jatuh tempo tagihan instalasi dipastikan selalu di masa depan (`Math.max(baseDate, now) + daysToAdd` pukul `23:59:59`).
+  2. **Fallback Invoice Auto-Create pada SPK Complete (`src/app/api/technician/work-orders/[id]/complete/route.ts`)**:
+     - Ditambahkan guard saat teknisi menyelesaikan SPK bertipe `INSTALLATION`: jika belum ada invoice berstatus `PENDING` untuk pelanggan terkait, sistem secara cerdas membuatkan invoice instalasi baru secara instan dengan nominal prorata akurat, payment token, payment link, dan tipe `INSTALLATION`.
+     - Invoice tersebut langsung dikirimkan ke WhatsApp pelanggan menggunakan format template `sendInstallationInvoice` lengkap dengan rincian biaya.
+  3. **Perhitungan Prorata pada Generate Tagihan Manual (`src/app/api/invoices/generate/route.ts`)**:
+     - Sebelumnya, sistem hanya mendeteksi pelanggan PSB baru jika `user.status === 'PENDING_INSTALLATION'`. Begitu teknisi menyelesaikan SPK, `user.status` berubah menjadi `'ACTIVE'`, sehingga generate tagihan manual mengabaikan prorata dan menagih tarif flat 100%.
+     - Diperbarui dengan mendeteksi pelanggan baru tanpa invoice lunas sebelumnya yang terdaftar di bulan target (`!hasPriorPaidInvoice && (userRegMonth === targetMonth || isPendingInstallation)`).
+     - Menghitung hari aktif tersisa dan mengalikan harga harian prorata secara presisi, menyetel jatuh tempo ke depan (`now + 2 hari`), serta menetapkan `invoiceType = 'INSTALLATION'`.
+  4. **Proteksi Pesan Penangguhan Layanan (`src/app/api/invoices/send-reminder/route.ts`)**:
+     - Evaluasi `isOverdue` sebelumnya menggunakan `invoice.status === 'OVERDUE' || dueDate < now`. Jika tagihan memiliki jatuh tempo di tanggal yang sudah lewat (misal tgl 10 sementara hari ini tgl 16), sistem keliru menganggap invoice sebagai overdue dan mengirimkan template `invoice-overdue` ("⚠️ PERINGATAN PENANGGUHAN LAYANAN - Layanan Anda saat ini diisolir/ditangguhkan sementara").
+     - Diperbaiki: Invoice berstatus `PENDING` TIDAK BOLEH dikirimi pesan penangguhan. Hanya invoice dengan `invoice.status === 'OVERDUE'` yang dapat memicu template penangguhan. Invoice `PENDING` selalu mengirim pengingat pembayaran normal (`invoice-reminder` atau `sendInstallationInvoice`).
+  5. **Pembersihan Teks Emoji UI (`src/app/admin/pppoe/users/new/page.tsx`)**:
+     - Mengganti seluruh text emoji (💳, 🏠, ⏰, 📅, 💰, ⚠️, ⏱️, ℹ️) dengan icon Lucide React standar (`<CreditCard />`, `<CheckCircle2 />`, `<Clock />`, `<Calendar />`, `<AlertCircle />`, `<Info />`).
+
+- **Files**:
+  - `src/server/services/pppoe.service.ts`
+  - `src/app/api/technician/work-orders/[id]/complete/route.ts`
+  - `src/app/api/invoices/generate/route.ts`
+  - `src/app/api/invoices/send-reminder/route.ts`
+  - `src/app/admin/pppoe/users/new/page.tsx`
+
 ## [2.40.6] — 2026-09-16
 ### Unifikasi Field Stok (Float), Auto-Deduct Kit Standar SPK (Addendum 1), dan Master Dropcore 25 Rolls (Addendum 2)
 

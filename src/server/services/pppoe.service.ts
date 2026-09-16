@@ -468,13 +468,14 @@ export async function createPppoeUser(
     }
   }
 
-  // Create first invoice if requested
+  // Create first invoice if requested (default to prorate for postpaid if not explicitly 'none')
   const firstInvoice = (data as any).firstInvoice as 'none' | 'prorate' | 'full' | undefined;
-  if (firstInvoice && firstInvoice !== 'none') {
+  const shouldCreateFirstInvoice = firstInvoice ? firstInvoice !== 'none' : subscriptionType !== 'PREPAID';
+  if (shouldCreateFirstInvoice) {
     try {
       const companyConfig = await prisma.company.findFirst();
       
-      let invoiceAmount = profile.price;
+      let invoiceAmount = Number(profile.price);
       const isExplicitProrate = firstInvoice === 'prorate';
       const isExplicitFull = firstInvoice === 'full';
 
@@ -505,12 +506,29 @@ export async function createPppoeUser(
           invoiceAmount = Math.min(Number(profile.price), Math.max(pricePerDay, calculatedProrate));
         }
       }
+
+      // Calculate tax if configured on profile
+      let finalAmount = Math.round(invoiceAmount);
+      let taxRate: number | null = null;
+      if (profile.ppnActive && profile.ppnRate) {
+        taxRate = Number(profile.ppnRate);
+        if (taxRate > 0) {
+          finalAmount = Math.round(invoiceAmount + (invoiceAmount * taxRate / 100));
+        }
+      }
+
       const invoiceId = crypto.randomUUID();
       const invoiceNumber = generateInvoiceNumber();
       const baseUrl = companyConfig?.baseUrl || 'http://localhost:3000';
-      // Installation invoice due date: fixed 2 days after installation (bayar dulu baru pakai)
-      const installationDueDate = new Date(registeredAt ? new Date(registeredAt + 'T00:00:00') : new Date());
-      installationDueDate.setDate(installationDueDate.getDate() + 2);
+      
+      // Installation invoice due date: future-safe (at least 2 days from now)
+      const daysToAdd = parseInt(String((data as any).installationDueDateDays || 2)) || 2;
+      const now = new Date();
+      const baseDate = registeredAt ? new Date(registeredAt + 'T00:00:00') : now;
+      const installationDueDate = new Date(Math.max(baseDate.getTime(), now.getTime()));
+      installationDueDate.setDate(installationDueDate.getDate() + daysToAdd);
+      installationDueDate.setHours(23, 59, 59, 999);
+
       const paymentToken = randomBytes(32).toString('hex');
       const paymentLink = `${baseUrl}/pay/${paymentToken}`;
 
@@ -519,8 +537,9 @@ export async function createPppoeUser(
           id: invoiceId,
           invoiceNumber,
           userId: user.id,
-          amount: invoiceAmount,
-          baseAmount: invoiceAmount,
+          amount: finalAmount,
+          baseAmount: Math.round(invoiceAmount),
+          ...(taxRate !== null && taxRate > 0 ? { taxRate } : {}),
           dueDate: installationDueDate,
           status: 'PENDING',
           invoiceType: 'INSTALLATION',
@@ -532,8 +551,9 @@ export async function createPppoeUser(
           createdAt: new Date(),
         },
       });
-    } catch (invoiceError) {
-      console.error('First invoice creation error:', invoiceError);
+      console.log(`[CreatePppoeUser] Successfully created first invoice ${invoiceNumber} (amount: ${finalAmount}) for ${username}`);
+    } catch (invoiceError: any) {
+      console.error('First invoice creation error:', invoiceError?.message || invoiceError);
     }
   }
 

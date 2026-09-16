@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.6
+- **Version**: 2.40.7
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,25 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.7: Fix First Invoice Auto-Creation, Prorate Calculation on PSB & Manual Generation, and Prevent False Suspension Warnings)
+
+- **Architectural Invariant: Strict Integer Casting for Invoice Amounts (`amount` & `baseAmount`)**:
+  - Kolom `amount` dan `baseAmount` pada skema Prisma `model invoice` bertipe `Int` (bukan Decimal atau Float).
+  - Setiap perhitungan harga paket, prorata, atau PPN yang menghasilkan nilai desimal WAJIB melewati pembulatan integer eksplisit (`Math.round(Number(val))`) sebelum dipassing ke `prisma.invoice.create` atau `update`.
+  - Melewatkan objek `Decimal` dari Prisma atau angka bertipe `Float` menyebabkan error runtime `Expected Int, got Decimal/Float` yang dapat menggagalkan pembuatan tagihan tanpa memunculkan error fatal jika berada dalam blok `catch`.
+
+- **Architectural Invariant: WhatsApp Message Guard — Strict Separation between Overdue/Isolir and Pending Reminders**:
+  - Pada pengiriman notifikasi/pengingat tagihan (`/api/invoices/send-reminder`), evaluasi pesan penangguhan/isolir (`invoice-overdue`) HANYA BOLEH dipicu jika status invoice adalah `OVERDUE` (`invoice.status === 'OVERDUE'`).
+  - DILARANG KERAS mengevaluasi kondisi `dueDate < now` untuk invoice berstatus `PENDING` sebagai penangguhan. Jika invoice masih `PENDING` (walaupun jatuh tempo masa lampau akibat pembuatan manual), pesan yang terkirim WAJIB berupa template pengingat pembayaran normal (`invoice-reminder` atau `sendInstallationInvoice`).
+
+- **Architectural Invariant: Prorate Resolution for Manual Invoice Generation (`/api/invoices/generate`)**:
+  - Saat admin men-generate tagihan secara manual untuk pelanggan baru, deteksi status tidak boleh hanya bergantung pada `user.status === 'PENDING_INSTALLATION'`.
+  - Jika teknisi telah menyelesaikan SPK pemasangan, status pelanggan telah beralih menjadi `'ACTIVE'`. Oleh karena itu, deteksi pelanggan baru pascabayar WAJIB memeriksa ketiadaan riwayat tagihan lunas sebelumnya di bulan target (`!hasPriorPaidInvoice && (userRegMonth === targetMonth || isPendingInstallation)`). Jika kondisi terpenuhi, hitung nominal prorata berdasarkan sisa hari aktif bulan berjalan dan beri jatuh tempo di masa depan (`now + 2 hari`).
+
+- **Architectural Invariant: Fallback Installation Invoice on SPK Completion (`complete/route.ts`)**:
+  - Saat teknisi menyelesaikan SPK pemasangan (`INSTALLATION`), sistem memverifikasi keberadaan tagihan `PENDING` untuk pelanggan terkait.
+  - Jika tagihan belum terbentuk (akibat kegagalan sebelumnya atau flow alternatif), endpoint penyelesaian SPK secara otomatis membuatkan invoice instalasi baru dengan nominal prorata akurat, payment token, dan payment URL, lalu seketika mengirimkan detail tagihan tersebut ke nomor WhatsApp pelanggan via `sendInstallationInvoice`.
 
 ### Recent Patch Log (September 16, 2026 — v2.40.6: Unifikasi Stok Float, Auto-Deduct Kit Standar SPK, & Master Dropcore 25 Rolls)
 

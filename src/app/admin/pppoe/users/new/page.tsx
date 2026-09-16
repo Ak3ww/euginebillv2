@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { showSuccess, showError } from '@/lib/sweetalert';
-import { ArrowLeft, MapPin, Map, Eye, EyeOff, Loader2, X, ChevronRight, ChevronLeft, Wifi, WifiOff, Radio, User, Wrench, Settings } from 'lucide-react';
+import { ArrowLeft, MapPin, Map, Eye, EyeOff, Loader2, X, ChevronRight, ChevronLeft, Wifi, WifiOff, Radio, User, Wrench, Settings, CreditCard, CheckCircle2, Clock, Calendar, AlertCircle, Info } from 'lucide-react';
 import MapPicker from '@/components/MapPicker';
 import { ModalInput, ModalSelect, ModalLabel } from '@/components/cyberpunk';
 import { compressImage } from '@/lib/utils';
@@ -398,7 +398,10 @@ export default function NewPppoeUserPage() {
                     </div>
                     {/* Tagihan Pertama — selalu tampil (tidak perlu profile dulu) */}
                     <div>
-                      <p className="text-[10px] font-semibold text-muted-foreground mb-1.5">💳 Tagihan Pertama</p>
+                      <p className="text-[10px] font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                        <CreditCard className="w-3 h-3 text-primary" />
+                        Tagihan Pertama
+                      </p>
                       {/* Langkah 1: kapan bayar */}
                       <div className="grid grid-cols-2 gap-1.5 mb-2">
                         <button
@@ -406,7 +409,7 @@ export default function NewPppoeUserPage() {
                           onClick={() => { if (firstInvoice === 'none') setFirstInvoice('prorate'); }}
                           className={`flex flex-col items-center gap-0.5 p-2.5 border-2 rounded-xl cursor-pointer transition-all text-center w-full ${firstInvoice !== 'none' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-border bg-muted/40 hover:border-emerald-400'}`}
                         >
-                          <span className="text-base">🏠</span>
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mb-0.5" />
                           <span className={`text-[9px] font-bold ${firstInvoice !== 'none' ? 'text-emerald-700 dark:text-emerald-300' : ''}`}>Bayar di Awal</span>
                           <span className="text-[8px] text-muted-foreground leading-tight">Invoice dibuat saat pemasangan</span>
                         </button>
@@ -415,7 +418,7 @@ export default function NewPppoeUserPage() {
                           onClick={() => setFirstInvoice('none')}
                           className={`flex flex-col items-center gap-0.5 p-2.5 border-2 rounded-xl cursor-pointer transition-all text-center w-full ${firstInvoice === 'none' ? 'border-border bg-muted' : 'border-border/40 bg-muted/30 hover:border-border'}`}
                         >
-                          <span className="text-base">⏰</span>
+                          <Clock className="w-4 h-4 text-muted-foreground mb-0.5" />
                           <span className="text-[9px] font-bold">Bayar Setelah Pemakaian</span>
                           <span className="text-[8px] text-muted-foreground leading-tight">Dibuat otomatis oleh sistem</span>
                         </button>
@@ -427,7 +430,7 @@ export default function NewPppoeUserPage() {
                           <div className="grid grid-cols-2 gap-1.5">
                             <label className={`flex flex-col items-center p-2 border-2 rounded-lg cursor-pointer transition-all text-center ${firstInvoice === 'prorate' ? 'border-emerald-500 bg-emerald-100 dark:bg-emerald-900/40' : 'border-border bg-background hover:border-emerald-400'}`}>
                               <input type="radio" name="firstInvoice" value="prorate" checked={firstInvoice === 'prorate'} onChange={() => setFirstInvoice('prorate')} className="sr-only" />
-                              <span className="text-sm mb-0.5">📅</span>
+                              <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 mb-0.5" />
                               <span className={`text-[9px] font-bold ${firstInvoice === 'prorate' ? 'text-emerald-700 dark:text-emerald-300' : ''}`}>Prorate</span>
                               {prorateInfo ? (
                                 <>
@@ -444,7 +447,7 @@ export default function NewPppoeUserPage() {
                             </label>
                             <label className={`flex flex-col items-center p-2 border-2 rounded-lg cursor-pointer transition-all text-center ${firstInvoice === 'full' ? 'border-primary bg-primary/10' : 'border-border bg-background hover:border-primary/50'}`}>
                               <input type="radio" name="firstInvoice" value="full" checked={firstInvoice === 'full'} onChange={() => setFirstInvoice('full')} className="sr-only" />
-                              <span className="text-sm mb-0.5">💰</span>
+                              <CreditCard className="w-3.5 h-3.5 text-primary mb-0.5" />
                               <span className={`text-[9px] font-bold ${firstInvoice === 'full' ? 'text-primary' : ''}`}>Sebulan Penuh</span>
                               {prorateInfo ? (
                                 <span className="text-[9px] font-bold">Rp {prorateInfo.fullPrice.toLocaleString('id-ID')}</span>
@@ -454,22 +457,27 @@ export default function NewPppoeUserPage() {
                             </label>
                           </div>
                           {!prorateInfo && (
-                            <p className="text-[9px] text-amber-600 dark:text-amber-400 mt-1.5">⚠️ Pilih profil paket untuk melihat estimasi tagihan</p>
+                            <p className="text-[9px] text-amber-600 dark:text-amber-400 mt-1.5 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 shrink-0" />
+                              Pilih profil paket untuk melihat estimasi tagihan
+                            </p>
                           )}
                           <div className="mt-2.5 pt-2 border-t border-emerald-500/20 space-y-1">
-                            <ModalLabel className="text-[9px] font-semibold text-muted-foreground">
-                              ⏰ Batas Tempo Invoice Pasang Baru:
+                            <ModalLabel className="text-[9px] font-semibold text-muted-foreground flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-emerald-600" />
+                              Batas Tempo Invoice Pasang Baru:
                             </ModalLabel>
                             <div className="flex items-center gap-1.5 px-2 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300/40 rounded-lg">
-                              <span className="text-emerald-600 dark:text-emerald-400 text-xs">⏱️</span>
+                              <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                               <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">2 Hari setelah pasang</span>
                             </div>
                             <p className="text-[8px] text-muted-foreground">
                               Bayar dulu baru pakai. Tagihan bulanan rutin tetap di Tanggal {formData.billingDay}.
                             </p>
                           </div>
-                          <p className="text-[9px] text-muted-foreground mt-1.5">
-                            ℹ️ Invoice <span className="font-semibold">PENDING</span> dibuat saat simpan — bisa dibayar via portal pelanggan.
+                          <p className="text-[9px] text-muted-foreground mt-1.5 flex items-center gap-1">
+                            <Info className="w-3 h-3 shrink-0 text-muted-foreground" />
+                            Invoice <span className="font-semibold">PENDING</span> dibuat saat simpan — bisa dibayar via portal pelanggan.
                           </p>
                         </div>
                       )}

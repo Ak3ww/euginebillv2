@@ -287,6 +287,78 @@ export async function POST(
 
     const company = await prisma.company.findFirst();
     const appBaseUrl = company?.baseUrl || process.env.NEXT_PUBLIC_APP_URL || '';
+    const isInstallType = wo.issueType?.toUpperCase().includes('INSTAL') || wo.issueType?.toUpperCase() === 'INSTALLATION';
+
+    // Auto-create missing installation invoice if customer has no invoice yet upon SPK completion
+    if (!invoice && isInstallType && targetCustomer && targetCustomer.profile) {
+      try {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth();
+        const currentDay = today.getDate();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        let invoiceAmount = Number(targetCustomer.profile.price);
+        if (company?.enableProrate && targetCustomer.subscriptionType !== 'PREPAID') {
+          if (currentDay > 5) {
+            const remainingDays = Math.max(1, daysInMonth - currentDay + 1);
+            const rawProrate = (targetCustomer.profile as any).proratePricePerDay;
+            const proratePrice = rawProrate ? Number(rawProrate) : Math.ceil(invoiceAmount / daysInMonth);
+            const pricePerDay = proratePrice > 0 ? proratePrice : Math.ceil(invoiceAmount / daysInMonth);
+            invoiceAmount = Math.min(invoiceAmount, Math.max(pricePerDay, remainingDays * pricePerDay));
+          }
+        }
+
+        let finalAmount = Math.round(invoiceAmount);
+        let taxRate: number | null = null;
+        if (targetCustomer.profile.ppnActive && targetCustomer.profile.ppnRate) {
+          taxRate = Number(targetCustomer.profile.ppnRate);
+          if (taxRate > 0) {
+            finalAmount = Math.round(invoiceAmount + (invoiceAmount * taxRate / 100));
+          }
+        }
+
+        const { generateInvoiceNumber } = await import('@/server/services/billing/invoice.service');
+        const invoiceNumber = generateInvoiceNumber();
+        const { randomBytes } = await import('crypto');
+        const paymentToken = randomBytes(32).toString('hex');
+        const paymentLink = `${appBaseUrl}/pay/${paymentToken}`;
+
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 2);
+        dueDate.setHours(23, 59, 59, 999);
+
+        invoice = await prisma.invoice.create({
+          data: {
+            id: crypto.randomUUID(),
+            invoiceNumber,
+            userId: targetCustomer.id,
+            amount: finalAmount,
+            baseAmount: Math.round(invoiceAmount),
+            ...(taxRate !== null && taxRate > 0 ? { taxRate } : {}),
+            dueDate,
+            status: 'PENDING',
+            invoiceType: 'INSTALLATION',
+            customerName: targetCustomer.name,
+            customerPhone: targetCustomer.phone,
+            customerUsername: targetCustomer.username,
+            paymentToken,
+            paymentLink,
+          },
+          include: {
+            user: {
+              include: {
+                profile: true,
+                area: true,
+              },
+            },
+          },
+        });
+        console.log(`[WorkOrder Complete] Auto-created missing installation invoice ${invoiceNumber} for ${targetCustomer.username}`);
+      } catch (autoInvErr) {
+        console.error('[WorkOrder Complete] Failed to auto-create installation invoice:', autoInvErr);
+      }
+    }
 
     if (invoice) {
       // Auto-generate paymentLink and paymentToken if missing
