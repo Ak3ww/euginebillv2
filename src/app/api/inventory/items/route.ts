@@ -66,6 +66,9 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
+        _count: {
+          select: { assets: true },
+        },
       },
       orderBy: { name: 'asc' },
     });
@@ -105,6 +108,8 @@ export async function POST(request: NextRequest) {
       name,
       description,
       categoryId,
+      categoryCode,
+      subCategory,
       supplierId,
       unit,
       minimumStock,
@@ -115,6 +120,7 @@ export async function POST(request: NextRequest) {
       notes,
       isActive,
       packSize,
+      isSerialized,
     } = body;
 
     if (!sku || !name) {
@@ -130,6 +136,8 @@ export async function POST(request: NextRequest) {
         name,
         description,
         categoryId: categoryId || null,
+        categoryCode: categoryCode || null,
+        subCategory: subCategory || null,
         supplierId: supplierId || null,
         unit: unit || 'pcs',
         minimumStock: minimumStock || 0,
@@ -140,6 +148,7 @@ export async function POST(request: NextRequest) {
         location,
         notes,
         isActive: isActive !== undefined ? isActive : true,
+        isSerialized: isSerialized !== undefined ? isSerialized : true,
       },
       include: {
         category: true,
@@ -194,6 +203,9 @@ export async function PUT(request: NextRequest) {
       name,
       description,
       categoryId,
+      categoryCode,
+      subCategory,
+      isSerialized,
       supplierId,
       unit,
       minimumStock,
@@ -219,6 +231,9 @@ export async function PUT(request: NextRequest) {
         name,
         description,
         categoryId: categoryId || null,
+        categoryCode: categoryCode !== undefined ? categoryCode : undefined,
+        subCategory: subCategory !== undefined ? subCategory : undefined,
+        isSerialized: isSerialized !== undefined ? isSerialized : undefined,
         supplierId: supplierId || null,
         unit,
         minimumStock,

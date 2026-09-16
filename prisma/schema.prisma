@@ -1917,6 +1917,37 @@ enum ConfigType {
   DEVICE_DETAIL
 }
 
+// SKU Dictionary Models (Dynamic Categories & Subcategories)
+model skuCategoryCode {
+  id            String               @id @default(cuid())
+  code          String               @unique // HW, CPE, PAS, CAB, CON, MKT, PWR, TLS, ACC, SUP
+  label         String               // "Hardware Utama"
+  isActive      Boolean              @default(true)
+  sortOrder     Int                  @default(0)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  subCategories skuSubCategoryCode[]
+
+  @@map("sku_category_codes")
+}
+
+model skuSubCategoryCode {
+  id            String          @id @default(cuid())
+  categoryCode  String          // relasi ke skuCategoryCode.code
+  code          String          // OLT, ROU, ONT, DRP, TIE, dst
+  label         String          // "Router Core / Concentrator"
+  requiresBrand Boolean         @default(true) // TRUE = bermerek (HW/CPE), FALSE = generic
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  category      skuCategoryCode @relation(fields: [categoryCode], references: [code], onDelete: Cascade)
+
+  @@unique([categoryCode, code])
+  @@map("sku_sub_category_codes")
+}
+
 // Inventory Management Models
 model inventoryCategory {
   id          String          @id @default(cuid())

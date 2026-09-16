@@ -315,6 +315,7 @@ const menuGroups: MenuGroup[] = [
           { titleKey: 'nav.inventoryAssets', href: '/admin/inventory/assets', requiredPermission: 'inventory.view' },
           { titleKey: 'nav.inventoryMovements', href: '/admin/inventory/movements', requiredPermission: 'inventory.view' },
           { titleKey: 'nav.inventoryKits', href: '/admin/inventory/kits', requiredPermission: 'inventory.manage' },
+          { titleKey: 'Setting Kamus SKU', href: '/admin/inventory/sku-settings', requiredPermission: 'inventory.manage' },
           { titleKey: 'nav.inventoryCategories', href: '/admin/inventory/categories', requiredPermission: 'inventory.manage' },
           { titleKey: 'nav.inventorySuppliers', href: '/admin/inventory/suppliers', requiredPermission: 'inventory.manage' },
         ],

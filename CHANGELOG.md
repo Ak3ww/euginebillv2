@@ -4,6 +4,62 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.10] — 2026-09-16
+### Dashboard Kamus SKU Dinamis, Smart SKU Generator (Golden Rule EMG), Redesain Wizard Master Barang, dan Mesin Audit/Rekonsiliasi ONT Pelanggan
+
+- **Latar Belakang / Context**:
+  1. Addendum 3: Standarisasi penomoran SKU inventori sebelumnya masih bersifat hardcoded sederhana `[PREFIX]-[KATEGORI]-[3 HURUF NAMA BARANG]` tanpa konsep sub-kategori, tanpa membedakan barang bermerek (ZTE, Huawei, Mikrotik) vs barang generic/komoditas (Kabel Dropcore, Fast Connector), dan tanpa validasi duplikasi SKU real-time.
+  2. Form tambah barang sebelumnya mengharuskan staf admin mengerti struktur SKU manual sehingga rawan salah ketik atau membuat SKU kembar yang merusak integritas data stok.
+  3. Terdapat kebutuhan reseed dan rekonsiliasi menyeluruh data ONT pelanggan (`ont <> pelanggan`) untuk memastikan semua modem yang terpasang di rumah pelanggan tercatat di tabel `inventoryAsset` dengan status `IN_USE`.
+  4. Perlunya memperjelas arsitektur antara Master Katalog Barang (`inventoryItem`) dengan Unit Fisik Berseri (`inventoryAsset` - Modem ONT & Roll Kabel) melalui indikator dan navigasi interaktif.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Skema Kamus SKU Dinamis Database-Driven (`prisma/schema.prisma` & `20260916_add_sku_dictionary.sql`)**:
+     - Menambahkan model `skuCategoryCode` (10 kategori baku: `HW`, `CPE`, `PAS`, `CAB`, `CON`, `MKT`, `PWR`, `TLS`, `ACC`, `SUP`).
+     - Menambahkan model `skuSubCategoryCode` (35+ subkategori baku dengan atribut `requiresBrand`, `defaultUnit`, dan `isSerialized`).
+     - Relasi relasional cascade delete dan index performa pencarian.
+     - Penambahan kolom `categoryCode`, `subCategory`, `isSerialized` pada tabel `inventoryItem`.
+  2. **Seeding Kamus SKU & API Manajemen (`prisma/seeds/sku-dictionary.ts`, `/api/admin/sku-settings/...`)**:
+     - Master data 10 kategori induk dan 35+ subkategori siap pakai.
+     - Endpoint CRUD Kategori: `GET, POST /api/admin/sku-settings/categories`, `PATCH, DELETE /api/admin/sku-settings/categories/[id]`.
+     - Endpoint CRUD Sub-Kategori: `GET, POST /api/admin/sku-settings/categories/[code]/subcategories`, `PATCH, DELETE /api/admin/sku-settings/subcategories/[id]`.
+     - Terintegrasi langsung ke pemanggilan seed otomatis `POST /api/admin/inventory/seed-defaults`.
+  3. **Smart Auto-Generator SKU Pintar (`/api/inventory/sku/generate`)**:
+     - Menerapkan *Golden Rule* SKU EMG: `EMG-[KAT]-[SUBKAT]-[MEREK/SPEC]`.
+     - Barang Bermerek: `clean(brand).slice(0, 4) + "-" + clean(model)`.
+     - Barang Generic: `clean(spec)`.
+     - Pengecekan duplikasi real-time langsung ke database dengan response nama barang kembar dan jumlah stoknya jika sudah terdaftar.
+  4. **Redesain Wizard Tambah Barang & Standardisasi UI Shadcn (`src/app/admin/inventory/items/page.tsx`)**:
+     - **Step 0: Cek Duplikasi Sebelum Input**: Live search box yang langsung mencari kecocokan nama/SKU di gudang dan menyediakan tombol *"Gunakan / Edit Barang Ini"* atau *"Lanjut Buat Master Baru"*.
+     - **Step 1–4: Wizard SKU Otomatis**: Dropdown dinamis Kategori Induk -> Sub-Kategori -> Toggle Bermerek/Generic -> Monospace Live SKU Preview dengan status validasi ketersediaan real-time.
+     - **Collapsible Manual Override**: Field input SKU manual disembunyikan by default dan hanya dapat dibuka via link collapsible untuk kasus khusus override.
+     - **Standar UI Shadcn & Bebas Emojis**: Membersihkan efek cyberpunk/neon glow menjadi clean SaaS aesthetic (`bg-card`, `border-border`, subtle muted backgrounds) dan mengganti seluruh text emojis dengan komponen resmi Lucide React (`<MapPin />`, `<Boxes />`, dll).
+     - **Koneksi Unit Aset**: Menyediakan badge link `[Unit Aset (X) ↗]` pada barang berseri yang langsung membuka pelacakan SN di `/admin/inventory/assets`.
+  5. **Dashboard Pengaturan Kamus SKU (`/admin/inventory/sku-settings`)**:
+     - Halaman admin interaktif dengan 2 Tab (Kategori Induk & Sub-Kategori).
+     - Full CRUD untuk kelola kode singkatan SKU dan unit default.
+     - Terdaftar di menu sidebar `AdminClientLayout.tsx` dan tab bar navigasi inventori.
+  6. **Mesin Audit & Rekonsiliasi ONT Pelanggan (`/api/admin/inventory/reconcile-customer-ont` & Modal UI)**:
+     - Endpoint `GET`: Melakukan diagnosa komprehensif terhadap seluruh pelanggan PPPoE, mencocokkan MAC/SN ONT dari database pelanggan dan riwayat SPK teknisi selesai (`workOrder`) dengan data di tabel `inventoryAsset`.
+     - Endpoint `POST`: Melakukan rekonsiliasi dan self-healing otomatis (`autoCreateMissingModems: true`), mendaftarkan unit modem yang belum tercatat ke `inventoryAsset` dengan status `IN_USE` tertaut ke ID pelanggan, dan menyembuhkan unit in-use yatim (*orphaned*).
+     - Modal interaktif langsung di `/admin/inventory/items` dengan ringkasan statistik metrik rekonsiliasi dan tombol eksekusi 1-klik.
+
+- **Files**:
+  - `prisma/schema.prisma`
+  - `prisma/migrations/20260916_add_sku_dictionary.sql`
+  - `prisma/seeds/sku-dictionary.ts`
+  - `src/app/admin/AdminClientLayout.tsx`
+  - `src/app/admin/inventory/items/page.tsx`
+  - `src/app/admin/inventory/sku-settings/page.tsx`
+  - `src/app/api/admin/inventory/reconcile-customer-ont/route.ts`
+  - `src/app/api/admin/inventory/seed-defaults/route.ts`
+  - `src/app/api/admin/sku-settings/categories/[code]/subcategories/route.ts`
+  - `src/app/api/admin/sku-settings/categories/[id]/route.ts`
+  - `src/app/api/admin/sku-settings/categories/route.ts`
+  - `src/app/api/admin/sku-settings/subcategories/[id]/route.ts`
+  - `src/app/api/inventory/items/route.ts`
+  - `src/app/api/inventory/sku/generate/route.ts`
+
 ## [2.40.9] — 2026-09-16
 ### Proteksi Hak Akses Dashboard (dashboard.view), Sembunyikan Menu Dashboard Sidebar, dan Auto-Redirect User Non-Privileged ke Modul Kerjanya
 

@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.9
+- **Version**: 2.40.10
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,36 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.10: Dynamic SKU Dictionary, Smart SKU Generator, Redesigned Add Item Wizard, & ONT Reconciliation)
+
+- **Architectural Invariant: Dynamic Database-Driven SKU Dictionary (`skuCategoryCode` & `skuSubCategoryCode`)**:
+  - DILARANG menggunakan format SKU hardcoded atau singkatan nama acak (`[PREFIX]-[KAT]-[3HURUF]`).
+  - Struktur SKU resmi EMG WAJIB mengikuti standar baku: `EMG-[KAT]-[SUBKAT]-[MEREK/SPEC]`.
+  - Tabel `skuCategoryCode` menyimpan 10 kode kategori induk (`HW`, `CPE`, `PAS`, `CAB`, `CON`, `MKT`, `PWR`, `TLS`, `ACC`, `SUP`).
+  - Tabel `skuSubCategoryCode` mendefinisikan subkategori spesifik beserta atribut perilaku: `requiresBrand` (apakah wajib merek/model), `defaultUnit` (satuan standar seperti pcs, unit, meter), dan `isSerialized` (apakah wajib dilacak individual di `inventoryAsset`).
+  - Seluruh manipulasi kamus SKU dikelola via dashboard admin `/admin/inventory/sku-settings` dan API `/api/admin/sku-settings/...`.
+
+- **Architectural Invariant: Smart SKU Generator (`/api/inventory/sku/generate`)**:
+  - Generator SKU pintar merangkai SKU otomatis secara konsisten:
+    - Jika `isBranded`: `clean(brand).slice(0, 4) + "-" + clean(model)`.
+    - Jika generic: `clean(spec)`.
+  - Generator melakukan validasi duplikasi real-time langsung ke tabel `inventoryItem` dan mengembalikan detail barang kembar jika sudah terdaftar.
+
+- **Architectural Invariant: Redesigned Add Item Wizard & Hidden Manual SKU Override (`/admin/inventory/items`)**:
+  - **Step 0 Cek Duplikasi**: Wajib menyediakan input pencarian live sebelum form input baru terbuka untuk mencegah admin membuat master barang kembar secara tidak sengaja.
+  - **Hidden Manual SKU**: Field input manual SKU WAJIB disembunyikan by default di bawah link collapsible ("Override SKU Manual"). Admin operasional biasa cukup memilih kategori, subkategori, dan mengisi merek/model, sistem yang merangkai SKU secara otomatis.
+  - **Clean Shadcn UI & Bebas Emojis**: Tampilan halaman inventori wajib bersih dari efek cyberpunk/neon glow dan bebas text emojis, menggunakan komponen resmi `Lucide React`.
+
+- **Architectural Invariant: Relasi Master Barang (`inventoryItem`) vs Unit Aset (`inventoryAsset`)**:
+  - `inventoryItem` merepresentasikan katalog produk (SKU, nama, harga beli, harga jual, total kuantitas stok).
+  - `inventoryAsset` merepresentasikan fisik unit individual (Serial Number ONT, MAC Address, atau Roll Kabel dengan meteran tersisa).
+  - DILARANG menghapus kategori CPE atau Kabel dari database karena relasi `inventoryAsset` bergantung pada `itemId` di `inventoryItem` (cascade delete).
+  - Pada tabel master barang, setiap barang yang berseri (`isSerialized === true` atau kategori `CPE`/`CAB`) WAJIB menampilkan badge link interaktif `[Unit Aset (X) ↗]` yang mengarahkan admin ke `/admin/inventory/assets`.
+
+- **Architectural Invariant: Customer ONT Reconciliation Engine (`/api/admin/inventory/reconcile-customer-ont`)**:
+  - Mendeteksi ketidakcocokan antara pelanggan PPPoE aktif (`macAddress` / data SPK teknisi `workOrder`) dengan tabel `inventoryAsset`.
+  - Mendukung auto-reconcile & reseed 1-klik untuk mendaftarkan modem pelanggan yang belum tercatat ke `inventoryAsset` dengan status `IN_USE` tertaut ke ID pelanggan, dan menyembuhkan unit in-use yatim (*orphaned modems*).
 
 ### Recent Patch Log (September 16, 2026 — v2.40.9: Strict Dashboard Access Guard `dashboard.view`, Sidebar Guard & Auto-Redirect for Non-Privileged Staff)
 

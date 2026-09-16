@@ -172,3 +172,46 @@ Di halaman detail pelanggan, section **Perangkat ONT**:
 7. Update pppoeUser.macAddress jika modem baru punya MAC
 Semua dalam $transaction
 ```
+
+---
+
+## 9. Dashboard Kamus SKU Dinamis & Smart Generator (Addendum 3)
+
+### A. Kamus SKU Database-Driven
+Kamus SKU tidak lagi hardcoded di kode aplikasi, melainkan tersimpan di tabel database:
+- `skuCategoryCode`: 10 kategori induk (`HW`, `CPE`, `PAS`, `CAB`, `CON`, `MKT`, `PWR`, `TLS`, `ACC`, `SUP`).
+- `skuSubCategoryCode`: 35+ subkategori baku yang memiliki parameter:
+  - `requiresBrand`: Menentukan apakah wajib merek & tipe (cth: ONT, ROUTER) atau spesifikasi varian generic (cth: DROP, FAST).
+  - `defaultUnit`: Satuan default otomatis (cth: `unit`, `meter`, `pcs`, `roll`, `box`).
+  - `isSerialized`: Menentukan apakah barang wajib dilacak per-unit di modul Unit Aset.
+
+### B. Golden Rule Auto-Generator SKU
+API `POST /api/inventory/sku/generate`:
+Format baku: `EMG-[KATEGORI]-[SUBKAT]-[MEREK/SPEC]`
+- Barang Bermerek: `clean(brand).slice(0, 4) + "-" + clean(model)`
+  Contoh: `EMG-CPE-ONT-ZTE-F609V9`, `EMG-HW-ROUT-MIKR-RB750GR3`
+- Barang Generic: `clean(spec)`
+  Contoh: `EMG-CAB-DROP-1C-1000M`, `EMG-CON-FAST-SCUPC-09`
+
+### C. Alur Wizard Tambah Barang (`/admin/inventory/items`)
+1. **Step 0 (Cek Duplikasi)**: Live search mencari kesamaan barang di gudang. Admin bisa langsung memilih *"Gunakan / Tambah Stok"* barang yang sudah ada atau *"Lanjut Buat Master Baru"*.
+2. **Step 1–4 (Smart SKU Generator)**: Pilih Kategori Induk → Sub-Kategori → Toggle Bermerek/Generic → Live Monospace SKU Preview.
+3. **Override Manual**: Field SKU manual disembunyikan by default dan hanya terbuka jika admin mengklik link collapsible *"Override SKU Manual"*.
+
+---
+
+## 10. Mesin Audit & Rekonsiliasi ONT Pelanggan (`reconcile-customer-ont`)
+
+Untuk mengatasi modem pelanggan yang belum tercatat atau salah tertaut di inventori:
+- **Audit Endpoint**: `GET /api/admin/inventory/reconcile-customer-ont`
+  Memindai seluruh pelanggan PPPoE aktif dan riwayat SPK teknisi berstatus `COMPLETED`. Menghitung:
+  - Pelanggan yang sudah memiliki modem aktif di `inventoryAsset` (`status = IN_USE`).
+  - Pelanggan yang belum memiliki catatan unit modem di gudang/aset.
+  - Modem yatim (*orphaned in-use*) yang berstatus `IN_USE` tapi pelanggannya telah terhapus atau kosong.
+- **Self-Healing & Reseed Endpoint**: `POST /api/admin/inventory/reconcile-customer-ont`
+  Secara otomatis:
+  1. Menyembuhkan modem yatim (*orphaned in-use modems*).
+  2. Mencocokkan data SN & MAC dari SPK teknisi ke unit inventori dan menautkan pelanggan.
+  3. Mendaftarkan unit baru ke `inventoryAsset` dengan status `IN_USE` jika modem belum pernah tercatat sebelumnya.
+  4. Menyinkronkan riwayat perangkat ke `customerDeviceHistory`.
+

@@ -313,9 +313,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── 8. Seed SKU Master Dictionary (Categories & Subcategories) ──────────
+    let skuStats = { categoriesCount: 0, subCategoriesCount: 0 };
+    try {
+      const { seedSkuDictionary } = await import('@/../prisma/seeds/sku-dictionary');
+      skuStats = await seedSkuDictionary(prisma);
+    } catch (skuErr) {
+      console.warn('Warning seeding SKU dictionary from seed-defaults:', skuErr);
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Default data, cable rolls, and standard kit seeded successfully',
+      message: 'Default data, cable rolls, standard kit, and SKU dictionary seeded successfully',
       seeded: {
         numberingRules: rulesSeeded,
         categories: categoriesSeeded,
@@ -323,6 +332,8 @@ export async function POST(req: NextRequest) {
         cableRolls: rollsSeeded,
         stockItemsInitialized,
         kitStandarPsbItems: kitItemsSeeded,
+        skuCategories: skuStats.categoriesCount,
+        skuSubCategories: skuStats.subCategoriesCount,
         permissionsUpdated: true,
       },
     });
