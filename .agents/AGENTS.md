@@ -74,3 +74,10 @@ For ALL customer-facing UI development (customer portal, payment pages, public l
    - **Mangle Mandatory**: Wajib pasang TCP MSS Clamping (`/ip firewall mangle add action=change-mss chain=forward comment="TCP-MSS-CLAMPING" new-mss=clamp-to-pmtu passthrough=yes protocol=tcp tcp-flags=syn`) untuk mencegah website/banking timeout di pelanggan PPPoE.
    - **Native Queuing**: Selalu andalkan parameter `rate-limit` pada `/ppp profile` (Simple Queue dinamis otomatis). Hindari queue manual atau mangle packet-mark berlebihan.
 
+## Sub-Agent Parallel Execution Standard
+1. **Always Leverage Sub-Agents (Max 3-4 Sub-Agents)**:
+   - Jika memungkinkan dan task dapat dipecah menjadi beberapa bagian independen (misal: backend API, frontend UI, database audit/seeding, testing/verifikasi), WAJIB memanfaatkan sub-agent secara paralel (maksimal 3-4 sub-agents) agar pekerjaan selesai lebih cepat dan efisien.
+   - Setiap sub-agent diberikan domain kerja yang jelas dan fokus untuk mencegah konflik penulisan file (*race conditions*).
+   - Hasil kerja sub-agent dikonsolidasikan dan diverifikasi secara menyeluruh oleh parent agent sebelum pelaporan ke user.
+
+
