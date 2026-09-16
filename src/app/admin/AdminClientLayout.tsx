@@ -299,9 +299,9 @@ const menuGroups: MenuGroup[] = [
       {
         titleKey: 'nav.tickets',
         icon: <MessageSquare className="w-4 h-4" />,
-        requiredPermission: 'dashboard.view',
+        requiredPermission: 'customers.view',
         children: [
-          { titleKey: 'nav.allTickets', href: '/admin/tickets', requiredPermission: 'dashboard.view' },
+          { titleKey: 'nav.allTickets', href: '/admin/tickets', requiredPermission: 'customers.view' },
           { titleKey: 'nav.ticketCategories', href: '/admin/tickets/categories', requiredPermission: 'settings.view' },
         ],
       },
@@ -329,7 +329,7 @@ const menuGroups: MenuGroup[] = [
         titleKey: 'nav.documents',
         icon: <FileText className="w-4 h-4" />,
         href: '/admin/documents',
-        requiredPermission: 'dashboard.view',
+        requiredPermission: 'documents.view',
       },
       {
         titleKey: 'nav.manageTechnicians',
@@ -376,13 +376,13 @@ const menuGroups: MenuGroup[] = [
         icon: <Bell className="w-4 h-4" />,
         href: '/admin/notifications',
         badge: 'notifications',
-        requiredPermission: 'dashboard.view',
+        requiredPermission: 'notifications.view',
       },
       {
         titleKey: 'nav.pushNotifications',
         icon: <Bell className="w-4 h-4" />,
         href: '/admin/notifications/push',
-        requiredPermission: 'dashboard.view',
+        requiredPermission: 'notifications.view',
       },
       {
         titleKey: 'nav.whatsapp',
@@ -1064,16 +1064,18 @@ function AdminLayoutContent({
 
           {/* Navigation - optimized scrolling for mobile */}
           <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2 py-1.5 custom-scrollbar touch-pan-y">
-            <div className="mb-1">
-              <NavItem
-                item={dashboardMenuItem}
-                pendingCount={pendingRegistrations}
-                manualPaymentsCount={pendingManualPayments}
-                unreadNotifications={unreadNotifications}
-                t={t}
-                onNavigate={() => setSidebarOpen(false)}
-              />
-            </div>
+            {((session?.user as any)?.role === 'SUPER_ADMIN' || userPermissions.includes('dashboard.view')) && (
+              <div className="mb-1">
+                <NavItem
+                  item={dashboardMenuItem}
+                  pendingCount={pendingRegistrations}
+                  manualPaymentsCount={pendingManualPayments}
+                  unreadNotifications={unreadNotifications}
+                  t={t}
+                  onNavigate={() => setSidebarOpen(false)}
+                />
+              </div>
+            )}
             {menuGroups.map(group => (
               <CategoryItem
                 key={group.titleKey}

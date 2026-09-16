@@ -4,6 +4,45 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.9] — 2026-09-16
+### Proteksi Hak Akses Dashboard (dashboard.view), Sembunyikan Menu Dashboard Sidebar, dan Auto-Redirect User Non-Privileged ke Modul Kerjanya
+
+- **Latar Belakang / Context**:
+  1. Staff atau user admin yang dibuat untuk peran operasional tertentu (misalnya staff gudang WAREHOUSE atau custom role dengan izin `inventory.view`) tanpa mencentang izin `dashboard.view` ternyata masih dapat melihat ringkasan dashboard finansial, statistik omzet, grafik pendapatan, dan data operasional utama di `https://admin.euginemediagroup.com/admin`.
+  2. Menu sidebar "Dashboard" tetap ditampilkan kepada seluruh user tanpa memfilter izin `dashboard.view`.
+  3. Halaman frontend `src/app/admin/page.tsx` tidak memeriksa `usePermissions()` dan langsung memicu pemanggilan data metrik finansial (`loadDashboardData`, `loadAnalyticsData`, `loadRadiusStatus`, dll) tanpa memeriksa hak akses.
+  4. Endpoint API statistik dashboard (`/api/dashboard/stats`, `/api/dashboard/analytics`, `/api/dashboard/traffic`) belum menerapkan middleware `requirePermission('dashboard.view')`.
+  5. Menu Dokumen dan Notifikasi pada sidebar sebelumnya salah menunjuk ke `requiredPermission: 'dashboard.view'` alih-alih `documents.view` dan `notifications.view`.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Frontend Dashboard Guard & Auto-Redirect (`src/app/admin/page.tsx`)**:
+     - Mengintegrasikan hook `usePermissions()` dan `useSession()`.
+     - Menghitung hak akses: `canAccessDashboard = isSuperAdmin || hasPermission('dashboard.view')`.
+     - Jika pengguna tidak memiliki izin `dashboard.view`:
+       - Seluruh pemanggilan fetch data (`loadDashboardData`, `loadRadiusStatus`, `loadAnalyticsData`, `loadActivityLog`) diblokir total sehingga tidak ada data finansial yang bocor via network.
+       - Terdapat efek pengalihan otomatis (`router.replace`) yang mengarahkan pengguna ke modul pertama yang diizinkan untuknya (misal: `inventory.view` -> `/admin/inventory/items`, `customers.view` -> `/admin/pppoe/users`, `invoices.view` -> `/admin/invoices`, `documents.view` -> `/admin/documents`, dsb).
+       - Menampilkan kartu "Akses Terbatas" yang informatif saat proses pengalihan berlangsung atau jika user tidak memiliki izin ke modul manapun.
+  2. **Sidebar Guard & Pembenahan Permission Menu (`src/app/admin/AdminClientLayout.tsx`)**:
+     - Menu `dashboardMenuItem` dibungkus dengan guard `((session?.user as any)?.role === 'SUPER_ADMIN' || userPermissions.includes('dashboard.view'))`, sehingga jika izin `dashboard.view` tidak dicentang, menu Dashboard tidak akan pernah muncul di sidebar.
+     - Memperbaiki `nav.documents` dari sebelumnya `dashboard.view` menjadi `documents.view`.
+     - Memperbaiki `nav.notifications` dan `nav.pushNotifications` dari sebelumnya `dashboard.view` menjadi `notifications.view`.
+     - Memperbaiki `nav.tickets` dari `dashboard.view` menjadi `customers.view`.
+  3. **Backend API Middleware Guard (`api/dashboard/stats`, `analytics`, `traffic`)**:
+     - Mengamankan ketiga route statistik dashboard (`/api/dashboard/stats`, `/api/dashboard/analytics`, `/api/dashboard/traffic`) dengan `requirePermission('dashboard.view')`.
+     - Request dari user tanpa izin `dashboard.view` langsung ditolak dengan status HTTP 403 Forbidden.
+  4. **Peningkatan `usePermissions` & Server `permissions.ts`**:
+     - `usePermissions`: Menambahkan proteksi status NextAuth `loading`, bypass otomatis untuk `SUPER_ADMIN`, dan mengekspos variabel `isSuperAdmin`.
+     - `server/auth/permissions.ts`: Memastikan `SUPER_ADMIN` selalu mendapatkan seluruh permission aktif dalam `getUserPermissions`, `hasPermission`, `hasAnyPermission`, dan `hasAllPermissions`.
+
+- **Files**:
+  - `src/app/admin/page.tsx`
+  - `src/app/admin/AdminClientLayout.tsx`
+  - `src/app/api/dashboard/stats/route.ts`
+  - `src/app/api/dashboard/analytics/route.ts`
+  - `src/app/api/dashboard/traffic/route.ts`
+  - `src/hooks/usePermissions.ts`
+  - `src/server/auth/permissions.ts`
+
 ## [2.40.8] — 2026-09-16
 ### Auto-Link & Register Modem Inventori saat SPK Selesai, Self-Healing Riwayat Perangkat, dan Auto-Prefill Form SPK Teknisi (Tikor, ODP, Port, SN, MAC)
 

@@ -47,10 +47,31 @@ import { formatWIB, getTimezoneInfo, nowWIB } from '@/lib/timezone';
 import { useTranslation } from '@/hooks/useTranslation';
 import { cn } from '@/lib/utils';
 import { useBalancePrivacy } from '@/lib/balance-privacy';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   UserStatusPieChart,
   ChartCard,
 } from '@/components/charts';
+
+const REDIRECT_TARGETS: { perm: string; path: string; label: string }[] = [
+  { perm: 'inventory.view', path: '/admin/inventory/items', label: 'Inventaris & Gudang' },
+  { perm: 'customers.view', path: '/admin/pppoe/users', label: 'Pelanggan PPPoE' },
+  { perm: 'invoices.view', path: '/admin/invoices', label: 'Tagihan & Invoice' },
+  { perm: 'documents.view', path: '/admin/documents', label: 'Dokumen & Surat' },
+  { perm: 'registrations.view', path: '/admin/pppoe/registrations', label: 'Registrasi Baru' },
+  { perm: 'vouchers.view', path: '/admin/hotspot/voucher', label: 'Voucher Hotspot' },
+  { perm: 'hotspot.view', path: '/admin/hotspot/profile', label: 'Hotspot' },
+  { perm: 'network.view', path: '/admin/network/routers', label: 'Jaringan & Router' },
+  { perm: 'routers.view', path: '/admin/network/routers', label: 'Router MikroTik' },
+  { perm: 'whatsapp.view', path: '/admin/whatsapp/notifications', label: 'Notifikasi WhatsApp' },
+  { perm: 'reports.view', path: '/admin/reports', label: 'Laporan' },
+  { perm: 'keuangan.view', path: '/admin/keuangan', label: 'Keuangan' },
+  { perm: 'users.view', path: '/admin/work-orders', label: 'Surat Tugas (SPK)' },
+  { perm: 'notifications.view', path: '/admin/notifications', label: 'Notifikasi' },
+  { perm: 'settings.view', path: '/admin/settings/company', label: 'Pengaturan' },
+];
 
 interface DashboardStats {
   totalPppoeUsers: number;
@@ -187,6 +208,12 @@ interface StatCard {
 }
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
+  const { hasPermission, isSuperAdmin, loading: permLoading } = usePermissions();
+
+  const canAccessDashboard = isSuperAdmin || hasPermission('dashboard.view');
+
   const [mounted, setMounted] = useState(false);
   const { isHidden: isBalanceHidden, toggleHide: toggleBalancePrivacy, formatRupiah } = useBalancePrivacy();
   const tzInfo = getTimezoneInfo();
@@ -292,7 +319,20 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  // Redirection effect: If user lacks dashboard.view permission, redirect to their first authorized module
   useEffect(() => {
+    if (sessionStatus === 'loading' || permLoading) return;
+    if (!canAccessDashboard) {
+      const target = REDIRECT_TARGETS.find((t) => hasPermission(t.perm));
+      if (target) {
+        router.replace(target.path);
+      }
+    }
+  }, [sessionStatus, permLoading, canAccessDashboard, hasPermission, router]);
+
+  useEffect(() => {
+    if (sessionStatus === 'loading' || permLoading || !canAccessDashboard) return;
+
     setMounted(true);
     loadDashboardData();
     loadRadiusStatus();
@@ -323,7 +363,7 @@ export default function AdminDashboard() {
       clearInterval(analyticsInterval);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadDashboardData, loadRadiusStatus, loadAnalyticsData, loadActivityLog]);
+  }, [sessionStatus, permLoading, canAccessDashboard, loadDashboardData, loadRadiusStatus, loadAnalyticsData, loadActivityLog]);
 
   // Navigate months
   const shiftMonth = (delta: number) => {
@@ -475,6 +515,53 @@ export default function AdminDashboard() {
       isCurrency: true,
     },
   ] : [];
+
+  if (sessionStatus === 'loading' || permLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-500 dark:text-[#00f7ff]" />
+        <p className="text-xs text-muted-foreground tracking-wider uppercase font-medium">Memeriksa hak akses...</p>
+      </div>
+    );
+  }
+
+  if (!canAccessDashboard) {
+    const target = REDIRECT_TARGETS.find((t) => hasPermission(t.perm));
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+        <div className="p-6 rounded-2xl bg-card border border-border max-w-md w-full shadow-lg space-y-4">
+          <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
+            <ShieldBan className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-foreground">Akses Terbatas</h2>
+            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+              {target
+                ? `Akun Anda tidak memiliki izin untuk melihat ringkasan dashboard finansial. Mengalihkan ke modul ${target.label}...`
+                : 'Akun Anda tidak memiliki izin untuk melihat ringkasan dashboard. Silakan pilih modul kerja di menu samping.'}
+            </p>
+          </div>
+          {target ? (
+            <div className="flex items-center justify-center gap-2 text-xs text-brand-500 dark:text-[#00f7ff] font-medium py-1">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Mengalihkan ke {target.path}...</span>
+            </div>
+          ) : (
+            <div className="pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/admin/profile')}
+                className="text-xs"
+              >
+                Buka Profil Saya
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-background relative">

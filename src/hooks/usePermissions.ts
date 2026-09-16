@@ -14,12 +14,25 @@ import { useSession } from 'next-auth/react';
  * }
  */
 export function usePermissions() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const isSuperAdmin = (session?.user as any)?.role === 'SUPER_ADMIN';
+
   useEffect(() => {
+    if (status === 'loading') {
+      setLoading(true);
+      return;
+    }
+
     if (session?.user) {
+      if (isSuperAdmin) {
+        setPermissions(['*']);
+        setLoading(false);
+        return;
+      }
+
       const userId = (session.user as any).id;
       if (userId) {
         setLoading(true);
@@ -27,26 +40,34 @@ export function usePermissions() {
           .then((res) => res.json())
           .then((data) => {
             if (data.success) {
-              setPermissions(data.permissions);
+              setPermissions(data.permissions || []);
             }
           })
-          .catch((error) => console.error('Error loading permissions:', error))
+          .catch((error) => {
+            console.error('Error loading permissions:', error);
+            setPermissions([]);
+          })
           .finally(() => setLoading(false));
+      } else {
+        setLoading(false);
       }
     } else {
       setLoading(false);
     }
-  }, [session]);
+  }, [session, status, isSuperAdmin]);
 
   const hasPermission = (permissionKey: string): boolean => {
+    if (isSuperAdmin) return true;
     return permissions.includes(permissionKey);
   };
 
   const hasAnyPermission = (permissionKeys: string[]): boolean => {
+    if (isSuperAdmin) return true;
     return permissionKeys.some((key) => permissions.includes(key));
   };
 
   const hasAllPermissions = (permissionKeys: string[]): boolean => {
+    if (isSuperAdmin) return true;
     return permissionKeys.every((key) => permissions.includes(key));
   };
 
@@ -55,6 +76,7 @@ export function usePermissions() {
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
-    loading,
+    isSuperAdmin,
+    loading: loading || status === 'loading',
   };
 }

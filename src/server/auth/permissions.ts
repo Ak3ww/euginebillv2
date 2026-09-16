@@ -23,6 +23,15 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
     return [];
   }
 
+  // Super admin always has all active permissions
+  if (user.role === 'SUPER_ADMIN') {
+    const allPerms = await prisma.permission.findMany({
+      where: { isActive: true },
+      select: { key: true },
+    });
+    return allPerms.map((p) => p.key);
+  }
+
   // 2. If user has custom permissions, use those
   if (user.userPermissions.length > 0) {
     return user.userPermissions
@@ -58,6 +67,12 @@ export async function hasPermission(
   userId: string,
   permissionKey: string
 ): Promise<boolean> {
+  const user = await prisma.adminUser.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (user?.role === 'SUPER_ADMIN') return true;
+
   const permissions = await getUserPermissions(userId);
   return permissions.includes(permissionKey);
 }
@@ -69,6 +84,12 @@ export async function hasAnyPermission(
   userId: string,
   permissionKeys: string[]
 ): Promise<boolean> {
+  const user = await prisma.adminUser.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (user?.role === 'SUPER_ADMIN') return true;
+
   const permissions = await getUserPermissions(userId);
   return permissionKeys.some((key) => permissions.includes(key));
 }
@@ -80,6 +101,12 @@ export async function hasAllPermissions(
   userId: string,
   permissionKeys: string[]
 ): Promise<boolean> {
+  const user = await prisma.adminUser.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (user?.role === 'SUPER_ADMIN') return true;
+
   const permissions = await getUserPermissions(userId);
   return permissionKeys.every((key) => permissions.includes(key));
 }

@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.8
+- **Version**: 2.40.9
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,29 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.9: Strict Dashboard Access Guard `dashboard.view`, Sidebar Guard & Auto-Redirect for Non-Privileged Staff)
+
+- **Architectural Invariant: Strict Dashboard Permission Guard & Auto-Redirection (`src/app/admin/page.tsx`)**:
+  - Halaman ringkasan dashboard admin (`/admin`) memuat metrik finansial sensitif (omzet bulan ini, total omzet all-time, breakdown pendapatan, dan status sistem).
+  - Halaman `src/app/admin/page.tsx` WAJIB mengintegrasikan `usePermissions()` dan `useSession()`.
+  - Jika pengguna tidak memiliki izin `dashboard.view` (dan bukan `SUPER_ADMIN`):
+    1. DILARANG KERAS memicu pemanggilan data metrik (`loadDashboardData`, `loadAnalyticsData`, `loadRadiusStatus`, `loadActivityLog`).
+    2. Sistem WAJIB secara otomatis mengalihkan pengguna via `router.replace(targetRoute)` ke modul pertama yang diizinkan untuk perannya (misal: `inventory.view` -> `/admin/inventory/items`, `customers.view` -> `/admin/pppoe/users`, `invoices.view` -> `/admin/invoices`, `documents.view` -> `/admin/documents`, dsb).
+    3. Selama proses pengalihan atau jika pengguna tidak memiliki izin ke modul manapun, tampilkan kartu "Akses Terbatas" yang informatif dan aman tanpa merender widget finansial.
+
+- **Architectural Invariant: Sidebar Menu Permission Integrity (`src/app/admin/AdminClientLayout.tsx`)**:
+  - Menu item `dashboardMenuItem` ("Dashboard") pada sidebar WAJIB dibungkus guard: `((session?.user as any)?.role === 'SUPER_ADMIN' || userPermissions.includes('dashboard.view'))`. Jika izin `dashboard.view` tidak dimiliki user, link dashboard tidak boleh muncul di sidebar.
+  - Pemetaan izin menu grup WAJIB akurat sesuai domain fitur:
+    - Dokumen (`/admin/documents`): `requiredPermission: 'documents.view'` (BUKAN `dashboard.view`).
+    - Notifikasi (`/admin/notifications`): `requiredPermission: 'notifications.view'` (BUKAN `dashboard.view`).
+    - Tiket Pengaduan (`/admin/tickets`): `requiredPermission: 'customers.view'` (BUKAN `dashboard.view`).
+
+- **Architectural Invariant: Backend Protection on Dashboard Endpoints (`/api/dashboard/*`)**:
+  - Seluruh endpoint API statistik `/api/dashboard/stats`, `/api/dashboard/analytics`, dan `/api/dashboard/traffic` WAJIB menerapkan middleware `requirePermission('dashboard.view')`. Permintaan dari token tanpa izin `dashboard.view` (kecuali `SUPER_ADMIN`) WAJIB ditolak dengan status HTTP 403 Forbidden.
+
+- **Architectural Invariant: Super Admin Invariant in Permission Utilities**:
+  - Fungsi `getUserPermissions`, `hasPermission`, `hasAnyPermission`, dan `hasAllPermissions` di `src/server/auth/permissions.ts` serta hook client `usePermissions.ts` WAJIB selalu memberikan izin penuh (`true`) jika `user.role === 'SUPER_ADMIN'`. Hal ini mencegah super admin terkunci jika tabel template role belum disinkronisasi.
 
 ### Recent Patch Log (September 16, 2026 — v2.40.8: Auto-Link Modem Inventori saat SPK Selesai, Self-Healing Device History, & Auto-Prefill SPK Teknisi)
 
