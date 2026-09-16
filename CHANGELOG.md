@@ -4,6 +4,48 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.2] — 2026-09-16
+### Dedicated Halaman ONT Modem Pelanggan (/admin/inventory/ont), Seeding Kategori Default, & Import 360 ONT Awal
+
+- **Latar Belakang / Context**:
+  1. Pengguna membutuhkan pemisahan inventori modem ONT pelanggan dengan material/roll kabel lainnya agar 360+ unit ONT terpasang dapat ditinjau dalam satu tabel komprehensif lengkap dengan nama pelanggan PPPoE, router/paket, status, MAC, dan SN.
+  2. Kategori barang di `/admin/inventory/categories` belum memiliki data default ISP setelah skema inventori baru diimplementasikan.
+  3. Pembuatan SKU barang baru di `/admin/inventory/items` membutuhkan format penamaan standar otomatis (`EMG-[KATEGORI]-[SUB]-[VARIAN]`).
+  4. Akun role `WAREHOUSE` ("Staf Gudang") harus dapat mengakses inventori tanpa dependensi izin `settings.view`.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Halaman Khusus ONT Pelanggan (`src/app/admin/inventory/ont/page.tsx`)**:
+     - Metric cards: Total Unit ONT, Terpasang di Pelanggan (`IN_USE`), Ready di Gudang (`AVAILABLE`), dan Rusak (`DEFECTIVE`).
+     - Live filter berdasarkan Vendor (ZTE, Skyworth, Realtek, FiberHome, Huawei, VSOL, dsb), Status, dan Pencarian teks (SN, MAC, Nama Pelanggan, Username PPPoE).
+     - Kolom tabel interaktif dengan fitur salin cepat Serial Number, tautan langsung ke detail pelanggan PPPoE (`/admin/pppoe/users/[id]`), dan modal detail riwayat unit.
+     - Modal Tambah Unit ONT (Mendukung input satuan maupun bulk input banyak SN sekaligus).
+     - Tombol 1-klik "Import 360 ONT Awal" yang langsung memproses dan menghubungkan data ONU PPPoE ke inventori aset.
+  2. **Seeding Kategori Default & Permisi (`src/app/api/admin/inventory/seed-defaults/route.ts`)**:
+     - Menambahkan 10 kategori standar ISP (`HW`, `CPE`, `PAS`, `CAB`, `CON`, `PWR`, `TLS`, `ACC`, `MKT`, `SUP`) ke tabel `inventoryCategory`.
+     - Mengaitkan template SKU katalog barang ke kategori masing-masing.
+     - Memperbarui hak akses `WAREHOUSE` dan relasi permissions `inventory.*` & `documents.*`.
+  3. **Endpoint Import 360 ONT (`src/app/api/admin/inventory/import-initial-modems/route.ts`)**:
+     - Mengekstrak fungsi `runInitialModemImport()` dari skrip CLI agar dapat dipanggil via API admin / antarmuka web.
+  4. **Auto-Generate SKU Helper (`src/app/admin/inventory/items/page.tsx`)**:
+     - Tombol otomatis untuk meracik kode SKU sesuai format standar inventori.
+  5. **Navigasi & Sidebar Terpadu**:
+     - Menambahkan menu `nav.inventoryOnt` ("Modem ONT Pelanggan") di sidebar `AdminClientLayout.tsx`.
+     - Memperbaiki `requiredPermission` menu inventori dari `settings.view` menjadi `inventory.view`.
+     - Menghubungkan top navigation bar di seluruh sub-halaman inventori (`items`, `ont`, `assets`).
+
+- **Files**:
+  - `src/app/admin/inventory/ont/page.tsx` — [NEW]
+  - `src/app/api/admin/inventory/import-initial-modems/route.ts` — [NEW]
+  - `src/app/admin/AdminClientLayout.tsx`
+  - `src/app/admin/inventory/items/page.tsx`
+  - `src/app/admin/inventory/assets/page.tsx`
+  - `src/app/admin/management/page.tsx`
+  - `src/app/api/admin/inventory/seed-defaults/route.ts`
+  - `scripts/import-initial-modems.ts`
+  - `src/locales/id.json`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.1] — 2026-09-16
 ### Integrasi Vendor OLT Baru: VSOL (V1600GS, V1600GS-ZF, V1600GT) & HSGQ (HSGQ-G02ID)
 

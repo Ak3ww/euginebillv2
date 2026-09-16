@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.1
+- **Version**: 2.40.2
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,16 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.2: Dedicated Halaman ONT Modem Pelanggan (/admin/inventory/ont), Seeding Kategori Default, & Import 360 ONT Awal)
+
+- **Architectural Invariant: Dedicated ONT Modem Portal vs General Inventory**:
+  - Halaman `/admin/inventory/ont` dirancang khusus untuk memonitor 360+ modem ONT pelanggan dengan fokus pada Serial Number, MAC, Vendor, status pemasangan (`IN_USE`, `AVAILABLE`, `DEFECTIVE`), serta tautan langsung ke pelanggan PPPoE terkait.
+  - Halaman `/admin/inventory/assets` tetap melayani aset serialized umum (Roll kabel dropcore dengan sisa meteran, SFP, perangkat backbone).
+  - Halaman `/admin/inventory/items` adalah master katalog barang (SKU-level).
+  - Import 360 unit ONT awal dipusatkan pada endpoint `/api/admin/inventory/import-initial-modems` yang mengekstrak logic dari `scripts/import-initial-modems.ts`, memetakan ONU dari pelanggan PPPoE secara otomatis ke `inventoryAsset`.
+  - Default kategori ISP (`HW`, `CPE`, `PAS`, `CAB`, `CON`, `PWR`, `TLS`, `ACC`, `MKT`, `SUP`) ditanamkan ke `inventoryCategory` via `/api/admin/inventory/seed-defaults`.
+  - Permission: Menu `nav.inventory` menggunakan `inventory.view` (bukan `settings.view`) agar user dengan role `WAREHOUSE` ("Staf Gudang") dapat mengakses antarmuka inventori tanpa harus membuka hak akses konfigurasi sistem.
 
 ### Recent Patch Log (September 16, 2026 — v2.40.1: Integrasi OLT Vendor VSOL & HSGQ)
 

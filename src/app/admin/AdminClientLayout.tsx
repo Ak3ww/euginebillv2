@@ -305,6 +305,7 @@ const menuGroups: MenuGroup[] = [
         requiredPermission: 'inventory.view',
         children: [
           { titleKey: 'nav.inventoryItems', href: '/admin/inventory/items', requiredPermission: 'inventory.view' },
+          { titleKey: 'nav.inventoryOnt', href: '/admin/inventory/ont', requiredPermission: 'inventory.view' },
           { titleKey: 'nav.inventoryAssets', href: '/admin/inventory/assets', requiredPermission: 'inventory.view' },
           { titleKey: 'nav.inventoryMovements', href: '/admin/inventory/movements', requiredPermission: 'inventory.view' },
           { titleKey: 'nav.inventoryCategories', href: '/admin/inventory/categories', requiredPermission: 'inventory.manage' },

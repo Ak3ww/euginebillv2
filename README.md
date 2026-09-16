@@ -374,6 +374,49 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
 
 <!-- AUTO-CHANGELOG:START -->
 
+### v2.40.2 — 2026-09-16
+
+### Dedicated Halaman ONT Modem Pelanggan (/admin/inventory/ont), Seeding Kategori Default, & Import 360 ONT Awal
+
+- **Latar Belakang / Context**:
+  1. Pengguna membutuhkan pemisahan inventori modem ONT pelanggan dengan material/roll kabel lainnya agar 360+ unit ONT terpasang dapat ditinjau dalam satu tabel komprehensif lengkap dengan nama pelanggan PPPoE, router/paket, status, MAC, dan SN.
+  2. Kategori barang di `/admin/inventory/categories` belum memiliki data default ISP setelah skema inventori baru diimplementasikan.
+  3. Pembuatan SKU barang baru di `/admin/inventory/items` membutuhkan format penamaan standar otomatis (`EMG-[KATEGORI]-[SUB]-[VARIAN]`).
+  4. Akun role `WAREHOUSE` ("Staf Gudang") harus dapat mengakses inventori tanpa dependensi izin `settings.view`.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Halaman Khusus ONT Pelanggan (`src/app/admin/inventory/ont/page.tsx`)**:
+     - Metric cards: Total Unit ONT, Terpasang di Pelanggan (`IN_USE`), Ready di Gudang (`AVAILABLE`), dan Rusak (`DEFECTIVE`).
+     - Live filter berdasarkan Vendor (ZTE, Skyworth, Realtek, FiberHome, Huawei, VSOL, dsb), Status, dan Pencarian teks (SN, MAC, Nama Pelanggan, Username PPPoE).
+     - Kolom tabel interaktif dengan fitur salin cepat Serial Number, tautan langsung ke detail pelanggan PPPoE (`/admin/pppoe/users/[id]`), dan modal detail riwayat unit.
+     - Modal Tambah Unit ONT (Mendukung input satuan maupun bulk input banyak SN sekaligus).
+     - Tombol 1-klik "Import 360 ONT Awal" yang langsung memproses dan menghubungkan data ONU PPPoE ke inventori aset.
+  2. **Seeding Kategori Default & Permisi (`src/app/api/admin/inventory/seed-defaults/route.ts`)**:
+     - Menambahkan 10 kategori standar ISP (`HW`, `CPE`, `PAS`, `CAB`, `CON`, `PWR`, `TLS`, `ACC`, `MKT`, `SUP`) ke tabel `inventoryCategory`.
+     - Mengaitkan template SKU katalog barang ke kategori masing-masing.
+     - Memperbarui hak akses `WAREHOUSE` dan relasi permissions `inventory.*` & `documents.*`.
+  3. **Endpoint Import 360 ONT (`src/app/api/admin/inventory/import-initial-modems/route.ts`)**:
+     - Mengekstrak fungsi `runInitialModemImport()` dari skrip CLI agar dapat dipanggil via API admin / antarmuka web.
+  4. **Auto-Generate SKU Helper (`src/app/admin/inventory/items/page.tsx`)**:
+     - Tombol otomatis untuk meracik kode SKU sesuai format standar inventori.
+  5. **Navigasi & Sidebar Terpadu**:
+     - Menambahkan menu `nav.inventoryOnt` ("Modem ONT Pelanggan") di sidebar `AdminClientLayout.tsx`.
+     - Memperbaiki `requiredPermission` menu inventori dari `settings.view` menjadi `inventory.view`.
+     - Menghubungkan top navigation bar di seluruh sub-halaman inventori (`items`, `ont`, `assets`).
+
+- **Files**:
+  - `src/app/admin/inventory/ont/page.tsx` — [NEW]
+  - `src/app/api/admin/inventory/import-initial-modems/route.ts` — [NEW]
+  - `src/app/admin/AdminClientLayout.tsx`
+  - `src/app/admin/inventory/items/page.tsx`
+  - `src/app/admin/inventory/assets/page.tsx`
+  - `src/app/admin/management/page.tsx`
+  - `src/app/api/admin/inventory/seed-defaults/route.ts`
+  - `scripts/import-initial-modems.ts`
+  - `src/locales/id.json`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ### v2.40.1 — 2026-09-16
 
 ### Integrasi Vendor OLT Baru: VSOL (V1600GS, V1600GS-ZF, V1600GT) & HSGQ (HSGQ-G02ID)
@@ -493,38 +536,6 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
     - `deployment-pack-client/02-mikrotik-radianto-final.rsc`
     - `deployment-pack-client/PANDUAN_SETUP_LENGKAP_OLT_MIKROTIK.md`
     - `.agents/AGENTS.md`
-    - `CHANGELOG.md`
-    - `docs/AI_PROJECT_MEMORY.md`
-
-### v2.39.14 — 2026-09-14
-
-### Network UI Standard, ACS TR-069 Clean Guide, & VPN Architecture Clarification
-- **Pembaruan UI Jaringan, Panduan ACS TR-069, & Penegasan Arsitektur Native VPN VPS**:
-  - *Context / User Request*:
-    1. Membersihkan panduan TR-069 ACS pada `src/components/admin/AcsGuideCard.tsx` dengan menghapus tombol eksternal "Dokumentasi GitHub" dan memastikan tombol interaktif "Buka Panduan Setup TR-069" accordion 3-langkah (MikroTik, OLT, ONT) tetap aktif.
-    2. Merapikan bagian alur NAS/Router dan Troubleshooting FreeRADIUS "unknown client" di `src/app/admin/network/routers/page.tsx` dari styling cyberpunk/neon glow menjadi standar clean Shadcn UI, code block berkontras tinggi, dan bebas text emoji.
-    3. Memberikan penjelasan arsitektur VPN yang tegas pada antarmuka `src/app/admin/network/vpn-server/page.tsx` dan `src/app/admin/network/vpn-client/page.tsx`: bahwa EugineBill memiliki "VPS Built-in VPN Server (WireGuard & L2TP/IPsec - Rekomendasi Utama)" native di Linux VPS sehingga teknisi tidak perlu menyewa/setup MikroTik CHR tambahan. External MikroTik CHR adalah mode alternatif opsional jika pengguna memiliki CHR terpisah.
-    4. Memperbaiki kontras font, styling tutorial, dan formulir IP pool VPS pada `src/app/admin/network/vpn-client/page.tsx`, serta menghapus seluruh text emoji pada modal dan select options (100% Lucide React icons).
-  - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Kartu Panduan ACS (`src/components/admin/AcsGuideCard.tsx`)**:
-       - Menghapus tautan eksternal GitHub dan import `ExternalLink` yang tidak terpakai.
-       - Mempertahankan state accordion `showFullGuide` dan tombol toggle "Buka Panduan Setup TR-069" yang menampilkan langkah 1 (MikroTik VLAN 4000), langkah 2 (OLT VSOL), dan langkah 3 (tab ONT ZTE, Huawei, Fiberhome, VSOL).
-    2. **Halaman Router / NAS (`src/app/admin/network/routers/page.tsx`)**:
-       - Mengganti kontainer cyberpunk gradient (`#00f7ff`, `#bc13fe`) pada bagian Alur NAS dan Troubleshooting FreeRADIUS dengan komponen Shadcn UI standar (`bg-card`, `border-border`, `bg-muted/30`, `bg-muted/40`).
-       - Memformat code block troubleshooting menggunakan `bg-zinc-950` berkontras tinggi dan teks rapi.
-       - Menghapus text emoji dan karakter simbol (seperti `✓` dan `★`), menggantinya dengan dedicated Lucide icons (`<CheckCircle2 />`, `<AlertTriangle />`, `<Info />`, `<ArrowRight />`, `<ExternalLink />`, `<Router />`, `<Terminal />`).
-    3. **Halaman VPN Server & VPN Client (`vpn-server/page.tsx` & `vpn-client/page.tsx`)**:
-       - Menambahkan Architecture Explanation Callout Card di bagian atas halaman yang menegaskan:
-         - **VPS Built-in VPN Server (WireGuard & L2TP/IPsec — Rekomendasi Utama)**: 100% native di Linux VPS EugineBill, berkecepatan tinggi, tanpa memerlukan lisensi atau setup MikroTik CHR tambahan.
-         - **External MikroTik CHR (Mode Alternatif Opsional)**: Hanya digunakan jika pengguna ingin memanfaatkan router MikroTik CHR eksternal di data center sebagai konsentrator terpisah.
-       - Merefaktor tutorial alur kerja VPN ke standar Shadcn UI dengan kontras tinggi pada light dan dark mode.
-       - Merombak panel "Konfigurasi VPS Built-in VPN" (pengaturan Pool IP WireGuard & L2TP/IPsec) di `vpn-client/page.tsx` menjadi kartu Shadcn UI dengan input berkontras tinggi dan tombol standar.
-       - Menghapus text emoji pada opsi select (`⏳`, `🖥️`, `🔷`) dan pesan peringatan (`⚠️`, `🔑`, `📋`, `🔐`, `🔌`), menggantinya dengan label teks deskriptif dan Lucide React icons.
-  - *Files*:
-    - `src/components/admin/AcsGuideCard.tsx`
-    - `src/app/admin/network/routers/page.tsx`
-    - `src/app/admin/network/vpn-server/page.tsx`
-    - `src/app/admin/network/vpn-client/page.tsx`
     - `CHANGELOG.md`
     - `docs/AI_PROJECT_MEMORY.md`
 

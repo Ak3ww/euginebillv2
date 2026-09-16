@@ -265,6 +265,12 @@ export default function InventoryItemsPage() {
             Katalog Master Barang
           </Link>
           <Link
+            href="/admin/inventory/ont"
+            className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            Modem ONT Pelanggan
+          </Link>
+          <Link
             href="/admin/inventory/assets"
             className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           >
