@@ -374,163 +374,157 @@ Bagian ini otomatis sinkron dari `CHANGELOG.md` saat file changelog berubah di G
 
 <!-- AUTO-CHANGELOG:START -->
 
-### v2.39.10 — 2026-09-12
+### v2.40.1 — 2026-09-16
 
-### Universal Client-Side Auto-Compression & High-Capacity Image Upload Engine
-- **Sistem Kompresi Gambar Otomatis & Penaikan Kapasitas Upload Universal**:
+### Integrasi Vendor OLT Baru: VSOL (V1600GS, V1600GS-ZF, V1600GT) & HSGQ (HSGQ-G02ID)
+
+- **Latar Belakang / Context**:
+  Kebutuhan integrasi monitoring jaringan FTTH untuk OLT seri populer di lapangan:
+  1. **HSGQ-G02ID** (2-Port GPON Mini OLT) dan seri HSGQ lainnya (G008, G016, E04).
+  2. **VSOL V1600GS** (Cortina), **V1600GS-ZF** (ZTE Falcon), **V1600GT** (4/8/16-port GPON), dan seri V1600G/D.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Modul Adapter Vendor VSOL (`src/lib/olt/vendors/vsol.ts`)**:
+     - Mendukung SNMP Private MIB VSOL (`1.3.6.1.4.1.37950`) & Host Resources MIB untuk metrik CPU, Memory, dan Temperatur.
+     - Parser CLI Telnet/SSH multi-pattern untuk `show ont status`, `show gpon onu state`, `show ont info`, serta `show ont optical-info` (Rx/Tx dBm, Distance meter, Voltase).
+  2. **Modul Adapter Vendor HSGQ (`src/lib/olt/vendors/hsgq.ts`)**:
+     - Mendukung SNMP Private MIB HSGQ (`1.3.6.1.4.1.50222`) & Host Resources MIB.
+     - Parser CLI Telnet/SSH untuk `show gpon onu information`, `show gpon onu state`, dan `show pon power onu-rx` / optical-info.
+  3. **Pendaftaran di Poller (`src/lib/olt/poller.ts`)**:
+     - Switch case `getVendorModule()` ditambah `vsol` dan `hsgq`.
+  4. **Antarmuka Admin (`src/app/admin/network/olts/page.tsx`)**:
+     - Penambahan opsi vendor `VSOL` dan `HSGQ` pada form pendaftaran OLT.
+     - Penambahan pemetaan model otomatis di `VENDOR_MODELS` untuk `V1600GS`, `V1600GS-ZF`, `V1600GT`, `V1600G1`, `V1600G2`, `V1600D`, `HSGQ-G02ID`, `HSGQ-G008`, `HSGQ-G016`, `HSGQ-E04`, `HSGQ-E08`.
+  5. **Dukungan Remote Command & Import**:
+     - Menambahkan perintah reboot ONU untuk VSOL (`ont reset <id>`) dan HSGQ (`ont reboot <id>`) di API reboot dan batch-reboot.
+     - Menambahkan `vsol` dan `hsgq` ke daftar vendor yang valid pada API import OLT.
+
+- **Files**:
+  - `src/lib/olt/vendors/vsol.ts` — [NEW]
+  - `src/lib/olt/vendors/hsgq.ts` — [NEW]
+  - `src/lib/olt/poller.ts`
+  - `src/app/admin/network/olts/page.tsx`
+  - `src/app/api/network/olts/import/route.ts`
+  - `src/app/api/olt/[id]/onus/[onuId]/reboot/route.ts`
+  - `src/app/api/olt/[id]/onus/batch-reboot/route.ts`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
+### v2.40.0 — 2026-09-16
+
+### Sistem Inventori Aset, Penomoran Dokumen, & Document Maker (Fase A–F)
+
+- **Latar Belakang / Context**:
+  Dibutuhkan sistem manajemen inventori fisik (modem ONT, roll kabel dropwire, aksesori) yang terintegrasi langsung dengan alur kerja SPK teknisi, pendaftaran pelanggan baru (PSB), dan penerbitan dokumen resmi perusahaan (MOU, Faktur, KWT, Surat Jalan, BAST, SPK) dengan nomor terstruktur dan bisa di-audit.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Fase A — Prisma Schema**: Tambah model `inventoryAsset`, `customerDeviceHistory`, `workOrderMaterial`, `numberingRule`, `issuedNumber`, `documentTemplate`, `generatedDocument`. Tambah `WAREHOUSE` ke `AdminRole`. Extend `inventoryItem` dengan `categoryCode`, `subCategory`, `isSerialized`, `stockQuantity`.
+  2. **Fase B — Document Numbering Service**: `document-numbering.service.ts` dengan `previewNextNumber()` (read-only) dan `issueNextNumber()` (consume dalam $transaction). REST API: `/api/documents/numbering/preview`, `/issue`, `/rules`. Manual invoice sudah terintegrasi (FAK/BILL, fallback ke legacy).
+  3. **Fase C — Seed Data & Assets UI**: Endpoint seed `/api/admin/inventory/seed-defaults` (seeds 6 numbering rules + SKU catalog). Admin UI `/admin/inventory/assets` (full Shadcn, summary cards, CABLE_ROLL support). API CRUD `/api/inventory/assets` + `/:id`. Deduct service `inventory-deduct.service.ts` dengan optimistic locking.
+  4. **Fase D — Document Maker**: 7 API routes (templates CRUD, generate preview, generate issue, documents list, void). Admin UI `/admin/documents` dengan 3 tab: Dokumen Terbit, Buat Dokumen (wizard 5 langkah), Kelola Template.
+  5. **Fase E — SPK Wizard & Ganti Modem**: Cable roll picker di wizard teknisi Step 2 (auto-deduct saat complete). PSB baru: SN autocomplete dengan live inventori search + auto-fill MAC. Halaman detail pelanggan: section Perangkat ONT + riwayat device history + modal Ganti Modem. API: `/api/pppoe/users/:id/device-history`, `/replace-device`.
+  6. **Fase F — Validasi & Dokumentasi**: `npx tsc --noEmit` → 0 errors. Fix WAREHOUSE di role-templates route. Fix `isDismantle` used-before-declaration di wizard.
+
+- **Files**:
+  - `prisma/schema.prisma` — Schema extensions
+  - `prisma/seeds/permissions.ts` — INVENTORY/DOCUMENTS permissions + WAREHOUSE role
+  - `src/server/services/document-numbering.service.ts` — [NEW]
+  - `src/server/services/inventory-deduct.service.ts` — [NEW]
+  - `src/app/api/documents/numbering/preview/route.ts` — [NEW]
+  - `src/app/api/documents/numbering/issue/route.ts` — [NEW]
+  - `src/app/api/documents/numbering/rules/route.ts` — [NEW]
+  - `src/app/api/documents/templates/route.ts` — [NEW]
+  - `src/app/api/documents/templates/[id]/route.ts` — [NEW]
+  - `src/app/api/documents/generate/preview/route.ts` — [NEW]
+  - `src/app/api/documents/generate/issue/route.ts` — [NEW]
+  - `src/app/api/documents/route.ts` — [NEW]
+  - `src/app/api/documents/[id]/route.ts` — [NEW]
+  - `src/app/api/documents/[id]/void/route.ts` — [NEW]
+  - `src/app/api/inventory/assets/route.ts` — [NEW]
+  - `src/app/api/inventory/assets/[id]/route.ts` — [NEW]
+  - `src/app/api/admin/inventory/seed-defaults/route.ts` — [NEW]
+  - `src/app/api/pppoe/users/[id]/device-history/route.ts` — [NEW]
+  - `src/app/api/pppoe/users/[id]/replace-device/route.ts` — [NEW]
+  - `src/app/api/permissions/role-templates/route.ts` — Fix WAREHOUSE
+  - `src/app/api/manual-invoices/route.ts` — Integrate issueNextNumber
+  - `src/app/admin/documents/page.tsx` — [NEW] Document Maker UI
+  - `src/app/admin/inventory/assets/page.tsx` — [NEW] Asset management UI
+  - `src/app/admin/AdminClientLayout.tsx` — Nav: Inventori Aset + Dokumen Perusahaan
+  - `src/app/admin/pppoe/users/[id]/page.tsx` — Perangkat ONT section + Ganti Modem
+  - `src/app/admin/pppoe/users/new/page.tsx` — ONT SN autocomplete
+  - `src/app/technician/(portal)/work-orders/[id]/page.tsx` — Cable roll picker + fix TS
+  - `src/app/api/technician/work-orders/[id]/complete/route.ts` — Auto-deduct cable
+  - `docs/inventory/INVENTORY_AND_SKU_STANDARDS.md` — [NEW]
+  - `docs/DOCUMENT_NUMBERING_STANDARD.md` — [NEW]
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
+### v2.39.16 — 2026-09-14
+
+### VPN Server UI Native Modernization & Legacy CHR Elimination
+- **Pembersihan Antarmuka `/admin/network/vpn-server` dari Kolom & Tombol Legacy MikroTik CHR**:
   - *Context / User Request*:
-    Teknisi melaporkan upload foto di portal teknisi gagal karena file kebesaran ("upload foto di portal teknisi gagal karna file kebesaran ini gimana solusinya? Pastikan juga upload foto dimanapun tidak gagal baik itu teknisi, atau pelanggan"). Kamera HP modern menghasilkan foto 6MB hingga 25MB (resolusi 48MP–108MP), sementara endpoint API membatasi ukuran file 3MB–5MB dan form client langsung menolak file > 5MB.
+    Pengguna bingung melihat kartu VPN Server di `/admin/network/vpn-server` menampilkan Alamat Host `43.173.14.236`, Username `admin`, Port API `8728`, serta tombol *Test Koneksi*, *Setup Otomatis*, *Script Manual*, dan *L2TP Control (SSH)* seolah-olah VPS Linux EugineBill adalah sebuah router MikroTik CHR.
   - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Dual-Layer Architecture (Client Canvas Auto-Downscale + Server Limit Expansion)**:
-       - **Client-Side Canvas Auto-Downscale**: Mengapa wajib: Teknisi dan pelanggan di lapangan sering kali menghadapi koneksi internet seluler yang terbatas di pelosok. Mengunggah file mentah 15MB–25MB memicu timeout, network drop, dan pemborosan bandwidth. Dengan HTML5 Canvas, foto 15MB–25MB secara instan (< 150ms) di-downscale ke dimensi optimal (maksimal 1600px) dan dikompresi ke format JPEG (kualitas 0.80), menghasilkan payload ringan ~200KB–600KB dengan ketajaman nomor seri modem, barcode, struk transfer, dan tulisan KTP yang tetap 100% presisi dan tajam. Waktu unggah terpangkas dari 30+ detik menjadi < 1 detik dengan tingkat keberhasilan 100%.
-       - **Server-Side Limit Expansion**: Batasan upload di seluruh route handler API dinaikkan ke 25MB–30MB sehingga server tidak pernah menolak file secara prematur.
-    2. **Penyempurnaan Fungsi Kompresi Universal `compressImage` (`src/lib/utils.ts`)**:
-       - Default `maxDimension = 1600` dan `quality = 0.80`.
-       - Menjaga keutuhan format SVG/GIF tanpa merusak animasi atau vektor.
-       - Proteksi try-catch berlapis dengan fallback aman ke file asli apabila canvas browser mengalami kendala.
-    3. **Optimalisasi Overlay Watermark Teknisi (`work-orders/[id]/page.tsx`)**:
-       - Membatasi resolusi canvas pada `addPhotoOverlay` ke maksimal 1600px sebelum menggambar strip watermark GPS, tanggal WIB, dan label SPK, serta mengekspor blob JPEG pada kualitas 0.80.
-       - Menambahkan auto-kompresi ganda pada fungsi `uploadPhoto` sebelum dimasukkan ke `FormData`.
-    4. **Integrasi Kompresi Otomatis pada Seluruh Portal**:
-       - **Portal Teknisi**: `work-orders/[id]/page.tsx` (foto ODP, port, rumah, ONT, speedtest), `tickets/page.tsx` (lampiran respon tiket komplain), `register/page.tsx` (foto KTP & instalasi pendaftaran pelanggan baru).
-       - **Portal Pelanggan & Pembayaran**: `pay/[token]/page.tsx` (bukti transfer manual), `pay-manual/[token]/page.tsx`, `pay-manual/page.tsx`, `customer/topup-request/page.tsx` (bukti transfer saldo topup), `daftar/page.tsx` (foto KTP pendaftaran publik).
-       - **Portal Agen**: `agent/dashboard/page.tsx` (bukti transfer deposit saldo agen).
-       - **Portal Admin**: `admin/work-orders/[id]/page.tsx` (upload foto SPK oleh admin), `admin/pppoe/users/page.tsx`, `admin/pppoe/users/new/page.tsx`, dan `src/components/UserDetailModal.tsx` (foto KTP & foto instalasi).
-    5. **Penaikan Batas Maksimal Server-Side API (`MAX_SIZE` / `maxSize`)**:
-       - `src/app/api/technician/upload/route.ts`: `MAX_SIZE = 25 * 1024 * 1024` (25MB, sebelumnya 5MB).
-       - `src/app/api/upload/route.ts`: `maxSize = 25 * 1024 * 1024` (25MB, sebelumnya 10MB).
-       - `src/app/api/upload/pppoe-customer/route.ts`: `maxSize = 25 * 1024 * 1024` (25MB, sebelumnya 5MB).
-       - `src/app/api/upload/payment-proof/route.ts`: `maxSize = 25 * 1024 * 1024` (25MB, sebelumnya 5MB).
-       - `src/app/api/customer/payments/[id]/proof/route.ts`: batas dinaikkan ke 25MB (sebelumnya 5MB).
-       - `src/app/api/customer/invoices/[id]/manual-payment/route.ts`: batas dinaikkan ke 25MB (sebelumnya 5MB).
-       - `src/app/api/public/upload-registration/route.ts`: `maxSize = 25 * 1024 * 1024` (25MB, sebelumnya 3MB).
-       - `src/app/api/upload/logo/route.ts`: `maxSize = 10 * 1024 * 1024` (10MB, sebelumnya 2MB).
-    6. **Pembersihan Blocker Validasi 5MB di Client**:
-       - Menghapus popup error `Ukuran file maksimal 5MB` di seluruh formulir pembayaran dan top-up, digantikan dengan kompresi client-side otomatis tanpa interupsi.
+    1. **Eliminasi Field Legacy**: Menghapus tampilan `Port API: 8728` dan `Username: admin` dari kartu server dan modal edit, menggantinya dengan data teknis native yang akurat: Host VPS Endpoint (`43.173.14.236`), Subnet Tunnel VPN (`10.200.0.0/24`), Port WireGuard (`51820 / UDP`), dan Port L2TP/IPsec (`1701, 500, 4500 / UDP`).
+    2. **Eliminasi Tombol Redundan**: Menghapus tombol *Test Koneksi*, *Setup Otomatis*, *Script Manual*, dan *L2TP Control (SSH root)* yang tidak terpakai pada Linux VPS native.
+    3. **Penyederhanaan Aksi**: Menyediakan 3 aksi esensial: **Panel WireGuard** (melihat handshake & transfer peer), **Kelola Router Klien (VPN Client)** (link langsung ke `/admin/network/vpn-client`), dan **Edit Konfigurasi Pool** (hanya edit subnet dan rentang IP pool).
+    4. **Penyelarasan Header**: Mengganti tombol "+ Tambah Server VPN" dengan tombol navigasi cepat `Kelola VPN Client`.
   - *Files*:
-    - `src/lib/utils.ts`
-    - `src/app/technician/(portal)/work-orders/[id]/page.tsx`
-    - `src/app/technician/(portal)/tickets/page.tsx`
-    - `src/app/technician/(portal)/register/page.tsx`
-    - `src/app/admin/work-orders/[id]/page.tsx`
-    - `src/app/admin/pppoe/users/page.tsx`
-    - `src/app/admin/pppoe/users/new/page.tsx`
-    - `src/components/UserDetailModal.tsx`
-    - `src/app/agent/dashboard/page.tsx`
-    - `src/app/customer/topup-request/page.tsx`
-    - `src/app/daftar/page.tsx`
-    - `src/app/pay/[token]/page.tsx`
-    - `src/app/pay-manual/[token]/page.tsx`
-    - `src/app/pay-manual/page.tsx`
-    - `src/app/api/technician/upload/route.ts`
-    - `src/app/api/upload/route.ts`
-    - `src/app/api/upload/pppoe-customer/route.ts`
-    - `src/app/api/upload/payment-proof/route.ts`
-    - `src/app/api/customer/payments/[id]/proof/route.ts`
-    - `src/app/api/customer/invoices/[id]/manual-payment/route.ts`
-    - `src/app/api/public/upload-registration/route.ts`
-    - `src/app/api/upload/logo/route.ts`
+    - `src/app/admin/network/vpn-server/page.tsx`
     - `CHANGELOG.md`
     - `docs/AI_PROJECT_MEMORY.md`
 
-### v2.39.9 — 2026-09-12
+### v2.39.15 — 2026-09-14
 
-### Permanent Hide PWA Install Prompt Across All Portals Except Landing Page
-- **Penyembunyian Permanen Modal PWA Install Prompt di Semua Portal Kecuali Landing Page**:
+### FTTH Deployment Pack Standards (VSOL V1600GS-ZF vs Standard & MikroTik FTTH Master)
+- **Standarisasi Toolkit Deployment Lapangan OLT VSOL & MikroTik FTTH (100% Verified Work)**:
   - *Context / User Request*:
-    Pengguna melaporkan bahwa modal pop-up "Install Aplikasi Pelanggan" (PWA prompt) masih muncul di halaman invoice, halaman bayar `/pay/[token]`, dan sering mengganggu saat admin membuka dashboard `/admin`. Pengguna menginstruksikan untuk menyembunyikan modal ini secara permanen di seluruh sistem kecuali pada landing page.
-  - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Strict Whitelist Filtering pada `src/components/pwa-install-prompt.tsx`**:
-       - Mengganti filter *blacklist* berbasis `pathname.startsWith` yang rawan bocor menjadi *strict whitelist*: hanya mengizinkan rendering jika `pathname === '/' || pathname === '/landing' || pathname.startsWith('/landing')`.
-       - Seluruh halaman lain (Admin `/admin/*`, Invoice `/invoice/*`, Pay `/pay/*`, Customer `/customer/*`, Agent `/agent/*`, Teknisi `/technician/*`, dsb.) langsung mengembalikan `null` secara permanen.
-       - Listener event browser `beforeinstallprompt` pada `useEffect` dinonaktifkan sepenuhnya jika route bukan merupakan landing page, menjamin nol interupsi modal pop-up di seluruh portal operasional.
+    1. Mengabadikan konfigurasi 100% work dari OLT VSOL klien (`RADIANTO`) dan MikroTik RB2011 (RouterOS 6.49.21) dari deployment nyata di lapangan.
+    2. Mendokumentasikan akar masalah kegagalan konfigurasi kits awal: pada OLT VSOL seri **V1600GS-ZF (ZTE Falcon chipset)**, perintah `service-port 1 gemport 1 uservlan 20 vlan 20` **wajib mutlak** disertakan pada line profile agar frame PPPoE tidak di-drop oleh OLT. Sedangkan pada seri **V1600GS standar (Cortina chipset)**, deklarasi eksplisit `service-port` bersifat opsional.
+    3. Memisahkan template OLT menjadi 2 file definitif: `01-vsol-1600gs-zf.conf` dan `01-vsol-1600gs-standard.conf`.
+    4. Menyusun skrip MikroTik FTTH master (`02-mikrotik-ftth-complete.rsc`) dengan standar arsitektur: WAN DHCP-client, dedicated OLT trunk port (terpisah dari bridge), DNS Cloudflare (`1.1.1.1, 1.0.0.1`), pre-configured NAT remote OLT, TCP MSS Clamping, dan native Simple Queue rate-limiting.
+    5. Menambahkan aturan workspace baru `FTTH Deployment Pack Standard` pada `.agents/AGENTS.md`.
   - *Files*:
-    - `src/components/pwa-install-prompt.tsx`
-    - `CHANGELOG.md`
-    - `docs/AI_PROJECT_MEMORY.md`
-
-### v2.39.8 — 2026-09-12
-
-### Fix Auto-Hide Transfer Manual When Payment Gateway Active
-- **Perbaikan Auto-Hide Transfer Bank Manual pada Halaman Pembayaran (`/pay/[token]`)**:
-  - *Context / User Request*:
-    Pengguna melaporkan bahwa opsi Transfer Bank Manual masih muncul di halaman pembayaran pelanggan (`/pay/[token]`), padahal payment gateway (QRIN) sudah disetup dan aktif.
-  - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Strict Condition Rendering pada `src/app/pay/[token]/page.tsx`**:
-       - Mengganti kondisi rendering ambigu `{(paymentGateways.length === 0 || normalizedBankAccounts.length > 0)}` menjadi strictly `{paymentGateways.length === 0}`.
-       - Memastikan `showManualForm` bernilai `false` jika terdapat payment gateway aktif (`gateways.length > 0`).
-    2. **Logika Bisnis yang Benar & Konsisten**:
-       - **Saat Payment Gateway Aktif (misal QRIN / Duitku / Midtrans)**: Opsi Transfer Bank Manual **100% otomatis disembunyikan (*auto-hide*)**, pelanggan hanya melihat kanal pembayaran otomatis resmi (QRIS instan, Virtual Account, atau Gerai Retail) sehingga pembayaran terverifikasi otomatis tanpa memerlukan verifikasi mutasi manual oleh admin.
-       - **Saat Belum Ada Payment Gateway (`paymentGateways.length === 0`)**: Formulir Transfer Bank Manual **otomatis terbuka (*auto-show*)** sebagai metode utama lengkap dengan kartu rekening tujuan resmi, panduan nominal presisi, dan tombol unggah bukti transfer.
-  - *Files*:
-    - `src/app/pay/[token]/page.tsx`
-    - `CHANGELOG.md`
-    - `docs/AI_PROJECT_MEMORY.md`
-
-### v2.39.7 — 2026-09-12
-
-### Master Easy Setup Guide (VPS & MikroTik), UI Quick Links, and Zero-Emoji Standard Enforcement
-- **Easy Setup Experience di VPS & MikroTik (Master Guide, Quick Links, & Pembersihan Total Text Emoji)**:
-  - *Context / User Request*:
-    Pengguna meminta jaminan bahwa alur EugineBill Easy Setup di VPS dan MikroTik memiliki panduan lengkap baik di antarmuka Admin UI maupun repositori GitHub: "Cuma beberapa kali klik dan paste script di MikroTik harus sudah siap pakai." Selain itu, seluruh elemen UI harus patuh pada aturan nol text emoji di seluruh portal admin.
-  - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Master Setup Guide (`docs/setup/EUGINEBILL_EASY_SETUP_GUIDE.md`)**:
-       - Dokumentasi panduan lengkap 5 skenario implementasi siap pakai:
-         - Skenario 1: Hubungkan MikroTik ke EugineBill Cloud (1-Klik Salin Script VPN).
-         - Skenario 2: Skrip Fondasi FTTH Plug-and-Play (`02-mikrotik-ftth-complete.rsc`).
-         - Skenario 3: Remote ONT Proxy 1-Klik Siap Pakai.
-         - Skenario 4: Built-in TR-069 ACS Native Setup (VLAN 4000 on-demand).
-         - Skenario 5: Dynamic Isolation & Walled Garden.
-    2. **Prominent Banner di Root `README.md` & `docs/DOCS_INDEX.md`**:
-       - Menempatkan callout banner utama "Quick Start & Easy Setup" di awal `README.md` dan tabel indeks teknis.
-       - Menambahkan referensi master guide di `docs/DOCS_INDEX.md`.
-    3. **Helper Card Easy Setup di UI Router (`/admin/network/routers`)**:
-       - Menambahkan kartu informasi "Easy Setup Fondasi FTTH & TR-069" dengan tombol pintas ke menu TR-069 ACS (`/admin/acs`).
-    4. **Pembersihan Total Text Emoji Sesuai Aturan Workspace**:
-       - Mengganti seluruh emoji teks yang tersisa pada `src/app/admin/network/vpn-server/page.tsx`, `src/app/admin/network/vpn-client/page.tsx`, `src/app/admin/network/olts/page.tsx`, `src/app/admin/network/map/page.tsx`, `src/app/admin/pppoe/areas/page.tsx`, dan `src/app/admin/pppoe/users/new/page.tsx` dengan komponen resmi `Lucide React` (`<Cloud />`, `<Server />`, `<Settings />`, `<Wifi />`, `<Terminal />`, `<Radio />`, `<Zap />`, `<Wrench />`, `<User />`, `<AlertTriangle />`, dot status Tailwind, dll.).
-  - *Files*:
-    - `docs/setup/EUGINEBILL_EASY_SETUP_GUIDE.md`
-    - `README.md`
-    - `docs/DOCS_INDEX.md`
+    - `deployment-pack-client/01-vsol-1600gs-zf.conf`
+    - `deployment-pack-client/01-vsol-1600gs-standard.conf`
+    - `deployment-pack-client/01-vsol-radianto-final.conf`
+    - `deployment-pack-client/02-mikrotik-ftth-complete.rsc`
+    - `deployment-pack-client/02-mikrotik-radianto-final.rsc`
     - `deployment-pack-client/PANDUAN_SETUP_LENGKAP_OLT_MIKROTIK.md`
+    - `.agents/AGENTS.md`
+    - `CHANGELOG.md`
+    - `docs/AI_PROJECT_MEMORY.md`
+
+### v2.39.14 — 2026-09-14
+
+### Network UI Standard, ACS TR-069 Clean Guide, & VPN Architecture Clarification
+- **Pembaruan UI Jaringan, Panduan ACS TR-069, & Penegasan Arsitektur Native VPN VPS**:
+  - *Context / User Request*:
+    1. Membersihkan panduan TR-069 ACS pada `src/components/admin/AcsGuideCard.tsx` dengan menghapus tombol eksternal "Dokumentasi GitHub" dan memastikan tombol interaktif "Buka Panduan Setup TR-069" accordion 3-langkah (MikroTik, OLT, ONT) tetap aktif.
+    2. Merapikan bagian alur NAS/Router dan Troubleshooting FreeRADIUS "unknown client" di `src/app/admin/network/routers/page.tsx` dari styling cyberpunk/neon glow menjadi standar clean Shadcn UI, code block berkontras tinggi, dan bebas text emoji.
+    3. Memberikan penjelasan arsitektur VPN yang tegas pada antarmuka `src/app/admin/network/vpn-server/page.tsx` dan `src/app/admin/network/vpn-client/page.tsx`: bahwa EugineBill memiliki "VPS Built-in VPN Server (WireGuard & L2TP/IPsec - Rekomendasi Utama)" native di Linux VPS sehingga teknisi tidak perlu menyewa/setup MikroTik CHR tambahan. External MikroTik CHR adalah mode alternatif opsional jika pengguna memiliki CHR terpisah.
+    4. Memperbaiki kontras font, styling tutorial, dan formulir IP pool VPS pada `src/app/admin/network/vpn-client/page.tsx`, serta menghapus seluruh text emoji pada modal dan select options (100% Lucide React icons).
+  - *Solusi Arsitektural & Perubahan Teknis*:
+    1. **Kartu Panduan ACS (`src/components/admin/AcsGuideCard.tsx`)**:
+       - Menghapus tautan eksternal GitHub dan import `ExternalLink` yang tidak terpakai.
+       - Mempertahankan state accordion `showFullGuide` dan tombol toggle "Buka Panduan Setup TR-069" yang menampilkan langkah 1 (MikroTik VLAN 4000), langkah 2 (OLT VSOL), dan langkah 3 (tab ONT ZTE, Huawei, Fiberhome, VSOL).
+    2. **Halaman Router / NAS (`src/app/admin/network/routers/page.tsx`)**:
+       - Mengganti kontainer cyberpunk gradient (`#00f7ff`, `#bc13fe`) pada bagian Alur NAS dan Troubleshooting FreeRADIUS dengan komponen Shadcn UI standar (`bg-card`, `border-border`, `bg-muted/30`, `bg-muted/40`).
+       - Memformat code block troubleshooting menggunakan `bg-zinc-950` berkontras tinggi dan teks rapi.
+       - Menghapus text emoji dan karakter simbol (seperti `✓` dan `★`), menggantinya dengan dedicated Lucide icons (`<CheckCircle2 />`, `<AlertTriangle />`, `<Info />`, `<ArrowRight />`, `<ExternalLink />`, `<Router />`, `<Terminal />`).
+    3. **Halaman VPN Server & VPN Client (`vpn-server/page.tsx` & `vpn-client/page.tsx`)**:
+       - Menambahkan Architecture Explanation Callout Card di bagian atas halaman yang menegaskan:
+         - **VPS Built-in VPN Server (WireGuard & L2TP/IPsec — Rekomendasi Utama)**: 100% native di Linux VPS EugineBill, berkecepatan tinggi, tanpa memerlukan lisensi atau setup MikroTik CHR tambahan.
+         - **External MikroTik CHR (Mode Alternatif Opsional)**: Hanya digunakan jika pengguna ingin memanfaatkan router MikroTik CHR eksternal di data center sebagai konsentrator terpisah.
+       - Merefaktor tutorial alur kerja VPN ke standar Shadcn UI dengan kontras tinggi pada light dan dark mode.
+       - Merombak panel "Konfigurasi VPS Built-in VPN" (pengaturan Pool IP WireGuard & L2TP/IPsec) di `vpn-client/page.tsx` menjadi kartu Shadcn UI dengan input berkontras tinggi dan tombol standar.
+       - Menghapus text emoji pada opsi select (`⏳`, `🖥️`, `🔷`) dan pesan peringatan (`⚠️`, `🔑`, `📋`, `🔐`, `🔌`), menggantinya dengan label teks deskriptif dan Lucide React icons.
+  - *Files*:
+    - `src/components/admin/AcsGuideCard.tsx`
     - `src/app/admin/network/routers/page.tsx`
     - `src/app/admin/network/vpn-server/page.tsx`
     - `src/app/admin/network/vpn-client/page.tsx`
-    - `src/app/admin/network/olts/page.tsx`
-    - `src/app/admin/network/map/page.tsx`
-    - `src/app/admin/pppoe/areas/page.tsx`
-    - `src/app/admin/pppoe/users/new/page.tsx`
-    - `CHANGELOG.md`
-    - `docs/AI_PROJECT_MEMORY.md`
-
-### v2.39.6 — 2026-09-12
-
-### Built-in TR-069 ACS Engine, On-Demand VLAN 4000 Activation UI & Lean Base Scripts
-- **Standarisasi TR-069: Skrip Pondasi Lean & Aktivasi On-Demand VLAN 4000 di UI**:
-  - *Context / User Request*:
-    Pengguna menginstruksikan bahwa skrip pondasi awal OLT dan MikroTik harus dijaga tetap bersih dan ringan (*ultra-lean*) tanpa memuat VLAN 4000 secara default. Jika admin ingin menggunakan TR-069 dengan Dedicated VLAN, EugineBill menyediakan panduan interaktif dan skrip aktivasi 1-klik siap salin langsung di halaman Admin `/admin/acs` serta dokumentasi GitHub.
-  - *Solusi Arsitektural & Perubahan Teknis*:
-    1. **Skrip Pondasi FTTH Ultra-Lean (`01-vsol-1600gs-clean.conf` & `02-mikrotik-ftth-complete.rsc`)**:
-       - Hanya memuat port uplink WAN (`ether1`), LAN distribution bridge (`ether2-5`), VLAN 20 (`VLAN20-PPPOE`), dan VLAN 30 (`VLAN30-MGMT-OLT`).
-       - Bebas dari konfigurasi awal VLAN 4000 agar tidak membebani teknisi yang baru memasang jaringan awal.
-    2. **Komponen Panduan & Generator Skrip Aktivasi TR-069 di UI (`src/components/admin/AcsGuideCard.tsx`)**:
-       - Menyediakan tab navigasi interaktif 3 langkah:
-         - **Langkah 1 (MikroTik)**: Skrip terminal Winbox siap salin 1-klik untuk membuat interface `vlan4000-tr069`, IP `10.40.10.1/24`, pool, dan DHCP Server TR-069.
-         - **Langkah 2 (OLT VSOL)**: Perintah CLI OLT siap salin 1-klik untuk deklarasi `vlan 4000` dan tagging pada port uplink GE 0/1-0/3.
-         - **Langkah 3 (Modem ONT Pelanggan)**: Panduan konfigurasi modem per vendor (ZTE, Huawei, Fiberhome, VSOL) untuk opsi Dedicated VLAN 4000 maupun In-Band PPPoE.
-    3. **100% Otomatis Aktif di VPS (`/api/cwmp`)**:
-       - Engine Built-in ACS ditanam langsung di Next.js monolith (`src/app/api/cwmp/route.ts` & `CwmpService`). Begitu PM2 `EugineBill-radius` running, endpoint langsung aktif tanpa perlu instalasi Docker, tanpa MongoDB, dan tanpa daemon tambahan.
-       - Menyediakan HTTP GET handler untuk health check yang mengembalikan status JSON online dan informasi layanan.
-    4. **Dokumentasi Terintegrasi di GitHub (`docs/mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md`)**:
-       - Merinci arsitektur on-demand VLAN 4000, skrip aktivasi terminal, dan alur kerja integrasi Built-in ACS.
-  - *Files*:
-    - `deployment-pack-client/01-vsol-1600gs-clean.conf`
-    - `deployment-pack-client/02-mikrotik-ftth-complete.rsc`
-    - `src/app/api/cwmp/route.ts`
-    - `src/components/admin/AcsGuideCard.tsx`
-    - `src/app/admin/acs/page.tsx`
-    - `docs/mikrotik/BUILTIN_TR069_ACS_SETUP_GUIDE.md`
-    - `docs/mikrotik/ACS_SETUP.md`
     - `CHANGELOG.md`
     - `docs/AI_PROJECT_MEMORY.md`
 
