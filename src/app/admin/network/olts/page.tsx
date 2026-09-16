@@ -54,6 +54,21 @@ const VENDOR_MODELS: Record<string, Array<{ value: string; label: string; ponTyp
     { value: 'ISCOM5504', label: 'Raisecom ISCOM5504 (GPON, 4U)', ponType: 'GPON' },
     { value: 'ISCOM5516', label: 'Raisecom ISCOM5516 (GPON, 16-port)', ponType: 'GPON' },
   ],
+  vsol: [
+    { value: 'V1600GS', label: 'VSOL V1600GS (GPON, 1-port, Cortina)', ponType: 'GPON' },
+    { value: 'V1600GS-ZF', label: 'VSOL V1600GS-ZF (GPON, 1-port, ZTE Falcon)', ponType: 'GPON' },
+    { value: 'V1600GT', label: 'VSOL V1600GT (GPON, 4/8/16-port)', ponType: 'GPON' },
+    { value: 'V1600G1', label: 'VSOL V1600G1 (GPON, 4-port compact)', ponType: 'GPON' },
+    { value: 'V1600G2', label: 'VSOL V1600G2 (GPON, 8-port)', ponType: 'GPON' },
+    { value: 'V1600D', label: 'VSOL V1600D (EPON, 4/8-port)', ponType: 'EPON' },
+  ],
+  hsgq: [
+    { value: 'HSGQ-G02ID', label: 'HSGQ-G02ID (GPON, 2-port Mini OLT)', ponType: 'GPON' },
+    { value: 'HSGQ-G008', label: 'HSGQ-G008 (GPON, 8-port)', ponType: 'GPON' },
+    { value: 'HSGQ-G016', label: 'HSGQ-G016 (GPON, 16-port)', ponType: 'GPON' },
+    { value: 'HSGQ-E04', label: 'HSGQ-E04 (EPON, 4-port)', ponType: 'EPON' },
+    { value: 'HSGQ-E08', label: 'HSGQ-E08 (EPON, 8-port)', ponType: 'EPON' },
+  ],
   other: [
     { value: 'Generic-GPON', label: 'Generic GPON OLT', ponType: 'GPON' },
     { value: 'Generic-EPON', label: 'Generic EPON OLT', ponType: 'EPON' },
@@ -1084,6 +1099,8 @@ export default function OLTsPage() {
                     <option value="zte">ZTE</option>
                     <option value="fiberhome">FiberHome</option>
                     <option value="hioso">Hioso / C-Data</option>
+                    <option value="vsol">VSOL</option>
+                    <option value="hsgq">HSGQ</option>
                     <option value="bdcom">BDCOM</option>
                     <option value="raisecom">Raisecom</option>
                     <option value="other">Other</option>

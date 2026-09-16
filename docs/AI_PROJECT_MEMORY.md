@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.0
+- **Version**: 2.40.1
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,14 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.1: Integrasi OLT Vendor VSOL & HSGQ)
+
+- **Architectural Invariant: Modular OLT Vendor Adapters**:
+  - Semua vendor OLT diimplementasikan di `src/lib/olt/vendors/<vendor>.ts` dan didaftarkan di `src/lib/olt/poller.ts:getVendorModule()`.
+  - **VSOL**: Mendukung seri V1600GS (Cortina), V1600GS-ZF (ZTE Falcon), V1600GT (4/8/16-port), dan V1600G/D. Mendukung SNMP private MIB `1.3.6.1.4.1.37950` dan CLI Telnet/SSH (`show ont status`, `show gpon onu state`, `show ont optical-info`).
+  - **HSGQ**: Mendukung seri HSGQ-G02ID (2-port GPON Mini OLT), G008, G016, dan E04. Mendukung SNMP private MIB `1.3.6.1.4.1.50222` dan CLI Telnet/SSH (`show gpon onu state <port>`, `show pon power onu-rx <port>`).
+  - Parsing multi-pattern menjamin toleransi terhadap variasi spasi atau kolom pada firmware yang berbeda.
 
 ### Recent Patch Log (September 16, 2026 — v2.40.0: Sistem Inventori Aset, Penomoran Dokumen, & Document Maker)
 

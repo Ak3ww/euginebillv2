@@ -14,6 +14,8 @@ import * as fiberhome from './vendors/fiberhome';
 import * as bdcom from './vendors/bdcom';
 import * as raisecom from './vendors/raisecom';
 import * as hioso from './vendors/hioso';
+import * as vsol from './vendors/vsol';
+import * as hsgq from './vendors/hsgq';
 
 type VendorModule = typeof huawei;
 
@@ -26,6 +28,8 @@ function getVendorModule(vendor: string | null | undefined): VendorModule {
     case 'hioso':
     case 'cdata':
     case 'c-data':    return hioso as any as VendorModule;
+    case 'vsol':      return vsol as any as VendorModule;
+    case 'hsgq':      return hsgq as any as VendorModule;
     default:          return huawei;
   }
 }

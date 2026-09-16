@@ -106,6 +106,10 @@ function buildRebootCommand(vendor: string, frame: number, slot: number, port: n
     case 'bdcom':
     case 'raisecom':
       return `onu reset ${frame} ${slot} ${port} ${onuId}`;
+    case 'vsol':
+      return `ont reset ${onuId}`;
+    case 'hsgq':
+      return `ont reboot ${onuId}`;
     case 'huawei':
     default:
       return `ont reset ${frame} ${slot} ${port} ${onuId}`;

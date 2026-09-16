@@ -4,6 +4,41 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.1] — 2026-09-16
+### Integrasi Vendor OLT Baru: VSOL (V1600GS, V1600GS-ZF, V1600GT) & HSGQ (HSGQ-G02ID)
+
+- **Latar Belakang / Context**:
+  Kebutuhan integrasi monitoring jaringan FTTH untuk OLT seri populer di lapangan:
+  1. **HSGQ-G02ID** (2-Port GPON Mini OLT) dan seri HSGQ lainnya (G008, G016, E04).
+  2. **VSOL V1600GS** (Cortina), **V1600GS-ZF** (ZTE Falcon), **V1600GT** (4/8/16-port GPON), dan seri V1600G/D.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Modul Adapter Vendor VSOL (`src/lib/olt/vendors/vsol.ts`)**:
+     - Mendukung SNMP Private MIB VSOL (`1.3.6.1.4.1.37950`) & Host Resources MIB untuk metrik CPU, Memory, dan Temperatur.
+     - Parser CLI Telnet/SSH multi-pattern untuk `show ont status`, `show gpon onu state`, `show ont info`, serta `show ont optical-info` (Rx/Tx dBm, Distance meter, Voltase).
+  2. **Modul Adapter Vendor HSGQ (`src/lib/olt/vendors/hsgq.ts`)**:
+     - Mendukung SNMP Private MIB HSGQ (`1.3.6.1.4.1.50222`) & Host Resources MIB.
+     - Parser CLI Telnet/SSH untuk `show gpon onu information`, `show gpon onu state`, dan `show pon power onu-rx` / optical-info.
+  3. **Pendaftaran di Poller (`src/lib/olt/poller.ts`)**:
+     - Switch case `getVendorModule()` ditambah `vsol` dan `hsgq`.
+  4. **Antarmuka Admin (`src/app/admin/network/olts/page.tsx`)**:
+     - Penambahan opsi vendor `VSOL` dan `HSGQ` pada form pendaftaran OLT.
+     - Penambahan pemetaan model otomatis di `VENDOR_MODELS` untuk `V1600GS`, `V1600GS-ZF`, `V1600GT`, `V1600G1`, `V1600G2`, `V1600D`, `HSGQ-G02ID`, `HSGQ-G008`, `HSGQ-G016`, `HSGQ-E04`, `HSGQ-E08`.
+  5. **Dukungan Remote Command & Import**:
+     - Menambahkan perintah reboot ONU untuk VSOL (`ont reset <id>`) dan HSGQ (`ont reboot <id>`) di API reboot dan batch-reboot.
+     - Menambahkan `vsol` dan `hsgq` ke daftar vendor yang valid pada API import OLT.
+
+- **Files**:
+  - `src/lib/olt/vendors/vsol.ts` — [NEW]
+  - `src/lib/olt/vendors/hsgq.ts` — [NEW]
+  - `src/lib/olt/poller.ts`
+  - `src/app/admin/network/olts/page.tsx`
+  - `src/app/api/network/olts/import/route.ts`
+  - `src/app/api/olt/[id]/onus/[onuId]/reboot/route.ts`
+  - `src/app/api/olt/[id]/onus/batch-reboot/route.ts`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.0] — 2026-09-16
 ### Sistem Inventori Aset, Penomoran Dokumen, & Document Maker (Fase A–F)
 
