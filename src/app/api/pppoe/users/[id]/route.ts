@@ -1,8 +1,10 @@
 import { NextRequest } from 'next/server';
-import { ok, notFound, serverError } from '@/lib/api-response';
-import { getPppoeUserById } from '@/server/services/pppoe.service';
+import { ok, notFound, serverError, badRequest, conflict, unauthorized } from '@/lib/api-response';
+import { getPppoeUserById, updatePppoeUser } from '@/server/services/pppoe.service';
 import { prisma } from '@/server/db/client';
 import { checkAuth } from '@/server/middleware/api-auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/server/auth/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,5 +105,27 @@ export async function PATCH(
   } catch (error) {
     console.error('PATCH user error:', error);
     return serverError();
+  }
+}
+
+// PUT - Update full PPPoE user by id (supports inventory ONT replacement)
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session) return unauthorized();
+
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const user = await updatePppoeUser({ ...body, id }, session, request);
+    return ok({ success: true, user });
+  } catch (error: unknown) {
+    const err = error as { code?: string; message?: string };
+    if (err.code === 'NOT_FOUND') return notFound(err.message);
+    if (err.code === 'DUPLICATE_USERNAME') return conflict(err.message!);
+    console.error('Update PPPoE user [id] error:', error);
+    return serverError(err.message || 'Gagal memperbarui pelanggan PPPoE');
   }
 }

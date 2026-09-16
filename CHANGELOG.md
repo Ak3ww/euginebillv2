@@ -4,6 +4,39 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.5] — 2026-09-16
+### Serial Number (SN ONT) Autocomplete & Universal Device Linking pada Modal Edit Pelanggan (UserDetailModal)
+
+- **Latar Belakang / Context**:
+  1. Pada modal popup "Edit Data Pelanggan" (`UserDetailModal.tsx`), admin sebelumnya hanya menemukan kolom input MAC Address tanpa adanya kolom untuk melihat atau mengedit Serial Number (SN ONT) modem pelanggan.
+  2. Kebutuhan operasional: Admin/CS seringkali perlu menautkan SN modem secara manual atau mengganti modem pelanggan langsung dari modal edit (baik dari halaman daftar pelanggan `/admin/pppoe/users`, halaman detail `/admin/pppoe/users/[id]`, maupun peta jaringan `/admin/network/map`).
+  3. Jika modem yang diinput belum terdaftar di gudang inventori (unit baru), sistem harus dapat mendaftarkannya secara otomatis ke modul inventori tanpa error/blokir 404.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Field Serial Number (SN ONT) & Autocomplete Interaktif (`UserDetailModal.tsx`)**:
+     - Ditambahkan input Serial Number (SN ONT) berdampingan dengan MAC Address ONT.
+     - Terhubung langsung dengan API inventori `/api/inventory/assets?assetType=MODEM` untuk pencarian realtime unit modem ready di gudang.
+     - Dilengkapi status badge pada opsi dropdown (Ready di Gudang, Terpakai, dsb).
+     - Auto-fill MAC Address saat unit dari inventori dipilih.
+     - Indikator visual status perubahan: `Modem akan diganti (Ganti dari [SN_LAMA])` jika admin mengubah nilai SN.
+     - Notice otomatis: `SN belum terdaftar di inventori — akan otomatis didaftarkan sebagai unit baru saat disimpan` jika SN belum ada di database.
+     - Pembersihan seluruh text emojis menjadi Lucide React icons standar (`<Router />`, `<Calendar />`, `<Clock />`, `<Zap />`, `<CreditCard />`, `<Camera />`, `<Search />`, `<RefreshCw />`).
+  2. **Sinkronisasi & Penggantian Perangkat Universal (`src/server/services/pppoe.service.ts`)**:
+     - Parameter `ontSerialNumber` diterima oleh `updatePppoeUser`.
+     - Logika pendeteksian pergantian modem: Jika SN baru berbeda dari unit aktif, unit lama otomatis dilepas (`status = 'USED_GOOD'`, `currentCustomerId = null`) dan dicatat riwayatnya di `customerDeviceHistory` (`action = 'REPLACED_OLD'`).
+     - Unit baru dicari di inventori. Jika belum ada, sistem auto-register katalog (`EMG-CPE-ONT-GENERIC`) dan unit `inventoryAsset` baru dengan vendor & model terdeteksi otomatis (`status = 'IN_USE'`).
+     - Jika SN dikosongkan secara sengaja, unit lama dilepas dan dicatat sebagai `DISMANTLED`.
+     - Perubahan MAC address langsung disinkronkan ke record `inventoryAsset`.
+  3. **Universal Endpoint Route Handler**:
+     - `src/app/api/pppoe/users/[id]/route.ts`: Ditambahkan handler `PUT` yang meneruskan update ke `updatePppoeUser({ ...body, id })` sehingga modal edit yang dipicu dari peta jaringan (`/admin/network/map`) dapat menyimpan perubahan tanpa 405 error.
+
+- **Files**:
+  - `src/components/UserDetailModal.tsx`
+  - `src/server/services/pppoe.service.ts`
+  - `src/app/api/pppoe/users/[id]/route.ts`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.4] — 2026-09-16
 ### Hardening Pasang Baru Pelanggan (PSB), Timeout Guard MikroTik/Email, & Resolusi Tampilan SN ONT
 

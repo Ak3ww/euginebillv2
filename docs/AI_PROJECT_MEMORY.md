@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.4
+- **Version**: 2.40.5
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,20 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.5: Serial Number (SN ONT) Autocomplete & Universal Device Linking pada Modal Edit Pelanggan (UserDetailModal))
+
+- **Architectural Invariant: Universal ONT Serial Number Linking & Replacement**:
+  - Modal Edit Pelanggan (`UserDetailModal.tsx`) adalah form universal yang dipanggil dari berbagai halaman (`/admin/pppoe/users`, `/admin/pppoe/users/[id]`, dan `/admin/network/map`). Form ini WAJIB menyediakan input Serial Number (SN ONT) di samping MAC Address ONT.
+  - Input Serial Number (SN ONT) memiliki live autocomplete yang mencari stok modem ready (`assetType=MODEM`) di gudang (`/api/inventory/assets`). Memilih salah satu unit otomatis mengisi Serial Number dan MAC Address.
+  - Perubahan Serial Number (SN lama $\neq$ SN baru) dideteksi secara visual dengan badge status `Modem akan diganti` dan notice konfirmasi.
+  - Backend `updatePppoeUser` menangani lifecycle pergantian modem secara otomatis:
+    1. Jika modem lama ada dan diganti: status modem lama diubah menjadi `USED_GOOD`, `currentCustomerId = null`, dan dicatat ke `customerDeviceHistory` (`action = 'REPLACED_OLD'`).
+    2. Unit baru dicari di inventori. Jika belum terdaftar, sistem auto-register katalog (`EMG-CPE-ONT-GENERIC`) dan unit `inventoryAsset` baru dengan vendor & model otomatis (`status = 'IN_USE'`).
+    3. Unit baru ditautkan ke pelanggan (`action = 'REPLACED_NEW'` atau `'INSTALLED'`).
+    4. Jika SN dikosongkan sengaja oleh admin: modem lama dilepas dan dicatat sebagai `DISMANTLED`.
+  - Route handler `PUT /api/pppoe/users/[id]` diimplementasikan untuk meneruskan panggilan dari peta jaringan (`/admin/network/map`) langsung ke `updatePppoeUser`, mencegah error 405 Method Not Allowed.
+  - Seluruh text emojis pada `UserDetailModal.tsx` dibersihkan dan diganti dengan icon Lucide React standar (`<Router />`, `<Calendar />`, `<Clock />`, `<Zap />`, `<CreditCard />`, `<Camera />`, `<Search />`, `<RefreshCw />`).
 
 ### Recent Patch Log (September 16, 2026 — v2.40.4: Hardening Pasang Baru Pelanggan (PSB), Timeout Guard MikroTik/Email, & Resolusi Tampilan SN ONT)
 

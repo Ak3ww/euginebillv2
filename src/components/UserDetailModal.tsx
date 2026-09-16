@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, CheckCircle2, XCircle, Clock, Eye, EyeOff, MapPin, Map, Camera, ImageIcon, ZoomIn } from 'lucide-react';
+import { X, Loader2, CheckCircle2, XCircle, Clock, Eye, EyeOff, MapPin, Map, Camera, ImageIcon, ZoomIn, Router, Search, RefreshCw, Calendar, Zap, CreditCard } from 'lucide-react';
 import { formatWIB, formatLocalDate } from '@/lib/timezone';
 import { useTranslation } from '@/hooks/useTranslation';
 import { showSuccess, showError, showWarning } from '@/lib/sweetalert';
@@ -108,6 +108,15 @@ export default function UserDetailModal({
   const [uploadingInstallation, setUploadingInstallation] = useState(false);
   const [installCameraOpen, setInstallCameraOpen] = useState(false);
 
+  // ONT SN Autocomplete & State
+  const [ontSerialNumber, setOntSerialNumber] = useState('');
+  const [ontOriginalSN, setOntOriginalSN] = useState('');
+  const [ontSuggestions, setOntSuggestions] = useState<any[]>([]);
+  const [ontSearching, setOntSearching] = useState(false);
+  const [ontNotFound, setOntNotFound] = useState(false);
+  const [showOntDropdown, setShowOntDropdown] = useState(false);
+  const [ontAssetPreview, setOntAssetPreview] = useState<any | null>(null);
+
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -161,8 +170,67 @@ export default function UserDetailModal({
         autoIsolationEnabled: user.autoIsolationEnabled !== false,
         registeredAt: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : '',
       });
+
+      // Initialize ONT Serial Number
+      const initialSn = (user as any).inventoryAssets?.[0]?.serialNumber ||
+        (user as any).deviceHistories?.[0]?.serialNumber ||
+        (user.macAddress && !user.macAddress.includes(':') && !user.macAddress.includes('-') && user.macAddress.length >= 8 ? user.macAddress : '');
+      setOntSerialNumber(initialSn);
+      setOntOriginalSN(initialSn);
+      setOntSuggestions([]);
+      setShowOntDropdown(false);
+      setOntNotFound(false);
+      setOntAssetPreview((user as any).inventoryAssets?.[0] || null);
+
+      if (user.id) {
+        fetch(`/api/pppoe/users/${user.id}/device-history`)
+          .then(r => r.json())
+          .then(data => {
+            if (data?.currentAsset) {
+              setOntSerialNumber(data.currentAsset.serialNumber || '');
+              setOntOriginalSN(data.currentAsset.serialNumber || '');
+              setOntAssetPreview(data.currentAsset);
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, [user]);
+
+  const handleOntSnChange = async (value: string) => {
+    setOntSerialNumber(value);
+    setOntNotFound(false);
+    if (value.length < 3) {
+      setOntSuggestions([]);
+      setShowOntDropdown(false);
+      return;
+    }
+    setOntSearching(true);
+    try {
+      const res = await fetch(`/api/inventory/assets?assetType=MODEM&search=${encodeURIComponent(value)}&limit=10`);
+      const data = await res.json();
+      const assets = data.assets || [];
+      setOntSuggestions(assets);
+      setShowOntDropdown(assets.length > 0);
+      if (assets.length === 0 && value.length >= 5) {
+        setOntNotFound(true);
+      }
+    } catch {
+      setOntSuggestions([]);
+    } finally {
+      setOntSearching(false);
+    }
+  };
+
+  const handleSelectOntAsset = (asset: any) => {
+    setOntSerialNumber(asset.serialNumber || '');
+    setShowOntDropdown(false);
+    setOntNotFound(false);
+    setOntAssetPreview(asset);
+    if (asset.macAddress) {
+      setFormData(prev => ({ ...prev, macAddress: asset.macAddress }));
+    }
+  };
 
   useEffect(() => {
     if (user && activeTab !== 'info') {
@@ -209,7 +277,7 @@ export default function UserDetailModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSave({ ...formData, id: user?.id });
+    await onSave({ ...formData, id: user?.id, ontSerialNumber: ontSerialNumber.trim() });
     onClose();
   };
 
@@ -523,7 +591,7 @@ export default function UserDetailModal({
                         className="w-4 h-4 accent-primary dark:accent-[#00f7ff] border-border dark:border-[#bc13fe]/50 focus:ring-primary dark:focus:ring-[#00f7ff]"
                       />
                       <div className="ml-3 flex-1">
-                        <div className="text-sm font-medium text-foreground dark:text-[#e0d0ff]">📅 {t('userModal.postpaid')}</div>
+                        <div className="text-sm font-medium text-foreground dark:text-[#e0d0ff] flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-primary" /> {t('userModal.postpaid')}</div>
                         <div className="text-xs text-muted-foreground dark:text-[#e0d0ff]/50">Tagihan bulanan, tanggal tetap</div>
                       </div>
                     </label>
@@ -537,7 +605,7 @@ export default function UserDetailModal({
                         className="w-4 h-4 accent-primary dark:accent-[#bc13fe] border-border dark:border-[#bc13fe]/50 focus:ring-primary dark:focus:ring-[#bc13fe]"
                       />
                       <div className="ml-3 flex-1">
-                        <div className="text-sm font-medium text-foreground dark:text-[#e0d0ff]">⏰ {t('userModal.prepaid')}</div>
+                        <div className="text-sm font-medium text-foreground dark:text-[#e0d0ff] flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-primary" /> {t('userModal.prepaid')}</div>
                         <div className="text-xs text-muted-foreground dark:text-[#e0d0ff]/50">Bayar dimuka, validitas terbatas</div>
                       </div>
                     </label>
@@ -548,7 +616,10 @@ export default function UserDetailModal({
                 {formData.subscriptionType === 'POSTPAID' && (
                   <div>
                     <label className={labelCls}>
-                      📅 Tanggal Tagihan
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-primary" />
+                        Tanggal Tagihan
+                      </span>
                     </label>
                     <select
                       value={formData.billingDay}
@@ -591,23 +662,126 @@ export default function UserDetailModal({
                   />
                   <p className="text-xs text-muted-foreground dark:text-[#e0d0ff]/50 mt-1">
                     {formData.subscriptionType === 'POSTPAID' 
-                      ? '📌 Untuk testing: expiredAt = tanggal tagihan bulan depan (auto calculated)' 
+                      ? 'Untuk testing: expiredAt = tanggal tagihan bulan depan (auto calculated)' 
                       : 'Tanggal kadaluarsa paket. Kosongkan untuk auto dari profile.'}
                   </p>
                 </div>
 
-                {/* MAC Address & Comment */}
+                {/* Serial Number (SN ONT) */}
+                <div className="relative">
+                  <label className={labelCls}>
+                    <span className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Router className="w-3.5 h-3.5 text-primary" />
+                        Serial Number (SN ONT)
+                      </span>
+                      {ontOriginalSN && ontSerialNumber !== ontOriginalSN && (
+                        <span className="text-[10px] font-semibold text-amber-500 flex items-center gap-1">
+                          <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                          Modem akan diganti
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={ontSerialNumber}
+                      onChange={(e) => handleOntSnChange(e.target.value.toUpperCase())}
+                      onFocus={() => {
+                        if (ontSuggestions.length > 0) setShowOntDropdown(true);
+                      }}
+                      onBlur={() => setTimeout(() => setShowOntDropdown(false), 250)}
+                      placeholder="ZTEGC34086B1 (Cari atau input)"
+                      className={`${inputCls} font-mono uppercase pr-8`}
+                    />
+                    {ontSearching && (
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Autocomplete Dropdown */}
+                  {showOntDropdown && ontSuggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-xl max-h-56 overflow-y-auto divide-y divide-border">
+                      <div className="px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground bg-muted/50 flex items-center gap-1">
+                        <Search className="w-3 h-3" />
+                        Pilih Modem dari Inventori ({ontSuggestions.length}):
+                      </div>
+                      {ontSuggestions.map((asset) => (
+                        <div
+                          key={asset.id}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleSelectOntAsset(asset);
+                          }}
+                          className="p-2.5 hover:bg-muted/60 cursor-pointer transition-colors text-xs flex items-center justify-between"
+                        >
+                          <div>
+                            <div className="font-mono font-bold text-foreground flex items-center gap-1.5">
+                              {asset.serialNumber}
+                              {asset.status === 'AVAILABLE' ? (
+                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-sans font-medium">Ready di Gudang</span>
+                              ) : asset.status === 'IN_USE' ? (
+                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-sans font-medium">Terpakai</span>
+                              ) : (
+                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-sans font-medium">{asset.status}</span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                              {asset.vendor || 'Generic'} {asset.model || ''} {asset.macAddress ? `• MAC: ${asset.macAddress}` : ''}
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-primary hover:underline font-medium">Pilih</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Not Found / Auto-Create Notice */}
+                  {ontNotFound && (
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
+                      SN belum terdaftar di inventori &mdash; akan otomatis didaftarkan sebagai unit baru saat disimpan.
+                    </p>
+                  )}
+
+                  {/* Current Active Preview */}
+                  {ontAssetPreview && !ontNotFound && (
+                    <div className="mt-1 text-[11px] text-muted-foreground flex items-center gap-1.5">
+                      <span className="font-medium text-foreground">{ontAssetPreview.vendor || 'ONT'} {ontAssetPreview.model || ''}</span>
+                      {ontAssetPreview.status && (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground border border-border">
+                          {ontAssetPreview.status}
+                        </span>
+                      )}
+                      {ontOriginalSN && ontSerialNumber !== ontOriginalSN && (
+                        <span className="text-amber-500 font-mono text-[10px]">
+                          (Ganti dari {ontOriginalSN})
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* MAC Address */}
                 <div>
-                  <label className={labelCls}>MAC Address</label>
+                  <label className={labelCls}>MAC Address ONT</label>
                   <input
                     type="text"
                     value={formData.macAddress}
                     onChange={(e) => setFormData({ ...formData, macAddress: e.target.value })}
                     placeholder="AA:BB:CC:DD:EE:FF"
-                    className={inputCls}
+                    className={`${inputCls} font-mono`}
                   />
+                  <p className="text-xs text-muted-foreground dark:text-[#e0d0ff]/50 mt-1">
+                    Format MAC Address ONT / Router pelanggan.
+                  </p>
                 </div>
-                <div>
+
+                {/* Komentar / Catatan */}
+                <div className="col-span-2">
                   <label className={labelCls}>Komentar / Catatan</label>
                   <input
                     type="text"
@@ -620,7 +794,12 @@ export default function UserDetailModal({
 
                 {/* Aksi Jatuh Tempo */}
                 <div className="col-span-2">
-                  <label className={labelCls}>⚡ Aksi Jatuh Tempo</label>
+                  <label className={labelCls}>
+                    <span className="flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      Aksi Jatuh Tempo
+                    </span>
+                  </label>
                   <select
                     value={formData.autoIsolationEnabled ? 'isolate' : 'keep'}
                     onChange={(e) => setFormData({ ...formData, autoIsolationEnabled: e.target.value === 'isolate' })}
@@ -636,7 +815,12 @@ export default function UserDetailModal({
 
                 {/* Tanggal Register */}
                 <div>
-                  <label className={labelCls}>📅 Tanggal Register</label>
+                  <label className={labelCls}>
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-primary" />
+                      Tanggal Register
+                    </span>
+                  </label>
                   <input
                     type="date"
                     value={formData.registeredAt}
@@ -651,7 +835,10 @@ export default function UserDetailModal({
 
               {/* Dokumen KTP */}
               <div className="border border-border dark:border-[#bc13fe]/30 rounded-lg p-4 space-y-3">
-                <p className="text-sm font-semibold text-foreground dark:text-[#e0d0ff]">🪪 Dokumen Identitas (KTP)</p>
+                <p className="text-sm font-semibold text-foreground dark:text-[#e0d0ff] flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-primary" />
+                  Dokumen Identitas (KTP)
+                </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={labelCls}>No. NIK KTP</label>
@@ -688,7 +875,10 @@ export default function UserDetailModal({
                 </div>
               </div>
               <div className="border border-border dark:border-[#00f7ff]/20 rounded-lg p-4 space-y-3">
-                <p className="text-sm font-semibold text-foreground dark:text-[#e0d0ff]">📷 Foto Instalasi</p>
+                <p className="text-sm font-semibold text-foreground dark:text-[#e0d0ff] flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-primary" />
+                  Foto Instalasi
+                </p>
                 <div>
                   <input type="file" accept="image/*" onChange={handleUploadInstallation} disabled={uploadingInstallation} className="sr-only" id="installationUploadEdit" />
                   {installCameraOpen ? (
@@ -699,7 +889,7 @@ export default function UserDetailModal({
                   ) : (
                   <div className="grid grid-cols-2 gap-2">
                     <label htmlFor={uploadingInstallation ? undefined : 'installationUploadEdit'} className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs border border-border dark:border-[#00f7ff]/30 rounded hover:bg-muted dark:hover:bg-[#00f7ff]/10 text-muted-foreground dark:text-[#e0d0ff]/70 ${uploadingInstallation ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}>
-                      <ImageIcon className="w-3 h-3" /> {uploadingInstallation ? '⏳ Mengupload...' : 'Galeri'}
+                      <ImageIcon className="w-3 h-3" /> {uploadingInstallation ? 'Mengupload...' : 'Galeri'}
                     </label>
                     <button type="button" onClick={() => setInstallCameraOpen(true)} disabled={uploadingInstallation} className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs border border-primary/30 dark:border-[#00f7ff]/40 rounded hover:bg-primary/5 dark:hover:bg-[#00f7ff]/10 text-primary/70 dark:text-[#00f7ff]/70 ${uploadingInstallation ? 'opacity-50 cursor-not-allowed' : ''}`}>
                       <Camera className="w-3 h-3" /> Kamera

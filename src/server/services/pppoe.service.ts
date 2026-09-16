@@ -75,6 +75,7 @@ export interface UpdatePppoeUserInput {
   installationPhotos?: unknown;
   followRoad?: boolean;
   registeredAt?: string;
+  ontSerialNumber?: string;
 }
 
 // ─── List ─────────────────────────────────────────────────────────────────────
@@ -1051,6 +1052,176 @@ export async function updatePppoeUser(
           console.error('[User Update] CoA disconnect error:', e.message)
         );
       } catch { /* ignore */ }
+    }
+  }
+
+  // ── Inventory Asset Update / Replacement from Edit User Modal ─────────────
+  if (data.ontSerialNumber !== undefined) {
+    const rawNewSN = (data.ontSerialNumber || '').trim();
+    const effectiveNewSN = rawNewSN.toUpperCase();
+
+    try {
+      const currentAsset = await prisma.inventoryAsset.findFirst({
+        where: { currentCustomerId: id, status: 'IN_USE', assetType: 'MODEM' },
+      });
+
+      // If SN changed or newly assigned
+      if (effectiveNewSN && (!currentAsset || currentAsset.serialNumber.toUpperCase() !== effectiveNewSN)) {
+        const now = new Date();
+        const techName = (session?.user as any)?.name || 'Admin';
+
+        // 1. If user previously had another asset, detach and mark as USED_GOOD
+        if (currentAsset) {
+          await prisma.inventoryAsset.update({
+            where: { id: currentAsset.id },
+            data: { status: 'USED_GOOD', currentCustomerId: null, currentWorkOrderId: null },
+          });
+
+          await prisma.customerDeviceHistory.create({
+            data: {
+              customerId: id,
+              assetId: currentAsset.id,
+              serialNumber: currentAsset.serialNumber,
+              macAddress: currentAsset.macAddress,
+              vendor: currentAsset.vendor,
+              model: currentAsset.model,
+              action: 'REPLACED_OLD',
+              reason: 'Diganti via Edit Data Pelanggan',
+              technicianName: techName,
+              removedAt: now,
+            },
+          }).catch(() => {});
+        }
+
+        // 2. Find or auto-create the new asset
+        let targetAsset = await prisma.inventoryAsset.findFirst({
+          where: {
+            OR: [
+              { serialNumber: rawNewSN },
+              { serialNumber: effectiveNewSN },
+            ],
+          },
+        });
+
+        if (!targetAsset) {
+          // Auto-create catalog item if not exists
+          let catalogItem = await prisma.inventoryItem.findFirst({
+            where: {
+              OR: [
+                { sku: { contains: 'CPE-ONT' } },
+                { name: { contains: 'ONT' } },
+                { name: { contains: 'Modem' } },
+              ],
+            },
+          });
+
+          if (!catalogItem) {
+            catalogItem = await prisma.inventoryItem.findFirst();
+          }
+
+          if (!catalogItem) {
+            try {
+              catalogItem = await prisma.inventoryItem.create({
+                data: {
+                  sku: 'EMG-CPE-ONT-GENERIC',
+                  name: 'Modem ONT GPON Standar',
+                  categoryCode: 'CPE',
+                  subCategory: 'ONT',
+                  unit: 'pcs',
+                  isSerialized: true,
+                },
+              });
+            } catch {
+              catalogItem = await prisma.inventoryItem.findFirst();
+            }
+          }
+
+          if (catalogItem) {
+            let vendor = 'Generic';
+            let model = 'GPON ONT';
+            if (effectiveNewSN.startsWith('ZTEG')) { vendor = 'ZTE'; model = 'ZTE F609 V3'; }
+            else if (effectiveNewSN.startsWith('SKYW')) { vendor = 'Skyworth'; model = 'GN542VF'; }
+            else if (effectiveNewSN.startsWith('RTEG')) { vendor = 'Realtek'; model = 'RTL8672 GPON'; }
+            else if (effectiveNewSN.startsWith('YHTC')) { vendor = 'Yuhua'; model = 'YH-100G'; }
+            else if (effectiveNewSN.startsWith('FHTT')) { vendor = 'FiberHome'; model = 'HG6243C'; }
+            else if (effectiveNewSN.startsWith('HWTC')) { vendor = 'Huawei'; model = 'HG8245H'; }
+            else if (effectiveNewSN.startsWith('AZVG')) { vendor = 'VSOL'; model = 'V2801 Series'; }
+
+            targetAsset = await prisma.inventoryAsset.create({
+              data: {
+                itemId: catalogItem.id,
+                assetType: 'MODEM',
+                serialNumber: rawNewSN,
+                vendor,
+                model,
+                condition: 'NEW',
+                status: 'IN_USE',
+                currentCustomerId: id,
+                installedAt: now,
+                macAddress: data.macAddress && data.macAddress.includes(':') ? data.macAddress : null,
+                notes: `Auto-registered saat Edit Data Pelanggan ${data.name || user.name}`,
+              },
+            });
+          }
+        } else {
+          // Update existing asset to IN_USE and link to customer
+          targetAsset = await prisma.inventoryAsset.update({
+            where: { id: targetAsset.id },
+            data: {
+              status: 'IN_USE',
+              currentCustomerId: id,
+              installedAt: now,
+              macAddress: data.macAddress && data.macAddress.includes(':') ? data.macAddress : targetAsset.macAddress,
+            },
+          });
+        }
+
+        if (targetAsset) {
+          await prisma.customerDeviceHistory.create({
+            data: {
+              customerId: id,
+              assetId: targetAsset.id,
+              serialNumber: targetAsset.serialNumber,
+              vendor: targetAsset.vendor,
+              model: targetAsset.model,
+              macAddress: targetAsset.macAddress,
+              action: currentAsset ? 'REPLACED_NEW' : 'INSTALLED',
+              reason: currentAsset ? 'Modem baru dipasang via Edit Data Pelanggan' : 'Modem dihubungkan via Edit Data Pelanggan',
+              installedAt: now,
+              technicianName: techName,
+            },
+          }).catch(() => {});
+        }
+      } else if (!effectiveNewSN && currentAsset) {
+        // User intentionally cleared the SN -> detach old modem
+        await prisma.inventoryAsset.update({
+          where: { id: currentAsset.id },
+          data: { status: 'USED_GOOD', currentCustomerId: null, currentWorkOrderId: null },
+        });
+
+        await prisma.customerDeviceHistory.create({
+          data: {
+            customerId: id,
+            assetId: currentAsset.id,
+            serialNumber: currentAsset.serialNumber,
+            macAddress: currentAsset.macAddress,
+            vendor: currentAsset.vendor,
+            model: currentAsset.model,
+            action: 'DISMANTLED',
+            reason: 'Modem dilepas dari pelanggan via Edit Data Pelanggan',
+            technicianName: (session?.user as any)?.name || 'Admin',
+            removedAt: new Date(),
+          },
+        }).catch(() => {});
+      } else if (effectiveNewSN && currentAsset && data.macAddress && data.macAddress !== currentAsset.macAddress) {
+        // Just sync MAC address if updated on same asset
+        await prisma.inventoryAsset.update({
+          where: { id: currentAsset.id },
+          data: { macAddress: data.macAddress },
+        }).catch(() => {});
+      }
+    } catch (invErr) {
+      console.error('[User Update] Inventory asset sync error:', invErr);
     }
   }
 
