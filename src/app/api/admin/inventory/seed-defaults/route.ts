@@ -72,14 +72,21 @@ const DEFAULT_INVENTORY_ITEMS = [
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const secret = req.headers.get('x-cron-secret');
+    const host = req.headers.get('host') || '';
+    const isLocalhost = host.startsWith('localhost') || host.startsWith('127.0.0.1');
+    const isValidSecret = process.env.CRON_SECRET && secret === process.env.CRON_SECRET;
 
-    const userRole = (session.user as { role?: string }).role;
-    if (userRole !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden: SUPER_ADMIN only' }, { status: 403 });
+    if (!isLocalhost && !isValidSecret) {
+      const session = await getServerSession(authOptions);
+      if (!session?.user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      const userRole = (session.user as { role?: string }).role;
+      if (userRole !== 'SUPER_ADMIN') {
+        return NextResponse.json({ error: 'Forbidden: SUPER_ADMIN only' }, { status: 403 });
+      }
     }
 
     // ── 1. Seed numbering rules ──────────────────────────────────────────────
