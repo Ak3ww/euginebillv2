@@ -85,39 +85,41 @@ function parseHsgqOnuOutput(output: string, defaultPort: number = 1): any[] {
       continue;
     }
 
-    // Pattern 1: Multi-column: Port, ONU-ID, SN/MAC, Status, [Distance], [RxPower]
-    // e.g.: 1   1   ZTEGC3200001   online   245   -21.30
-    const matchCols = trimmed.match(/^(\d+)\s+(\d+)\s+([0-9a-zA-Z]{8,16})\s+(\S+)(?:\s+([-\d.]+|n\/a))?(?:\s+([-\d.]+|n\/a))?/i);
+    // Pattern 1: Multi-column: Port, ONU-ID, SN/MAC, Status, [Distance], [RxPower], [Description]
+    // e.g.: 1   1   ZTEGC3200001   online   245   -21.30   Pak-Budi
+    const matchCols = trimmed.match(/^(\d+)\s+(\d+)\s+([0-9a-zA-Z]{8,16})\s+(\S+)(?:\s+([-\d.]+|n\/a))?(?:\s+([-\d.]+|n\/a))?(?:\s+(.+))?/i);
     if (matchCols) {
-      const [, portStr, onuIdStr, sn, statusStr, distStr, rxStr] = matchCols;
+      const [, portStr, onuIdStr, sn, statusStr, distStr, rxStr, descStr] = matchCols;
       const port = parseInt(portStr) || defaultPort;
       const onuId = parseInt(onuIdStr);
       const status = normalizeStatus(statusStr);
       const distance = distStr && distStr !== '-' && distStr.toLowerCase() !== 'n/a' ? parseInt(distStr) : undefined;
       const rxPower = rxStr && rxStr !== '-' && rxStr.toLowerCase() !== 'n/a' ? parseFloat(rxStr) : undefined;
+      const description = descStr?.trim() || undefined;
 
-      onus.push({ frame: 0, slot: 0, port, onuId, serialNumber: sn.toUpperCase(), status, distance, rxPower });
+      onus.push({ frame: 0, slot: 0, port, onuId, serialNumber: sn.toUpperCase(), status, distance, rxPower, description });
       continue;
     }
 
     // Pattern 2: Index format: "1/1:1" or "1:1"
-    const matchIndex = trimmed.match(/^(?:1\/)?(\d+)[:/](\d+)\s+([0-9a-zA-Z]{8,16})\s+(\S+)(?:\s+([\d.]+m?))?(?:\s+([-\d.]+))?/i);
+    const matchIndex = trimmed.match(/^(?:1\/)?(\d+)[:/](\d+)\s+([0-9a-zA-Z]{8,16})\s+(\S+)(?:\s+([\d.]+m?))?(?:\s+([-\d.]+))?(?:\s+(.+))?/i);
     if (matchIndex) {
-      const [, portStr, onuIdStr, sn, statusStr, distStr, rxStr] = matchIndex;
+      const [, portStr, onuIdStr, sn, statusStr, distStr, rxStr, descStr] = matchIndex;
       const port = parseInt(portStr) || defaultPort;
       const onuId = parseInt(onuIdStr);
       const status = normalizeStatus(statusStr);
       const distance = distStr ? parseInt(distStr.replace(/m/i, '')) : undefined;
       const rxPower = rxStr && rxStr !== '-' ? parseFloat(rxStr) : undefined;
+      const description = descStr?.trim() || undefined;
 
-      onus.push({ frame: 0, slot: 0, port, onuId, serialNumber: sn.toUpperCase(), status, distance, rxPower });
+      onus.push({ frame: 0, slot: 0, port, onuId, serialNumber: sn.toUpperCase(), status, distance, rxPower, description });
       continue;
     }
 
-    // Pattern 3: Simple ONU ID + SN + Status (when inside per-port command)
-    const matchSimple = trimmed.match(/^(\d+)\s+([0-9a-zA-Z]{8,16})\s+(\S+)/i);
+    // Pattern 3: Simple ONU ID + SN + Status + [Description] (when inside per-port command)
+    const matchSimple = trimmed.match(/^(\d+)\s+([0-9a-zA-Z]{8,16})\s+(\S+)(?:\s+(.+))?/i);
     if (matchSimple) {
-      const [, onuIdStr, sn, statusStr] = matchSimple;
+      const [, onuIdStr, sn, statusStr, descStr] = matchSimple;
       onus.push({
         frame: 0,
         slot: 0,
@@ -125,6 +127,7 @@ function parseHsgqOnuOutput(output: string, defaultPort: number = 1): any[] {
         onuId: parseInt(onuIdStr),
         serialNumber: sn.toUpperCase(),
         status: normalizeStatus(statusStr),
+        description: descStr?.trim() || undefined,
       });
     }
   }

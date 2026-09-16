@@ -306,31 +306,69 @@ async function upsertONU(
       select: { id: true, customerId: true },
     });
 
-    // Auto-link customer by Serial Number or MAC if not yet linked
+    // Auto-link customer by Serial Number, MAC, or OLT ONU Description/Customer Name
     let autoCustomerId: string | null = null;
-    if (!existing?.customerId && serialNumber) {
-      const cleanSN = serialNumber.replace(/[:-]/g, '').toUpperCase();
-      const asset = await prisma.inventoryAsset.findFirst({
-        where: {
-          OR: [{ serialNumber }, { serialNumber: cleanSN }],
-          currentCustomerId: { not: null },
-        },
-        select: { currentCustomerId: true },
-      });
+    if (!existing?.customerId && (serialNumber || onu.description)) {
+      // 1. Check inventoryAsset by serialNumber
+      if (serialNumber) {
+        const cleanSN = serialNumber.replace(/[:-]/g, '').toUpperCase();
+        const asset = await prisma.inventoryAsset.findFirst({
+          where: {
+            OR: [{ serialNumber }, { serialNumber: cleanSN }],
+            currentCustomerId: { not: null },
+          },
+          select: { currentCustomerId: true },
+        });
 
-      if (asset?.currentCustomerId) {
-        autoCustomerId = asset.currentCustomerId;
-      } else {
-        const user = await prisma.pppoeUser.findFirst({
+        if (asset?.currentCustomerId) {
+          autoCustomerId = asset.currentCustomerId;
+        } else {
+          // 2. Check pppoeUser by macAddress
+          const user = await prisma.pppoeUser.findFirst({
+            where: {
+              OR: [
+                { macAddress: serialNumber },
+                { macAddress: cleanSN },
+              ],
+            },
+            select: { id: true },
+          });
+          if (user) autoCustomerId = user.id;
+        }
+      }
+
+      // 3. Check by OLT ONU Description (User has named ONT with customer name or username!)
+      if (!autoCustomerId && onu.description) {
+        const rawDesc = onu.description.trim();
+        const cleanDesc = rawDesc.replace(/[-_]/g, ' ').trim();
+        const compactDesc = rawDesc.replace(/[-_\s]/g, '').toLowerCase();
+
+        // Try exact username or exact name first
+        let user = await prisma.pppoeUser.findFirst({
           where: {
             OR: [
-              { macAddress: serialNumber },
-              { macAddress: cleanSN },
-              ...(onu.description ? [{ username: onu.description }] : []),
+              { username: rawDesc },
+              { username: compactDesc },
+              { name: rawDesc },
+              { name: cleanDesc },
             ],
           },
           select: { id: true },
         });
+
+        // Try partial name/username match if description is at least 3 characters
+        if (!user && cleanDesc.length >= 3) {
+          user = await prisma.pppoeUser.findFirst({
+            where: {
+              OR: [
+                { name: { contains: cleanDesc } },
+                { username: { contains: compactDesc } },
+              ],
+            },
+            select: { id: true },
+          });
+        }
+
         if (user) autoCustomerId = user.id;
       }
     }

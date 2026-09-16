@@ -21,11 +21,16 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
      - Menghubungkan ONU yang ditemukan langsung ke ID pelanggan secara otomatis saat discovery background atau polling manual dijalankan.
   2. **Relasi Data Pelanggan (`src/server/services/pppoe.service.ts`)**:
      - Menambahkan relasi `oltOnuStatuses` pada `getPppoeUserById` lengkap dengan data OLT (`name`, `ipAddress`, `vendor`) agar profil pelanggan dapat menampilkan status optik OLT secara live.
-  3. **Verifikasi Kesiapan Fase 1 OLT**:
+  3. **Ekstraksi Deskripsi/Nama Pelanggan di Driver VSOL & HSGQ (`src/lib/olt/vendors/vsol.ts`, `hsgq.ts`)**:
+     - Poller CLI kini mengekstrak kolom trailing description / nama ONT yang diset operator di OLT.
+     - Mesin auto-link mencocokkan nama/deskripsi tersebut ke `pppoeUser.name` atau `pppoeUser.username` sehingga ONT yang sudah dinamai di OLT langsung terhubung dengan pelanggan secara otomatis.
+  4. **Verifikasi Kesiapan Fase 1 OLT**:
      - Memverifikasi dukungan driver OLT vendor VSOL (Cortina & ZTE Falcon chipset) dan HSGQ (Mini OLT & Standard) serta template konfigurasi di `deployment-pack-client/`.
 
 - **Files**:
   - `src/lib/olt/poller.ts`
+  - `src/lib/olt/vendors/vsol.ts`
+  - `src/lib/olt/vendors/hsgq.ts`
   - `src/server/services/pppoe.service.ts`
   - `CHANGELOG.md`
   - `docs/AI_PROJECT_MEMORY.md`

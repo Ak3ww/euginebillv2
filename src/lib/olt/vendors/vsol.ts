@@ -92,41 +92,43 @@ function parseVsolOnuOutput(output: string, defaultPort: number = 1): any[] {
     }
 
     // Pattern 1: Port format "0/1:1" or "0/2:3" or "1:3"
-    // e.g.: 0/1:1  ZTEGD4A3C19B  Online  320m  -19.45dBm
-    const matchSlashColon = trimmed.match(/^(?:0\/)?(\d+)[:/](\d+)\s+([0-9a-zA-Z]{8,16})\s+(\S+)(?:\s+([\d.]+m?))?(?:\s+([-\d.]+))?/i);
+    // e.g.: 0/1:1  ZTEGD4A3C19B  Online  320m  -19.45dBm  [Description/Name]
+    const matchSlashColon = trimmed.match(/^(?:0\/)?(\d+)[:/](\d+)\s+([0-9a-zA-Z]{8,16})\s+(\S+)(?:\s+([\d.]+m?))?(?:\s+([-\d.]+))?(?:\s+(.+))?/i);
     if (matchSlashColon) {
-      const [, portStr, onuIdStr, sn, statusStr, distStr, rxStr] = matchSlashColon;
+      const [, portStr, onuIdStr, sn, statusStr, distStr, rxStr, descStr] = matchSlashColon;
       const port = parseInt(portStr) || defaultPort;
       const onuId = parseInt(onuIdStr);
       const status = normalizeStatus(statusStr);
       const distance = distStr ? parseInt(distStr.replace(/m/i, '')) : undefined;
       const rxPower = rxStr && rxStr !== '-' ? parseFloat(rxStr) : undefined;
+      const description = descStr?.trim() || undefined;
 
-      onus.push({ frame: 0, slot: 0, port, onuId, serialNumber: sn.toUpperCase(), status, distance, rxPower });
+      onus.push({ frame: 0, slot: 0, port, onuId, serialNumber: sn.toUpperCase(), status, distance, rxPower, description });
       continue;
     }
 
-    // Pattern 2: Columns: Port (or 0/1), ONT-ID, SerialNumber, Status, [Distance], [RxPower]
-    // e.g.: 0/1   1   ZTEGD4A3C19B   Online   320   -19.45
-    // e.g.: 1     2   HWTC12345678   Offline  -     -
-    const matchCols = trimmed.match(/^(?:0\/)?(\d+)\s+(\d+)\s+([0-9a-zA-Z]{8,16})\s+(\S+)(?:\s+([-\d.]+|n\/a))?(?:\s+([-\d.]+|n\/a))?/i);
+    // Pattern 2: Columns: Port (or 0/1), ONT-ID, SerialNumber, Status, [Distance], [RxPower], [Description]
+    // e.g.: 0/1   1   ZTEGD4A3C19B   Online   320   -19.45   Pak-Budi
+    // e.g.: 1     2   HWTC12345678   Offline  -     -        Amar
+    const matchCols = trimmed.match(/^(?:0\/)?(\d+)\s+(\d+)\s+([0-9a-zA-Z]{8,16})\s+(\S+)(?:\s+([-\d.]+|n\/a))?(?:\s+([-\d.]+|n\/a))?(?:\s+(.+))?/i);
     if (matchCols) {
-      const [, portStr, onuIdStr, sn, statusStr, distStr, rxStr] = matchCols;
+      const [, portStr, onuIdStr, sn, statusStr, distStr, rxStr, descStr] = matchCols;
       const port = parseInt(portStr) || defaultPort;
       const onuId = parseInt(onuIdStr);
       const status = normalizeStatus(statusStr);
       const distance = distStr && distStr !== '-' && distStr.toLowerCase() !== 'n/a' ? parseInt(distStr) : undefined;
       const rxPower = rxStr && rxStr !== '-' && rxStr.toLowerCase() !== 'n/a' ? parseFloat(rxStr) : undefined;
+      const description = descStr?.trim() || undefined;
 
-      onus.push({ frame: 0, slot: 0, port, onuId, serialNumber: sn.toUpperCase(), status, distance, rxPower });
+      onus.push({ frame: 0, slot: 0, port, onuId, serialNumber: sn.toUpperCase(), status, distance, rxPower, description });
       continue;
     }
 
-    // Pattern 3: Simple ONT ID + Serial + Status (when inside per-port output)
-    // e.g.: 1   ZTEGD4A3C19B   Online
-    const matchSimple = trimmed.match(/^(\d+)\s+([0-9a-zA-Z]{8,16})\s+(\S+)/i);
+    // Pattern 3: Simple ONT ID + Serial + Status + [Description]
+    // e.g.: 1   ZTEGD4A3C19B   Online   Pak-Budi
+    const matchSimple = trimmed.match(/^(\d+)\s+([0-9a-zA-Z]{8,16})\s+(\S+)(?:\s+(.+))?/i);
     if (matchSimple) {
-      const [, onuIdStr, sn, statusStr] = matchSimple;
+      const [, onuIdStr, sn, statusStr, descStr] = matchSimple;
       onus.push({
         frame: 0,
         slot: 0,
@@ -134,6 +136,7 @@ function parseVsolOnuOutput(output: string, defaultPort: number = 1): any[] {
         onuId: parseInt(onuIdStr),
         serialNumber: sn.toUpperCase(),
         status: normalizeStatus(statusStr),
+        description: descStr?.trim() || undefined,
       });
     }
   }
