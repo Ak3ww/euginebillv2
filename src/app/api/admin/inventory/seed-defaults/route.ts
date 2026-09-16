@@ -55,16 +55,47 @@ const DEFAULT_CATEGORIES = [
 
 // ─── Inventory Item Master Catalog ─────────────────────────────────────────────
 const DEFAULT_INVENTORY_ITEMS = [
-  // ONT (CPE/ONT) — serialized
-  { sku: 'EMG-CPE-ONT-ZTE-F609V3', name: 'ONT ZTE F609 V3', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
-  { sku: 'EMG-CPE-ONT-SKW-542VF', name: 'ONT Skyworth GN542VF', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
-  { sku: 'EMG-CPE-ONT-RLT-OEM', name: 'ONT Realtek OEM', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
-  { sku: 'EMG-CPE-ONT-YHT-100G', name: 'ONT Yuhua 100G', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
-  { sku: 'EMG-CPE-ONT-FBH-HG6243', name: 'ONT FiberHome HG6243', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
-  { sku: 'EMG-CPE-ONT-HWA-8245H', name: 'ONT Huawei HG8245H', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
-  { sku: 'EMG-CPE-ONT-GGL-FD511G', name: 'ONT Gigalink FD511G', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
-  { sku: 'EMG-CPE-ONT-VSL-V2801', name: 'ONT VSOL V2801', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
-  { sku: 'EMG-CPE-ONT-EFT-OEM', name: 'ONT EFiber OEM', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  // ─── CPE: 7 Vendor Standar FTTH (ZTE, Huawei, FiberHome, Skyworth, Realtek, Gigalink, VSOL) ───
+  // 1. ZTE
+  { sku: 'EMG-CPE-ONT-ZTE-F609V3', name: 'Modem ZTE F609 V3 Gigabit GPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-ZTE-F609V9', name: 'Modem ZTE F609 V9 Dual Band AC', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-ZTE-F670L',  name: 'Modem ZTE F670L Dual Band Gigabit', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-ZTE-F660',   name: 'Modem ZTE F660 Single Band GPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+
+  // 2. Huawei
+  { sku: 'EMG-CPE-ONT-HWA-8245H',  name: 'Modem Huawei EchoLife HG8245H', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-HWA-8245H5', name: 'Modem Huawei EchoLife HG8245H5', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-HWA-8145V5', name: 'Modem Huawei EchoLife HG8145V5 Dual Band AC', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-HWA-8010H',  name: 'Modem Huawei EchoLife HG8010H 1GE Bridge', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+
+  // 3. FiberHome
+  { sku: 'EMG-CPE-ONT-FBH-HG6243', name: 'Modem FiberHome HG6243C Dual Band AC Gigabit', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-FBH-AN5506', name: 'Modem FiberHome AN5506-04-FG Quad Port GPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-FBH-HG6143', name: 'Modem FiberHome HG6143D Dual Band GPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+
+  // 4. Skyworth / SK
+  { sku: 'EMG-CPE-ONT-SKW-542VF',  name: 'Modem Skyworth GN542VF Dual Band AC Gigabit', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-SKW-640V',   name: 'Modem Skyworth GN640V Dual Band XPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-SKW-D742',   name: 'Modem Skyworth SK-D742 Gigabit GPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+
+  // 5. Realtek OEM / RTE
+  { sku: 'EMG-CPE-ONT-RLT-OEM',    name: 'Modem Realtek OEM RTL9603C GPON/EPON 1GE+1FE', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-RLT-9607',   name: 'Modem Realtek OEM RTL9607C Dual Band AC', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-RLT-V2804',  name: 'Modem Realtek OEM V2804RGW XPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+
+  // 6. Gigalink / C-Data (GGCLINK)
+  { sku: 'EMG-CPE-ONT-GGL-FD511G', name: 'Modem Gigalink / C-Data FD511G 1GE GPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-GGL-FD512G', name: 'Modem Gigalink FD512GW 1GE+1FE WiFi XPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-GGL-FD704G', name: 'Modem Gigalink FD704GW Dual Band AC GPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+
+  // 7. VSOL
+  { sku: 'EMG-CPE-ONT-VSL-V2801',  name: 'Modem VSOL V2801SG 1GE XPON Bridge', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-VSL-V2804',  name: 'Modem VSOL V2804RGW 4GE WiFi XPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-VSL-V2802',  name: 'Modem VSOL V2802RH Dual Mode CATV XPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+
+  // Kompatibilitas Tambahan
+  { sku: 'EMG-CPE-ONT-EFT-OEM',    name: 'Modem EFiber OEM GPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
+  { sku: 'EMG-CPE-ONT-YHT-100G',   name: 'Modem Yuhua 100G GPON', categoryCode: 'CPE', subCategory: 'ONT', unit: 'pcs', isSerialized: true },
   // Cable types (CAB) — serialized, roll
   { sku: 'EMG-CAB-PRC-1C-250M', name: 'Kabel Precon 1 Core 250M', categoryCode: 'CAB', subCategory: 'PRC', unit: 'roll', isSerialized: true },
   { sku: 'EMG-CAB-PRC-1C-500M', name: 'Kabel Precon 1 Core 500M', categoryCode: 'CAB', subCategory: 'PRC', unit: 'roll', isSerialized: true },

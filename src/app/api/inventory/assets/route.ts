@@ -135,26 +135,83 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Resolve itemId if not provided
+    // Resolve or auto-create master itemId if not provided
     let resolvedItemId = itemId;
     if (!resolvedItemId) {
-      // Find default item for this type
-      const defaultItem = await prisma.inventoryItem.findFirst({
-        where: {
-          OR: [
-            { isSerialized: true },
-            { sku: { contains: assetType } },
-          ],
-        },
-      });
+      const clean = (s?: string) => (s || '').toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+      const cleanV = clean(vendor).slice(0, 4);
+      const cleanM = clean(model);
 
-      if (!defaultItem) {
-        return NextResponse.json(
-          { error: 'Master item belum dipilih atau belum ada katalog barang di sistem' },
-          { status: 400 }
-        );
+      if (cleanV || cleanM) {
+        // Try finding matching item in inventoryItem
+        const existing = await prisma.inventoryItem.findFirst({
+          where: {
+            OR: [
+              ...(cleanV && cleanM ? [{ sku: { contains: `${cleanV}-${cleanM}` } }] : []),
+              ...(vendor && model ? [{ name: { contains: `${vendor} ${model}` } }] : []),
+              ...(model ? [{ name: { contains: model } }] : []),
+            ],
+          },
+        });
+
+        if (existing) {
+          resolvedItemId = existing.id;
+        } else {
+          // Auto-create new master item so manually typed model is automatically saved
+          const catCode = assetType === 'MODEM' ? 'CPE' : 'CAB';
+          const subCode = assetType === 'MODEM' ? 'ONT' : 'ROLL';
+          const detail = cleanV && cleanM ? `${cleanV}-${cleanM}` : cleanM || cleanV || 'GENERIC';
+          const sku = `EMG-${catCode}-${subCode}-${detail}`;
+          const itemName = assetType === 'MODEM'
+            ? `Modem ${vendor || ''} ${model || ''}`.trim()
+            : `Kabel ${vendor || ''} ${model || ''}`.trim();
+
+          const created = await prisma.inventoryItem.upsert({
+            where: { sku },
+            create: {
+              sku,
+              name: itemName || `${catCode} ${detail}`,
+              categoryCode: catCode,
+              subCategory: subCode,
+              isSerialized: true,
+              unit: assetType === 'MODEM' ? 'unit' : 'meter',
+              isActive: true,
+            },
+            update: {},
+          });
+          resolvedItemId = created.id;
+        }
+      } else {
+        // Fallback to any serialized item or create generic
+        const defaultItem = await prisma.inventoryItem.findFirst({
+          where: {
+            OR: [
+              { isSerialized: true },
+              { sku: { contains: assetType } },
+            ],
+          },
+        });
+
+        if (defaultItem) {
+          resolvedItemId = defaultItem.id;
+        } else {
+          const genericSku = assetType === 'MODEM' ? 'EMG-CPE-ONT-GENERIC' : 'EMG-CAB-ROLL-GENERIC';
+          const generic = await prisma.inventoryItem.upsert({
+            where: { sku: genericSku },
+            create: {
+              sku: genericSku,
+              name: assetType === 'MODEM' ? 'Modem ONT Generic' : 'Roll Kabel Generic',
+              categoryCode: assetType === 'MODEM' ? 'CPE' : 'CAB',
+              subCategory: assetType === 'MODEM' ? 'ONT' : 'ROLL',
+              isSerialized: true,
+              unit: assetType === 'MODEM' ? 'unit' : 'meter',
+              isActive: true,
+            },
+            update: {},
+          });
+          resolvedItemId = generic.id;
+        }
       }
-      resolvedItemId = defaultItem.id;
     }
 
     const asset = await prisma.inventoryAsset.create({

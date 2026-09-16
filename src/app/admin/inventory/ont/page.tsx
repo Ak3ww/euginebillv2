@@ -626,7 +626,6 @@ export default function OntInventoryPage() {
   const [detailAsset, setDetailAsset] = useState<InventoryAsset | null>(null);
   const [editAsset, setEditAsset] = useState<InventoryAsset | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [importing, setImporting] = useState(false);
 
   // ── Fetch ONT assets ───────────────────────────────────────────────────────
   const fetchOntAssets = useCallback(
@@ -661,33 +660,6 @@ export default function OntInventoryPage() {
   useEffect(() => {
     fetchOntAssets(1);
   }, [fetchOntAssets]);
-
-  const handleImportInitial = async () => {
-    if (
-      !confirm(
-        'Impor 360 data ONT awal pelanggan ke sistem inventori? Data akan langsung dicocokkan dengan akun PPPoE pelanggan yang terdaftar.'
-      )
-    ) {
-      return;
-    }
-    setImporting(true);
-    try {
-      const res = await fetch('/api/admin/inventory/import-initial-modems', {
-        method: 'POST',
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert(data.message);
-        fetchOntAssets(1);
-      } else {
-        alert(data.error || 'Gagal mengimpor data awal ONT');
-      }
-    } catch (err: any) {
-      alert('Error: ' + err.message);
-    } finally {
-      setImporting(false);
-    }
-  };
 
   const handleSaved = () => {
     setShowAddModal(false);
@@ -758,21 +730,6 @@ export default function OntInventoryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleImportInitial}
-            disabled={importing}
-            className="border-primary/40 text-primary hover:bg-primary/10"
-            title="Sinkronkan atau impor 360 data awal ONT pelanggan"
-          >
-            {importing ? (
-              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-            ) : (
-              <Upload className="w-4 h-4 mr-1.5" />
-            )}
-            Import 360 ONT Awal
-          </Button>
           <Button onClick={() => setShowAddModal(true)} size="sm">
             <Plus className="w-4 h-4 mr-1.5" />
             Tambah Modem

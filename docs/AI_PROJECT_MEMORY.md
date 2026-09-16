@@ -50,6 +50,14 @@
   - Mendeteksi ketidakcocokan antara pelanggan PPPoE aktif (`macAddress` / data SPK teknisi `workOrder`) dengan tabel `inventoryAsset`.
   - Mendukung auto-reconcile & reseed 1-klik untuk mendaftarkan modem pelanggan yang belum tercatat ke `inventoryAsset` dengan status `IN_USE` tertaut ke ID pelanggan, dan menyembuhkan unit in-use yatim (*orphaned modems*).
 
+- **Architectural Invariant: On-the-Fly Master Item Auto-Creation on Custom Asset Input (`/api/inventory/assets`)**:
+  - Saat admin atau teknisi memasukkan unit fisik baru dengan vendor/model yang belum ada di katalog (baik melalui input satuan atau bulk input `/api/inventory/assets/bulk`), sistem WAJIB secara otomatis membuat entri master `inventoryItem` baru dengan standar SKU EMG (`EMG-[KAT]-[SUBKAT]-[VENDOR]-[MODEL]`).
+  - Hal ini menjamin admin dan teknisi dapat bebas mengetik model perangkat tanpa pernah mengalami error "Master item belum ada".
+
+- **Architectural Invariant: OLT Monitoring as Single Source of Physical Truth vs TR-069 ACS**:
+  - OLT (VSOL & HSGQ via Telnet/SSH/SNMP) adalah sumber data fisik paling absolut untuk inventori ONT karena semua modem yang menyala dan tersambung ke fiber optik wajib terdaftar di OLT tanpa memerlukan konfigurasi TR-069 di sisi modem pelanggan.
+  - Built-in ACS TR-069 difungsikan sebagai kontrol aplikasi (ganti password Wi-Fi, ubah SSID, remote reboot) dan BUKAN sebagai prasyarat inventori fisik.
+
 ### Recent Patch Log (September 16, 2026 — v2.40.9: Strict Dashboard Access Guard `dashboard.view`, Sidebar Guard & Auto-Redirect for Non-Privileged Staff)
 
 - **Architectural Invariant: Strict Dashboard Permission Guard & Auto-Redirection (`src/app/admin/page.tsx`)**:

@@ -43,20 +43,32 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
      - Endpoint `GET`: Melakukan diagnosa komprehensif terhadap seluruh pelanggan PPPoE, mencocokkan MAC/SN ONT dari database pelanggan dan riwayat SPK teknisi selesai (`workOrder`) dengan data di tabel `inventoryAsset`.
      - Endpoint `POST`: Melakukan rekonsiliasi dan self-healing otomatis (`autoCreateMissingModems: true`), mendaftarkan unit modem yang belum tercatat ke `inventoryAsset` dengan status `IN_USE` tertaut ke ID pelanggan, dan menyembuhkan unit in-use yatim (*orphaned*).
      - Modal interaktif langsung di `/admin/inventory/items` dengan ringkasan statistik metrik rekonsiliasi dan tombol eksekusi 1-klik.
+  7. **Pembersihan Tombol Import 360 ONT UI & Seeding via VPS**:
+     - Menghapus tombol *"Import 360 ONT Awal"* dari halaman `/admin/inventory/ont` agar antarmuka bersih dari tombol seeding sekali pakai.
+     - Eksekusi impor 360 unit ONT dialihkan langsung melalui server VPS (`curl -X POST http://localhost:3000/api/admin/inventory/import-initial-modems` atau `npx tsx scripts/import-initial-modems.ts`).
+  8. **Generalisasi 7 Vendor ONT FTTH & Auto-Save Model Manual**:
+     - Menggeneralisasikan master SKU untuk 7 vendor utama (ZTE, Huawei, FiberHome, Skyworth/SK, Realtek/RTE, Gigalink/GGCLINK, dan VSOL) dengan masing-masing 3-4 varian terpopuler di `scripts/seed-inventory-items.ts` dan `seed-defaults/route.ts`.
+     - Menyediakan endpoint bulk asset `POST /api/inventory/assets/bulk` untuk input banyak SN sekaligus.
+     - **Auto-Save Master Item saat Ketik Model Manual**: Baik pada input satuan (`/api/inventory/assets`) maupun bulk (`/api/inventory/assets/bulk`), jika admin mengetik vendor/model baru yang belum ada di katalog, sistem secara cerdas langsung membuat dan menyimpan master `inventoryItem` baru berstandar SKU EMG secara instan.
 
 - **Files**:
   - `prisma/schema.prisma`
   - `prisma/migrations/20260916_add_sku_dictionary.sql`
   - `prisma/seeds/sku-dictionary.ts`
+  - `scripts/seed-inventory-items.ts`
   - `src/app/admin/AdminClientLayout.tsx`
   - `src/app/admin/inventory/items/page.tsx`
+  - `src/app/admin/inventory/ont/page.tsx`
   - `src/app/admin/inventory/sku-settings/page.tsx`
+  - `src/app/api/admin/inventory/import-initial-modems/route.ts`
   - `src/app/api/admin/inventory/reconcile-customer-ont/route.ts`
   - `src/app/api/admin/inventory/seed-defaults/route.ts`
   - `src/app/api/admin/sku-settings/categories/[code]/subcategories/route.ts`
   - `src/app/api/admin/sku-settings/categories/[id]/route.ts`
   - `src/app/api/admin/sku-settings/categories/route.ts`
   - `src/app/api/admin/sku-settings/subcategories/[id]/route.ts`
+  - `src/app/api/inventory/assets/bulk/route.ts`
+  - `src/app/api/inventory/assets/route.ts`
   - `src/app/api/inventory/items/route.ts`
   - `src/app/api/inventory/sku/generate/route.ts`
 
