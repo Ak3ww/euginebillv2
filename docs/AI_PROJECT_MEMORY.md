@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.3
+- **Version**: 2.40.4
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,25 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.4: Hardening Pasang Baru Pelanggan (PSB), Timeout Guard MikroTik/Email, & Resolusi Tampilan SN ONT)
+
+- **Architectural Invariant: Non-Blocking External Calls during Customer Creation**:
+  - Sinkronisasi secret MikroTik (`PPPSecretService.syncSecret`) saat membuat atau mengupdate pelanggan WAJIB dibungkus dalam race timeout 4000ms (`Promise.race([syncPromise, timeoutPromise])`). Latensi router atau VPN flapping DILARANG KERAS memblokir pembuatan akun pelanggan di database MySQL.
+  - Pada `MikroTikConnection:execute()`, setiap perintah RouterOS API (`conn.write`) dibatasi hard timeout (`customTimeoutMs || 8000ms`) agar tidak mewarisi socket idle timeout default node-routeros (9999 detik).
+  - Email notifikasi (`EmailService.sendAdminCreateUser`) WAJIB bersifat asynchronous non-blocking IIFE (`(async () => { ... })().catch(...)`) dengan timeout 5000ms agar keterlambatan SMTP tidak menambah latensi HTTP response.
+  - Pada sisi client (`/admin/pppoe/users/new`), request dilengkapi `AbortController` (15s) dan parsing `res.json()` safe-fallback sehingga form button tidak pernah berputar (spinner) tanpa batas waktu.
+
+- **Architectural Invariant: Resolusi Serial Number & Model ONT di Detail Pelanggan**:
+  - Kartu "Data Perangkat & Infrastruktur Lapangan (ONT / ODP)" pada `/admin/pppoe/users/[id]` TIDAK BOLEH hanya mengandalkan laporan SPK (`woReportData.sn`).
+  - Resolusi ONT memprioritaskan urutan berjenjang:
+    1. `currentDevice` (aset aktif dari `inventoryAsset` dengan status `IN_USE`).
+    2. `user.inventoryAssets[0]` (dimuat langsung oleh `getPppoeUserById`).
+    3. `deviceHistory[0]` (catatan pemasangan terbaru dari `customerDeviceHistory`).
+    4. Fallback ke `woReportData` (laporan teknisi pada SPK).
+    5. Fallback ke `user.macAddress` untuk MAC address.
+  - Baris Serial Number (SN ONT) dilengkapi tombol aksi cepat `+ Hubungkan` / `Ubah` yang langsung memicu modal pergantian/penghubungan ONT tanpa harus scroll ke section riwayat SPK.
+  - Endpoint `replace-device` dan `createPppoeUser` otomatis mendaftarkan unit ke `inventoryAsset` jika Serial Number belum pernah dicatat di sistem (auto-detect vendor ZTE/Skyworth/Realtek/FiberHome/Huawei/VSOL).
 
 ### Recent Patch Log (September 16, 2026 — v2.40.3: Navigasi Terpadu Document Maker (/admin/documents), Super Admin Bypass, & Dinamis SKU Generator)
 

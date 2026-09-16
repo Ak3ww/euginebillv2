@@ -188,20 +188,39 @@ export default function NewPppoeUserPage() {
           })()
         }),
       };
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s safety timeout
+
       const res = await fetch('/api/pppoe/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
-      const data = await res.json();
+      clearTimeout(timeoutId);
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        data = { error: 'Respon server tidak valid atau timeout' };
+      }
+
       if (res.ok) {
         await showSuccess('Pelanggan berhasil ditambahkan');
         router.push('/admin/pppoe/users');
       } else {
         await showError(data.error || 'Gagal menyimpan pelanggan');
       }
-    } catch { await showError('Gagal menyimpan pelanggan'); }
-    finally { setSaving(false); }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        await showError('Waktu proses habis (timeout). Silakan periksa daftar pelanggan.');
+      } else {
+        await showError(err.message || 'Gagal menyimpan pelanggan');
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
 

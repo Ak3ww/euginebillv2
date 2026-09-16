@@ -183,6 +183,14 @@ export async function getPppoeUserById(id: string) {
       area: { select: { id: true, name: true } },
       odpAssignment: { include: { odp: true } },
       workOrders: { orderBy: { createdAt: 'desc' }, include: { technician: { select: { id: true, name: true, phoneNumber: true } } } },
+      inventoryAssets: {
+        where: { status: 'IN_USE' },
+        include: { item: true },
+      },
+      deviceHistories: {
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      },
     },
   });
 
@@ -407,7 +415,14 @@ export async function createPppoeUser(
         // Also sync to MikroTik API if routerId is set
         if (routerId) {
           try {
-            await PPPSecretService.syncSecret(user.id);
+            const syncPromise = PPPSecretService.syncSecret(user.id);
+            const timeoutPromise = new Promise<boolean>((resolve) =>
+              setTimeout(() => {
+                console.warn(`[createPppoeUser] MikroTik syncSecret timed out after 4s for ${user.username}`);
+                resolve(false);
+              }, 4000)
+            );
+            await Promise.race([syncPromise, timeoutPromise]);
           } catch (e) {
             console.error('MikroTik API secret sync error during PSB:', e);
           }
@@ -416,14 +431,25 @@ export async function createPppoeUser(
         console.error('RADIUS sync error:', syncError);
       }
     } else {
-      // Fallback to MikroTik API
-      const syncSuccess = await PPPSecretService.syncSecret(user.id);
-      if (syncSuccess) {
-        await prisma.pppoeUser.update({
-          where: { id: user.id },
-          data: { syncedToRadius: true, lastSyncAt: new Date() },
-        });
-        radiusSynced = true;
+      // Fallback to MikroTik API (guarded by 4s timeout so slow or offline router never hangs PSB)
+      try {
+        const syncPromise = PPPSecretService.syncSecret(user.id);
+        const timeoutPromise = new Promise<boolean>((resolve) =>
+          setTimeout(() => {
+            console.warn(`[createPppoeUser] MikroTik syncSecret timed out after 4s for ${user.username}`);
+            resolve(false);
+          }, 4000)
+        );
+        const syncSuccess = await Promise.race([syncPromise, timeoutPromise]);
+        if (syncSuccess) {
+          await prisma.pppoeUser.update({
+            where: { id: user.id },
+            data: { syncedToRadius: true, lastSyncAt: new Date() },
+          });
+          radiusSynced = true;
+        }
+      } catch (e) {
+        console.error('MikroTik API secret sync error during PSB:', e);
       }
     }
   } else if (noPppoeAccount && ipAddress) {
@@ -536,24 +562,30 @@ export async function createPppoeUser(
   */
 
   if (email) {
-    try {
-      const company = await prisma.company.findFirst();
-      if (company) {
-        const { EmailService } = await import('@/server/services/notifications/email.service');
-        await EmailService.sendAdminCreateUser({
-          email,
-          customerName: resolvedName,
-          username,
-          password,
-          profileName: profile.name,
-          area: areaName,
-          companyName: company.name,
-          companyPhone: company.phone || '',
-        });
+    // Non-blocking fire-and-forget email delivery with timeout guard
+    (async () => {
+      try {
+        const company = await prisma.company.findFirst();
+        if (company) {
+          const { EmailService } = await import('@/server/services/notifications/email.service');
+          await Promise.race([
+            EmailService.sendAdminCreateUser({
+              email,
+              customerName: resolvedName,
+              username,
+              password,
+              profileName: profile.name,
+              area: areaName,
+              companyName: company.name,
+              companyPhone: company.phone || '',
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Email send timeout')), 5000))
+          ]);
+        }
+      } catch (emailError) {
+        console.error('Email notification error during PSB:', emailError);
       }
-    } catch (emailError) {
-      console.error('Email notification error:', emailError);
-    }
+    })().catch(() => {});
   }
 
   // ── Inventory Asset Auto-Link / Auto-Registration ────────────────────────────
@@ -612,6 +644,27 @@ export async function createPppoeUser(
 
         if (!catalogItem) {
           catalogItem = await prisma.inventoryItem.findFirst();
+        }
+
+        // If no catalog item exists at all, auto-create a standard default ONT catalog item
+        if (!catalogItem) {
+          try {
+            catalogItem = await prisma.inventoryItem.create({
+              data: {
+                sku: 'EMG-CPE-ONT-GENERIC',
+                name: 'Modem ONT GPON Standar',
+                description: 'Katalog default auto-generated untuk modem ONT pelanggan',
+                categoryCode: 'CPE',
+                subCategory: 'ONT',
+                unit: 'pcs',
+                minimumStock: 5,
+                isSerialized: true,
+                stockQuantity: 0,
+              },
+            });
+          } catch {
+            catalogItem = await prisma.inventoryItem.findFirst();
+          }
         }
 
         if (catalogItem) {

@@ -99,12 +99,17 @@ export class MikroTikConnection {
     }
   }
 
-  // Public method to execute RouterOS commands
-  async execute(command: string, params?: string[]): Promise<any> {
+  // Public method to execute RouterOS commands with timeout safety
+  async execute(command: string, params?: string[], customTimeoutMs?: number): Promise<any> {
     if (!this.conn) {
       throw new Error('Not connected to MikroTik')
     }
-    return await this.conn.write(command, params || [])
+    const timeoutMs = customTimeoutMs || this.config.timeout || 8000;
+    const writePromise = this.conn.write(command, params || []);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`MikroTik command timed out after ${timeoutMs / 1000}s: ${command}`)), timeoutMs)
+    );
+    return await Promise.race([writePromise, timeoutPromise]);
   }
 
   async testConnection(): Promise<{ success: boolean; identity?: string; message: string }> {

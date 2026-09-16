@@ -65,6 +65,25 @@ interface PppoeUserDetail {
     odp?: { name: string; locationName?: string; portCapacity?: number };
   } | null;
   workOrders?: WorkOrder[];
+  inventoryAssets?: Array<{
+    id: string;
+    serialNumber: string;
+    macAddress: string | null;
+    vendor: string | null;
+    model: string | null;
+    status: string;
+    item?: { sku: string; name: string };
+  }>;
+  deviceHistories?: Array<{
+    id: string;
+    serialNumber: string;
+    macAddress: string | null;
+    vendor: string | null;
+    model: string | null;
+    action: string;
+    reason: string | null;
+    installedAt: string;
+  }>;
 }
 
 interface ActiveSession {
@@ -220,12 +239,13 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        addToast({ type: 'success', title: 'Modem berhasil diganti', description: data.message });
+        addToast({ type: 'success', title: 'Modem berhasil dihubungkan', description: data.message });
         setShowGantiModemModal(false);
         setGantiModemSN(''); setGantiModemReason(''); setGantiModemTech(''); setGantiModemAssetPreview(null);
         fetchDeviceHistory();
+        fetchUserDetail();
       } else {
-        addToast({ type: 'error', title: 'Gagal ganti modem', description: data.error });
+        addToast({ type: 'error', title: 'Gagal menghubungkan modem', description: data.error });
       }
     } finally { setGantiModemLoading(false); }
   };
@@ -420,14 +440,22 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
     );
   }
 
-  // Parse ODP & Hardware data from latest Work Order if available
+  // Parse ODP & Hardware data from Inventory Asset, Device History, or latest Work Order
   const latestWo = user.workOrders && user.workOrders.length > 0 ? user.workOrders[0] : null;
   const woReportData = latestWo?.reportData || {};
   const odpName = user.odpAssignment?.odp?.name || woReportData.odpName || '-';
   const odpPort = user.odpAssignment?.portNumber || woReportData.odpPort || '-';
-  const ontModel = woReportData.modemType || '-';
-  const ontSn = woReportData.sn || '-';
-  const ontMac = woReportData.mac || user.macAddress || '-';
+
+  // Check currentDevice, user.inventoryAssets, or deviceHistory
+  const activeAsset = currentDevice || (user.inventoryAssets && user.inventoryAssets.length > 0 ? user.inventoryAssets[0] : null);
+  const activeHistory = (deviceHistory && deviceHistory.length > 0 ? deviceHistory[0] : null) || (user.deviceHistories && user.deviceHistories.length > 0 ? user.deviceHistories[0] : null);
+
+  const ontSn = activeAsset?.serialNumber || activeHistory?.serialNumber || woReportData.sn || '-';
+  const ontModel = (activeAsset ? [activeAsset.vendor, activeAsset.model].filter(Boolean).join(' ') : null)
+    || (activeHistory ? [activeHistory.vendor, activeHistory.model].filter(Boolean).join(' ') : null)
+    || woReportData.modemType
+    || '-';
+  const ontMac = activeAsset?.macAddress || activeHistory?.macAddress || woReportData.mac || user.macAddress || '-';
   const rxSignal = woReportData.rxSignal || '-';
 
   return (
@@ -688,7 +716,16 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
                 <span className="font-mono font-bold text-foreground mt-1 block">{ontModel}</span>
               </div>
               <div className="p-3 bg-background border border-border rounded-xl">
-                <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Serial Number (SN ONT)</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground block">Serial Number (SN ONT)</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowGantiModemModal(true)}
+                    className="text-[10px] text-primary hover:underline font-bold"
+                  >
+                    {ontSn !== '-' ? 'Ubah' : '+ Hubungkan'}
+                  </button>
+                </div>
                 <span className="font-mono font-bold text-foreground mt-1 block">{ontSn}</span>
               </div>
               <div className="p-3 bg-background border border-border rounded-xl">

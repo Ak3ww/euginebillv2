@@ -4,6 +4,39 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.4] — 2026-09-16
+### Hardening Pasang Baru Pelanggan (PSB), Timeout Guard MikroTik/Email, & Resolusi Tampilan SN ONT
+
+- **Latar Belakang / Context**:
+  1. Pada form Pasang Baru (`/admin/pppoe/users/new`), proses penambahan pelanggan sempat terasa lambat dan berpotensi freeze/loading lama jika router MikroTik memiliki latensi tinggi, VPN terputus, atau API MikroTik tidak merespon instan.
+  2. Data Serial Number (SN ONT) dan Tipe/Model ONT yang diinput saat PSB sempat bernilai `-` pada kartu "Data Perangkat & Infrastruktur Lapangan (ONT / ODP)" di detail pelanggan, karena kartu tersebut sebelumnya hanya membaca data dari laporan SPK/Work Order (`woReportData.sn`), bukan dari `inventoryAsset` / `customerDeviceHistory` aktif pelanggan.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **MikroTik API & Email Non-Blocking Timeout Guard**:
+     - `src/server/services/mikrotik/client.ts`: Menambahkan hard timeout guard (`customTimeoutMs || 8000ms`) pada method `execute()`. Membatalkan perintah RouterOS jika tidak merespons dalam batas waktu aman (mencegah socket hang tak terbatas `timeout: 9999`).
+     - `src/server/services/mikrotik/ppp-secret.service.ts`: Memasang batas waktu koneksi dan eksekusi 4000ms pada `syncSecret()`.
+     - `src/server/services/pppoe.service.ts`: Membungkus proses sinkronisasi secret MikroTik saat pembuatan user dalam `Promise.race([syncPromise, timeout(4000)])` baik mode RADIUS maupun Local Auth. Router lambat/offline tidak akan pernah menggagalkan atau memperlambat pembuatan akun pelanggan.
+     - Email notifikasi (`EmailService.sendAdminCreateUser`) dipindahkan ke eksekusi non-blocking asynchronous IIFE dengan timeout 5000ms, sehingga kegagalan/kelambatan SMTP tidak menambah delay HTTP response.
+  2. **Resolusi Data Perangkat ONT di Detail Pelanggan (`/admin/pppoe/users/[id]`)**:
+     - `getPppoeUserById()` sekarang meng-include relasi `inventoryAssets` (status `IN_USE`) dan `deviceHistories` (terbaru).
+     - Pada kartu "Data Perangkat & Infrastruktur Lapangan (ONT / ODP)", variabel `ontSn`, `ontModel`, dan `ontMac` sekarang memprioritaskan `currentDevice` $\to$ `user.inventoryAssets[0]` $\to$ `deviceHistory[0]` $\to$ fallback `woReportData` $\to$ `-`.
+     - Menambahkan tombol interaktif `+ Hubungkan` / `Ubah` langsung di baris Serial Number ONT pada Section 3, yang langsung memicu modal pergantian/penghubungan unit modem secara realtime.
+  3. **Auto-Register ONT Universal & Safe Client Submission**:
+     - `replace-device`: Jika admin memasukkan Serial Number baru yang belum terdaftar di inventori, endpoint otomatis mendaftarkan unit tersebut ke `inventoryAsset` (auto-detect vendor ZTE/Skyworth/Realtek/FiberHome/Huawei/VSOL) tanpa memblokir proses penggantian.
+     - `createPppoeUser`: Jika katalog inventori belum memiliki record ONT, otomatis membuat katalog fallback (`EMG-CPE-ONT-GENERIC`) sehingga unit modem baru selalu berhasil tercatat di database.
+     - `NewPppoeUserPage`: Dilengkapi `AbortController` (15s) dan penanganan `res.json()` yang aman agar spinner submit selalu ter-reset dengan notifikasi jelas.
+
+- **Files**:
+  - `src/server/services/mikrotik/client.ts`
+  - `src/server/services/mikrotik/ppp-secret.service.ts`
+  - `src/server/services/pppoe.service.ts`
+  - `src/app/api/pppoe/users/route.ts`
+  - `src/app/api/pppoe/users/[id]/replace-device/route.ts`
+  - `src/app/admin/pppoe/users/new/page.tsx`
+  - `src/app/admin/pppoe/users/[id]/page.tsx`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.3] — 2026-09-16
 ### Navigasi Terpadu Document Maker (/admin/documents), Super Admin Bypass, & Dinamis SKU Generator
 

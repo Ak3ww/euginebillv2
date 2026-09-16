@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     if (err.code === 'DUPLICATE_USERNAME') return conflict(err.message!);
     if (err.code === 'NOT_FOUND') return notFound(err.message);
     console.error('Create PPPoE user error:', error);
-    return serverError();
+    return serverError(err.message || 'Gagal membuat pelanggan PPPoE');
   }
 }
 
@@ -72,7 +72,7 @@ export async function PUT(request: NextRequest) {
     if (err.code === 'NOT_FOUND') return notFound(err.message);
     if (err.code === 'DUPLICATE_USERNAME') return conflict(err.message!);
     console.error('Update PPPoE user error:', error);
-    return serverError();
+    return serverError(err.message || 'Gagal memperbarui pelanggan PPPoE');
   }
 }
 

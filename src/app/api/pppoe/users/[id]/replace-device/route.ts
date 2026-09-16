@@ -32,24 +32,88 @@ export async function POST(
       return NextResponse.json({ error: 'Pelanggan tidak ditemukan' }, { status: 404 });
     }
 
-    // 2. Find the new asset
-    let newAsset = await prisma.inventoryAsset.findUnique({
-      where: { serialNumber: cleanSN },
+    // 2. Find or auto-create the asset
+    let newAsset = await prisma.inventoryAsset.findFirst({
+      where: {
+        OR: [
+          { serialNumber: cleanSN },
+          { serialNumber: newSerialNumber.trim() },
+        ],
+      },
     });
 
     if (!newAsset) {
+      // Auto-register new modem unit if not in inventory yet
+      let catalogItem = await prisma.inventoryItem.findFirst({
+        where: {
+          OR: [
+            { sku: { contains: 'CPE-ONT' } },
+            { name: { contains: 'ONT' } },
+            { name: { contains: 'Modem' } },
+          ],
+        },
+      });
+
+      if (!catalogItem) {
+        catalogItem = await prisma.inventoryItem.findFirst();
+      }
+
+      if (!catalogItem) {
+        try {
+          catalogItem = await prisma.inventoryItem.create({
+            data: {
+              sku: 'EMG-CPE-ONT-GENERIC',
+              name: 'Modem ONT GPON Standar',
+              categoryCode: 'CPE',
+              subCategory: 'ONT',
+              unit: 'pcs',
+              isSerialized: true,
+            },
+          });
+        } catch {
+          catalogItem = await prisma.inventoryItem.findFirst();
+        }
+      }
+
+      if (catalogItem) {
+        let vendor = 'Generic';
+        let model = 'GPON ONT';
+        if (cleanSN.startsWith('ZTEG')) { vendor = 'ZTE'; model = 'ZTE F609 V3'; }
+        else if (cleanSN.startsWith('SKYW')) { vendor = 'Skyworth'; model = 'GN542VF'; }
+        else if (cleanSN.startsWith('RTEG')) { vendor = 'Realtek'; model = 'RTL8672 GPON'; }
+        else if (cleanSN.startsWith('YHTC')) { vendor = 'Yuhua'; model = 'YH-100G'; }
+        else if (cleanSN.startsWith('FHTT')) { vendor = 'FiberHome'; model = 'HG6243C'; }
+        else if (cleanSN.startsWith('HWTC')) { vendor = 'Huawei'; model = 'HG8245H'; }
+        else if (cleanSN.startsWith('AZVG')) { vendor = 'VSOL'; model = 'V2801 Series'; }
+
+        newAsset = await prisma.inventoryAsset.create({
+          data: {
+            itemId: catalogItem.id,
+            assetType: 'MODEM',
+            serialNumber: cleanSN,
+            vendor,
+            model,
+            condition: 'NEW',
+            status: 'AVAILABLE',
+            notes: `Auto-registered saat pergantian modem pelanggan ${customer.name} (${customer.username})`,
+          },
+        });
+      }
+    }
+
+    if (!newAsset) {
       return NextResponse.json({
-        error: `Modem SN ${cleanSN} tidak ditemukan di inventori. Pastikan modem sudah didaftarkan terlebih dahulu.`
-      }, { status: 404 });
+        error: `Gagal mendaftarkan modem SN ${cleanSN}. Pastikan katalog barang tersedia.`
+      }, { status: 400 });
     }
 
     if (newAsset.assetType !== 'MODEM') {
       return NextResponse.json({ error: 'Perangkat ini bukan tipe MODEM' }, { status: 400 });
     }
 
-    if (newAsset.status !== 'AVAILABLE' && newAsset.status !== 'USED_GOOD') {
+    if (newAsset.status !== 'AVAILABLE' && newAsset.status !== 'USED_GOOD' && newAsset.currentCustomerId !== customerId) {
       return NextResponse.json({
-        error: `Modem SN ${cleanSN} tidak tersedia (status: ${newAsset.status}). Pilih modem yang berstatus AVAILABLE.`
+        error: `Modem SN ${cleanSN} sedang digunakan pelanggan lain (status: ${newAsset.status}). Pilih modem yang berstatus AVAILABLE.`
       }, { status: 400 });
     }
 

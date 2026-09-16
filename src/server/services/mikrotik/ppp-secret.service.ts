@@ -24,6 +24,7 @@ export class PPPSecretService {
       password: user.router.password,
       port: apiPort,
       tls: useTls,
+      timeout: 4000,
     })
 
     try {
@@ -34,7 +35,7 @@ export class PPPSecretService {
       const isSecretEnabled = ['ACTIVE', 'PENDING_INSTALLATION'].includes(statusUpper)
 
       // Check if secret exists
-      const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`])
+      const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`], 4000)
       
       if (existing.length > 0) {
         // Update existing secret
