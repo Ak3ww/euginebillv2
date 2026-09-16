@@ -4,6 +4,40 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.8] — 2026-09-16
+### Auto-Link & Register Modem Inventori saat SPK Selesai, Self-Healing Riwayat Perangkat, dan Auto-Prefill Form SPK Teknisi (Tikor, ODP, Port, SN, MAC)
+
+- **Latar Belakang / Context**:
+  1. Pada pelanggan baru (PSB) yang telah dipasang teknisi (misal pelanggan SUPRIYADI pada SPK #J6ZB1HXN), card **Perangkat ONT** di `/admin/pppoe/users/[id]` menampilkan *"Tidak ada modem terdaftar di inventori untuk pelanggan ini"*, meskipun teknisi sudah mengisi SN ONT, MAC, tipe modem, dan redaman Rx di laporan penyelesaian SPK.
+  2. Saat teknisi membuka wizard penyelesaian SPK di portal teknisi (`/technician/work-orders/[id]`), teknisi harus mengetik ulang seluruh data pelanggan dari nol (Tikor GPS, ODP & Port, SN ONT, MAC Address, dan tipe modem) meskipun admin sudah mengisinya saat pendaftaran awal.
+  3. Input MAC Address di portal teknisi belum menggunakan format otomatis titik dua (`formatMacAddress`), sehingga rawan salah ketik (seperti segmen 3 karakter `BCA`).
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Auto-Link & Registrasi Modem saat SPK Selesai (`complete/route.ts`)**:
+     - Saat teknisi menyelesaikan SPK dengan `reportData.sn` dan `reportData.mac`, sistem otomatis mencari unit modem di tabel `inventoryAsset`.
+     - Jika unit sudah ada di inventori: update `status = 'IN_USE'`, tautkan `currentCustomerId = targetUserId`, simpan `macAddress`, dan set `installedAt`.
+     - Jika unit belum ada di inventori: auto-generate katalog `EMG-CPE-ONT-GENERIC` (jika belum ada) dan buat record unit `inventoryAsset` baru dengan vendor/model yang dideteksi dari prefix SN atau input teknisi.
+     - Otomatis mencatat riwayat pemasangan ke `customerDeviceHistory` (`action: 'INSTALLED'`, `reason: 'Pemasangan via SPK #${wo.id}'`) dan memperbarui `pppoeUser.macAddress`.
+  2. **Self-Healing Riwayat Perangkat (`device-history/route.ts`)**:
+     - Jika endpoint `/api/pppoe/users/[id]/device-history` menemukan bahwa pelanggan belum memiliki `currentAsset` yang tertaut, sistem secara cerdas membaca riwayat SPK pelanggan yang berstatus `COMPLETED` dan mencari kandidat SN/MAC.
+     - Jika ditemukan, sistem secara otomatis menautkan unit inventori dan mencatat riwayat perangkat seketika tanpa perlu tindakan manual dari admin (menyembuhkan data historis seperti pelanggan SUPRIYADI).
+  3. **Auto-Prefill Lengkap di Wizard SPK Teknisi (`work-orders/[id]/page.tsx` & API `work-orders/[id]/route.ts`)**:
+     - Query backend diperluas untuk menyertakan `latitude`, `longitude`, `address`, `macAddress`, `odpAssignment` (nama ODP, port, koordinat), dan `inventoryAssets`/`deviceHistories`.
+     - Di frontend portal teknisi:
+       - **Tikor GPS Rumah**: Terkunci otomatis jika pelanggan sudah memiliki koordinat dari admin, dilengkapi badge hijau informatif (*"Tikor telah diset oleh Admin"*).
+       - **ODP & Port**: Terisi dan terpilih otomatis di Step 2 jika sudah di-assign oleh admin, dengan badge hijau (*"ODP & Port telah diset oleh Admin"*).
+       - **SN ONT, MAC Address & Tipe Modem**: Terisi otomatis di Step 3 jika sudah diisi admin.
+       - Terapkan utility `formatMacAddress` realtime dan `maxLength={17}` pada input MAC address teknisi agar format selalu rapi dan valid (`XX:XX:XX:XX:XX:XX`).
+  4. **Peningkatan Tampilan Fallback Perangkat ONT Admin (`users/[id]/page.tsx`)**:
+     - Pada card Section 5A (Perangkat ONT), jika data `currentDevice` belum tertaut tetapi `ontSn` dari SPK tersedia, sistem menampilkan rincian perangkat lapangan secara rapi dengan badge *"Terdata dari Laporan Lapangan / SPK"*, dan badge SN di header card selalu tampil.
+
+- **Files**:
+  - `src/app/api/technician/work-orders/[id]/complete/route.ts`
+  - `src/app/api/pppoe/users/[id]/device-history/route.ts`
+  - `src/app/api/technician/work-orders/[id]/route.ts`
+  - `src/app/technician/(portal)/work-orders/[id]/page.tsx`
+  - `src/app/admin/pppoe/users/[id]/page.tsx`
+
 ## [2.40.7] — 2026-09-16
 ### Perbaikan Tagihan Pertama PSB (Auto-Create Int Amount), Prorata pada Generate Tagihan Manual, Fallback SPK Complete, dan Proteksi Pesan Penangguhan (Suspension Warning Guard)
 

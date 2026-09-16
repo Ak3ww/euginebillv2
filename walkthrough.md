@@ -82,7 +82,25 @@ Pembaruan besar ini menyelesaikan masalah operasional di mana SPK teknisi sempat
 
 ---
 
-## 3. Hasil Verifikasi & Kompilasi
+## 3. Auto-Link Modem Inventori & Auto-Prefill SPK Teknisi (v2.40.8)
+
+### A. Auto-Link & Registrasi Modem ONT saat SPK Selesai (`complete/route.ts`)
+- **Masalah**: Pada saat teknisi klik "Selesai" di SPK, detail SN ONT dan MAC disimpan hanya di JSON `workOrder.reportData`. Unit belum dikaitkan ke tabel `inventoryAsset` (`currentCustomerId`) dan belum dicatat ke `customerDeviceHistory`, sehingga card "Perangkat ONT" di halaman pelanggan menampilkan "Tidak ada modem terdaftar di inventori".
+- **Solusi**: Handler `complete/route.ts` otomatis mencari unit di `inventoryAsset`. Jika belum ada, katalog default `EMG-CPE-ONT-GENERIC` dan unit baru auto-create (`status = 'IN_USE'`), `currentCustomerId` ditautkan ke pelanggan, `pppoeUser.macAddress` di-update, dan riwayat `INSTALLED` dicatat ke `customerDeviceHistory`.
+
+### B. Self-Healing Riwayat Perangkat Pelanggan (`device-history/route.ts`)
+- Jika endpoint `/api/pppoe/users/[id]/device-history` menemukan bahwa modem aktif belum tertaut, sistem secara otomatis membaca data SPK berstatus `COMPLETED` milik pelanggan dan langsung meregister/menautkan modem ke inventori secara instan saat halaman dibuka oleh admin (menyembuhkan data historis seperti pelanggan SUPRIYADI).
+
+### C. Auto-Prefill Form SPK Teknisi (`work-orders/[id]/page.tsx` & API `work-orders/[id]/route.ts`)
+- **Data Pelanggan Lengkap**: Endpoint backend menyertakan `latitude`, `longitude`, `odpAssignment`, `macAddress`, dan `inventoryAssets`/`deviceHistories`.
+- **Tikor GPS Rumah**: Otomatis terkunci (*locked*) jika sudah diset admin, dengan badge hijau informatif.
+- **ODP & Port**: Otomatis terisi dan terpilih di Step 2 jika sudah di-assign admin, dengan badge hijau informatif.
+- **SN ONT & MAC & Tipe ONT**: Otomatis terisi di Step 3 jika sudah diset admin.
+- **Auto-Formatting MAC**: Input MAC address teknisi menggunakan utility `formatMacAddress` dengan `maxLength={17}` sehingga otomatis kapital dan bertitik dua (`XX:XX:XX:XX:XX:XX`), mencegah salah ketik.
+
+---
+
+## 4. Hasil Verifikasi & Kompilasi
 
 - **TypeScript Typecheck**:
   ```bash
@@ -92,7 +110,7 @@ Pembaruan besar ini menyelesaikan masalah operasional di mana SPK teknisi sempat
 
 ---
 
-## 4. Panduan Eksekusi di Production VPS
+## 5. Panduan Eksekusi di Production VPS
 
 Jalankan perintah berikut di VPS (`/var/www/EugineBill-radius`):
 
@@ -100,8 +118,15 @@ Jalankan perintah berikut di VPS (`/var/www/EugineBill-radius`):
 cd /var/www/EugineBill-radius
 git pull origin main
 
-# Build aplikasi
+# 1. Jalankan migrasi database (jika belum dijalankan saat Addendum 1)
+mysql -u euginebill -p euginebill < prisma/migrations/20260916_unify_inventory_stock_field_and_kits.sql
+npx prisma generate
+
+# 2. Build aplikasi & restart PM2
 npm run build
 pm2 restart EugineBill-radius
+
+# 3. Seed data dropcore, 25 roll kabel, dan Kit PSB default (1-klik):
+curl -X POST http://localhost:3000/api/admin/inventory/seed-defaults
 ```
 

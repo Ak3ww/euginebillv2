@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.7
+- **Version**: 2.40.8
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,27 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.8: Auto-Link Modem Inventori saat SPK Selesai, Self-Healing Device History, & Auto-Prefill SPK Teknisi)
+
+- **Architectural Invariant: Automatic Modem Linking & Inventory Auto-Registration on SPK Completion (`complete/route.ts`)**:
+  - Saat teknisi menyelesaikan SPK dengan `reportData.sn` dan `reportData.mac`, sistem WAJIB mencari unit di `inventoryAsset`.
+  - Jika sudah ada: update `status = 'IN_USE'`, `currentCustomerId = targetUserId`, `macAddress = reportData.mac`.
+  - Jika belum ada: auto-create katalog `EMG-CPE-ONT-GENERIC` dan buat `inventoryAsset` baru (`status = 'IN_USE'`, `currentCustomerId = targetUserId`).
+  - Sistem WAJIB mencatat riwayat pemasangan ke `customerDeviceHistory` (`action: 'INSTALLED'`) dan meng-update `pppoeUser.macAddress`.
+  - Hal ini menjamin bahwa seluruh modem yang dipasang teknisi di lapangan selalu otomatis terdata di modul inventori tanpa ada modem tak bertuan atau missing.
+
+- **Architectural Invariant: Self-Healing Device History (`/api/pppoe/users/[id]/device-history`)**:
+  - Jika endpoint riwayat perangkat mendapati pelanggan belum memiliki `currentAsset` yang tertaut di inventori, sistem memeriksa apakah ada SPK berstatus `COMPLETED` dengan data SN modem.
+  - Jika ditemukan, sistem melakukan auto-link/auto-create seketika, menyembuhkan data historis secara otomatis saat halaman detail pelanggan dibuka oleh admin.
+
+- **Architectural Invariant: Complete Customer Data Forwarding & Auto-Prefill for Field Technicians**:
+  - Endpoint `GET /api/technician/work-orders/[id]` WAJIB menyertakan data lengkap pelanggan: `latitude`, `longitude`, `address`, `macAddress`, `odpAssignment` (nama, port, koordinat ODP), serta `inventoryAssets` dan `deviceHistories`.
+  - Portal wizard teknisi (`work-orders/[id]/page.tsx`) WAJIB melakukan auto-prefill dari data admin:
+    1. Tikor GPS Rumah terkunci otomatis jika sudah ada di database pelanggan.
+    2. ODP & Port terisi dan terpilih otomatis jika sudah di-assign.
+    3. SN ONT, MAC Address, dan Tipe ONT terisi otomatis di Step 3.
+  - Input MAC Address teknisi WAJIB divalidasi dengan `formatMacAddress` (`maxLength={17}`) untuk mencegah typo format atau segmen 3 digit.
 
 ### Recent Patch Log (September 16, 2026 — v2.40.7: Fix First Invoice Auto-Creation, Prorate Calculation on PSB & Manual Generation, and Prevent False Suspension Warnings)
 

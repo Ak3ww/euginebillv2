@@ -12,6 +12,7 @@ import {
 import { cn, compressImage } from '@/lib/utils';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { calculateTechnicianScore, PerformanceRating, EUGINEBILL_HQ } from '@/lib/geo-utils';
+import { formatMacAddress } from '@/lib/mac-format';
 
 export const dynamic = 'force-dynamic';
 
@@ -457,6 +458,11 @@ export default function TechnicianWorkOrderWizardPage() {
   const customerGps = useAccurateGps();
   const [lockedOdpGps, setLockedOdpGps] = useState<{ lat: number; lng: number } | null>(null);
   const [lockedCustomerGps, setLockedCustomerGps] = useState<{ lat: number; lng: number } | null>(null);
+  const [hasAdminPrefills, setHasAdminPrefills] = useState<{ gps: boolean; odp: boolean; modem: boolean }>({
+    gps: false,
+    odp: false,
+    modem: false,
+  });
 
   // Photos
   const [photos, setPhotos] = useState<Record<string, string>>({});
@@ -518,6 +524,34 @@ export default function TechnicianWorkOrderWizardPage() {
         const woData = data.workOrder;
         setWo(woData);
 
+        const customer = woData?.customer;
+        const odpAssign = customer?.odpAssignment;
+        const activeModem = customer?.inventoryAssets?.[0];
+        const latestHistory = customer?.deviceHistories?.[0];
+
+        // Derived defaults from Admin / Customer data
+        const adminCustomerGps = (customer?.latitude && customer?.longitude)
+          ? { lat: Number(customer.latitude), lng: Number(customer.longitude) }
+          : null;
+
+        const adminOdpName = odpAssign?.odp?.name || '';
+        const adminPortNumber = odpAssign?.portNumber || null;
+        const adminOdpGps = (odpAssign?.odp?.latitude && odpAssign?.odp?.longitude)
+          ? { lat: Number(odpAssign.odp.latitude), lng: Number(odpAssign.odp.longitude) }
+          : null;
+
+        const adminSn = activeModem?.serialNumber || latestHistory?.serialNumber || '';
+        const adminMac = activeModem?.macAddress || latestHistory?.macAddress || customer?.macAddress || '';
+        const adminModemType = [activeModem?.vendor, activeModem?.model].filter(Boolean).join(' ')
+          || [latestHistory?.vendor, latestHistory?.model].filter(Boolean).join(' ')
+          || '';
+
+        setHasAdminPrefills({
+          gps: !!adminCustomerGps,
+          odp: !!(adminOdpName && adminPortNumber),
+          modem: !!(adminSn || adminMac),
+        });
+
         let serverDraft: any = null;
         try {
           const dr = await fetch(`/api/technician/work-orders/${params.id}/draft`);
@@ -540,14 +574,42 @@ export default function TechnicianWorkOrderWizardPage() {
           if (draft.checklist) setChecklist(draft.checklist);
           if (draft.dismantleChecklist) setDismantleChecklist(draft.dismantleChecklist);
           if (draft.deviceCondition) setDeviceCondition(draft.deviceCondition);
-          if (draft.reportData) setReportData(prev => ({ ...prev, ...draft.reportData }));
+          if (draft.reportData) {
+            setReportData(prev => ({
+              ...prev,
+              ...draft.reportData,
+              odpName: draft.reportData.odpName || adminOdpName || prev.odpName,
+              portNumber: draft.reportData.portNumber || adminPortNumber || prev.portNumber,
+              odpLat: draft.reportData.odpLat || (adminOdpGps ? String(adminOdpGps.lat) : '') || prev.odpLat,
+              odpLng: draft.reportData.odpLng || (adminOdpGps ? String(adminOdpGps.lng) : '') || prev.odpLng,
+              sn: draft.reportData.sn || adminSn || prev.sn,
+              mac: draft.reportData.mac || adminMac || prev.mac,
+              modemType: draft.reportData.modemType || adminModemType || prev.modemType,
+            }));
+          }
           if (draft.photos) setPhotos(draft.photos);
           if (draft.lockedOdpGps) setLockedOdpGps(draft.lockedOdpGps);
+          else if (adminOdpGps) setLockedOdpGps(adminOdpGps);
+
           if (draft.lockedCustomerGps) setLockedCustomerGps(draft.lockedCustomerGps);
+          else if (adminCustomerGps) setLockedCustomerGps(adminCustomerGps);
+
           if (draft.startTimeMs) setStartTimeMs(draft.startTimeMs);
         } else {
-          if (woData.reportData) setReportData(prev => ({ ...prev, ...woData.reportData }));
-          if (woData.customer?.latitude) setLockedCustomerGps({ lat: woData.customer.latitude, lng: woData.customer.longitude });
+          setReportData(prev => ({
+            ...prev,
+            ...(woData?.reportData || {}),
+            odpName: woData?.reportData?.odpName || adminOdpName || prev.odpName,
+            portNumber: woData?.reportData?.portNumber || adminPortNumber || prev.portNumber,
+            odpLat: woData?.reportData?.odpLat || (adminOdpGps ? String(adminOdpGps.lat) : '') || prev.odpLat,
+            odpLng: woData?.reportData?.odpLng || (adminOdpGps ? String(adminOdpGps.lng) : '') || prev.odpLng,
+            sn: woData?.reportData?.sn || adminSn || prev.sn,
+            mac: woData?.reportData?.mac || adminMac || prev.mac,
+            modemType: woData?.reportData?.modemType || adminModemType || prev.modemType,
+          }));
+
+          if (adminOdpGps) setLockedOdpGps(adminOdpGps);
+          if (adminCustomerGps) setLockedCustomerGps(adminCustomerGps);
         }
       } catch (e) {
         console.error(e);
@@ -1151,6 +1213,16 @@ export default function TechnicianWorkOrderWizardPage() {
             </h2>
           </div>
 
+          {hasAdminPrefills.odp && (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-2.5 text-xs text-emerald-600 font-bold">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+              <div>
+                <span>ODP &amp; Port telah diset oleh Admin: <strong>{reportData.odpName}</strong> (Port {reportData.portNumber || '-'}).</span>
+                <span className="block text-[11px] font-normal text-muted-foreground mt-0.5">Data terisi otomatis — teknisi dapat langsung melanjutkan atau menyesuaikan bila ada perubahan fisik di tiang.</span>
+              </div>
+            </div>
+          )}
+
           <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -1345,9 +1417,24 @@ export default function TechnicianWorkOrderWizardPage() {
                 Terkunci — Lat: {lockedCustomerGps.lat.toFixed(6)}, Lng: {lockedCustomerGps.lng.toFixed(6)}
               </div>
             )}
+            {hasAdminPrefills.gps && (
+              <div className="p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center gap-1.5 text-[11px] text-emerald-600 font-bold">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Titik Koordinat (Tikor) telah ditentukan oleh Admin. Terkunci otomatis (dapat disesuaikan jika perlu).</span>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-xs">
+            {(hasAdminPrefills.modem || reportData.sn) && (
+              <div className="col-span-2 p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-2 text-xs text-emerald-600 font-bold">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <div>
+                  <span>Data ONT (SN / MAC / Type) terisi otomatis dari Admin.</span>
+                  <span className="block text-[11px] font-normal text-muted-foreground mt-0.5">Cukup periksa / sesuaikan bila mengganti unit modem fisik di lapangan.</span>
+                </div>
+              </div>
+            )}
             <div>
               <label className="block font-bold text-foreground mb-1">Type ONT *</label>
               <input type="text" placeholder="ZTE F679D / Huawei HG8145" value={reportData.modemType} onChange={e => setReportData(p => ({...p, modemType: e.target.value}))}
@@ -1360,8 +1447,10 @@ export default function TechnicianWorkOrderWizardPage() {
             </div>
             <div>
               <label className="block font-bold text-foreground mb-1">MAC Address</label>
-              <input type="text" placeholder="68-2A-DD-29-85-A5" value={reportData.mac} onChange={e => setReportData(p => ({...p, mac: e.target.value}))}
-                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono" />
+              <input type="text" placeholder="AA:BB:CC:DD:EE:FF" value={reportData.mac}
+                onChange={e => setReportData(p => ({...p, mac: formatMacAddress(e.target.value, p.mac)}))}
+                maxLength={17}
+                className="w-full p-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary outline-none font-mono uppercase" />
             </div>
             <div>
               <label className="block font-bold text-foreground mb-1">RX Signal (dBm) *</label>

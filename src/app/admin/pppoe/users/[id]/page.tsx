@@ -815,9 +815,9 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
           <div className="flex items-center gap-2.5">
             <Laptop className="w-5 h-5 text-primary" />
             <h2 className="text-base font-bold text-foreground">Perangkat ONT</h2>
-            {currentDevice && (
+            {(currentDevice || (ontSn && ontSn !== '-')) && (
               <span className="ml-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-full font-mono text-[10px] font-bold">
-                {currentDevice.serialNumber}
+                {currentDevice ? currentDevice.serialNumber : ontSn}
               </span>
             )}
           </div>
@@ -835,6 +835,15 @@ export default function PppoeUserDetailPage({ params }: { params: Promise<{ id: 
                     {currentDevice.macAddress && <p><span className="text-muted-foreground">MAC:</span> <span className="font-mono">{currentDevice.macAddress}</span></p>}
                     {currentDevice.vendor && <p><span className="text-muted-foreground">Vendor/Model:</span> {currentDevice.vendor} {currentDevice.model}</p>}
                     {currentDevice.item && <p><span className="text-muted-foreground">SKU:</span> <span className="font-mono text-muted-foreground">{currentDevice.item.sku}</span></p>}
+                  </div>
+                ) : (ontSn && ontSn !== '-') ? (
+                  <div className="space-y-1 text-xs">
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 rounded-md font-bold text-[10px] mb-1">
+                      <CheckCircle2 className="w-3 h-3" /> Terdata dari Laporan Lapangan / SPK
+                    </div>
+                    <p><span className="text-muted-foreground">SN:</span> <span className="font-mono font-bold text-foreground">{ontSn}</span></p>
+                    {ontMac && ontMac !== '-' && <p><span className="text-muted-foreground">MAC:</span> <span className="font-mono">{ontMac}</span></p>}
+                    {ontModel && ontModel !== '-' && <p><span className="text-muted-foreground">Model:</span> {ontModel}</p>}
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground italic">Tidak ada modem terdaftar di inventori untuk pelanggan ini.</p>

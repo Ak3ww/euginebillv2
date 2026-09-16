@@ -218,6 +218,145 @@ export async function POST(
           console.error('[WorkOrder Complete] Failed to sync secret to MikroTik:', syncErr);
         });
 
+        // ── Auto-Link & Register Modem ONT to Inventory Asset & Device History ──
+        try {
+          const rawSn = reportData?.sn ? String(reportData.sn).trim() : '';
+          const rawMac = reportData?.mac ? String(reportData.mac).trim() : '';
+
+          // Update user MAC Address if provided
+          if (rawMac) {
+            await prisma.pppoeUser.update({
+              where: { id: targetUserId },
+              data: { macAddress: rawMac },
+            }).catch(() => {});
+          }
+
+          if (rawSn) {
+            const upperSn = rawSn.toUpperCase();
+            const existingAsset = await prisma.inventoryAsset.findFirst({
+              where: {
+                OR: [
+                  { serialNumber: upperSn },
+                  { serialNumber: rawSn },
+                  ...(rawMac ? [{ macAddress: rawMac.toUpperCase() }] : []),
+                ],
+              },
+            });
+
+            const techName = (session?.user as any)?.name || 'Teknisi Lapangan';
+
+            if (existingAsset) {
+              await prisma.inventoryAsset.update({
+                where: { id: existingAsset.id },
+                data: {
+                  status: 'IN_USE',
+                  currentCustomerId: targetUserId,
+                  macAddress: rawMac ? rawMac.toUpperCase() : existingAsset.macAddress,
+                  installedAt: new Date(),
+                },
+              });
+
+              await prisma.customerDeviceHistory.create({
+                data: {
+                  customerId: targetUserId,
+                  assetId: existingAsset.id,
+                  serialNumber: existingAsset.serialNumber,
+                  vendor: existingAsset.vendor,
+                  model: existingAsset.model,
+                  macAddress: rawMac ? rawMac.toUpperCase() : existingAsset.macAddress,
+                  action: 'INSTALLED',
+                  reason: `Pemasangan via SPK #${wo.id}`,
+                  workOrderId: wo.id,
+                  installedAt: new Date(),
+                  technicianName: techName,
+                },
+              }).catch(() => {});
+              console.log(`[WorkOrder Complete] Linked existing asset ${existingAsset.serialNumber} to user ${targetUserId}`);
+            } else {
+              // Auto-create catalog item & new inventory asset
+              let catalogItem = await prisma.inventoryItem.findFirst({
+                where: {
+                  OR: [
+                    { sku: { contains: 'CPE-ONT' } },
+                    { name: { contains: 'ONT' } },
+                    { name: { contains: 'Modem' } },
+                  ],
+                },
+              });
+
+              if (!catalogItem) {
+                catalogItem = await prisma.inventoryItem.findFirst();
+              }
+
+              if (!catalogItem) {
+                try {
+                  catalogItem = await prisma.inventoryItem.create({
+                    data: {
+                      sku: 'EMG-CPE-ONT-GENERIC',
+                      name: 'Modem ONT GPON Standar',
+                      description: 'Katalog default auto-generated untuk modem ONT pelanggan',
+                      categoryCode: 'CPE',
+                      subCategory: 'ONT',
+                      unit: 'pcs',
+                      minimumStock: 5,
+                      isSerialized: true,
+                    },
+                  });
+                } catch {
+                  catalogItem = await prisma.inventoryItem.findFirst();
+                }
+              }
+
+              let vendor = 'Generic';
+              let model = reportData?.modemType ? String(reportData.modemType).trim() : 'GPON ONT';
+              if (upperSn.startsWith('ZTEG')) { vendor = 'ZTE'; if (!reportData?.modemType) model = 'ZTE F609 V3'; }
+              else if (upperSn.startsWith('SKYW')) { vendor = 'Skyworth'; if (!reportData?.modemType) model = 'GN542VF'; }
+              else if (upperSn.startsWith('RTEG')) { vendor = 'Realtek'; if (!reportData?.modemType) model = 'RTL8672 GPON'; }
+              else if (upperSn.startsWith('YHTC')) { vendor = 'Yuhua'; if (!reportData?.modemType) model = 'YH-100G'; }
+              else if (upperSn.startsWith('FHTT')) { vendor = 'FiberHome'; if (!reportData?.modemType) model = 'HG6243C'; }
+              else if (upperSn.startsWith('HWTC')) { vendor = 'Huawei'; if (!reportData?.modemType) model = 'HG8245H'; }
+              else if (upperSn.startsWith('AZVG')) { vendor = 'VSOL'; if (!reportData?.modemType) model = 'V2801 Series'; }
+
+              if (catalogItem) {
+                const newAsset = await prisma.inventoryAsset.create({
+                  data: {
+                    itemId: catalogItem.id,
+                    assetType: 'MODEM',
+                    serialNumber: upperSn,
+                    macAddress: rawMac ? rawMac.toUpperCase() : null,
+                    vendor,
+                    model,
+                    condition: 'NEW',
+                    status: 'IN_USE',
+                    currentCustomerId: targetUserId,
+                    installedAt: new Date(),
+                    notes: `Auto-registered via SPK #${wo.id} (${wo.issueType})`,
+                  },
+                });
+
+                await prisma.customerDeviceHistory.create({
+                  data: {
+                    customerId: targetUserId,
+                    assetId: newAsset.id,
+                    serialNumber: upperSn,
+                    vendor,
+                    model,
+                    macAddress: rawMac ? rawMac.toUpperCase() : null,
+                    action: 'INSTALLED',
+                    reason: `Pemasangan via SPK #${wo.id}`,
+                    workOrderId: wo.id,
+                    installedAt: new Date(),
+                    technicianName: techName,
+                  },
+                }).catch(() => {});
+                console.log(`[WorkOrder Complete] Auto-created new asset ${upperSn} for user ${targetUserId}`);
+              }
+            }
+          }
+        } catch (deviceSyncErr) {
+          console.error('[WorkOrder Complete] Failed to auto-link modem to inventoryAsset:', deviceSyncErr);
+        }
+
         console.log(`[WorkOrder Complete] Successfully activated pppoeUser ${targetUserId} to ACTIVE`);
       } catch (userActivateErr) {
         console.error('[WorkOrder Complete] Failed to activate pppoeUser:', userActivateErr);
