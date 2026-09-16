@@ -14,7 +14,9 @@ import {
   ChevronRight,
   X,
   AlertCircle,
+  Upload,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -598,6 +600,30 @@ export default function InventoryAssetsPage() {
   const [detailAsset, setDetailAsset] = useState<InventoryAsset | null>(null);
   const [editAsset, setEditAsset] = useState<InventoryAsset | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const handleImportInitialModems = async () => {
+    if (!confirm('Impor 360 data ONT awal pelanggan ke sistem inventori? Data akan langsung dicocokkan dengan akun pelanggan PPPoE yang ada di sistem.')) {
+      return;
+    }
+    setImporting(true);
+    try {
+      const res = await fetch('/api/admin/inventory/import-initial-modems', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        fetchAssets(1);
+      } else {
+        alert(data.error || 'Gagal mengimpor data awal ONT');
+      }
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    } finally {
+      setImporting(false);
+    }
+  };
 
   // ── Fetch assets ───────────────────────────────────────────────────────────
   const fetchAssets = useCallback(
@@ -657,18 +683,69 @@ export default function InventoryAssetsPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Top Module Navigation */}
+      <div className="flex items-center gap-2 border-b border-border pb-3 overflow-x-auto text-xs font-medium">
+        <Link
+          href="/admin/inventory/items"
+          className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        >
+          Katalog Master Barang
+        </Link>
+        <Link
+          href="/admin/inventory/assets"
+          className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary font-semibold border border-primary/20 transition-colors"
+        >
+          Unit Aset & Roll Kabel (Tracking SN/Pelanggan)
+        </Link>
+        <Link
+          href="/admin/inventory/movements"
+          className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        >
+          Riwayat Masuk/Keluar
+        </Link>
+        <Link
+          href="/admin/inventory/categories"
+          className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        >
+          Kategori
+        </Link>
+        <Link
+          href="/admin/inventory/suppliers"
+          className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        >
+          Supplier
+        </Link>
+      </div>
+
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Unit Aset</h1>
+          <h1 className="text-xl font-semibold text-foreground">Unit Aset & Roll Kabel</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Manajemen unit perangkat dan material serialized
+            Tracking individual unit ONT modem per Serial Number dan sisa meteran kabel dropcore
           </p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} size="sm">
-          <Plus className="w-4 h-4 mr-1.5" />
-          Tambah Aset
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleImportInitialModems}
+            disabled={importing}
+            className="border-primary/40 text-primary hover:bg-primary/10"
+            title="Impor 360 data ONT awal pelanggan dan tautkan ke PPPoE"
+          >
+            {importing ? (
+              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+            ) : (
+              <Upload className="w-4 h-4 mr-1.5" />
+            )}
+            Import 360 ONT Awal
+          </Button>
+          <Button onClick={() => setShowAddModal(true)} size="sm">
+            <Plus className="w-4 h-4 mr-1.5" />
+            Tambah Aset
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}

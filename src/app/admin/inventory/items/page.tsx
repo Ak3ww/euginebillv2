@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
@@ -16,7 +16,9 @@ import {
   TrendingDown,
   TrendingUp,
   RefreshCcw,
+  Sparkles,
 } from 'lucide-react';
+import Link from 'next/link';
 import {
   SimpleModal,
   ModalHeader,
@@ -254,6 +256,40 @@ export default function InventoryItemsPage() {
         <div className="hidden dark:block absolute inset-0 bg-[linear-gradient(rgba(188,19,254,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(188,19,254,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
       </div>
       <div className="relative z-10 space-y-6">
+        {/* Top Module Navigation */}
+        <div className="flex items-center gap-2 border-b border-border pb-3 overflow-x-auto text-xs font-medium">
+          <Link
+            href="/admin/inventory/items"
+            className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary font-semibold border border-primary/20 transition-colors"
+          >
+            Katalog Master Barang
+          </Link>
+          <Link
+            href="/admin/inventory/assets"
+            className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            Unit Aset & Roll Kabel (Tracking SN/Pelanggan)
+          </Link>
+          <Link
+            href="/admin/inventory/movements"
+            className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            Riwayat Masuk/Keluar
+          </Link>
+          <Link
+            href="/admin/inventory/categories"
+            className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            Kategori
+          </Link>
+          <Link
+            href="/admin/inventory/suppliers"
+            className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            Supplier
+          </Link>
+        </div>
+
         <div className="space-y-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#00f7ff] dark:via-white dark:to-[#ff44cc] dark:drop-shadow-[0_0_30px_rgba(0,247,255,0.5)] flex items-center gap-2">
@@ -571,8 +607,44 @@ export default function InventoryItemsPage() {
               <ModalBody>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <ModalLabel required>{t('inventory.sku')}</ModalLabel>
-                    <ModalInput type="text" value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} className="font-mono" required />
+                    <div className="flex items-center justify-between mb-1">
+                      <ModalLabel required>{t('inventory.sku')}</ModalLabel>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const selectedCat = categories.find((c) => c.id === formData.categoryId);
+                          let catCode = 'GEN';
+                          if (selectedCat) {
+                            const match = selectedCat.name.match(/\(([A-Z]{2,4})\)/);
+                            if (match) catCode = match[1];
+                            else catCode = selectedCat.name.slice(0, 3).toUpperCase();
+                          }
+                          const namePart = (formData.name || 'BARANG')
+                            .toUpperCase()
+                            .replace(/[^A-Z0-9]/g, '-')
+                            .replace(/-+/g, '-')
+                            .slice(0, 18)
+                            .replace(/^-|-$/g, '');
+                          setFormData((prev) => ({ ...prev, sku: `EMG-${catCode}-${namePart}` }));
+                        }}
+                        className="text-[10px] text-primary hover:underline flex items-center gap-1 font-semibold"
+                        title="Generate SKU format EMG-[KATEGORI]-[NAMA]"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        Auto-Generate SKU
+                      </button>
+                    </div>
+                    <ModalInput
+                      type="text"
+                      value={formData.sku}
+                      onChange={(e) => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
+                      placeholder="EMG-CPE-ONT-ZTE-F609V3"
+                      className="font-mono text-xs"
+                      required
+                    />
+                    <p className="text-[9px] text-muted-foreground mt-0.5">
+                      Format: EMG-[KATEGORI]-[SUB]-[VARIAN] (misal: EMG-CPE-ONT-ZTE-F609)
+                    </p>
                   </div>
                   <div>
                     <ModalLabel required>{t('inventory.itemName')}</ModalLabel>

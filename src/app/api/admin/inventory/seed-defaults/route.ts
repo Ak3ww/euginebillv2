@@ -39,6 +39,20 @@ const DEFAULT_NUMBERING_RULES = [
   },
 ];
 
+// ─── Default Inventory Categories ─────────────────────────────────────────────
+const DEFAULT_CATEGORIES = [
+  { code: 'HW', name: 'Hardware Utama (HW)', description: 'Router, Switch, OLT, Server' },
+  { code: 'CPE', name: 'Customer Equipment (CPE)', description: 'Modem ONT, STB, Access Point' },
+  { code: 'PAS', name: 'Perangkat Pasif (PAS)', description: 'ODP, ODC, Closure, Splitter PLC/FBT' },
+  { code: 'CAB', name: 'Kabel & Dropcore (CAB)', description: 'Kabel Precon, Dropwire, Patchcord, UTP' },
+  { code: 'CON', name: 'Konektor & Aksesoris (CON)', description: 'Fast Connector, Adapter SC, Klem, Isolasi, HVS' },
+  { code: 'PWR', name: 'Power & Adaptor (PWR)', description: 'Adaptor 12V, Mini UPS, POE Injector' },
+  { code: 'TLS', name: 'Alat & Perkakas (TLS)', description: 'Fusion Splicer, Cleaver, Stripper, OPM, VFL' },
+  { code: 'ACC', name: 'Aksesori Material (ACC)', description: 'Fishbone, Bracket ODP, Spiral, Kabel Tis' },
+  { code: 'MKT', name: 'Materi Marketing (MKT)', description: 'Brosur PSB, Spanduk, Stiker ODP' },
+  { code: 'SUP', name: 'Supplies Kantor (SUP)', description: 'Kertas HVS, Amplop, Kwitansi, ATK' },
+];
+
 // ─── Inventory Item Master Catalog ─────────────────────────────────────────────
 const DEFAULT_INVENTORY_ITEMS = [
   // ONT (CPE/ONT) — serialized
@@ -105,9 +119,28 @@ export async function POST(req: NextRequest) {
       rulesSeeded++;
     }
 
-    // ── 2. Seed inventory item master catalog ────────────────────────────────
+    // ── 2. Seed inventory categories ─────────────────────────────────────────
+    const categoryMap: Record<string, string> = {};
+    let categoriesSeeded = 0;
+    for (const cat of DEFAULT_CATEGORIES) {
+      const record = await prisma.inventoryCategory.upsert({
+        where: { name: cat.name },
+        create: {
+          name: cat.name,
+          description: cat.description,
+        },
+        update: {
+          description: cat.description,
+        },
+      });
+      categoryMap[cat.code] = record.id;
+      categoriesSeeded++;
+    }
+
+    // ── 3. Seed inventory item master catalog ────────────────────────────────
     let itemsSeeded = 0;
     for (const item of DEFAULT_INVENTORY_ITEMS) {
+      const categoryId = categoryMap[item.categoryCode] || null;
       await prisma.inventoryItem.upsert({
         where: { sku: item.sku },
         create: {
@@ -115,18 +148,24 @@ export async function POST(req: NextRequest) {
           name: item.name,
           categoryCode: item.categoryCode,
           subCategory: item.subCategory,
+          categoryId,
           unit: item.unit,
           isSerialized: item.isSerialized,
           stockQuantity: item.isSerialized ? null : (item.stockQuantity ?? 0),
           currentStock: 0,
           isActive: true,
         },
-        update: {},
+        update: {
+          name: item.name,
+          categoryCode: item.categoryCode,
+          subCategory: item.subCategory,
+          ...(categoryId ? { categoryId } : {}),
+        },
       });
       itemsSeeded++;
     }
 
-    // ── 3. Seed permissions & WAREHOUSE role template ──────────────────────
+    // ── 4. Seed permissions & WAREHOUSE role template ──────────────────────
     try {
       const { seedPermissions } = await import('@/../prisma/seeds/permissions');
       await seedPermissions();
@@ -139,6 +178,7 @@ export async function POST(req: NextRequest) {
       message: 'Default data seeded successfully',
       seeded: {
         numberingRules: rulesSeeded,
+        categories: categoriesSeeded,
         inventoryItems: itemsSeeded,
         permissionsUpdated: true,
       },

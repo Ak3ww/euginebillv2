@@ -767,7 +767,7 @@ function parseVendorAndModel(sn: string): { vendor: string; model: string; sku: 
   return { vendor: 'Generic', model: 'GPON ONU', sku: 'EMG-CPE-ONT-ZTE-F609V3' };
 }
 
-async function main() {
+export async function runInitialModemImport() {
   console.log('--- STARTING INITIAL MASTER & ONU IMPORT ---');
 
   // Step 1: Seed Master Items
@@ -883,8 +883,16 @@ async function main() {
   console.log(`\n--- IMPORT COMPLETE ---`);
   console.log(`Successfully processed ${importedCount} ONUs.`);
   console.log(`Directly linked ${linkedCustomerCount} ONUs to existing DB customers.`);
+
+  return {
+    success: true,
+    importedCount,
+    linkedCustomerCount,
+  };
 }
 
-main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+if (typeof require !== 'undefined' && require.main === module) {
+  runInitialModemImport()
+    .catch(console.error)
+    .finally(() => prisma.$disconnect());
+}
