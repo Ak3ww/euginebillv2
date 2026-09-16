@@ -43,6 +43,7 @@ export interface CreatePppoeUserInput {
   registeredAt?: string;
   autoIsolationEnabled?: boolean;
   firstInvoice?: 'none' | 'prorate' | 'full';
+  ontSerialNumber?: string;
 }
 
 export interface UpdatePppoeUserInput {
@@ -552,6 +553,112 @@ export async function createPppoeUser(
       }
     } catch (emailError) {
       console.error('Email notification error:', emailError);
+    }
+  }
+
+  // ── Inventory Asset Auto-Link / Auto-Registration ────────────────────────────
+  const rawOntSn = ((data as any).ontSerialNumber || '').trim();
+  const rawMac = (macAddress || '').trim();
+  const effectiveSn = rawOntSn || (!rawMac.includes(':') && !rawMac.includes('-') && rawMac.length >= 8 ? rawMac : '');
+
+  if (effectiveSn) {
+    try {
+      const upperSn = effectiveSn.toUpperCase();
+      const existingAsset = await prisma.inventoryAsset.findFirst({
+        where: {
+          OR: [
+            { serialNumber: effectiveSn },
+            { serialNumber: upperSn },
+          ],
+        },
+      });
+
+      if (existingAsset) {
+        await prisma.inventoryAsset.update({
+          where: { id: existingAsset.id },
+          data: {
+            status: 'IN_USE',
+            currentCustomerId: user.id,
+            macAddress: rawMac && rawMac.includes(':') ? rawMac : existingAsset.macAddress,
+            installedAt: new Date(),
+          },
+        });
+
+        await prisma.customerDeviceHistory.create({
+          data: {
+            customerId: user.id,
+            assetId: existingAsset.id,
+            serialNumber: existingAsset.serialNumber,
+            vendor: existingAsset.vendor,
+            model: existingAsset.model,
+            macAddress: rawMac && rawMac.includes(':') ? rawMac : existingAsset.macAddress,
+            action: 'INSTALLED',
+            reason: 'Pasang Baru (PSB)',
+            installedAt: new Date(),
+            technicianName: (session?.user as any)?.name || 'Admin PSB',
+          },
+        }).catch(() => {});
+      } else {
+        // Auto-register new modem unit directly into inventoryAsset
+        let catalogItem = await prisma.inventoryItem.findFirst({
+          where: {
+            OR: [
+              { sku: { contains: 'CPE-ONT' } },
+              { name: { contains: 'ONT' } },
+              { name: { contains: 'Modem' } },
+            ],
+          },
+        });
+
+        if (!catalogItem) {
+          catalogItem = await prisma.inventoryItem.findFirst();
+        }
+
+        if (catalogItem) {
+          let vendor = 'Generic';
+          let model = 'GPON ONT';
+          if (upperSn.startsWith('ZTEG')) { vendor = 'ZTE'; model = 'ZTE F609 V3'; }
+          else if (upperSn.startsWith('SKYW')) { vendor = 'Skyworth'; model = 'GN542VF'; }
+          else if (upperSn.startsWith('RTEG')) { vendor = 'Realtek'; model = 'RTL8672 GPON'; }
+          else if (upperSn.startsWith('YHTC')) { vendor = 'Yuhua'; model = 'YH-100G'; }
+          else if (upperSn.startsWith('FHTT')) { vendor = 'FiberHome'; model = 'HG6243C'; }
+          else if (upperSn.startsWith('HWTC')) { vendor = 'Huawei'; model = 'HG8245H'; }
+          else if (upperSn.startsWith('AZVG')) { vendor = 'VSOL'; model = 'V2801 Series'; }
+
+          const newAsset = await prisma.inventoryAsset.create({
+            data: {
+              itemId: catalogItem.id,
+              assetType: 'MODEM',
+              serialNumber: effectiveSn,
+              macAddress: rawMac && rawMac.includes(':') ? rawMac : null,
+              vendor,
+              model,
+              condition: 'NEW',
+              status: 'IN_USE',
+              currentCustomerId: user.id,
+              installedAt: new Date(),
+              notes: `Auto-registered saat Pasang Baru (PSB) Pelanggan: ${resolvedName} (${username})`,
+            },
+          });
+
+          await prisma.customerDeviceHistory.create({
+            data: {
+              customerId: user.id,
+              assetId: newAsset.id,
+              serialNumber: effectiveSn,
+              vendor,
+              model,
+              macAddress: rawMac && rawMac.includes(':') ? rawMac : null,
+              action: 'INSTALLED',
+              reason: 'Pasang Baru (PSB) - Unit Baru Otomatis Masuk Inventori',
+              installedAt: new Date(),
+              technicianName: (session?.user as any)?.name || 'Admin PSB',
+            },
+          }).catch(() => {});
+        }
+      }
+    } catch (assetErr) {
+      console.error('Auto-register inventoryAsset error during PSB:', assetErr);
     }
   }
 
