@@ -29,14 +29,21 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
        - **HSGQ** (SNMPv1): Name `.50224.3.12.2.1.2`, Rx `.3.1.4` (/100), Tx `.3.1.3` (/100), Status `.2.1.3`, SN `.2.1.15`.
        - **VSOL** (SNMPv2c): Name `.37950.1.1.6.1.1.1.1.7`, Rx `.3.1.7` (/10), Tx `.3.1.6` (/10), SN `.2.1.5`.
      - Poller memprioritaskan SNMP murni secara instan tanpa mewajibkan Telnet, sehingga monitoring redaman, nama ONT/pelanggan, dan status dapat berjalan cepat dan aman.
-  5. **Verifikasi Kesiapan Fase 1 OLT**:
-     - Memverifikasi dukungan driver OLT vendor VSOL (Cortina & ZTE Falcon chipset) dan HSGQ (Mini OLT & Standard) serta template konfigurasi di `deployment-pack-client/`.
+  5. **Integrasi Background Cron Poller Otomatis (`src/server/jobs/jobs.config.ts`, `src/cron/runner.ts`, `cron-service.js`, `src/app/api/cron/route.ts`)**:
+     - Mendaftarkan job `olt_poll` ke dalam `CRON_JOBS` terpusat dengan interval default setiap 5 menit (`*/5 * * * *`).
+     - Menambahkan `olt_poll` ke `LOCK_JOBS` pada `src/cron/runner.ts` guna mencegah tumpang tindih proses (*overlapping execution*) jika waktu polling OLT melampaui interval.
+     - Terintegrasi langsung dengan PM2 daemon `EugineBill-cron` di VPS Linux sehingga polling redaman, status ONT, dan auto-link pelanggan berjalan 100% otomatis di latar belakang tanpa perlu membuka browser atau menekan tombol apapun.
+     - Menyediakan logging otomatis durasi, timestamp, dan status sukses/gagal pada tabel `cronHistory`.
 
 - **Files**:
   - `src/lib/olt/poller.ts`
   - `src/lib/olt/vendors/vsol.ts`
   - `src/lib/olt/vendors/hsgq.ts`
   - `src/server/services/pppoe.service.ts`
+  - `src/server/jobs/jobs.config.ts`
+  - `src/cron/runner.ts`
+  - `cron-service.js`
+  - `src/app/api/cron/route.ts`
   - `CHANGELOG.md`
   - `docs/AI_PROJECT_MEMORY.md`
 

@@ -459,6 +459,18 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ success: false, error: acsErr.message })
         }
 
+      case 'olt_poll':
+        try {
+          const { pollAllOLTs } = await import('@/lib/olt/poller');
+          await pollAllOLTs();
+          return NextResponse.json({
+            success: true,
+            message: 'OLT polling completed successfully'
+          });
+        } catch (oltErr: any) {
+          return NextResponse.json({ success: false, error: oltErr.message }, { status: 500 });
+        }
+
       default:
         try {
           const { CRON_JOBS } = await import('@/server/jobs/jobs.config');

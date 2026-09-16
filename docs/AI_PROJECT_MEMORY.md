@@ -38,6 +38,11 @@
     - VSOL (SNMPv2c): Name `.1.3.6.1.4.1.37950.1.1.6.1.1.1.1.7`, Rx `.3.1.7` (/10), Tx `.3.1.6` (/10), SN `.2.1.5`.
   - Telnet CLI hanya dipakai untuk aksi konfigurasi (reboot ONU/unregister) atau sebagai fallback sekunder.
 
+- **Architectural Invariant: Automated Background OLT Cron Engine (`jobs.config.ts`, `runner.ts`, `cron-service.js`)**:
+  - Polling OLT terdaftar di `CRON_JOBS` terpusat sebagai `olt_poll` dengan jadwal default `*/5 * * * *` (setiap 5 menit).
+  - Standalone runner PM2 `EugineBill-cron` (`src/cron/runner.ts`) mengeksekusi `pollAllOLTs()` secara native tanpa melalui HTTP layer, mencatat metrik ke `cronHistory` dan mencegah overlapping lewat `LOCK_JOBS`.
+  - Sistem juga menyediakan endpoint HTTP trigger `POST /api/cron/olt-poll` dan fallback di `cron-service.js`.
+
 ### Recent Patch Log (September 16, 2026 — v2.40.10: Dynamic SKU Dictionary, Smart SKU Generator, Redesigned Add Item Wizard, & ONT Reconciliation)
 
 - **Architectural Invariant: Dynamic Database-Driven SKU Dictionary (`skuCategoryCode` & `skuSubCategoryCode`)**:

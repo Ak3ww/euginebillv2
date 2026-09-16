@@ -28,6 +28,7 @@ const LOCK_JOBS = new Set([
   'webhook_log_cleanup',
   'activity_log_cleanup',
   'cron_history_cleanup',
+  'olt_poll',
 ]);
 
 async function runJob(type: string, description: string): Promise<void> {

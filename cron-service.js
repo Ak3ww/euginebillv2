@@ -183,6 +183,7 @@ async function start() {
   scheduleJob('acs_offline_check', '*/5 * * * *', 'ACS Offline Detection');       // Tandai device ACS yg tdk Inform sebagai offline
   scheduleJob('acs_session_cleanup', '*/30 * * * *', 'ACS Session Cleanup');       // Bersihkan sesi CWMP kedaluwarsa dari DB
   scheduleJob('acs_dhcp_sync', '*/30 * * * *', 'ACS DHCP Lease Sync');             // Tarik DHCP lease dan trigger Connection Request
+  scheduleJob('olt_poll', '*/5 * * * *', 'OLT Monitoring Poller', { lockTtl: 300 }); // Polling SNMP/Telnet OLT setiap 5 menit
 
   // Telegram crons — register with concrete fallback schedule if DB says 'dynamic'
   setTimeout(async () => {

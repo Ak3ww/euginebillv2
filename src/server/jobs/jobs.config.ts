@@ -355,6 +355,19 @@ export const CRON_JOBS: CronJobConfig[] = [
     },
     enabled: true,
   },
+  {
+    type: 'olt_poll',
+    name: 'OLT Monitoring Poller',
+    description: 'Poll all enabled OLTs for ONU optical signal (dBm), distance, and online status via SNMP/Telnet',
+    schedule: '*/5 * * * *',
+    scheduleLabel: 'Every 5 minutes',
+    handler: async () => {
+      const { pollAllOLTs } = await import('@/lib/olt/poller');
+      await pollAllOLTs();
+      return { success: true, message: 'OLT polling completed' };
+    },
+    enabled: true,
+  },
 ];
 
 // Helper to get next run time from cron pattern.
