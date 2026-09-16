@@ -281,3 +281,99 @@ export async function getOnuOpticalInfoSSH(
 export async function getTrafficStats(_config: SNMPConfig): Promise<{ rxBytes?: bigint; txBytes?: bigint }> {
   return {};
 }
+
+/**
+ * Native SNMP ONU discovery for VSOL OLTs (Proven OIDs from BotRedaman)
+ * Walks:
+ *   - Name:   1.3.6.1.4.1.37950.1.1.6.1.1.1.1.7 (Customer description)
+ *   - Rx:     1.3.6.1.4.1.37950.1.1.6.1.1.3.1.7 (scale 10)
+ *   - Tx:     1.3.6.1.4.1.37950.1.1.6.1.1.3.1.6 (scale 10)
+ *   - SN:     1.3.6.1.4.1.37950.1.1.6.1.1.2.1.5
+ *   - Alive:  1.3.6.1.4.1.37950.1.1.6.1.1.1.1.11
+ */
+export async function discoverONUsSNMP(
+  config: SNMPConfig,
+  _firmwareVersion?: string | null,
+  _telnetConfig?: TelnetConfig | null
+): Promise<any[]> {
+  const cfg = {
+    ...config,
+    version: '2c' as const, // VSOL uses SNMPv2c
+  };
+
+  const [nameRes, rxRes, txRes, snRes] = await Promise.all([
+    snmpWalk(cfg, '1.3.6.1.4.1.37950.1.1.6.1.1.1.1.7'),
+    snmpWalk(cfg, '1.3.6.1.4.1.37950.1.1.6.1.1.3.1.7'),
+    snmpWalk(cfg, '1.3.6.1.4.1.37950.1.1.6.1.1.3.1.6'),
+    snmpWalk(cfg, '1.3.6.1.4.1.37950.1.1.6.1.1.2.1.5'),
+  ]);
+
+  if (!nameRes.success || !nameRes.results || Object.keys(nameRes.results).length === 0) {
+    return [];
+  }
+
+  const names = nameRes.results;
+  const rxMap = rxRes.results || {};
+  const txMap = txRes.results || {};
+  const snMap = snRes.results || {};
+
+  const onus: any[] = [];
+
+  for (const [oid, name] of Object.entries(names)) {
+    const parts = oid.split('.');
+    const onuIdx = parts[parts.length - 1];
+    const onuId = parseInt(onuIdx) || 1;
+    const port = parts.length >= 2 ? parseInt(parts[parts.length - 2]) || 1 : 1;
+
+    // SN
+    let sn: string | undefined = undefined;
+    for (const [sOid, sVal] of Object.entries(snMap)) {
+      if (sOid.endsWith(`.${port}.${onuIdx}`) || sOid.endsWith(`.${onuIdx}`)) {
+        sn = sVal.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
+        break;
+      }
+    }
+
+    // Rx Power (scale 10: -256 -> -25.6)
+    let rxPower: number | undefined = undefined;
+    for (const [rOid, rVal] of Object.entries(rxMap)) {
+      if (rOid.endsWith(`.${port}.${onuIdx}`) || rOid.endsWith(`.${onuIdx}`)) {
+        const raw = parseFloat(rVal);
+        if (!isNaN(raw)) {
+          const scaled = raw > 0 || raw < -100 ? raw / 10.0 : raw;
+          if (scaled >= -40 && scaled <= -5) rxPower = parseFloat(scaled.toFixed(2));
+        }
+        break;
+      }
+    }
+
+    // Tx Power (scale 10)
+    let txPower: number | undefined = undefined;
+    for (const [tOid, tVal] of Object.entries(txMap)) {
+      if (tOid.endsWith(`.${port}.${onuIdx}`) || tOid.endsWith(`.${onuIdx}`)) {
+        const raw = parseFloat(tVal);
+        if (!isNaN(raw)) {
+          const scaled = raw > 50 || raw < -50 ? raw / 10.0 : raw;
+          if (scaled >= -10 && scaled <= 15) txPower = parseFloat(scaled.toFixed(2));
+        }
+        break;
+      }
+    }
+
+    const status = rxPower !== undefined && rxPower < 0 ? 'online' : 'offline';
+
+    onus.push({
+      frame: 0,
+      slot: 0,
+      port,
+      onuId,
+      serialNumber: sn || null,
+      description: name.trim() || null,
+      status,
+      rxPower: rxPower ?? null,
+      txPower: txPower ?? null,
+    });
+  }
+
+  return onus;
+}

@@ -31,6 +31,13 @@
   - Jika ditemukan kecocokan, poller otomatis mengisi `customerId` pada `oltOnuStatus`.
   - Pada query detail pelanggan `getPppoeUserById` (`src/server/services/pppoe.service.ts`), relasi `oltOnuStatuses` disertakan lengkap dengan data OLT (`name`, `ipAddress`, `vendor`) agar profil pelanggan langsung menyajikan data redaman optik live (`rxPower`, `txPower`, `distance`) dan status ONT (Online/Offline/LOS/Dying Gasp).
 
+- **Architectural Invariant: Native SNMP ONU Discovery for HSGQ & VSOL (`hsgq.ts`, `vsol.ts`)**:
+  - Poller OLT memprioritaskan SNMP murni tanpa ketergantungan Telnet melalui fungsi `discoverONUsSNMP`.
+  - Menggunakan OID vendor terbukti stabil dari `C:\BotRedaman`:
+    - HSGQ (SNMPv1): Name `.1.3.6.1.4.1.50224.3.12.2.1.2`, Rx `.3.1.4` (/100), Tx `.3.1.3` (/100), SN `.2.1.15`.
+    - VSOL (SNMPv2c): Name `.1.3.6.1.4.1.37950.1.1.6.1.1.1.1.7`, Rx `.3.1.7` (/10), Tx `.3.1.6` (/10), SN `.2.1.5`.
+  - Telnet CLI hanya dipakai untuk aksi konfigurasi (reboot ONU/unregister) atau sebagai fallback sekunder.
+
 ### Recent Patch Log (September 16, 2026 — v2.40.10: Dynamic SKU Dictionary, Smart SKU Generator, Redesigned Add Item Wizard, & ONT Reconciliation)
 
 - **Architectural Invariant: Dynamic Database-Driven SKU Dictionary (`skuCategoryCode` & `skuSubCategoryCode`)**:

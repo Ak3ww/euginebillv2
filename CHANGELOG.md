@@ -24,7 +24,12 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   3. **Ekstraksi Deskripsi/Nama Pelanggan di Driver VSOL & HSGQ (`src/lib/olt/vendors/vsol.ts`, `hsgq.ts`)**:
      - Poller CLI kini mengekstrak kolom trailing description / nama ONT yang diset operator di OLT.
      - Mesin auto-link mencocokkan nama/deskripsi tersebut ke `pppoeUser.name` atau `pppoeUser.username` sehingga ONT yang sudah dinamai di OLT langsung terhubung dengan pelanggan secara otomatis.
-  4. **Verifikasi Kesiapan Fase 1 OLT**:
+  4. **Native SNMP Discovery Engine untuk HSGQ & VSOL (`src/lib/olt/vendors/hsgq.ts`, `vsol.ts`)**:
+     - Mengadopsi arsitektur dan OID teruji dari bot monitoring redaman (`C:\BotRedaman`):
+       - **HSGQ** (SNMPv1): Name `.50224.3.12.2.1.2`, Rx `.3.1.4` (/100), Tx `.3.1.3` (/100), Status `.2.1.3`, SN `.2.1.15`.
+       - **VSOL** (SNMPv2c): Name `.37950.1.1.6.1.1.1.1.7`, Rx `.3.1.7` (/10), Tx `.3.1.6` (/10), SN `.2.1.5`.
+     - Poller memprioritaskan SNMP murni secara instan tanpa mewajibkan Telnet, sehingga monitoring redaman, nama ONT/pelanggan, dan status dapat berjalan cepat dan aman.
+  5. **Verifikasi Kesiapan Fase 1 OLT**:
      - Memverifikasi dukungan driver OLT vendor VSOL (Cortina & ZTE Falcon chipset) dan HSGQ (Mini OLT & Standard) serta template konfigurasi di `deployment-pack-client/`.
 
 - **Files**:
