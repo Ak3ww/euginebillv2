@@ -302,13 +302,13 @@ const menuGroups: MenuGroup[] = [
       {
         titleKey: 'nav.inventory',
         icon: <Package className="w-4 h-4" />,
-        requiredPermission: 'settings.view',
+        requiredPermission: 'inventory.view',
         children: [
-          { titleKey: 'nav.inventoryItems', href: '/admin/inventory/items', requiredPermission: 'settings.view' },
+          { titleKey: 'nav.inventoryItems', href: '/admin/inventory/items', requiredPermission: 'inventory.view' },
           { titleKey: 'nav.inventoryAssets', href: '/admin/inventory/assets', requiredPermission: 'inventory.view' },
-          { titleKey: 'nav.inventoryMovements', href: '/admin/inventory/movements', requiredPermission: 'settings.view' },
-          { titleKey: 'nav.inventoryCategories', href: '/admin/inventory/categories', requiredPermission: 'settings.view' },
-          { titleKey: 'nav.inventorySuppliers', href: '/admin/inventory/suppliers', requiredPermission: 'settings.view' },
+          { titleKey: 'nav.inventoryMovements', href: '/admin/inventory/movements', requiredPermission: 'inventory.view' },
+          { titleKey: 'nav.inventoryCategories', href: '/admin/inventory/categories', requiredPermission: 'inventory.manage' },
+          { titleKey: 'nav.inventorySuppliers', href: '/admin/inventory/suppliers', requiredPermission: 'inventory.manage' },
         ],
       },
       {

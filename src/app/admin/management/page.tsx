@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
@@ -39,6 +39,7 @@ interface Permission {
 
 const ROLES = [
   { value: 'SUPER_ADMIN', translationKey: 'superAdmin' },
+  { value: 'WAREHOUSE', translationKey: 'warehouse' },
   { value: 'FINANCE', translationKey: 'finance' },
   { value: 'CUSTOMER_SERVICE', translationKey: 'customerService' },
   { value: 'TECHNICIAN', translationKey: 'technician' },

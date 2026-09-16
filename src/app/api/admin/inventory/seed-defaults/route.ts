@@ -126,12 +126,21 @@ export async function POST(req: NextRequest) {
       itemsSeeded++;
     }
 
+    // ── 3. Seed permissions & WAREHOUSE role template ──────────────────────
+    try {
+      const { seedPermissions } = await import('@/../prisma/seeds/permissions');
+      await seedPermissions();
+    } catch (permErr) {
+      console.warn('Warning seeding permissions from seed-defaults:', permErr);
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Default data seeded successfully',
       seeded: {
         numberingRules: rulesSeeded,
         inventoryItems: itemsSeeded,
+        permissionsUpdated: true,
       },
     });
   } catch (error) {
