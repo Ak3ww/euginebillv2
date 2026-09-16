@@ -4,6 +4,32 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.11] — 2026-09-16
+### Fase 1 OLT: Verifikasi Arsitektur Poller VSOL/HSGQ & Auto-Linking ONU ke Pelanggan PPPoE/Inventaris
+
+- **Latar Belakang / Context**:
+  1. Pengguna menanyakan kesiapan dan alur setup Fase 1 OLT (VSOL & HSGQ) sebelum melakukan deployment/build ke VPS.
+  2. Saat OLT melakukan polling ONU (melalui SNMP/Telnet/SSH), nomor serial (`serialNumber`) dan MAC address ditemukan secara dinamis, namun sebelumnya belum tertaut otomatis (*auto-link*) ke akun pelanggan `pppoeUser` jika belum di-assign manual.
+  3. Kebutuhan agar metrik redaman optik live (`rxPower`, `txPower`, `distance`) dan status ONT (Online/Offline/LOS/Dying Gasp) langsung terasosiasi ke profil pelanggan di portal admin tanpa intervensi manual.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Auto-Linking Engine di OLT Poller (`src/lib/olt/poller.ts`)**:
+     - Pada fungsi `upsertONU`, jika `customerId` belum terisi, sistem secara cerdas mencocokkan `serialNumber` ONU dengan:
+       a. `inventoryAsset` (`serialNumber` cocok dan `currentCustomerId` tidak null).
+       b. `pppoeUser` (`macAddress` cocok dengan serial number/MAC bersih).
+       c. `pppoeUser` (`username` cocok dengan nama deskripsi ONU di OLT).
+     - Menghubungkan ONU yang ditemukan langsung ke ID pelanggan secara otomatis saat discovery background atau polling manual dijalankan.
+  2. **Relasi Data Pelanggan (`src/server/services/pppoe.service.ts`)**:
+     - Menambahkan relasi `oltOnuStatuses` pada `getPppoeUserById` lengkap dengan data OLT (`name`, `ipAddress`, `vendor`) agar profil pelanggan dapat menampilkan status optik OLT secara live.
+  3. **Verifikasi Kesiapan Fase 1 OLT**:
+     - Memverifikasi dukungan driver OLT vendor VSOL (Cortina & ZTE Falcon chipset) dan HSGQ (Mini OLT & Standard) serta template konfigurasi di `deployment-pack-client/`.
+
+- **Files**:
+  - `src/lib/olt/poller.ts`
+  - `src/server/services/pppoe.service.ts`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.10] — 2026-09-16
 ### Dashboard Kamus SKU Dinamis, Smart SKU Generator (Golden Rule EMG), Redesain Wizard Master Barang, dan Mesin Audit/Rekonsiliasi ONT Pelanggan
 

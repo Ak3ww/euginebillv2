@@ -292,6 +292,49 @@ async function upsertONU(
     const txPower = opticalInfo?.txPower ?? onu.txPower ?? null;
     const distance = opticalInfo?.distance ?? onu.distance ?? null;
 
+    // Check existing record to avoid overwriting manually assigned customer
+    const existing = await prisma.oltOnuStatus.findUnique({
+      where: {
+        oltId_frame_slot_port_onuId: {
+          oltId,
+          frame: onu.frame ?? 0,
+          slot: onu.slot ?? 0,
+          port: onu.port,
+          onuId: onu.onuId,
+        },
+      },
+      select: { id: true, customerId: true },
+    });
+
+    // Auto-link customer by Serial Number or MAC if not yet linked
+    let autoCustomerId: string | null = null;
+    if (!existing?.customerId && serialNumber) {
+      const cleanSN = serialNumber.replace(/[:-]/g, '').toUpperCase();
+      const asset = await prisma.inventoryAsset.findFirst({
+        where: {
+          OR: [{ serialNumber }, { serialNumber: cleanSN }],
+          currentCustomerId: { not: null },
+        },
+        select: { currentCustomerId: true },
+      });
+
+      if (asset?.currentCustomerId) {
+        autoCustomerId = asset.currentCustomerId;
+      } else {
+        const user = await prisma.pppoeUser.findFirst({
+          where: {
+            OR: [
+              { macAddress: serialNumber },
+              { macAddress: cleanSN },
+              ...(onu.description ? [{ username: onu.description }] : []),
+            ],
+          },
+          select: { id: true },
+        });
+        if (user) autoCustomerId = user.id;
+      }
+    }
+
     await prisma.oltOnuStatus.upsert({
       where: {
         oltId_frame_slot_port_onuId: {
@@ -318,6 +361,7 @@ async function upsertONU(
         distance,
         temperature: opticalInfo?.temperature ?? null,
         voltage: opticalInfo?.voltage ?? null,
+        customerId: autoCustomerId ?? null,
         firstSeenAt: now,
         lastSeenAt: now,
         updatedAt: now,
@@ -331,6 +375,7 @@ async function upsertONU(
         distance,
         temperature: opticalInfo?.temperature ?? null,
         voltage: opticalInfo?.voltage ?? null,
+        ...(autoCustomerId ? { customerId: autoCustomerId } : {}),
         lastSeenAt: now,
         lastOfflineAt: status !== 'online' ? now : undefined,
         updatedAt: now,

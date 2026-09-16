@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.10
+- **Version**: 2.40.11
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 16, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,17 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 16, 2026 — v2.40.11: Fase 1 OLT Architecture & Intelligent Customer Auto-Linking)
+
+- **Architectural Invariant: OLT Poller Intelligent Customer Auto-Linking (`src/lib/olt/poller.ts`)**:
+  - Saat background poller atau tombol manual "Poll Sekarang" memproses data ONU dari OLT (VSOL, HSGQ, ZTE, Huawei), sistem WAJIB secara cerdas memeriksa apakah ONU tersebut sudah terhubung dengan pelanggan (`oltOnuStatus.customerId`).
+  - Jika belum terhubung (`customerId` null), poller otomatis mencocokkan `serialNumber` ONU ke:
+    1. Tabel `inventoryAsset` (`serialNumber` cocok dan `currentCustomerId` tidak null).
+    2. Tabel `pppoeUser` (`macAddress` cocok dengan serial number atau MAC bersih).
+    3. Tabel `pppoeUser` (`username` cocok dengan kolom deskripsi ONU di OLT).
+  - Jika ditemukan kecocokan, poller otomatis mengisi `customerId` pada `oltOnuStatus`.
+  - Pada query detail pelanggan `getPppoeUserById` (`src/server/services/pppoe.service.ts`), relasi `oltOnuStatuses` disertakan lengkap dengan data OLT (`name`, `ipAddress`, `vendor`) agar profil pelanggan langsung menyajikan data redaman optik live (`rxPower`, `txPower`, `distance`) dan status ONT (Online/Offline/LOS/Dying Gasp).
 
 ### Recent Patch Log (September 16, 2026 — v2.40.10: Dynamic SKU Dictionary, Smart SKU Generator, Redesigned Add Item Wizard, & ONT Reconciliation)
 

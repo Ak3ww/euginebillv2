@@ -192,6 +192,13 @@ export async function getPppoeUserById(id: string) {
         orderBy: { createdAt: 'desc' },
         take: 10,
       },
+      oltOnuStatuses: {
+        include: {
+          olt: {
+            select: { id: true, name: true, ipAddress: true, vendor: true },
+          },
+        },
+      },
     },
   });
 
