@@ -154,6 +154,8 @@ export default function RouterPage() {
     if (vpnClientId) {
       const vpnClient = vpnClients.find(v => v.id === vpnClientId)
       if (vpnClient) {
+        const vpnApiTarget = (vpnClient as any).publicPorts?.services?.api?.target?.toString()
+        const vpnWinboxTarget = (vpnClient as any).publicPorts?.services?.winbox?.target?.toString()
         setFormData(prev => ({
           ...prev,
           vpnClientId,
@@ -164,6 +166,9 @@ export default function RouterPage() {
           password: vpnClient.resolvedPassword || prev.password,
           // Auto-fill RADIUS secret from NAS entry linked to this VPN client
           secret: vpnClient.nasSecret || prev.secret,
+          // Auto-fill custom target ports configured during VPN setup (e.g. 8520)
+          ...(vpnApiTarget ? { port: vpnApiTarget } : {}),
+          ...(vpnWinboxTarget ? { winboxPort: vpnWinboxTarget } : {}),
         }))
       }
     } else {
@@ -333,11 +338,13 @@ export default function RouterPage() {
 
   const handleEdit = (routerData: Router) => {
     setEditingRouter(routerData)
-    const winboxTarget = routerData.vpnClient?.publicPorts?.services?.winbox?.target?.toString() || '8291'
+    const winboxTarget = (routerData.vpnClient as any)?.publicPorts?.services?.winbox?.target?.toString() || '8291'
+    const apiTarget = (routerData.vpnClient as any)?.publicPorts?.services?.api?.target?.toString()
+    const effectivePort = routerData.port && routerData.port !== 8728 ? routerData.port.toString() : (apiTarget || routerData.port?.toString() || '8728')
     setFormData({
       name: routerData.name, nasname: routerData.nasname, shortname: routerData.shortname, type: routerData.type,
       ipAddress: routerData.ipAddress, username: routerData.username, password: routerData.password,
-      port: routerData.port.toString(), apiPort: routerData.apiPort.toString(), winboxPort: winboxTarget, secret: routerData.secret,
+      port: effectivePort, apiPort: routerData.apiPort ? routerData.apiPort.toString() : '8729', winboxPort: winboxTarget, secret: routerData.secret,
       ports: routerData.ports.toString(), server: routerData.server || '', community: routerData.community || '',
       description: routerData.description || '', vpnClientId: routerData.vpnClientId || '',
       authMode: routerData.authMode || 'local',

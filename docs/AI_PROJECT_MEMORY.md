@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.19
+- **Version**: 2.40.20
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 17, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,21 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 17, 2026 — v2.40.20: Dynamic MikroTik API Port Resolution & VSOL SNMP Fix)
+
+- **Architectural Invariant: Dynamic Target Port Resolution in `PPPSecretService` (`src/server/services/mikrotik/ppp-secret.service.ts`)**:
+  - Saat teknisi/admin menyetel port API MikroTik kustom pada alokasi VPN Client (misal `8520` via `API Port (→ 8520) Port 10002`), port tersebut dicatat di `vpnClient.publicPorts.services.api.target`.
+  - Jika form pendaftaran router (`routers` table) tidak sempat diubah dan mempertahankan port default `8728`, modul `PPPSecretService` (`syncSecret`, `setProfileAndDisconnect`, `removeSecret`) WAJIB meng-include relasi `vpnClient` dan mengutamakan port target kustom (`vpnClient.publicPorts.services.api.target`) daripada jatuh ke default `8728`.
+  - Form Router (`/admin/network/routers`) saat memilih VPN Client wajib otomatis menyalin target port API (`8520`) dan target port Winbox (`8228`) ke form isian router.
+  - Handler `PUT /api/network/routers` wajib menyimpan field `apiPort`.
+
+- **Architectural Invariant: Address-List Cleanup on Invoice Payment (`src/app/api/invoices/route.ts`)**:
+  - Saat pembayaran tagihan diselesaikan di `invoices/route.ts`, sistem WAJIB memanggil `removeUserFromMikrotikAddressList(user.username, user.routerId, 'isolir')` selain `PPPSecretService.setProfileAndDisconnect` agar pelanggan yang diisolasi via address-list langsung terbebas dari aturan blokir/redirect firewall.
+
+- **Architectural Invariant: VSOL V1600GS-ZF SNMP Whitelist (`01-vsol-1600gs-zf.conf`)**:
+  - File template OLT `01-vsol-1600gs-zf.conf` DILARANG KERAS memuat aturan `login-access-list deny snmp 0.0.0.0 0.0.0.0`. Baris tersebut menyebabkan OLT men-drop seluruh paket query SNMP dari server billing.
+  - Klien SNMP EugineBill di `src/lib/olt/snmp.ts` wajib menyetel `timeout: 3` dan `retries: 1` pada pengujian koneksi agar tidak membekukan antarmuka selama 60 detik saat perangkat tidak merespons.
 
 ### Recent Patch Log (September 17, 2026 — v2.40.19: Automated Swap Memory & Two-Tier Fallback Build)
 

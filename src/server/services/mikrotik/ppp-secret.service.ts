@@ -9,13 +9,14 @@ export class PPPSecretService {
   static async syncSecret(userId: string): Promise<boolean> {
     const user = await prisma.pppoeUser.findUnique({
       where: { id: userId },
-      include: { router: true, profile: true },
+      include: { router: { include: { vpnClient: true } }, profile: true },
     })
 
     if (!user || !user.router) return false
 
-    // Use router.port (user-configured public API port, e.g. 10772 or 8728)
-    const apiPort = user.router.port || 8728
+    // Resolve port: use custom router.port if not 8728, or fallback to VPN Client target port (e.g. 8520), then default 8728
+    const vpnTargetPort = (user.router.vpnClient?.publicPorts as any)?.services?.api?.target
+    const apiPort = user.router.port && user.router.port !== 8728 ? user.router.port : (vpnTargetPort || user.router.port || 8728)
     const useTls = false // Forced non-SSL per user request
 
     const conn = new MikroTikConnection({
@@ -74,14 +75,18 @@ export class PPPSecretService {
   static async setProfileAndDisconnect(routerId: string, username: string, profileName: string): Promise<boolean> {
     console.log(`[PPPSecretService] setProfileAndDisconnect called: routerId=${routerId}, username=${username}, profile=${profileName}`);
     
-    const router = await prisma.router.findUnique({ where: { id: routerId } })
+    const router = await prisma.router.findUnique({
+      where: { id: routerId },
+      include: { vpnClient: true },
+    })
     if (!router) {
       console.error(`[PPPSecretService] Router not found for routerId: ${routerId}`);
       return false
     }
     
-    // Use router.port (user-configured public API port)
-    const apiPort = router.port || 8728
+    // Resolve port: use custom router.port if not 8728, or fallback to VPN Client target port (e.g. 8520), then default 8728
+    const vpnTargetPort = (router.vpnClient?.publicPorts as any)?.services?.api?.target
+    const apiPort = router.port && router.port !== 8728 ? router.port : (vpnTargetPort || router.port || 8728)
     const useTls = false // Forced non-SSL per user request 
     console.log(`[PPPSecretService] Connecting to router: ${router.ipAddress}:${apiPort} (tls=${useTls}), user=${router.username}`)
 
@@ -136,11 +141,15 @@ export class PPPSecretService {
    * Removes a user from the MikroTik router's /ppp secret.
    */
   static async removeSecret(routerId: string, username: string): Promise<boolean> {
-    const router = await prisma.router.findUnique({ where: { id: routerId } })
+    const router = await prisma.router.findUnique({
+      where: { id: routerId },
+      include: { vpnClient: true },
+    })
     if (!router) return false
 
-    // Use router.port (user-configured public API port)
-    const apiPort = router.port || 8728
+    // Resolve port: use custom router.port if not 8728, or fallback to VPN Client target port (e.g. 8520), then default 8728
+    const vpnTargetPort = (router.vpnClient?.publicPorts as any)?.services?.api?.target
+    const apiPort = router.port && router.port !== 8728 ? router.port : (vpnTargetPort || router.port || 8728)
     const useTls = false // Forced non-SSL per user request
 
     const conn = new MikroTikConnection({

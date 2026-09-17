@@ -14,6 +14,7 @@ export interface SNMPConfig {
   port?: number;
   version?: '1' | '2c' | '3';
   timeout?: number;
+  retries?: number;
 }
 
 export interface SNMPResult {
@@ -34,10 +35,11 @@ export interface SNMPWalkResult {
 export async function snmpGet(config: SNMPConfig, oid: string): Promise<SNMPResult> {
   const version = config.version || '2c';
   const port = config.port || 161;
-  const timeout = config.timeout || 10;
+  const timeout = config.timeout || 5;
+  const retries = config.retries !== undefined ? config.retries : 2;
 
   // -On forces numeric OID output (avoids "iso." prefix from MIB lookups)
-  const command = `snmpget -On -v${version} -c ${config.community} -t ${timeout} ${config.host}:${port} ${oid} 2>&1`;
+  const command = `snmpget -On -v${version} -c ${config.community} -t ${timeout} -r ${retries} ${config.host}:${port} ${oid} 2>&1`;
 
   try {
     const { stdout } = await execAsync(command);
@@ -110,7 +112,11 @@ export async function snmpWalk(config: SNMPConfig, oid: string): Promise<SNMPWal
  * Test SNMP connectivity
  */
 export async function testSNMP(config: SNMPConfig): Promise<boolean> {
-  const result = await snmpGet(config, '1.3.6.1.2.1.1.1.0'); // sysDescr
+  const result = await snmpGet({
+    ...config,
+    timeout: config.timeout || 3,
+    retries: config.retries !== undefined ? config.retries : 1,
+  }, '1.3.6.1.2.1.1.1.0'); // sysDescr
   return result.success;
 }
 

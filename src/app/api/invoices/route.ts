@@ -858,6 +858,12 @@ export async function PUT(request: NextRequest) {
                 const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
                 await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, mikrotikProfileName);
                 console.log(`  - MikroTik: Profile set to ${mikrotikProfileName}`);
+
+                try {
+                  const { removeUserFromMikrotikAddressList } = await import('@/server/services/radius/coa-handler.service');
+                  removeUserFromMikrotikAddressList(user.username, user.routerId, 'isolir')
+                    .catch(err => console.error('[Invoice Pay] Address-list un-isolir error:', err?.message));
+                } catch (_) {}
               } else {
                 console.log(`  - MikroTik: Cannot update profile (no routerId)`);
               }

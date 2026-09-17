@@ -130,6 +130,7 @@ export async function GET() {
         isRadiusServer: true,
         apiUsername: true,
         apiPassword: true,
+        publicPorts: true,
       },
       orderBy: { name: 'asc' },
     });
@@ -392,6 +393,7 @@ export async function PUT(request: NextRequest) {
         ...(username && { username }),
         ...(password && { password }),
         ...(port && { port: parseInt(port.toString()) }),
+        ...(apiPort && { apiPort: parseInt(apiPort.toString()) }),
         ...(secret && { secret }),
         ...(isActive !== undefined && { isActive }),
         ...(latitude !== undefined && { latitude: latitude ? parseFloat(latitude) : null }),

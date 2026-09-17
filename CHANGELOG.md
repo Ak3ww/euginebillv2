@@ -4,6 +4,40 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.20] — 2026-09-17
+### Resolusi Sinkronisasi Port API MikroTik Kustom (8520) & Penghapusan Deny SNMP pada OLT VSOL V1600GS-ZF
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. **Pelanggan Isolir Tidak Otomatis Aktif Setelah Bayar**:
+     - Admin telah mengonfigurasi port API MikroTik kustom (port `8520`) pada alokasi VPN Client (`API Port (→ 8520) Port 10002`). Namun, saat pelanggan membayar tagihan, `PPPSecretService` gagal menghubungi MikroTik karena port API tetap jatuh ke nilai default `8728`. Akibatnya, pemanggilan `setProfileAndDisconnect` gagal dan pelanggan tetap terisolasi.
+     - Form pendaftaran router (`/admin/network/routers`) sebelumnya tidak menyalin target port API kustom dari alokasi VPN Client saat memilih VPN Client.
+     - Pada endpoint pembayaran `/api/invoices/route.ts`, pembersihan `isolir` dari `firewall address-list` belum dipanggil.
+  2. **Uji Koneksi SNMP OLT VSOL V1600GS-ZF Gagal Timeout (`60060ms`)**:
+     - Template deployment `deployment-pack-client/01-vsol-1600gs-zf.conf` memuat baris `login-access-list deny snmp 0.0.0.0 0.0.0.0` dan `login-access-list enable`, yang secara eksplisit memblokir seluruh paket SNMP dari IP manapun sebelum sampai ke SNMP daemon.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Dynamic Target Port Inheritance di `PPPSecretService` (`src/server/services/mikrotik/ppp-secret.service.ts`)**:
+     - Pada `syncSecret`, `setProfileAndDisconnect`, dan `removeSecret`, model `router` kini meng-include relasi `vpnClient`.
+     - Port API ditentukan secara cerdas: jika `router.port` bernilai default `8728` namun `vpnClient.publicPorts.services.api.target` disetel ke port kustom (misal `8520`), sistem secara otomatis menggunakan port kustom tersebut tanpa perlu intervensi manual.
+  2. **Auto-Fill Target Port pada Form Router (`src/app/admin/network/routers/page.tsx` & API)**:
+     - Fungsi `handleVpnClientChange` dan `handleEdit` kini otomatis menyalin target port `api` (`8520`) dan `winbox` (`8228`) dari metadata `publicPorts` VPN Client ke form isian router.
+     - Handler `GET /api/network/routers` kini mengikutsertakan `publicPorts` pada query `vpnClients`.
+     - Handler `PUT /api/network/routers` kini memvalidasi dan menyimpan field `apiPort`.
+  3. **Pembersihan Address-List Isolir pada Pembayaran Tagihan (`src/app/api/invoices/route.ts`)**:
+     - Menambahkan pemanggilan `removeUserFromMikrotikAddressList(user.username, user.routerId, 'isolir')` saat tagihan dinyatakan lunas.
+  4. **Perbaikan Template OLT VSOL V1600GS-ZF (`deployment-pack-client/01-vsol-1600gs-zf.conf`)**:
+     - Menghapus aturan `login-access-list deny snmp 0.0.0.0 0.0.0.0` dan `login-access-list ipv6 deny snmp ::/0` agar daemon SNMP VSOL dapat diakses oleh billing server.
+  5. **Optimasi Responsivitas Uji SNMP (`src/lib/olt/snmp.ts`)**:
+     - Menambahkan opsi `retries` pada `SNMPConfig` dan membatasi timeout uji koneksi SNMP menjadi 3 detik (1 retry) sehingga pengujian koneksi merespons cepat tanpa membekukan antarmuka selama 60 detik.
+
+- **Files**:
+  - `src/server/services/mikrotik/ppp-secret.service.ts`
+  - `src/app/api/network/routers/route.ts`
+  - `src/app/admin/network/routers/page.tsx`
+  - `src/app/api/invoices/route.ts`
+  - `deployment-pack-client/01-vsol-1600gs-zf.conf`
+  - `src/lib/olt/snmp.ts`
+
 ## [2.40.19] — 2026-09-17
 ### Otomasi Swap Memory VPS (Anti-Freeze & Anti-OOM) & Two-Tier Fallback Build Next.js
 
