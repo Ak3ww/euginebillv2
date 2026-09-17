@@ -5,19 +5,19 @@ import { requirePermission } from '@/server/middleware/api-auth';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/admin/sku-settings/categories/[code]/subcategories
- * List subcategories under a specific category code
+ * GET /api/admin/sku-settings/categories/[id]/subcategories
+ * List subcategories under a specific category code (slug param is named [id] to avoid Next.js slug conflict)
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ code: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authCheck = await requirePermission('inventory.view');
     if (!authCheck.authorized) return authCheck.response;
 
-    const { code } = await params;
-    const categoryCode = code.toUpperCase().trim();
+    const { id } = await params;
+    const categoryCode = id.toUpperCase().trim();
 
     const { searchParams } = new URL(req.url);
     const activeOnly = searchParams.get('activeOnly') === 'true';
@@ -47,19 +47,19 @@ export async function GET(
 }
 
 /**
- * POST /api/admin/sku-settings/categories/[code]/subcategories
+ * POST /api/admin/sku-settings/categories/[id]/subcategories
  * Create a new subcategory under categoryCode
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ code: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authCheck = await requirePermission('inventory.manage');
     if (!authCheck.authorized) return authCheck.response;
 
-    const { code } = await params;
-    const categoryCode = code.toUpperCase().trim();
+    const { id } = await params;
+    const categoryCode = id.toUpperCase().trim();
 
     const category = await prisma.skuCategoryCode.findUnique({
       where: { code: categoryCode },

@@ -22,6 +22,11 @@
 
 ### Recent Patch Log (September 17, 2026 — v2.40.13: Login 500 Root Cause Resolution & Passwordless DDL Standard)
 
+- **Architectural Invariant: Uniform Dynamic Slug Naming Across Sibling Routes (`src/app/api/...`)**:
+  - DILARANG KERAS menggunakan nama dynamic slug yang berbeda pada level direktori yang sama di Next.js App Router (contoh salah: `categories/[id]/route.ts` berdampingan dengan `categories/[code]/subcategories/route.ts`).
+  - Next.js akan melempar error fatal pada route tree compiler: `Error: You cannot use different slug names for the same dynamic path ('code' !== 'id')` yang menyebabkan SELURUH request server (halaman login, favicon.ico, API) gagal total dengan respons HTTP 500 mentah.
+  - Seluruh parameter dinamis pada level direktori yang sama WAJIB seragam (misal: gunakan `[id]` untuk kedua endpoint: `[id]/route.ts` dan `[id]/subcategories/route.ts`).
+
 - **Architectural Invariant: Passwordless Automated DDL Migrations (`scripts/run-migrations.ts` / `npm run db:migrate:auto`)**:
   - DILARANG KERAS memaksa operator/user mengeksekusi file `.sql` mentah via terminal interaktif (`mysql -u ... -p`) saat build/update VPS karena rentan terhenti oleh prompt password dan membuat schema DB tertinggal di belakang Prisma Client.
   - Seluruh migrasi skema DDL WAJIB diotomatisasi melalui script TypeScript yang memanfaatkan koneksi Prisma eksisting (`DATABASE_URL`).

@@ -8,19 +8,29 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Resolusi Akar Masalah Login 500, Migrasi Otomatis Bebas Password & Hardening Autentikasi
 
 - **Latar Belakang / Root Cause Analysis (Issue)**:
-  1. **Missing DDL Migrations pada Database MySQL VPS**:
+  1. **Konflik Nama Dynamic Slug Next.js App Router (`'code' !== 'id'`) — SMOKING GUN**:
+     - Pada folder API kamus SKU, terdapat dua subfolder dinamis bertingkat sama:
+       - `src/app/api/admin/sku-settings/categories/[id]/route.ts` (menggunakan parameter `[id]`).
+       - `src/app/api/admin/sku-settings/categories/[code]/subcategories/route.ts` (menggunakan parameter `[code]`).
+     - Next.js App Router secara ketat melarang nama slug dinamis yang berbeda pada level direktori yang sama: melempar error `Error: You cannot use different slug names for the same dynamic path ('code' !== 'id')`.
+     - Error ini terjadi di level kompilasi tree route server Next.js saat runtime, sehingga menyebabkan **seluruh request ke server** (termasuk `/favicon.ico`, `/login`, `/manifest-admin.json`, dan `/api/admin/auth/pre-login`) dijegal dan merespons dengan HTTP 500 mentah.
+  2. **Missing DDL Migrations pada Database MySQL VPS**:
      - Pada rangkaian commit inventaris (`b6d5042`) dan kamus SKU (`a74b3fd`), skema Prisma menambahkan kolom baru (`currentStock` DOUBLE, `packSize`, `categoryCode`, `subCategory`) serta tabel baru (`work_order_type_kits`, `work_order_type_kit_items`, `sku_category_codes`, `sku_sub_category_codes`).
      - Di VPS, migrasi manual file SQL (`mysql -u euginebill -p ...`) memerlukan interaksi password yang terpotong/tidak tuntas, sehingga Prisma Client yang di-generate mengharapkan tabel/kolom yang belum ada di database MySQL fisik.
      - Akibatnya, query background cron job atau service yang menyentuh tabel inventaris/kit memicu *Prisma connection pool error* (P2021/P2022) yang berimbas ke respons server Next.js.
-  2. **Polusi Bundle API Route oleh Script CLI Seeder (`src/app/api/setup/route.ts`)**:
+  3. **Polusi Bundle API Route oleh Script CLI Seeder (`src/app/api/setup/route.ts`)**:
      - Commit `78ac11b` mengimpor script CLI seeder (`@/../prisma/seeds/client-clean-seed`) dari dalam Next.js route handler.
      - Script CLI seeder tersebut menginstansiasi `new PrismaClient()` pada level modul file dan menarik puluhan file seeder CLI ke dalam runtime Next.js standalone bundle, membebani memori dan merusak isolasi koneksi.
-  3. **Crash Raw SQL `radgroupreply` pada FreeRADIUS Non-Aktif (`prisma/seeds/seed-all.ts`)**:
+  4. **Crash Raw SQL `radgroupreply` pada FreeRADIUS Non-Aktif (`prisma/seeds/seed-all.ts`)**:
      - Query raw SQL `DELETE FROM radgroupreply` dan `INSERT INTO radgroupreply` dijalankan tanpa proteksi `try/catch`. Pada server klien atau instalasi non-RADIUS di mana tabel FreeRADIUS tidak ada, proses seeding langsung melempar exception fatal.
-  4. **Penanganan Respons Non-JSON pada Halaman Login (`src/app/admin/login/page.tsx`)**:
+  5. **Penanganan Respons Non-JSON pada Halaman Login (`src/app/admin/login/page.tsx`)**:
      - Ketika server Next.js atau reverse proxy mengembalikan pesan teks mentah (`"Internal Server Error"` status 500), pemanggilan `await res.json()` melempar sintaks error `Unexpected token 'I', "Internal S"... is not valid JSON` yang mengaburkan pesan error asli bagi pengguna.
 
 - **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Unifikasi Dynamic Route Slug Next.js (`[id]` Unification)**:
+     - Menghapus folder `[code]` dan memindahkan `subcategories/route.ts` ke dalam `src/app/api/admin/sku-settings/categories/[id]/subcategories/route.ts`.
+     - Baik endpoint kategori satuan (`/categories/[id]`) maupun subkategori turunan (`/categories/[id]/subcategories`) kini seragam 100% menggunakan parameter `[id]`.
+     - Menghilangkan tuntas error `You cannot use different slug names for the same dynamic path ('code' !== 'id')` sehingga seluruh route page, static files (`/favicon.ico`), dan API server Next.js kembali berfungsi normal.
   1. **Consolidated Passwordless Migration Runner (`scripts/run-migrations.ts` & `npm run db:migrate:auto`)**:
      - Membangun script migrasi database otomatis yang 100% menggunakan koneksi Prisma bawaan (`DATABASE_URL`).
      - **Bebas Password Manual**: Tidak perlu lagi login manual ke CLI MySQL (`mysql -u ... -p`).
