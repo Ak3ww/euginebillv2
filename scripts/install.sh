@@ -76,7 +76,12 @@ echo ""
 echo -e "${COLOR_BOLD}Konfigurasi Instalasi (Tekan ENTER untuk menggunakan nilai default):${COLOR_RESET}"
 
 # Auto default or prompt (with 15s timeout for zero-touch auto installation)
-read -t 15 -p "1. Domain atau IP Publik VPS [Default: ${DETECTED_IP}]: " INPUT_HOST || INPUT_HOST=""
+TTY_IN="/dev/stdin"
+if [ -e "/dev/tty" ] && [ -r "/dev/tty" ]; then
+    TTY_IN="/dev/tty"
+fi
+
+read -t 15 -p "1. Domain atau IP Publik VPS [Default: ${DETECTED_IP}]: " INPUT_HOST < "$TTY_IN" || INPUT_HOST=""
 echo ""
 SERVER_HOST="${INPUT_HOST:-$DETECTED_IP}"
 
@@ -87,13 +92,13 @@ else
     DEFAULT_APP_URL="https://${SERVER_HOST}"
 fi
 
-read -t 15 -p "2. App URL untuk pelanggan [Default: ${DEFAULT_APP_URL}]: " INPUT_URL || INPUT_URL=""
+read -t 15 -p "2. App URL untuk pelanggan [Default: ${DEFAULT_APP_URL}]: " INPUT_URL < "$TTY_IN" || INPUT_URL=""
 echo ""
 APP_URL="${INPUT_URL:-$DEFAULT_APP_URL}"
 
 # Generate random secure DB password
 GEN_DB_PASS=$(openssl rand -hex 12)
-read -t 15 -p "3. Password Database MySQL [Default: ${GEN_DB_PASS}]: " INPUT_DB_PASS || INPUT_DB_PASS=""
+read -t 15 -p "3. Password Database MySQL [Default: ${GEN_DB_PASS}]: " INPUT_DB_PASS < "$TTY_IN" || INPUT_DB_PASS=""
 echo ""
 DB_PASS="${INPUT_DB_PASS:-$GEN_DB_PASS}"
 
