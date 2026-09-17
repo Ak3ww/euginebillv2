@@ -28,9 +28,11 @@
   - Single database client singleton `src/server/db/client.ts` WAJIB menginjeksi polyfill `BigInt.prototype.toJSON = function () { const int = Number(this); return Number.isSafeInteger(int) ? int : this.toString(); };`.
   - Hal ini menjamin perlindungan menyeluruh (*zero crashes*) di seluruh route handler API tanpa memandang apakah developer/query secara tidak sengaja mengikutsertakan kolom BigInt.
 
-- **Architectural Invariant: Safe Selective Projections on OLT Relations in Network APIs (`/api/network/odps`, `/api/network/customers/assign`)**:
-  - DILARANG menyertakan `olt: true` tanpa seleksi field ketika merelasikan tabel jaringan (`networkODP`, `networkODC`, `networkOLTRouter`).
-  - Selalu gunakan proyeksi selektif: `olt: { select: { id: true, name: true, ipAddress: true } }`. Hal ini menghemat alokasi memori, mereduksi payload JSON ke klien, dan mencegah terangkutnya kolom-kolom berat/internal yang tidak relevan.
+- **Architectural Invariant: Pure L2TP VPN Server (UltraVPN Standard, Zero IPsec Overhead)**:
+  - DILARANG menginstal atau mengaktifkan modul strongSwan / IPsec untuk koneksi L2TP MikroTik.
+  - MikroTik RouterOS (versi 6.x dan 7.x) menghubungkan VPN L2TP menggunakan parameter `use-ipsec=no allow=chap,mschap2` mengikuti standar UltraVPN yang terbukti paling stabil, tanpa lag, dan tidak memicu lonjakan beban CPU pada router berkapasitas rendah (hEX lite, RB750r2, RB941).
+  - Server Linux VPS murni mengandalkan daemon `xl2tpd` dan `ppp` (port 1701/UDP) dengan kredensial tersimpan di `/etc/ppp/chap-secrets`.
+  - Seluruh skrip installer (`vps-install/install-l2tp-server.sh`, `scripts/install.sh`, `scripts/setup-vps-ports.sh`) wajib murni pure L2TP tanpa membuka port 500/4500 UDP.
 
 ### Recent Patch Log (September 17, 2026 — v2.40.16: Device Lifecycle Automation — Auto-Swap Protection, Dismantle Return, & Fasum Support)
 

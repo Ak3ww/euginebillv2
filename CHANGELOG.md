@@ -5,29 +5,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [2.40.17] — 2026-09-17
-### Resolusi Crash BigInt Serialization pada Tambah/Edit ODP & Polyfill Global BigInt toJSON
+### Resolusi Crash BigInt Serialization pada ODP & Migrasi Pure L2TP Server (UltraVPN Standard, Tanpa IPsec)
 
 - **Latar Belakang / Masalah (Issue & Context)**:
   1. **Error: "Do not know how to serialize a BigInt" Saat Tambah ODP (`/admin/network/odps`)**:
      - Saat admin atau teknisi mencoba menambahkan ODP baru (atau mengupdate ODP) melalui form modal, sistem melempar error pop-up `Error! Do not know how to serialize a BigInt`.
-     - **Root Cause**:
-       - Model Prisma `networkOLT` memiliki kolom `uptime BigInt @default(0)`.
-       - Pada endpoint `POST` dan `PUT` di `src/app/api/network/odps/route.ts`, query menyertakan `include: { olt: true, odc: true, parentOdp: true }`.
-       - Karena `olt: true` mengambil seluruh field dari `networkOLT` termasuk `uptime` bertipe `BigInt`, ketika `NextResponse.json({ success: true, odp })` dieksekusi, pemanggilan bawaan `JSON.stringify` gagal total dan melempar `TypeError: Do not know how to serialize a BigInt`.
+     - **Root Cause**: Model Prisma `networkOLT` memiliki kolom `uptime BigInt @default(0)`. Query Prisma pada endpoint `POST` dan `PUT` di `src/app/api/network/odps/route.ts` menyertakan `include: { olt: true }`. Saat `NextResponse.json(...)` memanggil `JSON.stringify`, runtime melempar `TypeError: Do not know how to serialize a BigInt`.
+  2. **Eliminasi Total IPsec & Standarisasi Pure L2TP (UltraVPN Battle-Tested Standard)**:
+     - Di lapangan dan pada script koneksi MikroTik EugineBill (`/interface l2tp-client`), konfigurasi sudah menggunakan `use-ipsec=no allow=chap,mschap2` mengikuti arsitektur UltraVPN yang terbukti paling stabil, ringan, dan tidak membebani CPU router klien.
+     - Namun pada installer VPS terdahulu (`install.sh` & `install-l2tp-server.sh`), sistem masih menginstal dependensi berat `strongswan` dan membuka port 500/4500 UDP yang tidak lagi terpakai serta memicu kebingungan PSK secret.
 
 - **Solusi Arsitektural & Perubahan Teknis**:
   1. **Global BigInt Serialization Polyfill (`src/server/db/client.ts`)**:
      - Menambahkan polyfill `BigInt.prototype.toJSON = function() { const int = Number(this); return Number.isSafeInteger(int) ? int : this.toString(); }`.
-     - Karena `prisma` diimport di hampir seluruh API routes di EugineBill, polyfill ini memberikan proteksi menyeluruh (*fail-safe defense-in-depth*) sehingga tidak ada route handler mana pun yang akan crash akibat field BigInt (seperti `uptime`, `bandwidthUp/Down`, `rxBytes/txBytes`, `filesize`, atau `usageQuota`).
-  2. **Selective Safe Projection pada ODP Handlers (`src/app/api/network/odps/route.ts`)**:
-     - Mengubah `olt: true` pada `POST` dan `PUT` menjadi selektif `olt: { select: { id: true, name: true, ipAddress: true } }`, `odc: { select: { id: true, name: true } }`, `parentOdp: { select: { id: true, name: true } }`, dan `_count: { select: { childOdps: true } }`, konsisten dengan handler `GET` dan model ODC.
-  3. **Selective Safe Projection pada Customer Assignment ODP Query (`src/app/api/network/customers/assign/route.ts`)**:
-     - Mengubah `olt: true` menjadi `olt: { select: { id: true, name: true, ipAddress: true } }` untuk mencegah crash serupa saat menghitung ODP terdekat.
+     - Memberikan proteksi menyeluruh (*fail-safe defense-in-depth*) sehingga tidak ada route handler mana pun yang akan crash akibat field BigInt.
+  2. **Selective Safe Projection pada ODP Handlers (`src/app/api/network/odps/route.ts` & `customers/assign/route.ts`)**:
+     - Mengubah `olt: true` menjadi selektif `olt: { select: { id: true, name: true, ipAddress: true } }`.
+  3. **Migrasi Pure L2TP VPN Server (UltraVPN Standard) pada Installer VPS**:
+     - `vps-install/install-l2tp-server.sh`: Menghapus seluruh dependensi strongSwan/IPsec. Hanya menginstal `xl2tpd` dan `ppp`.
+     - Konfigurasi `options.xl2tpd.server` dioptimalkan murni untuk PPP CHAP/MS-CHAPv2 dengan DNS Cloudflare `1.1.1.1, 1.0.0.1` dan MTU/MRU 1450.
+     - Port firewall UFW disederhanakan murni membuka port `1701/udp` (port 500 & 4500 IPsec dinonaktifkan).
+     - Selaras 100% dengan script koneksi MikroTik 1-klik di admin panel (`use-ipsec=no`).
 
 - **Files**:
   - `src/server/db/client.ts`
   - `src/app/api/network/odps/route.ts`
   - `src/app/api/network/customers/assign/route.ts`
+  - `vps-install/install-l2tp-server.sh`
+  - `scripts/install.sh`
+  - `scripts/setup-vps-ports.sh`
   - `package.json`
 
 ## [2.40.16] — 2026-09-17

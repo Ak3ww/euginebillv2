@@ -65,11 +65,12 @@ log_info "Mengizinkan port GenieACS TR-069 (7547/tcp, 7567/tcp)..."
 ufw allow 7547/tcp comment "GenieACS CWMP Listener"
 ufw allow 7567/tcp comment "GenieACS File Server"
 
-# 9. L2TP / IPSec VPN (500, 4500, 1701/udp)
-log_info "Mengizinkan port L2TP/IPSec VPN (500/udp, 4500/udp, 1701/udp)..."
-ufw allow 500/udp comment "IPSec IKE"
-ufw allow 4500/udp comment "IPSec NAT-T"
-ufw allow 1701/udp comment "L2TP Server"
+# 9. Pure L2TP VPN Server (UltraVPN Standard - Port 1701/udp, No IPsec)
+log_info "Mengizinkan port Pure L2TP VPN Server (1701/udp)..."
+ufw allow 1701/udp comment "Pure L2TP VPN Server (UltraVPN Standard)"
+# Pastikan port IPsec lama dihapus jika pernah aktif
+ufw delete allow 500/udp > /dev/null 2>&1 || true
+ufw delete allow 4500/udp > /dev/null 2>&1 || true
 
 # Enable UFW if not enabled
 log_info "Mengaktifkan UFW firewall..."

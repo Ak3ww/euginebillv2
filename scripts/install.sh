@@ -112,7 +112,7 @@ apt-get update -y
 apt-get install -y \
     curl git ufw socat mysql-server wireguard wireguard-tools \
     gzip openssl build-essential nginx \
-    strongswan strongswan-pki libcharon-extra-plugins xl2tpd ppp \
+    xl2tpd ppp \
     freeradius freeradius-mysql freeradius-utils iptables iproute2
 
 log_success "Dependensi sistem dasar terpasang."
@@ -254,11 +254,11 @@ if [ -f "vps-install/install-wg-server.sh" ]; then
     log_success "WireGuard VPN Server aktif pada 10.200.0.1:51820."
 fi
 
-# 13. Configure L2TP/IPSec VPN Server (RouterOS 6.x)
-log_info "Mengonfigurasi L2TP/IPSec VPN Server (Subnet 10.201.0.0/24)..."
+# 13. Configure Pure L2TP VPN Server (UltraVPN Standard - RouterOS 6.x & 7.x)
+log_info "Mengonfigurasi Pure L2TP VPN Server (Subnet 10.201.0.0/24 - UltraVPN Standard, use-ipsec=no)..."
 if [ -f "vps-install/install-l2tp-server.sh" ]; then
     bash vps-install/install-l2tp-server.sh --subnet 10.201.0.0/24
-    log_success "L2TP/IPSec VPN Server aktif pada 10.201.0.1."
+    log_success "Pure L2TP VPN Server (UltraVPN Standard) aktif pada 10.201.0.1:1701."
 fi
 
 # 14. Configure FreeRADIUS 3.x with MySQL & OpenSSL MD4 Provider
@@ -361,11 +361,7 @@ log_success "Layanan PM2 berjalan: EugineBill-radius, EugineBill-wa, EugineBill-
 
 # 18. Read WireGuard & L2TP Info if available
 WG_INFO="Interface wg0 (10.200.0.1/24) on Port 51820/UDP"
-L2TP_INFO="xl2tpd (10.201.0.1/24) with IPSec PSK"
-if [ -f "/etc/EugineBill/l2tp/ipsec.psk" ]; then
-    L2TP_PSK_VAL="$(cat /etc/EugineBill/l2tp/ipsec.psk)"
-    L2TP_INFO="Subnet: 10.201.0.0/24 (Gateway: 10.201.0.1) | PSK: ${L2TP_PSK_VAL}"
-fi
+L2TP_INFO="xl2tpd (Subnet 10.201.0.0/24, Gateway: 10.201.0.1) | Pure L2TP / UltraVPN Standard (use-ipsec=no, Port 1701/UDP)"
 
 # 19. Finished Banner
 echo ""
@@ -379,7 +375,7 @@ echo -e "Layanan yang telah aktif dan berjalan di VPS ini:"
 echo -e "  - Web Portal (Nginx Reverse Proxy) : Port 80 & 443"
 echo -e "  - FreeRADIUS Server                : Port 1812, 1813, 3799/UDP"
 echo -e "  - WireGuard VPN Server (RouterOS 7): ${WG_INFO}"
-echo -e "  - L2TP/IPSec VPN Server (RouterOS 6): ${L2TP_INFO}"
+echo -e "  - Pure L2TP VPN Server (UltraVPN)  : ${L2TP_INFO}"
 echo -e "  - Remote ONT Proxy Range           : Port 24000 - 24999/TCP"
 echo -e "  - Remote Winbox Forwarding Range   : Port 10001 - 10999/TCP"
 echo -e "  - WhatsApp Baileys & Cron Service  : Managed via PM2"
