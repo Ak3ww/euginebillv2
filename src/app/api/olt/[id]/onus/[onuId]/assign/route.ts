@@ -42,6 +42,8 @@ function serializeOnuAssignment(onu: {
   };
 }
 
+import { findSmartMatchForOnu, CandidateCustomer } from '@/lib/olt/smart-matcher';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; onuId: string }> }
@@ -53,30 +55,86 @@ export async function GET(
     const { id, onuId } = await params;
     const q = request.nextUrl.searchParams.get('q')?.trim();
 
+    // 1. Fetch OLT with router bindings
+    const olt = await prisma.networkOLT.findUnique({
+      where: { id },
+      include: { routers: { select: { routerId: true } } },
+    });
+    const oltRouterIds = olt?.routers.map((r) => r.routerId) || [];
+
+    // 2. Fetch ONU details
     const onu = await prisma.oltOnuStatus.findFirst({
       where: { id: onuId, oltId: id },
-      include: { customer: { select: { id: true, username: true, name: true, phone: true, customerId: true } } },
+      include: {
+        customer: { select: { id: true, username: true, name: true, phone: true, customerId: true, status: true } },
+      },
     });
     if (!onu) return NextResponse.json({ error: 'ONU not found' }, { status: 404 });
 
+    // 3. Fetch customers — ALL statuses (active, isolir, inactive, etc.)
     const customers = await prisma.pppoeUser.findMany({
-      where: {
-        status: { in: ['active', 'ACTIVE'] },
-        ...(q ? {
-          OR: [
-            { name: { contains: q } },
-            { username: { contains: q } },
-            { phone: { contains: q } },
-            { customerId: { contains: q } },
-          ],
-        } : {}),
+      where: q ? {
+        OR: [
+          { name: { contains: q } },
+          { username: { contains: q } },
+          { phone: { contains: q } },
+          { customerId: { contains: q } },
+          { macAddress: { contains: q } },
+        ],
+      } : {},
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        phone: true,
+        customerId: true,
+        status: true,
+        macAddress: true,
+        routerId: true,
+        router: { select: { name: true } },
       },
-      select: { id: true, username: true, name: true, phone: true, customerId: true, status: true },
       orderBy: { name: 'asc' },
-      take: 100,
+      take: q ? 50 : 100,
     });
 
-    return NextResponse.json({ success: true, currentCustomer: onu.customer, customers });
+    const candidates: CandidateCustomer[] = customers.map((c) => ({
+      id: c.id,
+      username: c.username,
+      name: c.name,
+      phone: c.phone,
+      customerId: c.customerId,
+      status: c.status,
+      macAddress: c.macAddress,
+      routerId: c.routerId,
+      routerName: c.router?.name ?? null,
+    }));
+
+    // 4. Compute smart suggestions for this specific ONU
+    const { bestMatch, suggestions } = findSmartMatchForOnu(
+      {
+        serialNumber: onu.serialNumber,
+        macAddress: onu.macAddress,
+        description: onu.description,
+      },
+      candidates,
+      { oltRouterIds, minScoreThreshold: 70 }
+    );
+
+    // Prioritize candidates on the OLT router first if no explicit query
+    const sortedCustomers = [...candidates].sort((a, b) => {
+      const aOnRouter = a.routerId && oltRouterIds.includes(a.routerId) ? 1 : 0;
+      const bOnRouter = b.routerId && oltRouterIds.includes(b.routerId) ? 1 : 0;
+      if (aOnRouter !== bOnRouter) return bOnRouter - aOnRouter;
+      return a.name.localeCompare(b.name);
+    });
+
+    return NextResponse.json({
+      success: true,
+      currentCustomer: onu.customer,
+      bestMatch,
+      suggestions,
+      customers: sortedCustomers,
+    });
   } catch (error: any) {
     console.error('[ONU Assign GET]', error);
     return NextResponse.json({ error: error.message ?? 'Failed to load customers' }, { status: 500 });

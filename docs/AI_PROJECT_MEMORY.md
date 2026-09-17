@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.13
+- **Version**: 2.40.14
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 17, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,27 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 17, 2026 — v2.40.14: Smart Auto-Assign & OLT Manual Assign Overhaul)
+
+- **Architectural Invariant: OLT Smart Auto-Assign Engine (`src/lib/olt/smart-matcher.ts`)**:
+  - DILARANG menggunakan pencocokan kaku persis (`description.includes(username)` atau `===`) karena penamaan teknisi di OLT lapangan selalu memiliki variasi karakter pemisah strip (`ARIESTA-MIRANDA`), singkatan nama Indonesia (`M.`/`M ` untuk Muhammad, `ACH.` untuk Achmad), tambahan keterangan area (`RT05`), atau salah ketik ringan.
+  - Modul `smart-matcher.ts` wajib menjalankan scoring multitahap:
+    1. Pembersihan prefix operator (`PELANGGAN:`, `CUST:`, dll) dan sanitasi spasi.
+    2. Pencocokan identik pada serial number, MAC address, atau username PPPoE kompak (skor 100).
+    3. Ekspansi singkatan nama Indonesia (skor 95).
+    4. Token overlap subset nama (skor 90–92).
+    5. Koefisien fuzzy Dice bigram dengan toleransi typo adaptif ($\ge 82\%$, skor 80–89).
+    6. Bonus router uplink proximity (+3) jika OLT dan pelanggan berbagi NAS router yang sama.
+  - Background poller (`src/lib/olt/poller.ts`) menggunakan ambang batas ketat $\ge 85\%$ untuk auto-linking tanpa intervensi manusia.
+
+- **Architectural Invariant: Status-Free Customer Discovery in OLT Manual Assign (`/api/olt/[id]/onus/[onuId]/assign`)**:
+  - DILARANG membatasi pencarian pelanggan OLT dengan klausa `status: active`. Pelanggan yang sedang terisolir (`ISOLIR`) atau offline wajib tetap dapat ditemukan dan ditautkan ke port OLT/ONU.
+  - Endpoint assign selalu menyertakan `bestMatch` serta `suggestions` yang diprioritaskan berdasarkan router uplink OLT.
+
+- **Architectural Invariant: Re-evaluation Support in Bulk Smart Auto-Assign (`/api/olt/[id]/auto-assign`)**:
+  - Bulk auto-assign wajib mendukung dua cakupan evaluasi: `scope: 'all'` (mengevaluasi seluruh ONU termasuk yang sudah ditautkan untuk audit/re-evaluation) dan `scope: 'unassigned'` (hanya yang belum ditautkan).
+  - UI wajib menyediakan pratinjau lengkap metrik, aksi yang disarankan (`ASSIGN`, `CHANGE`, `KEEP`, `NO_MATCH`), serta seleksi checkbox sebelum eksekusi massal.
 
 ### Recent Patch Log (September 17, 2026 — v2.40.13: Login 500 Root Cause Resolution & Passwordless DDL Standard)
 

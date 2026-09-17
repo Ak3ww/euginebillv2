@@ -19,7 +19,8 @@ import {
   Server, RefreshCw, AlertCircle, Wifi, WifiOff,
   Thermometer, Clock, Activity, ArrowLeft, Save, TestTube,
   Power, Download, CheckCircle, Signal, Plus, X, Cpu, Zap,
-  Eye, UserPlus, Trash2,
+  Eye, UserPlus, Trash2, Sparkles, Wand2, Search, Check,
+  CheckCircle2, AlertTriangle, ShieldCheck, Pencil, Filter,
 } from 'lucide-react';
 
 interface ONU {
@@ -1575,40 +1576,420 @@ function ONUDetailModal({ oltId, onu, onClose }: { oltId: string; onu: ONU; onCl
   );
 }
 
-function ONUAssignModal({ oltId, onu, onClose, onSuccess }: { oltId: string; onu: ONU; onClose: () => void; onSuccess: () => void }) {
+function SmartAutoAssignModal({
+  oltId,
+  oltName,
+  onClose,
+  onSuccess,
+}: {
+  oltId: string;
+  oltName: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [scope, setScope] = useState<'all' | 'unassigned'>('all');
+  const [minScore, setMinScore] = useState<number>(80);
+  const [loading, setLoading] = useState(true);
+  const [applying, setApplying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<any>(null);
+  const [items, setItems] = useState<any[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const fetchPreview = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/olt/${oltId}/auto-assign?scope=${scope}&minScore=${minScore}`);
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Gagal memuat analisis auto-assign');
+      setSummary(data.summary);
+      setItems(data.items || []);
+      // Default: select all items that have a match (ASSIGN or CHANGE)
+      const toSelect = new Set<string>();
+      (data.items || []).forEach((item: any) => {
+        if (item.action === 'ASSIGN' || item.action === 'CHANGE') {
+          toSelect.add(item.onuId);
+        }
+      });
+      setSelectedIds(toSelect);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [oltId, scope, minScore]);
+
+  useEffect(() => {
+    fetchPreview();
+  }, [fetchPreview]);
+
+  const toggleSelectAll = () => {
+    const eligible = items.filter((i) => i.matchedCustomer && (i.action === 'ASSIGN' || i.action === 'CHANGE'));
+    if (selectedIds.size === eligible.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(eligible.map((i) => i.onuId)));
+    }
+  };
+
+  const toggleSelect = (onuId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(onuId)) next.delete(onuId);
+      else next.add(onuId);
+      return next;
+    });
+  };
+
+  const handleApply = async () => {
+    if (selectedIds.size === 0) return;
+    setApplying(true);
+    setError(null);
+    try {
+      const assignments = items
+        .filter((i) => selectedIds.has(i.onuId) && i.matchedCustomer)
+        .map((i) => ({
+          onuId: i.onuId,
+          customerId: i.matchedCustomer.id,
+        }));
+
+      const res = await fetch(`/api/olt/${oltId}/auto-assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignments }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Gagal menerapkan penautan pelanggan');
+      await onSuccess();
+      onClose();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const eligibleCount = items.filter((i) => i.matchedCustomer && (i.action === 'ASSIGN' || i.action === 'CHANGE')).length;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-150">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-800 bg-slate-50/50 dark:bg-gray-900/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-base sm:text-lg text-gray-900 dark:text-white flex items-center gap-2">
+                Smart Auto-Assign Pelanggan
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                OLT: {oltName} &bull; Analisis pencocokan cerdas toleransi typo, singkatan, serial number &amp; uplink router
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Filter Controls & Summary Cards */}
+        <div className="p-5 border-b dark:border-gray-800 space-y-4 bg-white dark:bg-gray-900">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Cakupan Evaluasi:</span>
+              <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-800 p-0.5 bg-gray-50 dark:bg-gray-800 text-xs">
+                <button
+                  onClick={() => setScope('all')}
+                  className={`px-3 py-1 rounded-md font-medium transition-all ${
+                    scope === 'all'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-xs'
+                      : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
+                  }`}
+                >
+                  Semua ONU (Termasuk Evaluasi Ulang)
+                </button>
+                <button
+                  onClick={() => setScope('unassigned')}
+                  className={`px-3 py-1 rounded-md font-medium transition-all ${
+                    scope === 'unassigned'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-xs'
+                      : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
+                  }`}
+                >
+                  Hanya yang Belum Ditautkan
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Ambang Batas Kemiripan:</span>
+              <select
+                value={minScore}
+                onChange={(e) => setMinScore(Number(e.target.value))}
+                className="text-xs border border-gray-200 dark:border-gray-800 rounded-md px-2 py-1 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none"
+              >
+                <option value={75}>&ge; 75% (Sangat Fleksibel)</option>
+                <option value={80}>&ge; 80% (Direkomendasikan)</option>
+                <option value={85}>&ge; 85% (Ketat)</option>
+                <option value={95}>&ge; 95% (Hampir Identik)</option>
+              </select>
+              <Button variant="outline" size="sm" onClick={fetchPreview} disabled={loading} className="h-7 text-xs">
+                <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                Muat Ulang
+              </Button>
+            </div>
+          </div>
+
+          {/* Metric Summary Cards */}
+          {summary && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
+                <div className="text-[11px] text-gray-500 dark:text-gray-400">Total Dianalisis</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">{summary.totalOnus} ONU</div>
+              </div>
+              <div className="p-3 rounded-lg border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-950/20">
+                <div className="text-[11px] text-emerald-700 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                  <CheckCircle2 className="w-3 h-3" /> Siap Ditautkan Baru
+                </div>
+                <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{summary.matchedToAssign}</div>
+              </div>
+              <div className="p-3 rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20">
+                <div className="text-[11px] text-blue-700 dark:text-blue-400 flex items-center gap-1 font-medium">
+                  <Wand2 className="w-3 h-3" /> Saran Perubahan
+                </div>
+                <div className="text-lg font-bold text-blue-700 dark:text-blue-400">{summary.matchedToChange}</div>
+              </div>
+              <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/40">
+                <div className="text-[11px] text-gray-500 dark:text-gray-400">Belum Ada Kecocokan</div>
+                <div className="text-lg font-bold text-gray-600 dark:text-gray-300">{summary.noMatchCount}</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="mx-5 mt-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Preview Table */}
+        <div className="flex-1 overflow-y-auto p-5">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-2">
+              <RefreshCw className="w-7 h-7 animate-spin text-indigo-500" />
+              <p className="text-xs">Menganalisis kemiripan nama, singkatan &amp; serial number...</p>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-sm">Tidak ada data ONU untuk dianalisis</div>
+          ) : (
+            <div className="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-800/60 border-b dark:border-gray-700 text-left text-gray-600 dark:text-gray-300">
+                    <th className="py-2 pl-3 pr-2 w-8">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size === eligibleCount && eligibleCount > 0}
+                        onChange={toggleSelectAll}
+                        disabled={eligibleCount === 0}
+                        className="w-3.5 h-3.5 rounded text-indigo-600"
+                      />
+                    </th>
+                    <th className="py-2 pr-3 font-semibold">Port:ID</th>
+                    <th className="py-2 pr-3 font-semibold">Nama di OLT / SN</th>
+                    <th className="py-2 pr-3 font-semibold">Status Saat Ini</th>
+                    <th className="py-2 pr-3 font-semibold">Kecocokan Pelanggan</th>
+                    <th className="py-2 pr-3 font-semibold">Tingkat Kemiripan</th>
+                    <th className="py-2 pr-3 font-semibold">Alasan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {items.map((item) => {
+                    const isEligible = item.matchedCustomer && (item.action === 'ASSIGN' || item.action === 'CHANGE');
+                    const isSelected = selectedIds.has(item.onuId);
+                    return (
+                      <tr
+                        key={item.onuId}
+                        className={`transition-colors ${
+                          item.action === 'ASSIGN'
+                            ? 'bg-emerald-50/20 dark:bg-emerald-950/10 hover:bg-emerald-50/40'
+                            : item.action === 'CHANGE'
+                            ? 'bg-blue-50/20 dark:bg-blue-950/10 hover:bg-blue-50/40'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/30 opacity-70'
+                        }`}
+                      >
+                        <td className="py-2.5 pl-3 pr-2">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(item.onuId)}
+                            disabled={!isEligible}
+                            className="w-3.5 h-3.5 rounded text-indigo-600 disabled:opacity-30"
+                          />
+                        </td>
+                        <td className="py-2.5 pr-3 font-mono text-[11px] font-medium text-gray-700 dark:text-gray-300">
+                          {item.location}
+                        </td>
+                        <td className="py-2.5 pr-3">
+                          <div className="font-semibold text-gray-900 dark:text-gray-100">
+                            {item.description || <span className="text-gray-400 font-normal">Tanpa Nama</span>}
+                          </div>
+                          <div className="text-[10px] font-mono text-gray-400">
+                            {item.serialNumber || 'SN: N/A'}
+                          </div>
+                        </td>
+                        <td className="py-2.5 pr-3">
+                          {item.currentCustomer ? (
+                            <div>
+                              <span className="font-medium text-gray-700 dark:text-gray-300">{item.currentCustomer.name}</span>
+                              <div className="text-[10px] text-gray-400">@{item.currentCustomer.username}</div>
+                            </div>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] font-normal text-gray-400">
+                              Belum Ditautkan
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-2.5 pr-3">
+                          {item.matchedCustomer ? (
+                            <div>
+                              <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                {item.matchedCustomer.name}
+                                {item.matchedCustomer.status === 'isolir' && (
+                                  <span className="text-[9px] px-1 py-0.2 rounded bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400">
+                                    Isolir
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-indigo-600 dark:text-indigo-400">
+                                @{item.matchedCustomer.username} &bull; {item.matchedCustomer.phone || item.matchedCustomer.customerId || ''}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">Tidak Ditemukan</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 pr-3">
+                          {item.score > 0 ? (
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                item.score >= 95
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                  : item.score >= 85
+                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+                                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                              }`}
+                            >
+                              {item.score}%
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 pr-3 text-[11px] text-gray-500 dark:text-gray-400 max-w-[200px] truncate" title={item.reason}>
+                          {item.reason}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t dark:border-gray-800 bg-slate-50/50 dark:bg-gray-900/50">
+          <div className="text-xs text-gray-600 dark:text-gray-300">
+            <span className="font-bold text-indigo-600 dark:text-indigo-400">{selectedIds.size}</span> dari {eligibleCount} rekomendasi terpilih
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} disabled={applying} className="text-xs">
+              Batal
+            </Button>
+            <Button
+              onClick={handleApply}
+              disabled={selectedIds.size === 0 || applying}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs flex items-center gap-1.5 shadow-sm"
+            >
+              {applying ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" />
+                  Menerapkan...
+                </>
+              ) : (
+                <>
+                  <Check className="w-3.5 h-3.5 mr-1" />
+                  Terapkan ({selectedIds.size}) Penautan
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ONUAssignModal({
+  oltId,
+  onu,
+  onClose,
+  onSuccess,
+}: {
+  oltId: string;
+  onu: ONU;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
   const [customers, setCustomers] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [bestMatch, setBestMatch] = useState<any | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState(onu.customer?.id ?? '');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadCustomers = useCallback(() => {
+  const loadData = useCallback(() => {
     setLoading(true);
     fetch(`/api/olt/${oltId}/onus/${onu.id}/assign${query ? `?q=${encodeURIComponent(query)}` : ''}`)
       .then(async (res) => {
         const json = await res.json();
-        if (!res.ok || !json.success) throw new Error(json.error ?? 'Failed to load customers');
+        if (!res.ok || !json.success) throw new Error(json.error ?? 'Gagal memuat daftar pelanggan');
         setCustomers(json.customers ?? []);
-        if (json.currentCustomer?.id) setSelectedCustomerId(json.currentCustomer.id);
+        setSuggestions(json.suggestions ?? []);
+        setBestMatch(json.bestMatch ?? null);
+        if (json.currentCustomer?.id && !selectedCustomerId) {
+          setSelectedCustomerId(json.currentCustomer.id);
+        }
       })
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));
   }, [oltId, onu.id, query]);
 
   useEffect(() => {
-    const t = setTimeout(loadCustomers, 250);
+    const t = setTimeout(loadData, 200);
     return () => clearTimeout(t);
-  }, [loadCustomers]);
+  }, [loadData]);
 
   const save = async (customerId: string | null) => {
-    setSaving(true); setError(null);
+    setSaving(true);
+    setError(null);
     try {
       const res = await fetch(`/api/olt/${oltId}/onus/${onu.id}/assign`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId }),
       });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error ?? 'Failed to assign customer');
+      if (!res.ok || !json.success) throw new Error(json.error ?? 'Gagal menyimpan penautan pelanggan');
       await onSuccess();
       onClose();
     } catch (e: any) {
@@ -1618,41 +1999,196 @@ function ONUAssignModal({ oltId, onu, onClose, onSuccess }: { oltId: string; onu
     }
   };
 
+  const selectedCustomerObj = customers.find((c) => c.id === selectedCustomerId) ||
+    (onu.customer && onu.customer.id === selectedCustomerId ? onu.customer : null);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b dark:border-gray-800 bg-slate-50/50 dark:bg-gray-900/50">
           <div>
-            <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2"><UserPlus className="h-4 w-4 text-indigo-500" /> Assign Customer</h2>
-            <p className="text-xs text-gray-500 font-mono mt-0.5">{onu.serialNumber ?? `${onu.frame}/${onu.slot}/${onu.port}:${onu.onuId}`}</p>
+            <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <UserPlus className="h-4 w-4 text-indigo-500" /> Tautkan Pelanggan
+            </h2>
+            <p className="text-xs text-gray-500 font-mono mt-0.5">
+              Port {onu.port}:{onu.onuId} &bull; {onu.serialNumber ?? 'SN: N/A'}
+              {onu.description && ` &bull; OLT: "${onu.description}"`}
+            </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            <X className="h-5 w-5" />
+          </button>
         </div>
-        <div className="p-5 space-y-4">
-          <div>
-            <Label className="text-xs text-gray-500">Search Customer</Label>
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="name, username, phone, customer ID" className="mt-1" />
+
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          {/* Smart Suggestion Card */}
+          {bestMatch && bestMatch.customer && (
+            <div className="p-3 rounded-lg border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Rekomendasi Cerdas ({bestMatch.score}% Cocok)
+                </span>
+                <Button
+                  size="sm"
+                  variant={selectedCustomerId === bestMatch.customer.id ? 'default' : 'outline'}
+                  onClick={() => setSelectedCustomerId(bestMatch.customer.id)}
+                  className={`h-7 text-xs ${
+                    selectedCustomerId === bestMatch.customer.id
+                      ? 'bg-indigo-600 text-white'
+                      : 'border-indigo-300 text-indigo-700 dark:text-indigo-300'
+                  }`}
+                >
+                  {selectedCustomerId === bestMatch.customer.id ? (
+                    <><Check className="w-3 h-3 mr-1" /> Terpilih</>
+                  ) : (
+                    'Gunakan Saran Ini'
+                  )}
+                </Button>
+              </div>
+              <div className="text-xs">
+                <div className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                  {bestMatch.customer.name}
+                  {bestMatch.customer.status === 'isolir' && (
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400">
+                      Isolir
+                    </span>
+                  )}
+                </div>
+                <div className="text-gray-500 dark:text-gray-400 text-[11px]">
+                  @{bestMatch.customer.username} &bull; {bestMatch.customer.phone || bestMatch.customer.customerId || ''}
+                </div>
+                <div className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-1 italic">
+                  {bestMatch.reason}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Search Box */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-gray-600 dark:text-gray-300 font-medium">Cari Pelanggan</Label>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari nama, username, no HP, atau ID..."
+                className="pl-9 text-xs"
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-xs"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
-          <div>
-            <Label className="text-xs text-gray-500">Customer</Label>
-            <Select value={selectedCustomerId || 'none'} onValueChange={(v) => setSelectedCustomerId(v === 'none' ? '' : v)}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder={loading ? 'Loading...' : 'Select customer'} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Unassigned</SelectItem>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>{customer.name} - {customer.username}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+
+          {/* Customer Selection List */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span>Pilih Pelanggan ({customers.length} ditemukan)</span>
+              {selectedCustomerObj && (
+                <span className="text-indigo-600 font-medium">Terpilih: {selectedCustomerObj.name}</span>
+              )}
+            </div>
+
+            <div className="border border-gray-200 dark:border-gray-800 rounded-lg max-h-[220px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+              {loading ? (
+                <div className="flex items-center justify-center py-8 text-gray-400 text-xs gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin" /> Memuat pelanggan...
+                </div>
+              ) : customers.length === 0 ? (
+                <div className="py-8 text-center text-gray-400 text-xs">
+                  Tidak ada pelanggan yang cocok dengan pencarian
+                </div>
+              ) : (
+                customers.map((c) => {
+                  const isSelected = selectedCustomerId === c.id;
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => setSelectedCustomerId(c.id)}
+                      className={`p-2.5 flex items-center justify-between cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 font-medium'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0 pr-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold truncate text-gray-900 dark:text-white">{c.name}</span>
+                          {c.status === 'isolir' ? (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400">
+                              Isolir
+                            </span>
+                          ) : c.status === 'active' ? (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
+                              Aktif
+                            </span>
+                          ) : (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                              {c.status || 'Offline'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                          @{c.username} {c.phone ? `&bull; ${c.phone}` : ''} {c.routerName ? `&bull; [${c.routerName}]` : ''}
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        {isSelected ? (
+                          <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        ) : (
+                          <div className="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600" />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
-          {error && <div className="px-3 py-2 rounded bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300 text-sm">{error}</div>}
+
+          {error && (
+            <div className="px-3 py-2 rounded bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300 text-xs">
+              {error}
+            </div>
+          )}
         </div>
-        <div className="flex justify-between gap-2 px-5 py-4 border-t dark:border-gray-800">
-          <Button variant="outline" onClick={() => save(null)} disabled={saving}>Unassign</Button>
+
+        {/* Footer */}
+        <div className="flex justify-between gap-2 px-5 py-4 border-t dark:border-gray-800 bg-slate-50/50 dark:bg-gray-900/50">
+          <Button
+            variant="outline"
+            onClick={() => save(null)}
+            disabled={saving || !onu.customer}
+            className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 dark:border-rose-900/50"
+          >
+            Lepas Tautan
+          </Button>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-            <Button onClick={() => save(selectedCustomerId || null)} disabled={saving || loading}>
-              {saving ? <><RefreshCw className="h-3 w-3 mr-2 animate-spin" />Saving...</> : 'Save Assignment'}
+            <Button variant="outline" onClick={onClose} disabled={saving} className="text-xs">
+              Batal
+            </Button>
+            <Button
+              onClick={() => save(selectedCustomerId || null)}
+              disabled={saving || !selectedCustomerId}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium"
+            >
+              {saving ? (
+                <>
+                  <RefreshCw className="h-3 w-3 mr-1.5 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                'Simpan Penautan'
+              )}
             </Button>
           </div>
         </div>
@@ -1673,6 +2209,8 @@ export default function OLTDetailPage({ params }: { params: Promise<{ id: string
   const [deletingOnu, setDeletingOnu] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [onuStatusFilter, setOnuStatusFilter] = useState(urlFilter ?? 'all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAutoAssignModal, setShowAutoAssignModal] = useState(false);
 
   // Batch reboot
   const [selectedOnus, setSelectedOnus] = useState<Set<string>>(new Set());
@@ -1966,9 +2504,35 @@ export default function OLTDetailPage({ params }: { params: Promise<{ id: string
     }
   };
 
-  const filteredOnus = (olt?.onuStatuses ?? []).filter((o) =>
-    onuStatusFilter === 'all' || o.status === onuStatusFilter
-  );
+  const filteredOnus = useMemo(() => {
+    let result = olt?.onuStatuses ?? [];
+
+    // Filter by status or assignment
+    if (onuStatusFilter === 'unassigned') {
+      result = result.filter((o) => !o.customer);
+    } else if (onuStatusFilter === 'assigned') {
+      result = result.filter((o) => !!o.customer);
+    } else if (onuStatusFilter !== 'all') {
+      result = result.filter((o) => o.status === onuStatusFilter);
+    }
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase().trim();
+      result = result.filter((o) => {
+        const descMatch = o.description?.toLowerCase().includes(q);
+        const snMatch = o.serialNumber?.toLowerCase().includes(q);
+        const macMatch = o.macAddress?.toLowerCase().includes(q);
+        const custNameMatch = o.customer?.name.toLowerCase().includes(q);
+        const custUserMatch = o.customer?.username.toLowerCase().includes(q);
+        const custPhoneMatch = o.customer?.phone?.toLowerCase().includes(q);
+        const locMatch = `${o.port}:${o.onuId}`.includes(q) || `${o.frame}/${o.slot}/${o.port}:${o.onuId}`.includes(q);
+        return descMatch || snMatch || macMatch || custNameMatch || custUserMatch || custPhoneMatch || locMatch;
+      });
+    }
+
+    return result;
+  }, [olt?.onuStatuses, onuStatusFilter, searchTerm]);
 
   if (loading) {
     return (
@@ -2080,35 +2644,79 @@ export default function OLTDetailPage({ params }: { params: Promise<{ id: string
 
         {/* ONU List Tab */}
         <TabsContent value="onus" className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <Select value={onuStatusFilter} onValueChange={setOnuStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All ONUs</SelectItem>
-                <SelectItem value="online">Online</SelectItem>
-                <SelectItem value="offline">Offline</SelectItem>
-                <SelectItem value="dying_gasp">Dying Gasp</SelectItem>
-                <SelectItem value="los">LOS</SelectItem>
-                <SelectItem value="auth_failed">Unregistered</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-sm text-gray-500 self-center">{filteredOnus.length} ONUs</span>
-            {selectedOnus.size > 0 && (
-              <>
-                <span className="text-sm font-medium text-blue-600">{selectedOnus.size} selected</span>
-                <Button
-                  onClick={handleBatchReboot}
-                  disabled={batchRebooting}
-                  size="sm"
-                  className="bg-orange-600 hover:bg-orange-700 text-white"
-                >
-                  <Power className="w-3 h-3 mr-1" />
-                  {batchRebooting ? 'Rebooting...' : `Reboot ${selectedOnus.size} ONUs`}
-                </Button>
-              </>
-            )}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 flex-1">
+              {/* Search Bar */}
+              <div className="relative min-w-[220px] max-w-xs">
+                <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-gray-400" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Cari SN, nama OLT, pelanggan..."
+                  className="pl-8 h-9 text-xs"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Status & Assignment Filter */}
+              <Select value={onuStatusFilter} onValueChange={setOnuStatusFilter}>
+                <SelectTrigger className="w-[190px] h-9 text-xs">
+                  <SelectValue placeholder="Filter status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua ONU ({olt?.onuStatuses?.length ?? 0})</SelectItem>
+                  <SelectItem value="unassigned">
+                    Belum Ditautkan ({olt?.onuStatuses?.filter((o) => !o.customer).length ?? 0})
+                  </SelectItem>
+                  <SelectItem value="assigned">
+                    Sudah Ditautkan ({olt?.onuStatuses?.filter((o) => !!o.customer).length ?? 0})
+                  </SelectItem>
+                  <SelectItem value="online">Online</SelectItem>
+                  <SelectItem value="offline">Offline</SelectItem>
+                  <SelectItem value="dying_gasp">Dying Gasp</SelectItem>
+                  <SelectItem value="los">LOS</SelectItem>
+                  <SelectItem value="auth_failed">Unregistered</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <span className="text-xs text-gray-500 self-center">
+                Menampilkan <strong className="text-gray-700 dark:text-gray-300">{filteredOnus.length}</strong> ONU
+              </span>
+
+              {selectedOnus.size > 0 && (
+                <>
+                  <span className="text-xs font-medium text-blue-600">{selectedOnus.size} terpilih</span>
+                  <Button
+                    onClick={handleBatchReboot}
+                    disabled={batchRebooting}
+                    size="sm"
+                    className="h-9 bg-orange-600 hover:bg-orange-700 text-white text-xs"
+                  >
+                    <Power className="w-3.5 h-3.5 mr-1" />
+                    {batchRebooting ? 'Rebooting...' : `Reboot ${selectedOnus.size} ONU`}
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {/* Smart Auto-Assign Button */}
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setShowAutoAssignModal(true)}
+                size="sm"
+                className="h-9 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs flex items-center gap-1.5 shadow-sm"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Smart Auto-Assign
+              </Button>
+            </div>
           </div>
 
           {/* Batch Progress */}
@@ -2215,12 +2823,30 @@ export default function OLTDetailPage({ params }: { params: Promise<{ id: string
                       </td>
                       <td className="py-2.5 pr-4">
                         {onu.customer ? (
-                          <div>
-                            <div className="text-xs font-medium text-gray-900 dark:text-white">{onu.customer.name}</div>
-                            <div className="text-gray-500 dark:text-gray-400 text-xs">{onu.customer.username}</div>
+                          <div
+                            onClick={() => setAssigningOnu(onu)}
+                            className="group cursor-pointer p-1 -m-1 rounded hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 transition-colors"
+                            title="Klik untuk ubah penautan pelanggan"
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                                {onu.customer.name}
+                              </span>
+                              <Pencil className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                            </div>
+                            <div className="text-gray-500 dark:text-gray-400 text-[11px] font-mono">
+                              @{onu.customer.username}
+                            </div>
                           </div>
                         ) : (
-                          <span className="text-gray-400 text-xs">Unassigned</span>
+                          <button
+                            onClick={() => setAssigningOnu(onu)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-dashed border-indigo-300 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors"
+                            title="Klik untuk tautkan ke pelanggan"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Tautkan
+                          </button>
                         )}
                       </td>
                       <td className="py-2.5 pr-4 text-xs text-gray-500 dark:text-gray-400">
@@ -2658,6 +3284,17 @@ export default function OLTDetailPage({ params }: { params: Promise<{ id: string
           onu={assigningOnu}
           onClose={() => setAssigningOnu(null)}
           onSuccess={fetchOLT}
+        />
+      )}
+
+      {showAutoAssignModal && olt && (
+        <SmartAutoAssignModal
+          oltId={id}
+          oltName={olt.name}
+          onClose={() => setShowAutoAssignModal(false)}
+          onSuccess={async () => {
+            await fetchOLT();
+          }}
         />
       )}
     </div>

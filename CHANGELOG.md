@@ -4,6 +4,57 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.14] — 2026-09-17
+### Smart Auto-Assign & OLT Manual Assign Overhaul (Toleransi Typo, Singkatan, Scope Lengkap & Pencarian Bebas Status)
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. **Auto-Assign OLT Terlalu Kaku & Kurang Pintar**:
+     - Logika auto-assign sebelumnya di `poller.ts` hanya mengandalkan pengecekan substring persis (`desc.includes(username)`).
+     - Nama deskripsi pelanggan di OLT lapangan umumnya memiliki variasi penulisan seperti pemisah strip (`ARIESTA-MIRANDA`, `REYHAN-SEP-DWI-P`), singkatan nama khas Indonesia (`M.`/`M ` untuk Muhammad, `ACH.` untuk Achmad), tambahan keterangan area (`RT05`, `BLOK A`), atau typo ringan (`ARIESTA-MIRADA` vs `ARIESTA MIRANDA`). Format kaku menyebabkan sebagian besar pelanggan valid gagal tertaut otomatis.
+  2. **Manual Assign OLT Sangat Terbatasi & Sulit**:
+     - Endpoint manual assign (`/api/olt/[id]/onus/[onuId]/assign`) membatasi query pelanggan secara keras pada status aktif: `status: { in: ['active', 'ACTIVE'] }`.
+     - Pelanggan dengan status `ISOLIR` (layanan terisolir sementara karena tagihan) atau inaktif sama sekali tidak muncul dalam hasil pencarian, sehingga teknisi/admin tidak dapat menautkan ONU pelanggan yang sedang terisolir.
+     - Form manual assign menggunakan dropdown `<select>` statis yang terbatas maksimal 100 entri tanpa indikasi rekomendasi cerdas.
+  3. **Ketiadaan Evaluasi Ulang (Re-evaluation) untuk ONU yang Sudah Ditautkan**:
+     - Pengguna membutuhkan fleksibilitas untuk mengevaluasi tidak hanya ONU yang belum tertaut, namun juga seluruh ONU yang sudah terpasang guna memverifikasi apakah tautan lama sudah akurat atau memerlukan pembaruan saran kecocokan (*re-evaluation*).
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Mesin Pencocokan Cerdas Multitahap (`src/lib/olt/smart-matcher.ts`)**:
+     - **Pembersihan & Normalisasi Nama (`cleanCustomerName`)**: Menghilangkan awalan ISP (`PELANGGAN:`, `CUST:`, dll), mengonversi tanda strip/garis bawah menjadi spasi, membersihkan gelar (`IR`, `DR`, `BAPAK`, `IBU`), dan menghapus nomor identitas tambahan.
+     - **Ekspansi Singkatan Nama Indonesia (`expandAbbreviations`)**: Mengembangkan singkatan nama umum seperti `M.`/`M ` menjadi `MUHAMMAD`, `ACH.`/`AKH.` menjadi `AHMAD`, dan `R.` menjadi `RADEN`.
+     - **Toleransi Typo Fuzzy Bigram (`diceSimilarity`)**: Menggunakan koefisien Dice untuk mendeteksi kemiripan teks dengan ambang batas adaptif ($\ge 82\%$).
+     - **Token Overlap Ratio (`tokenOverlapRatio`)**: Mendeteksi kecocokan subset token nama pelanggan (misal: `PARYONO RT05` cocok dengan `PARYONO`).
+     - **Scoring Bertingkat & Router Proximity Bonus**:
+       - Skor 100: Serial Number atau MAC address identik.
+       - Skor 100: Nama bersih atau username PPPoE kompak identik.
+       - Skor 98: Customer ID / Kode EMG pelanggan identik.
+       - Skor 95: Nama dengan ekspansi singkatan identik.
+       - Skor 90–92: Token overlap mayoritas.
+       - Skor 80–89: Fuzzy bigram similarity $\ge 82\%$.
+       - Bonus Proximity: +3 poin jika pelanggan berada di router uplink OLT yang sama.
+  2. **Bulk Smart Auto-Assign API (`src/app/api/olt/[id]/auto-assign/route.ts`)**:
+     - Mendukung mode pratinjau `GET` dengan parameter `scope` (`all` vs `unassigned`) dan `minScore`. Mengembalikan ringkasan metrik, daftar item, skor, alasan (*match reason*), dan aksi yang disarankan (`ASSIGN`, `CHANGE`, `KEEP`, `NO_MATCH`).
+     - Mendukung eksekusi massal `POST` dengan transaksi batch, update tabel `oltOnuStatus`, serta logging audit di `oltMonitoringLog`.
+  3. **Penyempurnaan Manual Assign API (`src/app/api/olt/[id]/onus/[onuId]/assign/route.ts`)**:
+     - Menghapus pembatasan `status: active` — kini mencakup seluruh status pelanggan (termasuk `ISOLIR` dan nonaktif).
+     - Mengembalikan `bestMatch` dan daftar `suggestions` terurut berdasarkan router uplink OLT.
+  4. **Pembaruan Background Poller (`src/lib/olt/poller.ts`)**:
+     - Melakukan preloading calon pelanggan sekali di memori per siklus poll.
+     - Memanfaatkan `findSmartMatchForOnu()` dengan threshold keyakinan tinggi ($\ge 85\%$) pada method `upsertONU()`.
+  5. **Antarmuka Pengguna Admin Modern (`src/app/admin/olt/[id]/page.tsx`)**:
+     - **Modal Smart Auto-Assign (`SmartAutoAssignModal`)**: Dilengkapi pemilihan cakupan (*Semua ONU* vs *Hanya Belum Ditautkan*), filter ambang batas kemiripan, kartu metrik ringkasan, tabel pratinjau interaktif dengan checkbox batch, dan tombol terapkan.
+     - **Modal Tautkan Pelanggan (`ONUAssignModal`)**: Menampilkan kartu rekomendasi cerdas dengan tombol 1-klik "Gunakan Saran Ini", input pencarian live, kartu pelanggan lengkap dengan status badge (`Aktif`, `Isolir`, dll) dan nama router.
+     - **Tabel & Toolbar ONU**: Ditambahkan Search Bar live pencarian SN/nama/pelanggan, filter status yang mencakup `Belum Ditautkan` & `Sudah Ditautkan`, tombol `Smart Auto-Assign` dengan ikon `<Sparkles />`, serta sel kolom Customer yang interaktif (klik untuk tautkan atau edit).
+
+- **Files**:
+  - `src/lib/olt/smart-matcher.ts` (Baru)
+  - `src/app/api/olt/[id]/auto-assign/route.ts` (Baru)
+  - `src/app/api/olt/[id]/onus/[onuId]/assign/route.ts`
+  - `src/lib/olt/poller.ts`
+  - `src/app/admin/olt/[id]/page.tsx`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.13] — 2026-09-17
 ### Resolusi Akar Masalah Login 500, Migrasi Otomatis Bebas Password & Hardening Autentikasi
 

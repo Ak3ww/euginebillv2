@@ -6,6 +6,7 @@
 import { prisma } from '@/server/db/client';
 import { getSystemInfo } from './snmp';
 import { evaluateCustomRules, createRuleContext, type RuleCondition, type RuleAction, type RuleSchedule } from './rule-engine';
+import { findSmartMatchForOnu, CandidateCustomer } from './smart-matcher';
 
 // Vendor modules
 import * as huawei from './vendors/huawei';
@@ -116,11 +117,42 @@ export async function pollOLTWithOptions(
       discoveredOnus = await vendor.discoverONUs(telnetConfig);
     }
 
+    // Preload customer candidates and OLT routers once for fast in-memory smart matching
+    const [rawCustomers, oltRouters] = await Promise.all([
+      prisma.pppoeUser.findMany({
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          phone: true,
+          customerId: true,
+          status: true,
+          macAddress: true,
+          routerId: true,
+        },
+      }),
+      prisma.networkOLTRouter.findMany({
+        where: { oltId },
+        select: { routerId: true },
+      }),
+    ]);
+    const oltRouterIds = oltRouters.map((r) => r.routerId);
+    const customerCandidates: CandidateCustomer[] = rawCustomers.map((c) => ({
+      id: c.id,
+      username: c.username,
+      name: c.name,
+      phone: c.phone,
+      customerId: c.customerId,
+      status: c.status,
+      macAddress: c.macAddress,
+      routerId: c.routerId,
+    }));
+
     // Upsert ONU statuses
     const discoveredKeys = new Set<string>();
     for (const onu of discoveredOnus) {
       discoveredKeys.add(buildOnuKey(onu));
-      await upsertONU(oltId, onu, sshConfig, telnetConfig, vendor, options);
+      await upsertONU(oltId, onu, sshConfig, telnetConfig, vendor, options, customerCandidates, oltRouterIds);
     }
 
     if (discoveredOnus.length > 0) {
@@ -267,7 +299,9 @@ async function upsertONU(
   sshConfig: any,
   telnetConfig: any,
   vendor: VendorModule,
-  options: { skipOpticalInfo?: boolean } = {}
+  options: { skipOpticalInfo?: boolean } = {},
+  customerCandidates: CandidateCustomer[] = [],
+  oltRouterIds: string[] = []
 ): Promise<void> {
   try {
     let opticalInfo: any = null;
@@ -306,10 +340,10 @@ async function upsertONU(
       select: { id: true, customerId: true },
     });
 
-    // Auto-link customer by Serial Number, MAC, or OLT ONU Description/Customer Name
+    // Auto-link customer by Serial Number, MAC, or Smart Matcher Engine
     let autoCustomerId: string | null = null;
     if (!existing?.customerId && (serialNumber || onu.description)) {
-      // 1. Check inventoryAsset by serialNumber
+      // 1. Check inventoryAsset by serialNumber (hardware asset takes absolute precedence)
       if (serialNumber) {
         const cleanSN = serialNumber.replace(/[:-]/g, '').toUpperCase();
         const asset = await prisma.inventoryAsset.findFirst({
@@ -322,54 +356,26 @@ async function upsertONU(
 
         if (asset?.currentCustomerId) {
           autoCustomerId = asset.currentCustomerId;
-        } else {
-          // 2. Check pppoeUser by macAddress
-          const user = await prisma.pppoeUser.findFirst({
-            where: {
-              OR: [
-                { macAddress: serialNumber },
-                { macAddress: cleanSN },
-              ],
-            },
-            select: { id: true },
-          });
-          if (user) autoCustomerId = user.id;
         }
       }
 
-      // 3. Check by OLT ONU Description (User has named ONT with customer name or username!)
-      if (!autoCustomerId && onu.description) {
-        const rawDesc = onu.description.trim();
-        const cleanDesc = rawDesc.replace(/[-_]/g, ' ').trim();
-        const compactDesc = rawDesc.replace(/[-_\s]/g, '').toLowerCase();
-
-        // Try exact username or exact name first
-        let user = await prisma.pppoeUser.findFirst({
-          where: {
-            OR: [
-              { username: rawDesc },
-              { username: compactDesc },
-              { name: rawDesc },
-              { name: cleanDesc },
-            ],
+      // 2. Run Smart Matcher Engine (Exact, Abbreviation, Token Overlap, Fuzzy, Username)
+      if (!autoCustomerId && customerCandidates && customerCandidates.length > 0) {
+        const { bestMatch } = findSmartMatchForOnu(
+          {
+            serialNumber,
+            macAddress: onu.macAddress,
+            description: onu.description,
           },
-          select: { id: true },
-        });
-
-        // Try partial name/username match if description is at least 3 characters
-        if (!user && cleanDesc.length >= 3) {
-          user = await prisma.pppoeUser.findFirst({
-            where: {
-              OR: [
-                { name: { contains: cleanDesc } },
-                { username: { contains: compactDesc } },
-              ],
-            },
-            select: { id: true },
-          });
+          customerCandidates,
+          {
+            oltRouterIds,
+            minScoreThreshold: 85, // High confidence required for automated linking during poll
+          }
+        );
+        if (bestMatch) {
+          autoCustomerId = bestMatch.customer.id;
         }
-
-        if (user) autoCustomerId = user.id;
       }
     }
 
