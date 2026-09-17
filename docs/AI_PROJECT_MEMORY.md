@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.15
+- **Version**: 2.40.16
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 17, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,32 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 17, 2026 — v2.40.16: Device Lifecycle Automation — Auto-Swap Protection, Dismantle Return, & Fasum Support)
+
+- **Architectural Invariant: Auto-Swap Protection (1 Customer = 1 Active Modem)**:
+  - Pelanggan PPPoE tidak boleh memiliki lebih dari satu modem berstatus `IN_USE` secara bersamaan di tabel `inventoryAsset`.
+  - Ketika modem baru ditautkan ke pelanggan (baik lewat OLT assign, auto-matcher, penggantian perangkat, atau wizard teknisi), modem lama pelanggan yang sebelumnya berstatus `IN_USE` WAJIB secara otomatis dilepas (`currentCustomerId = null`), dikembalikan ke status `USED_GOOD`, dilepas tautannya di OLT (`oltOnuStatus.customerId = null`), dan dicatat ke `customerDeviceHistory` dengan aksi `REPLACED_OLD`.
+  - Modem baru kemudian dicatat dengan aksi `REPLACED_NEW` atau `INSTALLED`.
+
+- **Architectural Invariant: Dismantle Automation & Zero Missing Assets (`dismantleCustomerDevice`)**:
+  - Saat pelanggan berhenti berlangganan atau ONT dicabut oleh teknisi (SPK DISMANTLE/CABUT atau toggle admin "Sudah Dicabut" di `/admin/pppoe/stopped`), modem TIDAK BOLEH dibiarkan mengambang atau hilang dari inventori.
+  - Sistem WAJIB otomatis:
+    1. Mengubah status unit fisik modem dari `IN_USE` menjadi `USED_GOOD` di `inventoryAsset`.
+    2. Menghapus referensi `currentCustomerId = null` pada unit tersebut.
+    3. Mencatat aksi `DISMANTLED` ke `customerDeviceHistory` lengkap dengan nama teknisi dan alasan pencabutan.
+    4. Melepaskan kaitan ONU di tabel `oltOnuStatus` (`customerId: null`).
+    5. Mengosongkan alokasi port ODP (`odpAssignment.isUsed: false`, `customerId: null`) agar port ODP langsung siap digunakan oleh calon pelanggan baru.
+
+- **Architectural Invariant: Customer Deletion Cleanup**:
+  - Penghapusan akun pelanggan PPPoE (`deletePppoeUser`) tidak boleh meninggalkan unit modem berstatus `IN_USE` tanpa pemilik (*orphan in-use assets*).
+  - Seluruh aset modem yang masih tertaut ke pelanggan yang dihapus wajib otomatis dilepas dan dikembalikan ke gudang dengan status `USED_GOOD` serta catatan penghapusan.
+
+- **Architectural Invariant: Fasum / Public Infrastructure Support without Billing Account**:
+  - Fasilitas umum (Pos Satpam, CCTV, Musholla, Balai RT/RW, AP Fasum) yang terpasang ONT di lapangan namun tidak memiliki akun tagihan billing tetap WAJIB 100% tercatat di `inventoryAsset` sebagai aset operasional lapangan.
+  - Modul `olt-inventory-sync.service.ts` mendeteksi deskripsi ONU fasum via `isFasumDescription()`.
+  - Unit fasum disimpan di `inventoryAsset` dengan status `IN_USE`, `currentCustomerId = null`, dan kolom lokasi diisi port OLT (`Port [X:Y] - Fasilitas Umum: [Deskripsi]`).
+  - Unit ONU unassigned biasa yang bukan fasum tetap dicatat ke `inventoryAsset` sebagai status `USED_GOOD` (atau `AVAILABLE`) dengan lokasi port OLT terkait agar inventori merefleksikan 100% fisik modem yang terdeteksi dari ketiga OLT (VSOL GS, HSGQ, VSOL GT).
 
 ### Recent Patch Log (September 17, 2026 — v2.40.15: Sistem Inventori 1 Pintu 1 Source OLT <> Inventori <> Pelanggan)
 

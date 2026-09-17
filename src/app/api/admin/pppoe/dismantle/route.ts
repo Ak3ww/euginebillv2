@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
+import { dismantleCustomerDevice } from '@/server/services/olt-inventory-sync.service';
 
 // PUT — Quick toggle isDismantled status for a stopped user (Direct Admin Checklist)
 export async function PUT(req: NextRequest) {
@@ -26,11 +27,18 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    // If marked as dismantled, free ODP port if assigned
+    // If marked as dismantled, free ODP port and return modem to warehouse stock
     if (isDismantled) {
       await prisma.odpCustomerAssignment.deleteMany({
         where: { customerId: userId },
       }).catch(() => {});
+
+      // 1-Pintu: Return modem to warehouse stock as USED_GOOD, unassign OLT ONU, log DISMANTLED
+      await dismantleCustomerDevice(
+        userId,
+        note || 'Tandai sudah dicabut oleh admin',
+        session.user.name || 'Admin'
+      ).catch((e) => console.error('[Dismantle Toggle Device Error]', e));
     }
 
     return NextResponse.json({ success: true, user: updated });

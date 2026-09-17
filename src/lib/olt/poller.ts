@@ -432,7 +432,6 @@ async function upsertONU(
       syncOnuToInventory({
         serialNumber: serialNumber || onu.macAddress!,
         macAddress: onu.macAddress,
-        onuType: onu.onuType,
         customerId: autoCustomerId,
         installedAt: now,
       }).catch(() => {});

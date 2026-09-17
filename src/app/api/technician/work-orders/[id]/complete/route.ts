@@ -187,10 +187,18 @@ export async function POST(
             dismantledNote: body.notes || body.reportData?.notes || 'Perangkat berhasil dicabut oleh teknisi',
           },
         });
-        // Free ODP port
+        // Free ODP port and return modem to warehouse stock
         await prisma.odpCustomerAssignment.deleteMany({
           where: { customerId: targetUserId },
         }).catch(() => {});
+
+        // 1-Pintu: Return modem to warehouse stock as USED_GOOD, unassign OLT ONU, log DISMANTLED
+        const { dismantleCustomerDevice } = await import('@/server/services/olt-inventory-sync.service');
+        await dismantleCustomerDevice(
+          targetUserId,
+          body.notes || body.reportData?.notes || 'Perangkat dicabut oleh teknisi via SPK',
+          session?.user?.name || body.technicianName || 'Teknisi'
+        ).catch((e) => console.error('[WO Complete Dismantle Device Error]', e));
       } catch (dismantleErr) {
         console.error('Failed to update dismantle status:', dismantleErr);
       }

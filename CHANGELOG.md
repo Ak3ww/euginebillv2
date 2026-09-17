@@ -4,6 +4,48 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.16] — 2026-09-17
+### Otomasi Siklus Hidup Perangkat (Auto-Swap Protection, Auto-Dismantle ke Gudang, & Dukungan Fasum Lapangan)
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. **Ketiadaan Unassign Otomatis Saat Ganti Modem**:
+     - Di lapangan, admin atau teknisi jarang sekali melakukan unassign manual di menu OLT. Saat modem diganti dengan yang baru di rumah pelanggan, modem lama sering tertinggal menaut di OLT atau statusnya tetap `IN_USE` di inventori sehingga terjadi duplikasi kepemilikan aset.
+  2. **Ketiadaan Pengembalian Otomatis Stok Saat Cabut Perangkat (Dismantle)**:
+     - Ketika pelanggan berhenti berlangganan dan perangkat dicabut via SPK Dismantle atau checklist admin (`/admin/pppoe/stopped`), modem tidak otomatis ditarik kembali ke stok gudang sebagai barang bekas siap pakai (`USED_GOOD`), tautan OLT tidak dilepas, dan log pelepasan perangkat tidak tercatat.
+  3. **Perangkat Fasum / Operasional Lapangan**:
+     - Terdapat unit-unit ONT di lapangan yang difungsikan untuk Fasum (Pos Satpam, Musholla, Balai RT/RW, CCTV, AP Fasum) yang tidak terdaftar sebagai akun PPPoE billing biasa, namun wajib tetap tercatat di sistem inventori stok sebagai perangkat operasional aktif.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Perlindungan Pergantian Otomatis (Auto-Swap Protection)**:
+     - Diterapkan pada `syncOnuToInventory` (`src/server/services/olt-inventory-sync.service.ts`) dan modul Ganti Modem (`src/app/api/pppoe/users/[id]/replace-device/route.ts`):
+     - Aturan: **1 Pelanggan = Maksimal 1 Modem Aktif**.
+     - Ketika modem baru (SN baru) ditautkan ke pelanggan: sistem secara otomatis mendeteksi modem lama pelanggan tersebut, mengubah status modem lama di `inventoryAsset` menjadi `USED_GOOD`, melepaskan `currentCustomerId`, meng-unassign ONU lama di `oltOnuStatus`, dan mencatat riwayat perangkat `REPLACED_OLD` & `REPLACED_NEW`.
+  2. **Otomasi Cabut Perangkat ke Gudang (`dismantleCustomerDevice`)**:
+     - Fungsi terpusat yang otomatis berjalan saat:
+       a) Teknisi menyelesaikan SPK Cabut/Dismantle di portal teknisi (`/api/technician/work-orders/[id]/complete`).
+       b) Admin mengklik tombol "Tandai Sudah Dicabut" di menu Pelanggan Berhenti (`/api/admin/pppoe/dismantle`).
+     - Efek otomatis:
+       - Seluruh modem pelanggan di `inventoryAsset` statusnya otomatis berubah menjadi `USED_GOOD` (masuk kembali ke stok gudang siap pasang untuk pelanggan berikutnya) dan `currentCustomerId` di-null-kan.
+       - Tautan ONU pelanggan di seluruh OLT (`oltOnuStatus.customerId`) otomatis di-unassign.
+       - Port ODP otomatis dibebaskan (`odpCustomerAssignment`).
+       - Riwayat perangkat tercatat otomatis dengan aksi `DISMANTLED`.
+  3. **Otomasi Pelepasan Aset Saat Pelanggan Dihapus (`deletePppoeUser`)**:
+     - Pada `src/server/services/pppoe.service.ts`, saat akun pelanggan dihapus, aset inventori yang tadinya tertaut otomatis dibebaskan kembali ke gudang sebagai `USED_GOOD` tanpa ada data menggantung (*zero orphan assets*).
+  4. **Dukungan Penuh Perangkat Fasum & Unassigned**:
+     - Sistem mendeteksi kata kunci deskripsi Fasum (`FASUM`, `CCTV`, `MUSHOLA`, `POS`, `AP`, `RT`, `RW`, `KANTOR`, `BALAI`) dan menandainya di inventori sebagai perangkat operasional lapangan (`IN_USE`) dengan nomor port OLT sebagai lokasinya.
+     - Seluruh ONU di 3 OLT (baik yang berpelanggan maupun fasum/unassigned) 100% tercatat rapi ke inventori.
+
+- **Files**:
+  - `src/server/services/olt-inventory-sync.service.ts`
+  - `src/app/api/admin/pppoe/dismantle/route.ts`
+  - `src/app/api/technician/work-orders/[id]/complete/route.ts`
+  - `src/app/api/pppoe/users/[id]/replace-device/route.ts`
+  - `src/server/services/pppoe.service.ts`
+  - `src/lib/olt/poller.ts`
+  - `package.json`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.15] — 2026-09-17
 ### Sistem Inventori 1 Pintu 1 Source (Auto-Detect Vendor & Seri ONT, Sinkronisasi OLT <> Inventaris <> Pelanggan)
 

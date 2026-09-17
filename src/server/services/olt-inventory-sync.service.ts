@@ -2,6 +2,7 @@
  * OLT <-> Inventory Asset Synchronization Service
  * Provides single-source-of-truth reconciliation between live OLT ONUs,
  * warehouse inventory assets, and customer device assignments.
+ * Includes Auto-Swap protection and Dismantle automation.
  */
 
 import { prisma } from '@/server/db/client';
@@ -10,10 +11,12 @@ import { detectOntVendorAndModel, normalizeSerialNumber } from '@/lib/olt/ont-de
 export interface SyncOnuInput {
   serialNumber: string;
   macAddress?: string | null;
-  onuType?: string | null;
   customerId?: string | null;
   oltVendor?: string | null;
   oltName?: string | null;
+  location?: string | null;
+  description?: string | null;
+  isOnline?: boolean;
   installedAt?: Date;
 }
 
@@ -31,7 +34,6 @@ export interface SyncResult {
  * Ensure default ONT master catalog item exists in inventory
  */
 export async function getOrCreateDefaultOntItem(vendor?: string): Promise<{ id: string; sku: string }> {
-  // Check for vendor-specific or generic ONT master item
   const existingItem = await prisma.inventoryItem.findFirst({
     where: {
       OR: [
@@ -44,7 +46,6 @@ export async function getOrCreateDefaultOntItem(vendor?: string): Promise<{ id: 
 
   if (existingItem) return existingItem;
 
-  // Create default master item if missing
   const newItem = await prisma.inventoryItem.create({
     data: {
       sku: 'EMG-CPE-ONT-GENERIC',
@@ -64,15 +65,93 @@ export async function getOrCreateDefaultOntItem(vendor?: string): Promise<{ id: 
 }
 
 /**
+ * Checks if a description indicates a public facility / operational device
+ */
+function isFasumDescription(desc?: string | null): boolean {
+  if (!desc) return false;
+  const upper = desc.toUpperCase();
+  return (
+    upper.includes('FASUM') ||
+    upper.includes('CCTV') ||
+    upper.includes('MUSHOLA') ||
+    upper.includes('MASJID') ||
+    upper.includes('POS ') ||
+    upper.includes('POS-') ||
+    upper.includes('SATPAM') ||
+    upper.includes('BALAI') ||
+    upper.includes('KANTOR') ||
+    upper.includes('AP-') ||
+    upper.includes('ACCESS POINT') ||
+    upper.includes('RT0') ||
+    upper.includes('RW0')
+  );
+}
+
+/**
  * Synchronize a single OLT ONU to the inventory assets table and link customer
+ * Features Auto-Swap Protection: If customer already has another modem,
+ * the old modem is automatically returned to inventory as USED_GOOD and unassigned.
  */
 export async function syncOnuToInventory(input: SyncOnuInput): Promise<SyncResult | null> {
   const cleanSn = normalizeSerialNumber(input.serialNumber);
   if (!cleanSn) return null;
 
-  const detected = detectOntVendorAndModel(cleanSn, input.onuType, input.oltVendor);
+  const detected = detectOntVendorAndModel(cleanSn, null, input.oltVendor);
   const defaultItem = await getOrCreateDefaultOntItem(detected.vendor);
 
+  // 1. Auto-Swap Protection: If customer is specified, check if they currently have another active modem
+  if (input.customerId) {
+    const previousActiveAssets = await prisma.inventoryAsset.findMany({
+      where: {
+        currentCustomerId: input.customerId,
+        serialNumber: { not: cleanSn },
+        status: 'IN_USE',
+        assetType: 'MODEM',
+      },
+    });
+
+    for (const prevAsset of previousActiveAssets) {
+      // Auto-release old asset back to warehouse stock
+      await prisma.inventoryAsset.update({
+        where: { id: prevAsset.id },
+        data: {
+          status: 'USED_GOOD',
+          currentCustomerId: null,
+          notes: `${prevAsset.notes ? prevAsset.notes + ' • ' : ''}Auto-swap: Digantikan oleh modem ${cleanSn}`,
+          updatedAt: new Date(),
+        },
+      });
+
+      // Record device replacement history
+      await prisma.customerDeviceHistory.create({
+        data: {
+          customerId: input.customerId,
+          assetId: prevAsset.id,
+          serialNumber: prevAsset.serialNumber,
+          macAddress: prevAsset.macAddress,
+          vendor: prevAsset.vendor,
+          model: prevAsset.model,
+          action: 'REPLACED_OLD',
+          reason: `Auto-swap digantikan oleh modem ${cleanSn}`,
+          installedAt: prevAsset.installedAt || new Date(),
+          removedAt: new Date(),
+        },
+      }).catch(() => {});
+    }
+
+    // Also unassign customer from old ONU in OLT if different SN
+    await prisma.oltOnuStatus.updateMany({
+      where: {
+        customerId: input.customerId,
+        serialNumber: { not: cleanSn },
+      },
+      data: {
+        customerId: null,
+      },
+    }).catch(() => {});
+  }
+
+  // 2. Check existing asset
   const existingAsset = await prisma.inventoryAsset.findUnique({
     where: { serialNumber: cleanSn },
     include: { customer: { select: { id: true, username: true } } },
@@ -80,18 +159,35 @@ export async function syncOnuToInventory(input: SyncOnuInput): Promise<SyncResul
 
   let assetId: string;
   let isNew = false;
-  const targetStatus = input.customerId ? 'IN_USE' : 'AVAILABLE';
+
+  // Determine status & notes for Fasum / Customer / Unassigned
+  const isFasum = !input.customerId && isFasumDescription(input.description);
+  const targetStatus = input.customerId
+    ? 'IN_USE'
+    : isFasum
+    ? 'IN_USE' // Fasum is considered in-use in the field
+    : 'AVAILABLE';
+
+  const defaultLocation = input.location
+    ? `${input.oltName || 'OLT'} Port ${input.location}`
+    : input.oltName || 'Gudang Utama';
+
+  const generatedNote = input.customerId
+    ? `Terpasang di pelanggan • OLT ${input.oltName || ''} (${input.location || ''})`
+    : isFasum
+    ? `Fasum / Lapangan: "${input.description}" • OLT ${input.oltName || ''} (${input.location || ''})`
+    : input.description
+    ? `Unassigned di OLT ${input.oltName || ''}: "${input.description}" (${input.location || ''})`
+    : `Terdeteksi di OLT ${input.oltName || ''} (${input.location || ''})`;
 
   if (existingAsset) {
     assetId = existingAsset.id;
-    // Update existing asset
     const updateData: any = {
       status: targetStatus,
       currentCustomerId: input.customerId || null,
       updatedAt: new Date(),
     };
 
-    // Enrich vendor & model if previously generic or empty
     if (!existingAsset.vendor || existingAsset.vendor === 'Generic') {
       updateData.vendor = detected.vendor;
     }
@@ -104,6 +200,12 @@ export async function syncOnuToInventory(input: SyncOnuInput): Promise<SyncResul
     if (input.customerId && !existingAsset.installedAt) {
       updateData.installedAt = input.installedAt || new Date();
     }
+    if (!existingAsset.location || existingAsset.location === 'Warehouse / Gudang Utama') {
+      updateData.location = defaultLocation;
+    }
+    if (generatedNote && (!existingAsset.notes || !existingAsset.notes.includes(input.oltName || ''))) {
+      updateData.notes = `${existingAsset.notes ? existingAsset.notes + ' • ' : ''}${generatedNote}`;
+    }
 
     await prisma.inventoryAsset.update({
       where: { id: existingAsset.id },
@@ -111,7 +213,6 @@ export async function syncOnuToInventory(input: SyncOnuInput): Promise<SyncResul
     });
   } else {
     isNew = true;
-    // Create new inventory asset
     const created = await prisma.inventoryAsset.create({
       data: {
         itemId: defaultItem.id,
@@ -120,18 +221,19 @@ export async function syncOnuToInventory(input: SyncOnuInput): Promise<SyncResul
         macAddress: input.macAddress || null,
         vendor: detected.vendor,
         model: detected.model,
-        condition: input.customerId ? 'USED_GOOD' : 'NEW',
+        condition: input.customerId || isFasum || input.isOnline ? 'USED_GOOD' : 'NEW',
         status: targetStatus,
         currentCustomerId: input.customerId || null,
+        location: defaultLocation,
         installedAt: input.customerId ? (input.installedAt || new Date()) : null,
-        notes: `Otomatis disinkronkan dari OLT ${input.oltName || input.oltVendor || ''}`,
+        notes: generatedNote,
       },
       select: { id: true },
     });
     assetId = created.id;
   }
 
-  // Update customer PPPoE record & Device History if assigned
+  // 3. Update customer PPPoE record & Device History if assigned
   if (input.customerId) {
     const customer = await prisma.pppoeUser.findUnique({
       where: { id: input.customerId },
@@ -139,7 +241,6 @@ export async function syncOnuToInventory(input: SyncOnuInput): Promise<SyncResul
     });
 
     if (customer) {
-      // Update customer MAC if missing or different
       if (input.macAddress && customer.macAddress !== input.macAddress) {
         await prisma.pppoeUser.update({
           where: { id: customer.id },
@@ -147,7 +248,6 @@ export async function syncOnuToInventory(input: SyncOnuInput): Promise<SyncResul
         }).catch(() => {});
       }
 
-      // Check device history to prevent duplicates
       const lastHistory = await prisma.customerDeviceHistory.findFirst({
         where: { customerId: customer.id },
         orderBy: { createdAt: 'desc' },
@@ -183,6 +283,68 @@ export async function syncOnuToInventory(input: SyncOnuInput): Promise<SyncResul
 }
 
 /**
+ * Automatically dismantles customer device when customer stops or SPK dismantle completes.
+ * Returns modem back to warehouse stock as USED_GOOD, unassigns OLT ONU, and frees ODP port.
+ */
+export async function dismantleCustomerDevice(
+  customerId: string,
+  reason: string = 'Cabut perangkat / Pelanggan berhenti',
+  technicianName?: string
+): Promise<{ dismantledCount: number }> {
+  const now = new Date();
+
+  // 1. Find all active assets for this customer
+  const activeAssets = await prisma.inventoryAsset.findMany({
+    where: { currentCustomerId: customerId, status: 'IN_USE', assetType: 'MODEM' },
+  });
+
+  let dismantledCount = 0;
+
+  for (const asset of activeAssets) {
+    await prisma.inventoryAsset.update({
+      where: { id: asset.id },
+      data: {
+        status: 'USED_GOOD',
+        currentCustomerId: null,
+        notes: `${asset.notes ? asset.notes + ' • ' : ''}Dicabut dari pelanggan (Dismantle): ${reason}`,
+        updatedAt: now,
+      },
+    });
+
+    await prisma.customerDeviceHistory.create({
+      data: {
+        customerId,
+        assetId: asset.id,
+        serialNumber: asset.serialNumber,
+        macAddress: asset.macAddress,
+        vendor: asset.vendor,
+        model: asset.model,
+        action: 'DISMANTLED',
+        reason,
+        technicianName: technicianName || 'Admin',
+        installedAt: asset.installedAt || now,
+        removedAt: now,
+      },
+    }).catch(() => {});
+
+    dismantledCount++;
+  }
+
+  // 2. Unassign customer from all OLT ONUs
+  await prisma.oltOnuStatus.updateMany({
+    where: { customerId },
+    data: { customerId: null },
+  }).catch(() => {});
+
+  // 3. Free ODP port assignment
+  await prisma.odpCustomerAssignment.deleteMany({
+    where: { customerId },
+  }).catch(() => {});
+
+  return { dismantledCount };
+}
+
+/**
  * Preview full sync of all OLT ONUs to inventory
  */
 export async function previewOltInventorySync() {
@@ -207,12 +369,14 @@ export async function previewOltInventorySync() {
   let alreadyInInventory = 0;
   let newToImport = 0;
   let assignedToCustomer = 0;
+  let fasumCount = 0;
   const vendorBreakdown: Record<string, number> = {};
 
   const items = onus.map((onu) => {
     const cleanSn = normalizeSerialNumber(onu.serialNumber);
     const detected = detectOntVendorAndModel(cleanSn, null, onu.olt?.vendor);
     const existing = cleanSn ? existingMap.get(cleanSn) : null;
+    const isFasum = !onu.customer && isFasumDescription(onu.description);
 
     if (existing) {
       alreadyInInventory++;
@@ -222,6 +386,8 @@ export async function previewOltInventorySync() {
 
     if (onu.customer) {
       assignedToCustomer++;
+    } else if (isFasum) {
+      fasumCount++;
     }
 
     const v = detected.vendor || 'Lainnya';
@@ -231,10 +397,12 @@ export async function previewOltInventorySync() {
       onuId: onu.id,
       serialNumber: cleanSn || onu.macAddress || 'N/A',
       macAddress: onu.macAddress,
+      description: onu.description,
       oltName: onu.olt?.name || 'OLT',
       oltVendor: onu.olt?.vendor,
       location: `${onu.port}:${onu.onuId}`,
       status: onu.status,
+      isFasum,
       detectedVendor: detected.vendor,
       detectedModel: detected.model,
       alreadyInInventory: !!existing,
@@ -254,6 +422,7 @@ export async function previewOltInventorySync() {
     alreadyInInventory,
     newToImport,
     assignedToCustomer,
+    fasumCount,
     vendorBreakdown,
     items,
   };
@@ -261,12 +430,14 @@ export async function previewOltInventorySync() {
 
 /**
  * Execute full sync of all OLT ONUs into inventory
+ * Ensures 100% of ONUs from all 3 OLTs (customers, Fasum, unassigned) are recorded in inventory!
  */
 export async function syncAllOltsToInventory(): Promise<{
   totalProcessed: number;
   createdCount: number;
   updatedCount: number;
   linkedCustomerCount: number;
+  fasumCount: number;
 }> {
   const onus = await prisma.oltOnuStatus.findMany({
     include: {
@@ -277,9 +448,13 @@ export async function syncAllOltsToInventory(): Promise<{
   let createdCount = 0;
   let updatedCount = 0;
   let linkedCustomerCount = 0;
+  let fasumCount = 0;
 
   for (const onu of onus) {
     if (!onu.serialNumber && !onu.macAddress) continue;
+
+    const isFasum = !onu.customerId && isFasumDescription(onu.description);
+    if (isFasum) fasumCount++;
 
     const res = await syncOnuToInventory({
       serialNumber: onu.serialNumber || onu.macAddress!,
@@ -287,6 +462,9 @@ export async function syncAllOltsToInventory(): Promise<{
       customerId: onu.customerId,
       oltVendor: onu.olt?.vendor,
       oltName: onu.olt?.name,
+      location: `${onu.frame}/${onu.slot}/${onu.port}:${onu.onuId}`,
+      description: onu.description,
+      isOnline: onu.status === 'online',
       installedAt: onu.updatedAt,
     });
 
@@ -302,5 +480,6 @@ export async function syncAllOltsToInventory(): Promise<{
     createdCount,
     updatedCount,
     linkedCustomerCount,
+    fasumCount,
   };
 }

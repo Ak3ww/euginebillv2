@@ -1497,6 +1497,19 @@ export async function deletePppoeUser(
     console.error('Unlink oltOnuStatus error:', oltErr);
   }
 
+  // 12b. Inventory Assets (return modem to warehouse stock as USED_GOOD)
+  try {
+    await prisma.inventoryAsset.updateMany({
+      where: { currentCustomerId: id },
+      data: {
+        status: 'USED_GOOD',
+        currentCustomerId: null,
+      },
+    });
+  } catch (assetErr) {
+    console.error('Release inventoryAsset error on delete user:', assetErr);
+  }
+
   // 13. ACS / TR-069 Devices (unlink user)
   try {
     await prisma.acsDevice.updateMany({

@@ -189,6 +189,30 @@ export async function POST(
           data: { macAddress: newAsset!.macAddress },
         });
       }
+
+      // 9. 1-Pintu: Synchronize OLT ONU assignments
+      if (oldAsset?.serialNumber) {
+        await tx.oltOnuStatus.updateMany({
+          where: {
+            customerId,
+            OR: [
+              { serialNumber: oldAsset.serialNumber },
+              ...(oldAsset.macAddress ? [{ macAddress: oldAsset.macAddress }] : []),
+            ],
+          },
+          data: { customerId: null },
+        });
+      }
+
+      await tx.oltOnuStatus.updateMany({
+        where: {
+          OR: [
+            { serialNumber: cleanSN },
+            ...(newAsset!.macAddress ? [{ macAddress: newAsset!.macAddress }] : []),
+          ],
+        },
+        data: { customerId },
+      });
     });
 
     const updatedAsset = await prisma.inventoryAsset.findUnique({ where: { id: newAsset.id } });
