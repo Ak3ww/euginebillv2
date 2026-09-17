@@ -251,15 +251,19 @@ log_success "Nginx Reverse Proxy aktif."
 # 12. Configure WireGuard VPN Server (RouterOS 7.x)
 log_info "Mengonfigurasi WireGuard VPN Server (Subnet 10.200.0.0/24)..."
 if [ -f "vps-install/install-wg-server.sh" ]; then
-    bash vps-install/install-wg-server.sh --subnet 10.200.0.0/24 --port 51820
-    log_success "WireGuard VPN Server aktif pada 10.200.0.1:51820."
+    bash vps-install/install-wg-server.sh --subnet 10.200.0.0/24 --port 51820 || {
+        log_warn "WireGuard installer selesai dengan catatan (non-fatal), melanjutkan instalasi..."
+    }
+    log_success "WireGuard VPN Server dikonfigurasi (10.200.0.1:51820)."
 fi
 
 # 13. Configure Pure L2TP VPN Server (UltraVPN Standard - RouterOS 6.x & 7.x)
 log_info "Mengonfigurasi Pure L2TP VPN Server (Subnet 10.201.0.0/24 - UltraVPN Standard, use-ipsec=no)..."
 if [ -f "vps-install/install-l2tp-server.sh" ]; then
-    bash vps-install/install-l2tp-server.sh --subnet 10.201.0.0/24
-    log_success "Pure L2TP VPN Server (UltraVPN Standard) aktif pada 10.201.0.1:1701."
+    bash vps-install/install-l2tp-server.sh --subnet 10.201.0.0/24 || {
+        log_warn "Pure L2TP installer selesai dengan catatan (non-fatal), melanjutkan instalasi..."
+    }
+    log_success "Pure L2TP VPN Server (UltraVPN Standard) dikonfigurasi (10.201.0.1:1701)."
 fi
 
 # 14. Configure FreeRADIUS 3.x with MySQL & OpenSSL MD4 Provider

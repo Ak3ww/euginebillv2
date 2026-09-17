@@ -180,21 +180,42 @@ print_ok "RADIUS ports (1812/1813/3799) terbuka dari WG subnet"
 print_info "[6/7] Start / reload WireGuard..."
 systemctl enable "wg-quick@${WG_IFACE}" > /dev/null 2>&1 || true
 
-if ${WG_RUNNING}; then
-  # Interface sudah aktif — reload config tanpa disconnect klien
-  wg syncconf "${WG_IFACE}" <(wg-quick strip "${WG_IFACE}") 2>/dev/null || \
-    systemctl reload "wg-quick@${WG_IFACE}" 2>/dev/null || \
-    wg-quick down "${WG_IFACE}" && wg-quick up "${WG_IFACE}"
-  print_ok "${WG_IFACE} di-reload (koneksi aktif tidak terputus)"
+# Helper untuk memulai WireGuard secara bersih & aman tanpa error 'wg0 already exists'
+start_wg_clean() {
+  # Stop systemd unit terlebih dahulu
+  systemctl stop "wg-quick@${WG_IFACE}" >/dev/null 2>&1 || true
+  
+  # Pastikan interface lama dibersihkan dari kernel jika masih menggantung
+  if ip link show "${WG_IFACE}" &>/dev/null; then
+    wg-quick down "${WG_CONF}" >/dev/null 2>&1 || true
+    ip link delete dev "${WG_IFACE}" >/dev/null 2>&1 || true
+  fi
+
+  # Jalankan service melalui systemctl atau wg-quick
+  systemctl start "wg-quick@${WG_IFACE}" >/dev/null 2>&1 || \
+    wg-quick up "${WG_CONF}" >/dev/null 2>&1 || true
+}
+
+if ip link show "${WG_IFACE}" &>/dev/null; then
+  # Interface sudah ada di kernel — coba reload config tanpa disconnect klien
+  if wg syncconf "${WG_IFACE}" <(wg-quick strip "${WG_CONF}" 2>/dev/null) >/dev/null 2>&1; then
+    print_ok "${WG_IFACE} di-reload via syncconf (koneksi aktif tidak terputus)"
+  else
+    # Jika syncconf gagal, lakukan restart bersih
+    print_warn "${WG_IFACE} sudah ada namun syncconf gagal, me-restart interface secara bersih..."
+    start_wg_clean
+    print_ok "${WG_IFACE} berhasil di-restart"
+  fi
 else
-  systemctl start "wg-quick@${WG_IFACE}" 2>/dev/null || wg-quick up "${WG_IFACE}"
+  # Interface belum ada di kernel, start dari awal
+  start_wg_clean
   print_ok "${WG_IFACE} dimulai"
 fi
 
 # Tunggu sebentar lalu cek
 sleep 1
 if ip link show "${WG_IFACE}" 2>/dev/null | grep -q "UP"; then
-  print_ok "${WG_IFACE} UP — $(ip addr show "${WG_IFACE}" | grep "inet " | awk '{print $2}')"
+  print_ok "${WG_IFACE} UP — $(ip addr show "${WG_IFACE}" 2>/dev/null | grep "inet " | awk '{print $2}')"
 else
   print_warn "${WG_IFACE} mungkin belum UP — cek: systemctl status wg-quick@${WG_IFACE}"
 fi

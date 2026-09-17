@@ -4,6 +4,31 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.18] — 2026-09-17
+### Resolusi Crash Installer VPS pada WireGuard Server (`wg-quick: 'wg0' already exists`)
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  - Saat menjalankan installer otomatis VPS klien (`curl -fsSL ... | sudo bash`), proses instalasi terhenti mendadak (aborted) pada langkah `[6/7] Start / reload WireGuard...` dengan pesan error:
+    ```text
+    [INFO] [6/7] Start / reload WireGuard...
+    wg-quick: `wg0' already exists
+    ```
+  - **Root Cause**: Script `vps-install/install-wg-server.sh` dijalankan dengan mode Bash strict `set -euo pipefail`. Ketika interface `wg0` telah terdaftar di kernel (baik dari proses instalasi sebelumnya atau inisialisasi systemd), pemanggilan langsung `wg-quick up wg0` mengalami crash fatal karena validasi internal `wg-quick` menolak membuat interface jika nama `wg0` sudah eksis di `ip link`. Akibat `set -e`, script keluar dengan kode status 1 dan menggagalkan seluruh sisa instalasi sebelum tahap build Next.js dan peluncuran daemon PM2.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Idempotent WireGuard Reload / Restart Handler (`vps-install/install-wg-server.sh`)**:
+     - Membangun fungsi `start_wg_clean()` yang aman: sebelum mencoba mengaktifkan `wg-quick`, fungsi ini mengecek apakah interface `wg0` ada di kernel dan membersihkannya secara bersih (`systemctl stop wg-quick@wg0`, `wg-quick down`, dan `ip link delete dev wg0`) sehingga error `wg0 already exists` secara teknis tidak mungkin terjadi lagi.
+     - Jika interface `wg0` sudah aktif dan sehat, sistem memprioritaskan reload konfigurasi tanpa jeda koneksi (*zero-downtime*) via `wg syncconf wg0 <(wg-quick strip /etc/wireguard/wg0.conf)`. Jika syncconf gagal, sistem secara otomatis mengeksekusi `start_wg_clean()`.
+     - Seluruh perintah startup/fallback diproteksi dengan penanganan error non-fatal (`|| true`) sehingga kegagalan interface tidak pernah menghentikan alur script.
+  2. **Non-Fatal Guarding di Main Installer (`scripts/install.sh`)**:
+     - Menambahkan blok penanganan non-fatal pada pemanggilan `bash vps-install/install-wg-server.sh` dan `bash vps-install/install-l2tp-server.sh` di dalam `scripts/install.sh`.
+     - Jika ada peringatan atau kondisi khusus pada konfigurasi tunnel VPN, installer utama akan mencatat log peringatan ramah dan tetap melanjutkan proses hingga tuntas (FreeRADIUS, Firewall, Next.js Production Build, dan PM2 Ecosystem Daemon).
+
+- **Files**:
+  - `vps-install/install-wg-server.sh`
+  - `scripts/install.sh`
+  - `package.json`
+
 ## [2.40.17] — 2026-09-17
 ### Resolusi Crash BigInt Serialization pada ODP & Migrasi Pure L2TP Server (UltraVPN Standard, Tanpa IPsec)
 

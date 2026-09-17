@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.17
+- **Version**: 2.40.18
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 17, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,19 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 17, 2026 — v2.40.18: WireGuard Installer Idempotency & Tunnel Fail-Safe)
+
+- **Architectural Invariant: WireGuard Zero-Crash Idempotency (`vps-install/install-wg-server.sh`)**:
+  - Script installer `vps-install/install-wg-server.sh` dijalankan dengan `set -euo pipefail`.
+  - Tool CLI `wg-quick` secara default melempar fatal exit code jika nama interface telah terdaftar di kernel Linux (`wg-quick: 'wg0' already exists`).
+  - DILARANG memanggil `wg-quick up wg0` secara naif tanpa memastikan status interface di kernel terlebih dahulu.
+  - Urutan restart/start WireGuard yang benar dan tahan banting (*fail-safe*):
+    1. Jika interface `wg0` aktif di kernel (`ip link show wg0`), utamakan pembaruan tanpa gangguan (*zero-downtime*) via `wg syncconf wg0 <(wg-quick strip /etc/wireguard/wg0.conf)`.
+    2. Jika syncconf gagal atau interface menggantung, panggil fungsi pembersih `start_wg_clean()`: `systemctl stop wg-quick@wg0`, `wg-quick down`, dan `ip link delete dev wg0`.
+    3. Setelah interface kernel dipastikan bersih (`ip link delete`), barulah panggil `systemctl start wg-quick@wg0` atau `wg-quick up`.
+    4. Seluruh fallback eksekusi tunnel WAJIB dibungkus error tolerance (`|| true`) agar exit code non-zero tidak pernah menggagalkan alur instalasi.
+  - Pada master installer `scripts/install.sh`, eksekusi tunnel VPN (WireGuard & Pure L2TP) WAJIB dilindungi blok non-fatal sehingga proses downstream (Next.js build dan PM2 service launch) dipastikan selalu selesai 100%.
 
 ### Recent Patch Log (September 17, 2026 — v2.40.17: BigInt JSON Serialization Defense-in-Depth & Safe ODP Projections)
 
