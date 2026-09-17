@@ -21,7 +21,9 @@ import {
   CheckCircle2,
   Copy,
   ExternalLink,
+  Server,
 } from 'lucide-react';
+import { SyncOltModal } from '@/components/admin/inventory/SyncOltModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMacAddress } from '@/lib/mac-format';
 import { Badge } from '@/components/ui/badge';
@@ -626,6 +628,7 @@ export default function OntInventoryPage() {
   const [detailAsset, setDetailAsset] = useState<InventoryAsset | null>(null);
   const [editAsset, setEditAsset] = useState<InventoryAsset | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSyncOltModal, setShowSyncOltModal] = useState(false);
 
   // ── Fetch ONT assets ───────────────────────────────────────────────────────
   const fetchOntAssets = useCallback(
@@ -730,6 +733,15 @@ export default function OntInventoryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSyncOltModal(true)}
+            className="border-primary/40 text-primary hover:bg-primary/10 font-medium"
+          >
+            <Server className="w-4 h-4 mr-1.5" />
+            Tarik Data OLT
+          </Button>
           <Button onClick={() => setShowAddModal(true)} size="sm">
             <Plus className="w-4 h-4 mr-1.5" />
             Tambah Modem
@@ -1069,6 +1081,11 @@ export default function OntInventoryPage() {
           setEditAsset(null);
         }}
         onSaved={handleSaved}
+      />
+      <SyncOltModal
+        open={showSyncOltModal}
+        onClose={() => setShowSyncOltModal(false)}
+        onSuccess={() => fetchOntAssets(pagination.page)}
       />
     </div>
   );

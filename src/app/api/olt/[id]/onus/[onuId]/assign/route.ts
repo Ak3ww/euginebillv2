@@ -43,6 +43,7 @@ function serializeOnuAssignment(onu: {
 }
 
 import { findSmartMatchForOnu, CandidateCustomer } from '@/lib/olt/smart-matcher';
+import { syncOnuToInventory } from '@/server/services/olt-inventory-sync.service';
 
 export async function GET(
   request: NextRequest,
@@ -165,6 +166,16 @@ export async function POST(
       data: { customerId: customerId || null },
       include: { customer: { select: { id: true, username: true, name: true, phone: true, customerId: true } } },
     });
+
+    // 1-Pintu: Synchronize with Inventory Assets & Customer Device History
+    if (updated.serialNumber || updated.macAddress) {
+      await syncOnuToInventory({
+        serialNumber: updated.serialNumber || updated.macAddress!,
+        macAddress: updated.macAddress,
+        customerId: customerId || null,
+        installedAt: new Date(),
+      }).catch((e) => console.error('[ONU Assign Sync Inventory Error]', e));
+    }
 
     await prisma.oltMonitoringLog.create({
       data: {

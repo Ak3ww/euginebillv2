@@ -4,6 +4,7 @@ import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
 import { unauthorized } from '@/lib/api-response';
 import { findSmartMatchForOnu, CandidateCustomer } from '@/lib/olt/smart-matcher';
+import { syncOnuToInventory } from '@/server/services/olt-inventory-sync.service';
 
 // GET - Preview Smart Auto-Assign for all or unassigned ONUs on this OLT
 export async function GET(
@@ -188,6 +189,18 @@ export async function POST(
         },
       });
       updatedCount++;
+
+      // 1-Pintu: Synchronize with Inventory Assets & Customer Device History
+      if (updated.serialNumber || updated.macAddress) {
+        await syncOnuToInventory({
+          serialNumber: updated.serialNumber || updated.macAddress!,
+          macAddress: updated.macAddress,
+          customerId: item.customerId || null,
+          oltName: olt.name,
+          installedAt: new Date(),
+        }).catch((e) => console.error('[Auto-Assign Sync Inventory Error]', e));
+      }
+
       logs.push(
         `ONU ${updated.port}:${updated.onuId} (${updated.serialNumber || updated.description || 'N/A'}) -> ${updated.customer?.username ?? 'Unassigned'}`
       );

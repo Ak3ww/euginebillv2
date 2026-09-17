@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.14
+- **Version**: 2.40.15
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 17, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,17 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 17, 2026 — v2.40.15: Sistem Inventori 1 Pintu 1 Source OLT <> Inventori <> Pelanggan)
+
+- **Architectural Invariant: Zero MikroTik Polling during OLT Monitoring (`src/lib/olt/poller.ts`)**:
+  - Poller OLT 100% direct berkomunikasi dari VPS ke IP OLT langsung (`olt.ipAddress`) via SNMP (port 161/1615), Telnet (port 23), atau SSH (port 22).
+  - DILARANG KERAS menjalankan live query atau API polling ke MikroTik saat siklus pemantauan OLT berjalan. Seluruh data relasi router atau nama pelanggan murni dibaca dari database internal MySQL EugineBill (`networkOLTRouter` dan `pppoeUser`) guna mencegah beban CPU di RouterOS MikroTik.
+
+- **Architectural Invariant: Auto-Detection & 1-Source OLT Inventory Sync (`ont-detector.ts` & `olt-inventory-sync.service.ts`)**:
+  - Data ratusan modem fisik yang terdeteksi dari OLT lapangan (VSOL, HSGQ, ZTE, dll) WAJIB dapat disinkronkan secara mulus ke tabel `inventoryAsset` (stok gudang) tanpa double entry.
+  - Prefix 4 karakter ITU-T GPON Serial Number (`ZTEG`/`ZXHN` $\rightarrow$ ZTE, `HWTC` $\rightarrow$ Huawei, `FHTT` $\rightarrow$ FiberHome, `VSOL`/`V160` $\rightarrow$ VSOL, `HSGQ` $\rightarrow$ HSGQ, `SKYW`/`SMBS` $\rightarrow$ Skyworth, `ALCL`/`NOKG` $\rightarrow$ Nokia, `CDAT` $\rightarrow$ C-Data, `RLTK`/`GMAC` $\rightarrow$ Realtek) WAJIB digunakan untuk auto-detect vendor dan default model.
+  - Setiap penautan pelanggan (Manual Assign, Smart Auto-Assign, atau Background Poller) WAJIB otomatis meng-upsert `inventoryAsset` (`status: IN_USE`, `currentCustomerId`), memperbarui `macAddress` pelanggan, dan mencatat riwayat perangkat ke `customerDeviceHistory` (`action: INSTALLED`).
 
 ### Recent Patch Log (September 17, 2026 — v2.40.14: Smart Auto-Assign & OLT Manual Assign Overhaul)
 

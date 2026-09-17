@@ -7,6 +7,7 @@ import { prisma } from '@/server/db/client';
 import { getSystemInfo } from './snmp';
 import { evaluateCustomRules, createRuleContext, type RuleCondition, type RuleAction, type RuleSchedule } from './rule-engine';
 import { findSmartMatchForOnu, CandidateCustomer } from './smart-matcher';
+import { syncOnuToInventory } from '@/server/services/olt-inventory-sync.service';
 
 // Vendor modules
 import * as huawei from './vendors/huawei';
@@ -425,6 +426,17 @@ async function upsertONU(
         updatedAt: now,
       },
     });
+
+    // 1-Pintu: If matched to customer during poll, sync to Inventory Asset & Device History
+    if (autoCustomerId && (serialNumber || onu.macAddress)) {
+      syncOnuToInventory({
+        serialNumber: serialNumber || onu.macAddress!,
+        macAddress: onu.macAddress,
+        onuType: onu.onuType,
+        customerId: autoCustomerId,
+        installedAt: now,
+      }).catch(() => {});
+    }
   } catch (err) {
     console.error(`[OLT Poller] Error upserting ONU ${onu.onuId}:`, err);
   }

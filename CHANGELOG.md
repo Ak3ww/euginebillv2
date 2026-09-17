@@ -4,6 +4,59 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.15] — 2026-09-17
+### Sistem Inventori 1 Pintu 1 Source (Auto-Detect Vendor & Seri ONT, Sinkronisasi OLT <> Inventaris <> Pelanggan)
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. **Data Modem di OLT Terisolasi dari Manajemen Inventaris**:
+     - Sistem OLT mendeteksi ratusan unit ONT aktif dari 3 OLT (VSOL GS, HSGQ, VSOL GT), namun data fisik tersebut sebelumnya belum otomatis mengalir ke stok gudang/inventori (`inventoryAsset`).
+     - Admin atau bagian gudang harus menginput manual atau mengimpor ulang nomor serial secara terpisah, memicu redundansi kerja (*double entry*).
+  2. **Ketiadaan Deteksi Otomatis Vendor & Seri Modem**:
+     - Serial number ONT GPON ITU-T memiliki kode pabrikan standar di 4 karakter pertama (misal `ZTEG`, `HWTC`, `FHTT`, `VSOL`, `HSGQ`, `SKYW`), namun sebelumnya vendor dan tipe modem sering tercatat sebagai "Generic" atau kosong.
+  3. **Penautan Pelanggan Belum Terintegrasi ke Perangkat Fisik (1 Pintu 1 Source)**:
+     - Saat ONU ditautkan ke pelanggan di OLT, data kepemilikan aset modem di tabel `inventoryAsset` (`status: IN_USE`, `currentCustomerId`) dan histori pergantian perangkat (`customerDeviceHistory`) belum tersinkron secara otomatis.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Modul Deteksi Cerdas Vendor & Model ONT (`src/lib/olt/ont-detector.ts`)**:
+     - Mendeteksi vendor dan model bawaan berdasarkan prefix 4-karakter ITU-T:
+       - `ZTEG` / `ZXHN` $\rightarrow$ Vendor: **ZTE**, Model: `F609` / `F670L`
+       - `HWTC` $\rightarrow$ Vendor: **Huawei**, Model: `HG8245H5` / `EG8145V5`
+       - `FHTT` $\rightarrow$ Vendor: **FiberHome**, Model: `AN5506-01`
+       - `VSOL` / `V160` $\rightarrow$ Vendor: **VSOL**, Model: `V2801SG` / `V2804`
+       - `HSGQ` $\rightarrow$ Vendor: **HSGQ**, Model: `G01` / `G04`
+       - `ALCL` / `NOKG` $\rightarrow$ Vendor: **Nokia**, Model: `G-240W-A`
+       - `SMBS` / `SKYW` $\rightarrow$ Vendor: **Skyworth**, Model: `GN542VF`
+       - `CDAT` $\rightarrow$ Vendor: **C-Data**, Model: `FD511G`
+       - `GMAC` / `RLTK` $\rightarrow$ Vendor: **Realtek**, Model: `RTL9601D`
+     - Mendukung pembersihan nama model cerdas dari metadata OLT (`cleanModelName`).
+  2. **Service Sinkronisasi 1-Pintu (`src/server/services/olt-inventory-sync.service.ts`)**:
+     - `syncOnuToInventory()`: Menjamin master item katalog ONT (`EMG-CPE-ONT-GENERIC`), meng-upsert `inventoryAsset` status `IN_USE` / `AVAILABLE`, mengaitkan `currentCustomerId`, memperbarui `macAddress` pelanggan, dan mencatat riwayat ke `customerDeviceHistory` (`action: INSTALLED`).
+     - `previewOltInventorySync()`: Memberikan ringkasan audit live seluruh ONU dari semua OLT (unit baru vs sudah terdaftar, terhubung pelanggan, breakdown per vendor).
+     - `syncAllOltsToInventory()`: Eksekusi massal sinkronisasi seluruh ONU dari semua OLT ke `inventoryAsset`.
+  3. **Integrasi Hook Penautan OLT (1 Pintu 1 Source)**:
+     - Manual Assign (`/api/olt/[id]/onus/[onuId]/assign`): otomatis sinkron ke `inventoryAsset` dan `customerDeviceHistory` saat ditautkan atau dilepas.
+     - Bulk Auto-Assign (`/api/olt/[id]/auto-assign`): otomatis memproses sinkronisasi inventaris untuk setiap ONU yang berhasil ditautkan.
+     - Poller Background (`src/lib/olt/poller.ts`): otomatis menyinkronkan unit saat terjadi auto-matching background berkeyakinan tinggi ($\ge 85\%$).
+  4. **Endpoint API Inventori OLT Sync (`/api/admin/inventory/ont/sync-olt`)**:
+     - `GET`: Pratinjau audit sinkronisasi.
+     - `POST`: Eksekusi sinkronisasi massal.
+  5. **Antarmuka UI Inventori ONT (`/admin/inventory/ont`)**:
+     - Menambahkan tombol **"Tarik Data OLT"** (`<Server />`) pada header halaman inventori.
+     - Komponen **`SyncOltModal`** (`src/components/admin/inventory/SyncOltModal.tsx`): kartu ringkasan metrik (Total ONU, Baru Siap Impor, Sudah di Inventori, Tertaut Pelanggan), badge distribusi vendor terdeteksi otomatis, tabel pratinjau, dan tombol 1-klik eksekusi sinkronisasi.
+
+- **Files**:
+  - `src/lib/olt/ont-detector.ts` (Baru)
+  - `src/server/services/olt-inventory-sync.service.ts` (Baru)
+  - `src/app/api/admin/inventory/ont/sync-olt/route.ts` (Baru)
+  - `src/components/admin/inventory/SyncOltModal.tsx` (Baru)
+  - `src/app/api/olt/[id]/onus/[onuId]/assign/route.ts`
+  - `src/app/api/olt/[id]/auto-assign/route.ts`
+  - `src/lib/olt/poller.ts`
+  - `src/app/admin/inventory/ont/page.tsx`
+  - `package.json`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.14] — 2026-09-17
 ### Smart Auto-Assign & OLT Manual Assign Overhaul (Toleransi Typo, Singkatan, Scope Lengkap & Pencarian Bebas Status)
 
