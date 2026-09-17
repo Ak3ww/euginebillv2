@@ -92,8 +92,17 @@ npx prisma generate
 npx prisma db push --skip-generate
 
 # 6. Production Build
+# Ensure swap is active
+CURRENT_SWAP=$(free -m | awk '/^Swap:/ {print $2}')
+if [ "${CURRENT_SWAP:-0}" -lt 1024 ] && [ -f "scripts/setup-swap.sh" ]; then
+    bash scripts/setup-swap.sh || true
+fi
+
 log_info "Membangun Next.js production build..."
-npm run build
+npm run build || {
+    log_warn "Build standar mengalami kendala memori, mencoba build mode low-memory (1024MB heap)..."
+    npm run build:low-mem
+}
 log_success "Build Next.js berhasil diselesaikan."
 
 # 7. Graceful PM2 Reload

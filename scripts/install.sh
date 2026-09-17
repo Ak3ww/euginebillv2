@@ -105,6 +105,25 @@ DB_PASS="${INPUT_DB_PASS:-$GEN_DB_PASS}"
 echo ""
 log_info "Memulai instalasi sistem secara otomatis..."
 
+# 3b. Configure Swap Memory (Anti-Freeze & Anti-OOM for Low-RAM VPS)
+log_info "Memeriksa dan mengonfigurasi Swap Memory (mencegah VPS hang saat build)..."
+if [ -f "scripts/setup-swap.sh" ]; then
+    bash scripts/setup-swap.sh || true
+else
+    CURRENT_SWAP=$(free -m | awk '/^Swap:/ {print $2}')
+    if [ "${CURRENT_SWAP:-0}" -lt 2048 ]; then
+        log_info "Mengalokasikan 2GB Swap Memory cadangan..."
+        fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
+        chmod 600 /swapfile
+        mkswap /swapfile >/dev/null 2>&1 || true
+        swapon /swapfile >/dev/null 2>&1 || true
+        if ! grep -q '/swapfile' /etc/fstab; then
+            echo '/swapfile none swap sw 0 0' >> /etc/fstab
+        fi
+        sysctl vm.swappiness=10 >/dev/null 2>&1 || true
+    fi
+fi
+
 # 4. System Updates & Core Packages
 log_info "Menginstal dependensi sistem lengkap (Nginx, MySQL, WireGuard, StrongSwan, FreeRADIUS, Socat)..."
 export DEBIAN_FRONTEND=noninteractive
@@ -352,7 +371,10 @@ fi
 
 # 16. Build Production
 log_info "Membangun Next.js production build..."
-npm run build
+npm run build || {
+    log_warn "Build standar mengalami kendala memori, mencoba build dengan mode low-memory (1024MB heap)..."
+    npm run build:low-mem
+}
 log_success "Build aplikasi selesai."
 
 # 17. Start PM2 Ecosystem Services (Web + WA + Cron)

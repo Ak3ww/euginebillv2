@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.18
+- **Version**: 2.40.19
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 17, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,19 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 17, 2026 — v2.40.19: Automated Swap Memory & Two-Tier Fallback Build)
+
+- **Architectural Invariant: Mandatory Swap Memory on VPS Deployments (`scripts/setup-swap.sh`)**:
+  - Kompilasi produksi Next.js (`next build`) memerlukan lonjakan alokasi memori heap (1.2GB - 1.5GB) untuk bundling Webpack/Turbopack dan optimasi chunks.
+  - Pada VPS 1GB - 2GB RAM tanpa swap, ketiadaan virtual memory cadangan menyebabkan Linux kernel mengalami thrashing atau memicu OOM Killer exit 137 (`Killed`), membuat server freeze/hang.
+  - Setiap deployment VPS wajib memiliki swap memory minimal 2048MB (atau 4096MB jika kapasitas disk memadai).
+  - Skrip `scripts/setup-swap.sh` otomatis dialokasikan via `scripts/install.sh` (Step 3b) dan `scripts/safe-update.sh`.
+  - Kernel Linux wajib dioptimasi dengan `vm.swappiness = 10` (agar kernel mengutamakan RAM fisik dan hanya menggunakan swap saat beban memori mendekati batas maksimal) serta `vm.vfs_cache_pressure = 50`.
+
+- **Architectural Invariant: Two-Tier Fallback Build Strategy**:
+  - Pada skrip build otomatis (`install.sh` & `safe-update.sh`), pemanggilan `npm run build` WAJIB memiliki fallback ke `npm run build:low-mem` (`cross-env NODE_OPTIONS='--max-old-space-size=1024 --max-semi-space-size=32'`).
+  - Hal ini menjamin bahwa build Next.js tidak akan pernah menggagalkan instalasi ataupun proses patch update.
 
 ### Recent Patch Log (September 17, 2026 — v2.40.18: WireGuard Installer Idempotency & Tunnel Fail-Safe)
 

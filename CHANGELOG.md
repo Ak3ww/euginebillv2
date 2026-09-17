@@ -4,6 +4,30 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.19] — 2026-09-17
+### Otomasi Swap Memory VPS (Anti-Freeze & Anti-OOM) & Two-Tier Fallback Build Next.js
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  - Pada VPS berkapasitas RAM 1GB - 2GB tanpa swap memory yang memadai, proses kompilasi Next.js (`npm run build`) sering mengalami crash akibat Out-Of-Memory (OOM Killer exit 137 / `Killed`) atau server mengalami CPU lock / hang (freeze) karena kernel Linux kehabisan memori fisik saat melakukan bundling halaman admin dan pembuatan static chunks.
+  - Pengguna terpaksa melakukan restart paksa atau instalasi terhenti di tengah jalan.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Dedicated Automated Swap Setup (`scripts/setup-swap.sh`)**:
+     - Skrip mandiri yang mendeteksi kapasitas RAM fisik, swap aktif, dan sisa ruang disk.
+     - Secara cerdas mengalokasikan 2GB hingga 4GB Swap file (`/swapfile`) jika swap aktif di bawah 2048MB.
+     - Menambahkan entri ke `/etc/fstab` agar aktif permanen saat VPS reboot.
+     - Mengoptimalkan parameter kernel Linux: `vm.swappiness = 10` (memprioritaskan pemakaian RAM fisik, swap hanya disentuh saat beban puncak) dan `vm.vfs_cache_pressure = 50` via `/etc/sysctl.d/99-swap-optimization.conf`.
+  2. **Integrasi Dini pada Installer (`scripts/install.sh`)**:
+     - Menempatkan konfigurasi swap pada awal proses instalasi (Step 3b) sebelum instalasi paket sistem, `npm install`, dan `npm run build`.
+  3. **Two-Tier Fallback Build Strategy (`scripts/install.sh` & `scripts/safe-update.sh`)**:
+     - Jika kompilasi standar `npm run build` (1536MB heap) mengalami kegagalan pada kondisi resource terbatas, sistem secara otomatis mengeksekusi fallback `npm run build:low-mem` (1024MB heap, 32MB semi-space).
+
+- **Files**:
+  - `scripts/setup-swap.sh`
+  - `scripts/install.sh`
+  - `scripts/safe-update.sh`
+  - `package.json`
+
 ## [2.40.18] — 2026-09-17
 ### Resolusi Crash Installer VPS pada WireGuard Server (`wg-quick: 'wg0' already exists`)
 
