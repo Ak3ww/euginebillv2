@@ -90,6 +90,7 @@ npm install --no-audit --prefer-offline
 log_info "Sinkronisasi skema Prisma ke database..."
 npx prisma generate
 npx prisma db push --skip-generate
+npx tsx scripts/sync-router-vpn-ports.ts 2>/dev/null || true
 
 # 6. Production Build
 # Ensure swap is active
