@@ -189,6 +189,9 @@ log_info "Menginstal modul npm dan sinkronisasi skema database..."
 npm install --prefer-offline --no-audit
 npx prisma generate
 npx prisma db push --skip-generate
+log_info "Menjalankan migrasi database otomatis dan inisialisasi katalog master bersih..."
+npm run db:migrate:auto || true
+npm run db:seed:clean || true
 log_success "Skema database berhasil disinkronkan ke MySQL."
 
 # 11. Configure Nginx Reverse Proxy
