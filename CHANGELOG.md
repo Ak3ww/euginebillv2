@@ -4,6 +4,32 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.17] — 2026-09-17
+### Resolusi Crash BigInt Serialization pada Tambah/Edit ODP & Polyfill Global BigInt toJSON
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. **Error: "Do not know how to serialize a BigInt" Saat Tambah ODP (`/admin/network/odps`)**:
+     - Saat admin atau teknisi mencoba menambahkan ODP baru (atau mengupdate ODP) melalui form modal, sistem melempar error pop-up `Error! Do not know how to serialize a BigInt`.
+     - **Root Cause**:
+       - Model Prisma `networkOLT` memiliki kolom `uptime BigInt @default(0)`.
+       - Pada endpoint `POST` dan `PUT` di `src/app/api/network/odps/route.ts`, query menyertakan `include: { olt: true, odc: true, parentOdp: true }`.
+       - Karena `olt: true` mengambil seluruh field dari `networkOLT` termasuk `uptime` bertipe `BigInt`, ketika `NextResponse.json({ success: true, odp })` dieksekusi, pemanggilan bawaan `JSON.stringify` gagal total dan melempar `TypeError: Do not know how to serialize a BigInt`.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Global BigInt Serialization Polyfill (`src/server/db/client.ts`)**:
+     - Menambahkan polyfill `BigInt.prototype.toJSON = function() { const int = Number(this); return Number.isSafeInteger(int) ? int : this.toString(); }`.
+     - Karena `prisma` diimport di hampir seluruh API routes di EugineBill, polyfill ini memberikan proteksi menyeluruh (*fail-safe defense-in-depth*) sehingga tidak ada route handler mana pun yang akan crash akibat field BigInt (seperti `uptime`, `bandwidthUp/Down`, `rxBytes/txBytes`, `filesize`, atau `usageQuota`).
+  2. **Selective Safe Projection pada ODP Handlers (`src/app/api/network/odps/route.ts`)**:
+     - Mengubah `olt: true` pada `POST` dan `PUT` menjadi selektif `olt: { select: { id: true, name: true, ipAddress: true } }`, `odc: { select: { id: true, name: true } }`, `parentOdp: { select: { id: true, name: true } }`, dan `_count: { select: { childOdps: true } }`, konsisten dengan handler `GET` dan model ODC.
+  3. **Selective Safe Projection pada Customer Assignment ODP Query (`src/app/api/network/customers/assign/route.ts`)**:
+     - Mengubah `olt: true` menjadi `olt: { select: { id: true, name: true, ipAddress: true } }` untuk mencegah crash serupa saat menghitung ODP terdekat.
+
+- **Files**:
+  - `src/server/db/client.ts`
+  - `src/app/api/network/odps/route.ts`
+  - `src/app/api/network/customers/assign/route.ts`
+  - `package.json`
+
 ## [2.40.16] — 2026-09-17
 ### Otomasi Siklus Hidup Perangkat (Auto-Swap Protection, Auto-Dismantle ke Gudang, & Dukungan Fasum Lapangan)
 

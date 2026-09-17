@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
@@ -52,7 +52,13 @@ export async function GET(request: NextRequest) {
       const odps = await prisma.networkODP.findMany({
         include: {
           odc: true,
-          olt: true,
+          olt: {
+            select: {
+              id: true,
+              name: true,
+              ipAddress: true,
+            },
+          },
           parentOdp: true,
           customers: true,
         },

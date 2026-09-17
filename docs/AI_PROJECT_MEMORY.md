@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.16
+- **Version**: 2.40.17
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 17, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,18 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 17, 2026 — v2.40.17: BigInt JSON Serialization Defense-in-Depth & Safe ODP Projections)
+
+- **Architectural Invariant: Global BigInt Serialization Polyfill (`src/server/db/client.ts`)**:
+  - Kolom `BigInt` pada skema Prisma (`networkOLT.uptime`, `bandwidthUp/Down`, `performanceMetric.rxBytes/txBytes`, `filesize`, `usageQuota`) secara default dikembalikan oleh runtime Node.js/V8 sebagai tipe primitif JavaScript `BigInt` (misal: `0n`).
+  - Fungsi bawaan JavaScript `JSON.stringify` (yang dipanggil otomatis oleh `NextResponse.json(...)`) melempar `TypeError: Do not know how to serialize a BigInt` jika objek memuat field `BigInt`.
+  - Single database client singleton `src/server/db/client.ts` WAJIB menginjeksi polyfill `BigInt.prototype.toJSON = function () { const int = Number(this); return Number.isSafeInteger(int) ? int : this.toString(); };`.
+  - Hal ini menjamin perlindungan menyeluruh (*zero crashes*) di seluruh route handler API tanpa memandang apakah developer/query secara tidak sengaja mengikutsertakan kolom BigInt.
+
+- **Architectural Invariant: Safe Selective Projections on OLT Relations in Network APIs (`/api/network/odps`, `/api/network/customers/assign`)**:
+  - DILARANG menyertakan `olt: true` tanpa seleksi field ketika merelasikan tabel jaringan (`networkODP`, `networkODC`, `networkOLTRouter`).
+  - Selalu gunakan proyeksi selektif: `olt: { select: { id: true, name: true, ipAddress: true } }`. Hal ini menghemat alokasi memori, mereduksi payload JSON ke klien, dan mencegah terangkutnya kolom-kolom berat/internal yang tidak relevan.
 
 ### Recent Patch Log (September 17, 2026 — v2.40.16: Device Lifecycle Automation — Auto-Swap Protection, Dismantle Return, & Fasum Support)
 

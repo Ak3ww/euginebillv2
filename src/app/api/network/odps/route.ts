@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/client';
 import { nanoid } from 'nanoid';
 import { getServerSession } from 'next-auth';
@@ -91,9 +91,30 @@ export async function POST(request: NextRequest) {
         status: 'active',
       },
       include: {
-        olt: true,
-        odc: true,
-        parentOdp: true,
+        olt: {
+          select: {
+            id: true,
+            name: true,
+            ipAddress: true,
+          },
+        },
+        odc: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        parentOdp: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            childOdps: true,
+          },
+        },
       },
     });
 
@@ -148,9 +169,30 @@ export async function PUT(request: NextRequest) {
         ...(status && { status }),
       },
       include: {
-        olt: true,
-        odc: true,
-        parentOdp: true,
+        olt: {
+          select: {
+            id: true,
+            name: true,
+            ipAddress: true,
+          },
+        },
+        odc: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        parentOdp: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            childOdps: true,
+          },
+        },
       },
     });
 

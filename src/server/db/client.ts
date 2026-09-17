@@ -23,6 +23,14 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
+// Ensure BigInt can be serialized to JSON across all API routes (prevents "Do not know how to serialize a BigInt")
+if (typeof BigInt !== 'undefined' && !(BigInt.prototype as any).toJSON) {
+  (BigInt.prototype as any).toJSON = function () {
+    const int = Number(this)
+    return Number.isSafeInteger(int) ? int : this.toString()
+  }
+}
+
 // Register once to prevent process crash loops from external connector exceptions
 // (e.g., intermittent MikroTik API socket errors from background jobs).
 if (!globalForPrisma.processGuardsRegistered) {
