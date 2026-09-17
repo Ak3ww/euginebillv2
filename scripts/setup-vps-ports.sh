@@ -72,6 +72,10 @@ ufw allow 1701/udp comment "Pure L2TP VPN Server (UltraVPN Standard)"
 ufw delete allow 500/udp > /dev/null 2>&1 || true
 ufw delete allow 4500/udp > /dev/null 2>&1 || true
 
+# 10. SNMP Monitoring (Port 161/udp)
+log_info "Mengizinkan port SNMP (161/udp)..."
+ufw allow 161/udp comment "SNMP Monitoring"
+
 # Enable UFW if not enabled
 log_info "Mengaktifkan UFW firewall..."
 ufw --force enable

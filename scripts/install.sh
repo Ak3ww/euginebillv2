@@ -113,6 +113,7 @@ apt-get install -y \
     curl git ufw socat mysql-server wireguard wireguard-tools \
     gzip openssl build-essential nginx \
     xl2tpd ppp \
+    snmp \
     freeradius freeradius-mysql freeradius-utils iptables iproute2
 
 log_success "Dependensi sistem dasar terpasang."
