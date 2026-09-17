@@ -119,7 +119,13 @@ function LoginForm() {
         body: JSON.stringify({ username: formData.username, password: formData.password }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        setError(`Server error (${res.status}). Silakan coba beberapa saat lagi atau periksa server.`);
+        return;
+      }
 
       if (!res.ok) {
         setError(data.error || t('auth.loginFailed'));

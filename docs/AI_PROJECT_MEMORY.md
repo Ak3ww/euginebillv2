@@ -10,15 +10,35 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.12
+- **Version**: 2.40.13
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
-- **Last Updated**: September 16, 2026
+- **Last Updated**: September 17, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
 - **Turnkey 1-Command Installer**: `curl -fsSL https://raw.githubusercontent.com/Ak3ww/euginebillv2/main/scripts/install.sh | sudo bash`
 
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 17, 2026 — v2.40.13: Login 500 Root Cause Resolution & Passwordless DDL Standard)
+
+- **Architectural Invariant: Passwordless Automated DDL Migrations (`scripts/run-migrations.ts` / `npm run db:migrate:auto`)**:
+  - DILARANG KERAS memaksa operator/user mengeksekusi file `.sql` mentah via terminal interaktif (`mysql -u ... -p`) saat build/update VPS karena rentan terhenti oleh prompt password dan membuat schema DB tertinggal di belakang Prisma Client.
+  - Seluruh migrasi skema DDL WAJIB diotomatisasi melalui script TypeScript yang memanfaatkan koneksi Prisma eksisting (`DATABASE_URL`).
+  - Setiap migrasi DDL WAJIB 100% IDEMPOTENT (menggunakan pengecekan `INFORMATION_SCHEMA.COLUMNS` dan `CREATE TABLE IF NOT EXISTS`) sehingga aman dijalankan kapan saja berulang kali tanpa risiko error.
+  - Jalankan satu baris: `npx tsx scripts/run-migrations.ts` (atau `npm run db:migrate:auto`).
+
+- **Architectural Invariant: Zero CLI Seed Imports Inside Next.js App Router Routes (`src/app/api/setup/route.ts`)**:
+  - DILARANG KERAS mengimpor script CLI seeder (seperti `prisma/seeds/client-clean-seed.ts`) dari dalam file route handler Next.js (`src/app/api/...`).
+  - Script CLI seeder menciptakan instansi `new PrismaClient()` mandiri pada level modul, menarik dependensi eksternal yang tidak diperlukan ke dalam bundle Next.js standalone, dan menyebabkan lonjakan memori serta kebocoran connection pool.
+  - Seeding data master katalog tetap dijalankan dari terminal/CLI via `npm run db:seed:clean`.
+
+- **Architectural Invariant: Graceful FreeRADIUS Schema Tolerance in Seeders (`prisma/seeds/seed-all.ts`)**:
+  - Eksekusi raw SQL terhadap tabel FreeRADIUS (seperti `radgroupreply`, `radcheck`, `radusergroup`) WAJIB dibungkus blok `try/catch`. Jika deployment klien berada pada mode non-RADIUS atau FreeRADIUS belum terinstal, proses seeding tidak boleh crash.
+
+- **Architectural Invariant: Force-Dynamic & Resilient Auth Routes (`src/app/api/admin/auth/pre-login/route.ts`)**:
+  - Endpoint verifikasi login dan autentikasi WAJIB menyertakan `export const dynamic = 'force-dynamic';` untuk mencegah caching dan memastikan evaluasi dinamis pada setiap request.
+  - Sisi client UI (`src/app/admin/login/page.tsx`) WAJIB memvalidasi respons non-JSON (HTML/teks 500) secara elegan tanpa memicu sintaks error `Unexpected token 'I'`.
 
 ### Recent Patch Log (September 16, 2026 — v2.40.12: Commercial Turnkey Clean Client Seeder & Data Isolation)
 

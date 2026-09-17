@@ -1,6 +1,8 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/server/db/client';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Pre-login check: validates credentials and checks if 2FA is required.

@@ -1,6 +1,6 @@
 {
   "name": "EugineBill-radius",
-  "version": "2.40.4",
+  "version": "2.40.13",
   "private": false,
   "scripts": {
     "dev": "next dev",
@@ -19,6 +19,7 @@
     "db:seed:reset-templates": "tsx prisma/seeds/seed-all.ts --force-templates",
     "db:seed:new-customers": "tsx scripts/import-new-customers.js",
     "db:set-kp-tegal-no-isolation": "tsx scripts/set-kp-tegal-no-isolation.ts",
+    "db:migrate:auto": "tsx scripts/run-migrations.ts",
     "db:push": "prisma db push && npm run db:fix-radius",
     "db:migrate": "prisma migrate dev && npm run db:fix-radius",
     "db:fix-radius": "mysql -u root your_database < prisma/migrations/fix_radacct_groupname/migration.sql",

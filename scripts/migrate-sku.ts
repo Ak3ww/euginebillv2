@@ -28,7 +28,8 @@ async function main() {
         \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
         \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
         UNIQUE INDEX \`sku_sub_category_codes_categoryCode_code_key\`(\`categoryCode\`, \`code\`),
-        PRIMARY KEY (\`id\`)
+        PRIMARY KEY (\`id\`),
+        CONSTRAINT \`sku_sub_category_codes_categoryCode_fkey\` FOREIGN KEY (\`categoryCode\`) REFERENCES \`sku_category_codes\`(\`code\`) ON DELETE CASCADE ON UPDATE CASCADE
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
   `);
 

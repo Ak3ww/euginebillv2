@@ -199,15 +199,19 @@ export async function seedAll(forceTemplates = false) {
   
   const rateLimit = company?.isolationRateLimit || '128k/128k 256k/256k 64k/64k 8 8';
   
-  await prisma.$executeRaw`DELETE FROM radgroupreply WHERE groupname = 'isolir'`;
-  await prisma.$executeRaw`
-    INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
-    ('isolir', 'Mikrotik-Group', ':=', 'isolir'),
-    ('isolir', 'Mikrotik-Rate-Limit', ':=', ${rateLimit}),
-    ('isolir', 'Session-Timeout', ':=', '86400'),
-    ('isolir', 'Framed-Pool', ':=', 'pool-isolir')
-  `;
-  console.log(`   ✅ Isolir group configured with rate limit: ${rateLimit}\n`);
+  try {
+    await prisma.$executeRaw`DELETE FROM radgroupreply WHERE groupname = 'isolir'`;
+    await prisma.$executeRaw`
+      INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
+      ('isolir', 'Mikrotik-Group', ':=', 'isolir'),
+      ('isolir', 'Mikrotik-Rate-Limit', ':=', ${rateLimit}),
+      ('isolir', 'Session-Timeout', ':=', '86400'),
+      ('isolir', 'Framed-Pool', ':=', 'pool-isolir')
+    `;
+    console.log(`   ✅ Isolir group configured with rate limit: ${rateLimit}\n`);
+  } catch (radiusErr) {
+    console.warn('   ⚠️ Skipping RADIUS isolir setup (radgroupreply table not found - non-RADIUS deployment)');
+  }
 
   // 7. Seed GenieACS Parameter Display Config
   console.log('⚙️ Seeding GenieACS Parameter Display Config...');

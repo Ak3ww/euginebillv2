@@ -4,6 +4,48 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.13] — 2026-09-17
+### Resolusi Akar Masalah Login 500, Migrasi Otomatis Bebas Password & Hardening Autentikasi
+
+- **Latar Belakang / Root Cause Analysis (Issue)**:
+  1. **Missing DDL Migrations pada Database MySQL VPS**:
+     - Pada rangkaian commit inventaris (`b6d5042`) dan kamus SKU (`a74b3fd`), skema Prisma menambahkan kolom baru (`currentStock` DOUBLE, `packSize`, `categoryCode`, `subCategory`) serta tabel baru (`work_order_type_kits`, `work_order_type_kit_items`, `sku_category_codes`, `sku_sub_category_codes`).
+     - Di VPS, migrasi manual file SQL (`mysql -u euginebill -p ...`) memerlukan interaksi password yang terpotong/tidak tuntas, sehingga Prisma Client yang di-generate mengharapkan tabel/kolom yang belum ada di database MySQL fisik.
+     - Akibatnya, query background cron job atau service yang menyentuh tabel inventaris/kit memicu *Prisma connection pool error* (P2021/P2022) yang berimbas ke respons server Next.js.
+  2. **Polusi Bundle API Route oleh Script CLI Seeder (`src/app/api/setup/route.ts`)**:
+     - Commit `78ac11b` mengimpor script CLI seeder (`@/../prisma/seeds/client-clean-seed`) dari dalam Next.js route handler.
+     - Script CLI seeder tersebut menginstansiasi `new PrismaClient()` pada level modul file dan menarik puluhan file seeder CLI ke dalam runtime Next.js standalone bundle, membebani memori dan merusak isolasi koneksi.
+  3. **Crash Raw SQL `radgroupreply` pada FreeRADIUS Non-Aktif (`prisma/seeds/seed-all.ts`)**:
+     - Query raw SQL `DELETE FROM radgroupreply` dan `INSERT INTO radgroupreply` dijalankan tanpa proteksi `try/catch`. Pada server klien atau instalasi non-RADIUS di mana tabel FreeRADIUS tidak ada, proses seeding langsung melempar exception fatal.
+  4. **Penanganan Respons Non-JSON pada Halaman Login (`src/app/admin/login/page.tsx`)**:
+     - Ketika server Next.js atau reverse proxy mengembalikan pesan teks mentah (`"Internal Server Error"` status 500), pemanggilan `await res.json()` melempar sintaks error `Unexpected token 'I', "Internal S"... is not valid JSON` yang mengaburkan pesan error asli bagi pengguna.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Consolidated Passwordless Migration Runner (`scripts/run-migrations.ts` & `npm run db:migrate:auto`)**:
+     - Membangun script migrasi database otomatis yang 100% menggunakan koneksi Prisma bawaan (`DATABASE_URL`).
+     - **Bebas Password Manual**: Tidak perlu lagi login manual ke CLI MySQL (`mysql -u ... -p`).
+     - **100% Idempotent & Aman**: Menggunakan pengecekan `INFORMATION_SCHEMA.COLUMNS` dan `CREATE TABLE IF NOT EXISTS` sehingga aman dijalankan berulang kali tanpa risiko duplikasi atau error kolom.
+     - Meliputi seluruh DDL: drop `stockQuantity`, migrasi ke `currentStock` (DOUBLE), kolom `packSize`, `categoryCode`, `subCategory`, `periodLabel`, tabel `work_order_type_kits`, `work_order_type_kit_items`, `sku_category_codes`, dan `sku_sub_category_codes`.
+  2. **Pembersihan Bundle Setup Wizard (`src/app/api/setup/route.ts`)**:
+     - Menghapus pemanggilan dynamic import script CLI seeder dari dalam API route Next.js. Seeding master data tetap tersedia melalui command CLI mandiri `npm run db:seed:clean`.
+  3. **Hardening Toleransi Skema FreeRADIUS (`prisma/seeds/seed-all.ts`)**:
+     - Membungkus eksekusi SQL `radgroupreply` dalam blok `try/catch` dengan peringatan log graceful, menjamin sistem tetap berjalan lancar baik pada mode RADIUS aktif maupun non-RADIUS.
+  4. **Proteksi & Hardening Route Pre-Login (`src/app/api/admin/auth/pre-login/route.ts`)**:
+     - Menambahkan deklarasi eksplisit `export const dynamic = 'force-dynamic'` guna memastikan route selalu dievaluasi secara dinamis tanpa caching.
+  5. **Graceful Error Handling pada Halaman Login (`src/app/admin/login/page.tsx`)**:
+     - Membungkus pembacaan `res.json()` dalam proteksi `try/catch`. Jika server mengembalikan non-JSON (500 teks/HTML), UI menampilkan pesan error yang ramah pengguna dan informatif tanpa crash JavaScript.
+
+- **Files**:
+  - `scripts/run-migrations.ts` (Baru)
+  - `scripts/migrate-sku.ts`
+  - `package.json`
+  - `prisma/seeds/seed-all.ts`
+  - `src/app/api/setup/route.ts`
+  - `src/app/api/admin/auth/pre-login/route.ts`
+  - `src/app/admin/login/page.tsx`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.12] — 2026-09-16
 ### Standarisasi Turnkey Clean Client Seeder & Pembersihan Data Spesifik Operator (Commercial Appliance Ready)
 

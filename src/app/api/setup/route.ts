@@ -152,15 +152,8 @@ export async function POST(req: Request) {
       } catch {}
     }
 
-    // Auto-seed clean master catalogs (Templates, SKU Dictionary, Permissions) in background
-    (async () => {
-      try {
-        const { seedClientClean } = await import('@/../prisma/seeds/client-clean-seed');
-        await seedClientClean(false);
-      } catch (seedErr) {
-        console.error('[Setup] Auto-seed master catalogs warning:', seedErr);
-      }
-    })();
+    // Note: Master catalog seeding (SKU Dictionary, Permissions, Templates)
+    // is executed via CLI during installation: npm run db:seed:clean
 
     return NextResponse.json({
       success: true,
