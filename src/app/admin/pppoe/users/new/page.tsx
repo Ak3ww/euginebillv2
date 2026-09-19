@@ -9,7 +9,7 @@ import { compressImage } from '@/lib/utils';
 import { formatMacAddress } from '@/lib/mac-format';
 
 interface Profile { id: string; name: string; groupName: string; price: number; proratePricePerDay: number; }
-interface Router { id: string; name: string; nasname: string; ipAddress: string; }
+interface Router { id: string; name: string; nasname: string; ipAddress: string; port?: number; }
 interface Area { id: string; name: string; }
 
 const TABS = [
@@ -378,7 +378,18 @@ export default function NewPppoeUserPage() {
               )}
 
               <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Paket &amp; Langganan</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Router &amp; Paket Langganan</p>
+                <div>
+                  <ModalLabel required>Router / NAS MikroTik</ModalLabel>
+                  <ModalSelect value={formData.routerId} onChange={(e) => field('routerId', e.target.value)}>
+                    <option value="">-- Pilih Router / NAS --</option>
+                    {routers.map(r => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} ({r.ipAddress || r.nasname}{r.port ? `:${r.port}` : ''})
+                      </option>
+                    ))}
+                  </ModalSelect>
+                </div>
                 <div>
                   <ModalLabel required>Paket Internet</ModalLabel>
                   <ModalSelect value={formData.profileId} onChange={(e) => field('profileId', e.target.value)}>
