@@ -47,11 +47,11 @@ export class PPPSecretService {
       }
     }
 
-    // 1. Host: Utamakan IP tunnel VPN jika router terhubung via VPN Client (lebih aman & langsung), fallback ke ipAddress
-    const vpnIp = vpnClient?.vpnIp?.trim()
+    // 1. Host: Utamakan IP konfigurasi router (persis isian admin), fallback ke VPN IP jika ada
     const configuredIp = router.ipAddress?.trim() || router.nasname?.trim()
-    const primaryHost = vpnIp || configuredIp
-    const secondaryHost = vpnIp && configuredIp && vpnIp !== configuredIp ? configuredIp : null
+    const vpnIp = vpnClient?.vpnIp?.trim()
+    const primaryHost = configuredIp || vpnIp
+    const secondaryHost = configuredIp && vpnIp && configuredIp !== vpnIp ? vpnIp : null
 
     if (!primaryHost) {
       throw new Error(`Router '${router.name || 'Unknown'}' tidak memiliki IP Address atau VPN IP`)
@@ -166,37 +166,8 @@ export class PPPSecretService {
       const isSecretEnabled = ['ACTIVE', 'PENDING_INSTALLATION', 'PENDING'].includes(statusUpper)
       const secretPassword = user.password || user.portalPassword || 'eugine0909'
 
-      // 1. Ensure profile exists on MikroTik (clean query)
-      let targetProfile = profileName
-      if (profileName !== 'default') {
-        try {
-          const existingProfiles = await conn.execute(
-            '/ppp/profile/print',
-            [`?name=${profileName}`],
-            10000
-          )
-          if (!existingProfiles || existingProfiles.length === 0) {
-            try {
-              const createParams = [`=name=${profileName}`]
-              const rateLimit = user.profile?.rateLimit || (user.profile ? `${user.profile.uploadSpeed}M/${user.profile.downloadSpeed}M` : '')
-              if (rateLimit && rateLimit !== '0M/0M') createParams.push(`=rate-limit=${rateLimit}`)
-              await conn.execute('/ppp/profile/add', createParams, 10000)
-              console.log(`[PPPSecretService] Auto-created profile '${profileName}' on MikroTik`)
-              targetProfile = profileName
-            } catch (createErr: any) {
-              const createMsg = String(createErr?.message || '')
-              if (createMsg.includes('already exists') || createMsg.includes('already have')) {
-                targetProfile = profileName
-              } else {
-                console.warn(`[PPPSecretService] Auto-create profile '${profileName}' failed (${createMsg}), fallback to 'default'`)
-                targetProfile = 'default'
-              }
-            }
-          }
-        } catch (checkErr: any) {
-          console.warn(`[PPPSecretService] Profile check skipped/failed (${checkErr?.message})`)
-        }
-      }
+      // 1. Target profile (fallback ke default ditangani otomatis jika router menolak profil kustom)
+      const targetProfile = profileName
 
       // 2. Check if secret exists (clean query without invalid ?.proplist)
       let existing: any[] = []

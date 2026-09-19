@@ -103,36 +103,12 @@ export class MikroTikConnection {
     }
   }
 
-  // Public method to execute RouterOS commands with timeout safety and socket lifecycle hygiene
-  async execute(command: string, params?: string[], customTimeoutMs?: number): Promise<any> {
+  // Public method to execute RouterOS commands
+  async execute(command: string, params?: string[], _customTimeoutMs?: number): Promise<any> {
     if (!this.conn) {
       throw new Error('Not connected to MikroTik')
     }
-    const timeoutMs = customTimeoutMs || this.config.timeout || 15000;
-    let timer: NodeJS.Timeout | null = null;
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => {
-        // When timed out, close dirty socket so subsequent commands do not desync
-        try {
-          this.conn?.close();
-        } catch { /* ignore */ }
-        this.conn = null;
-        reject(new Error(`MikroTik command timed out after ${timeoutMs / 1000}s: ${command}`));
-      }, timeoutMs);
-    });
-
-    try {
-      const res = await Promise.race([
-        this.conn.write(command, params || []),
-        timeoutPromise,
-      ]);
-      if (timer) clearTimeout(timer);
-      return res;
-    } catch (err: any) {
-      if (timer) clearTimeout(timer);
-      throw err;
-    }
+    return await this.conn.write(command, params || [])
   }
 
   async testConnection(): Promise<{ success: boolean; identity?: string; message: string }> {

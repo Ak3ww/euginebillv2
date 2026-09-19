@@ -4,6 +4,34 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.36] — 2026-09-19
+### Perbaikan Socket Desync "Not connected to MikroTik", Prioritas IP Admin & Pembersihan Query Profile
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. Sinkronisasi manual maupun pendaftaran user (contoh user `EMG342`) memunculkan error: `EMG342 tersimpan di DB, tetapi MikroTik gagal: Not connected to MikroTik`.
+  2. Investigasi mendalam menemukan akar masalah berantai:
+     - Di `src/server/services/mikrotik/client.ts`, fungsi `execute()` dibungkus dengan timer pembatalan yang mengeksekusi `this.conn?.close(); this.conn = null;` jika terjadi timeout.
+     - Pengecekan profil `/ppp/profile/print` yang lambat atau tidak perlu memicu timer pembatalan tersebut, membunuh instance koneksi menjadi `null`.
+     - Ketika blok profil menangkap error dan melanjutkan ke perintah berikutnya (`/ppp/secret/print` atau `/ppp/secret/add`), method `execute()` melempar error fatal: `throw new Error('Not connected to MikroTik')`.
+     - Selain itu, `connectToRouter` mengutamakan `vpnIp` di atas `configuredIp`, padahal admin secara eksplisit mengonfigurasi IP router (misal `10.200.0.2`).
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Restorasi Method `execute()` Persis Sesuai Commit Stabil `e144a1d` (`client.ts`)**:
+     - Mengembalikan `execute()` ke pemanggilan native murni `return await this.conn.write(command, params || [])` tanpa pembatalan manual yang merusak socket lifecycle.
+  2. **Eliminasi Query Profil Redundan (`ppp-secret.service.ts`)**:
+     - Menghapus query `/ppp/profile/print` dan auto-create profil yang membebani traffic VPN. Secret langsung menggunakan profil paket, dan jika profil kustom tidak ada di MikroTik, penanganan error bawaan langsung mengalihkan profil ke `default`.
+  3. **Prioritas Mutlak IP Input Admin**:
+     - Menyetel `primaryHost = configuredIp || vpnIp` pada `connectToRouter`, endpoint `/test`, dan `/status`, menjamin sistem selalu menghubungi IP yang dikonfigurasi admin terlebih dahulu.
+
+- **Files**:
+  - `package.json`
+  - `src/server/services/mikrotik/client.ts`
+  - `src/server/services/mikrotik/ppp-secret.service.ts`
+  - `src/app/api/network/routers/test/route.ts`
+  - `src/app/api/network/routers/status/route.ts`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.35] — 2026-09-19
 ### Konsolidasi Integrasi MikroTik & Billing: Eliminasi Auto-Heal Mutasi Port, Sinkronisasi Kredensial Tangguh & Feedback Error Sync UI
 

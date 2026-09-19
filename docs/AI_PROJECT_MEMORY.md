@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.35
+- **Version**: 2.40.36
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,19 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.36: Native RouterOS Execute, Clean Profile Resolution & Admin IP Priority)
+
+- **Hard Invariant: Never Nullify Socket in Execute Helper (`client.ts`)**:
+  - DILARANG menyetel `this.conn = null` di dalam helper `execute()`.
+  - Mengembalikan `execute()` ke pemanggilan native murni `return await this.conn.write(command, params || [])` seperti commit stabil `e144a1d`.
+  - Jika socket dinullkan saat timeout, seluruh perintah berikutnya akan gagal dengan pesan error palsu: `Not connected to MikroTik`.
+
+- **Hard Invariant: Skip Redundant Profile Check in Sync**:
+  - Tidak perlu melakukan query `/ppp/profile/print` dan create profile sebelum menulis secret. Secret langsung menyetel `=profile=${profileName}`, dan jika ditolak oleh router, fallback otomatis ke `default` menangani hal tersebut secara aman tanpa roundtrip lambat.
+
+- **Hard Invariant: Prioritize Admin IP Over VPN IP**:
+  - Pada `connectToRouter`, `/test`, dan `/status`, selalu gunakan `primaryHost = configuredIp || vpnIp` agar sistem menghubungi IP yang dikonfigurasi admin terlebih dahulu.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.35: Zero Auto-Heal Port Mutation, Robust Credential Fallback & Accurate Manual Sync UI)
 

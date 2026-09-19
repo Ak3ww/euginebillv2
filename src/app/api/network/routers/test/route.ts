@@ -46,11 +46,11 @@ export async function POST(request: Request) {
       }).catch(() => null)
     }
 
-    // 2. Direct Target Host (utamakan VPN Tunnel IP jika terhubung ke VPN Client)
-    const vpnIp = vpnClient?.vpnIp?.trim()
+    // 2. Direct Target Host (utamakan IP yang diisi admin, fallback ke VPN IP)
     const enteredIp = ipAddress?.trim()
-    const primaryHost = vpnIp || enteredIp
-    const secondaryHost = vpnIp && enteredIp && vpnIp !== enteredIp ? enteredIp : null
+    const vpnIp = vpnClient?.vpnIp?.trim()
+    const primaryHost = enteredIp || vpnIp
+    const secondaryHost = enteredIp && vpnIp && enteredIp !== vpnIp ? vpnIp : null
 
     // 3. Direct Target Port: Persis dinamis sesuai isian admin / target VPN (tanpa fallback tebak-tebak port)
     const vpnApiTarget = (vpnClient?.publicPorts as any)?.services?.api?.target

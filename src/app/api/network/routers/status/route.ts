@@ -35,11 +35,11 @@ export async function POST(request: NextRequest) {
 
     await Promise.all(
       routers.map(async (router) => {
-        // Direct Host: Utamakan VPN Tunnel IP jika router terhubung via VPN, else ipAddress
-        const vpnIp = router.vpnClient?.vpnIp?.trim();
+        // Direct Host: Utamakan IP konfigurasi router (persis isian admin), fallback ke VPN IP jika ada
         const configuredIp = router.ipAddress?.trim() || router.nasname?.trim();
-        const primaryHost = vpnIp || configuredIp;
-        const secondaryHost = vpnIp && configuredIp && vpnIp !== configuredIp ? configuredIp : null;
+        const vpnIp = router.vpnClient?.vpnIp?.trim();
+        const primaryHost = configuredIp || vpnIp;
+        const secondaryHost = configuredIp && vpnIp && configuredIp !== vpnIp ? vpnIp : null;
 
         // Direct Port: Persis port yang diisi admin di router, atau target API VPN
         const vpnTarget = (router.vpnClient?.publicPorts as any)?.services?.api?.target;
