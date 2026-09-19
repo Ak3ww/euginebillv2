@@ -115,9 +115,17 @@ export async function POST(
           const { disconnectPPPoEUser } = await import('@/server/services/radius/coa-handler.service');
           await disconnectPPPoEUser(user.username);
         }
+      } else {
+        // Local Auth / Non-RADIUS mode: un-isolate directly on MikroTik
+        try {
+          const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+          await PPPSecretService.unisolateUser(id, user.routerId || undefined);
+        } catch (mtErr: any) {
+          console.error('[Extend] MikroTik un-isolation error (non-fatal):', mtErr?.message);
+        }
       }
     } catch (radiusError: any) {
-      console.error('[Extend] RADIUS restore error (non-fatal):', radiusError?.message);
+      console.error('[Extend] Network restore error (non-fatal):', radiusError?.message);
     }
 
     const company = await prisma.company.findFirst();

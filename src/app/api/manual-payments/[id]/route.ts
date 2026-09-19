@@ -336,22 +336,13 @@ export async function PATCH(
             console.log(`[Manual Payment APPROVE] CoA: ${coaResult.success ? 'disconnected for re-auth' : coaResult.error}`);
           }
         } else {
-          // MikroTik API Sync
-          if (manualPayment.user.routerId) {
-            const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
-            const syncResult = await PPPSecretService.syncSecret(manualPayment.userId);
-            console.log(`[Manual Payment APPROVE] Mikrotik Sync Secret:`, syncResult);
-            
-            const activeProfile = newProfileData;
-            if (activeProfile && 'name' in activeProfile) {
-              const mkProfileName = (activeProfile as any).mikrotikProfileName || (activeProfile as any).name;
-              await PPPSecretService.setProfileAndDisconnect(manualPayment.user.routerId, manualPayment.user.username, mkProfileName);
-              console.log(`[Manual Payment APPROVE] Mikrotik user disconnected to apply new profile: ${mkProfileName}`);
-            }
-          }
+          // MikroTik API Direct Un-Isolation (Local Auth / Non-RADIUS mode)
+          const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+          const unisolateRes = await PPPSecretService.unisolateUser(manualPayment.userId, manualPayment.user.routerId || undefined);
+          console.log(`[Manual Payment APPROVE] Mikrotik Unisolate Result:`, unisolateRes);
         }
 
-        // Clean up MikroTik firewall isolir address-list (Dual-Mode)
+        // Clean up MikroTik firewall isolir address-list (Dual-Mode: RADIUS & Non-RADIUS)
         try {
           const { removeUserFromMikrotikAddressList } = await import('@/server/services/radius/coa-handler.service');
           removeUserFromMikrotikAddressList(manualPayment.user.username, manualPayment.user.routerId, 'isolir')

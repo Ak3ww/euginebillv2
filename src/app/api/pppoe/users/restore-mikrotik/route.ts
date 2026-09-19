@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
-import { RouterOSAPI } from 'node-routeros';
+import { PPPSecretService } from '@/server/services/mikrotik/ppp-secret.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,11 +13,9 @@ const EXCLUDED_STATUSES = new Set([
 
 function isUserOffOrInactive(user: any) {
   if (!user) return true;
-  if (user.isDismantled) return true;
-  const username = (user.username || '').toUpperCase();
-  if (username.includes('-OFF-') || username.includes('_OFF_') || username.includes('(OFF)')) return true;
   const status = (user.status || '').toLowerCase().trim();
   if (EXCLUDED_STATUSES.has(status)) return true;
+  if (user.isActive === false) return true;
   return false;
 }
 
@@ -29,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const targetRouterId = body.routerId;
+    const { targetRouterId } = body;
 
     const company = await prisma.company.findFirst();
     const isolateProfileName = company?.isolateProfileName || 'isolir';
@@ -43,8 +41,8 @@ export async function POST(request: NextRequest) {
     });
 
     const routers = targetRouterId
-      ? await prisma.router.findMany({ where: { id: targetRouterId, isActive: true } })
-      : await prisma.router.findMany({ where: { isActive: true } });
+      ? await prisma.router.findMany({ where: { id: targetRouterId, isActive: true }, include: { vpnClient: true } })
+      : await prisma.router.findMany({ where: { isActive: true }, include: { vpnClient: true } });
 
     if (routers.length === 0) {
       return NextResponse.json({ error: 'Router tidak ditemukan atau tidak aktif' }, { status: 404 });
@@ -59,19 +57,12 @@ export async function POST(request: NextRequest) {
     for (const router of routers) {
       const isCiteureupRouter = router.name.toLowerCase().includes('citeureup') || router.name.toLowerCase().includes('ctp');
 
-      const apiHost = router.ipAddress || router.nasname;
-      const apiPort = router.port || 8728;
-
-      const api = new RouterOSAPI({
-        host: apiHost,
-        port: apiPort,
-        user: router.username,
-        password: router.password,
-        timeout: 15,
-      });
-
+      let connObj: any = null;
       try {
-        await api.connect();
+        const { conn } = await PPPSecretService.connectToRouter(router, 10000);
+        connObj = conn;
+        const api = conn.raw;
+        if (!api) throw new Error('Koneksi MikroTik API raw tidak tersedia');
 
         // 1. Force use-radius=no & accounting=no on PPP AAA
         await api.write(['/ppp/aaa/set', '=use-radius=no', '=accounting=no']);
@@ -198,7 +189,7 @@ export async function POST(request: NextRequest) {
         }
 
         const finalSecrets = await api.write('/ppp/secret/print');
-        await api.close();
+        try { await connObj?.disconnect(); } catch {}
 
         results.push({
           router: router.name,
@@ -211,6 +202,7 @@ export async function POST(request: NextRequest) {
           success: true,
         });
       } catch (rErr: any) {
+        try { await connObj?.disconnect(); } catch {}
         results.push({
           router: router.name,
           error: rErr.message,

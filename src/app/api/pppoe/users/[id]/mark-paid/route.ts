@@ -133,15 +133,13 @@ export async function POST(
       select: { username: true },
     });
 
-    // 1. PRIMARY: Sync MikroTik Direct API (restore normal profile & kick active session)
-    if (userRecord.profile && userRecord.routerId) {
-      try {
-        const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
-        const normalProfileName = userRecord.profile.mikrotikProfileName || userRecord.profile.name || userRecord.profile.groupName;
-        await PPPSecretService.setProfileAndDisconnect(userRecord.routerId, userRecord.username, normalProfileName);
-      } catch (mtErr: any) {
-        console.error('[Mark Paid] MikroTik Direct API sync error (non-fatal):', mtErr?.message);
-      }
+    // 1. PRIMARY: Direct MikroTik Un-Isolation (enable secret, restore normal profile, kick active session)
+    try {
+      const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+      const unisolateRes = await PPPSecretService.unisolateUser(id, userRecord.routerId || undefined);
+      console.log('[Mark Paid] MikroTik un-isolation result:', unisolateRes);
+    } catch (mtErr: any) {
+      console.error('[Mark Paid] MikroTik un-isolation error (non-fatal):', mtErr?.message);
     }
 
     // Clean up MikroTik firewall isolir address-list (Dual-Mode: RADIUS & Non-RADIUS)

@@ -4,7 +4,7 @@ import { authOptions } from '@/server/auth/config'
 import { MikroTikConnection } from '@/server/services/mikrotik/client'
 import { prisma } from '@/server/db/client'
 
-// POST - Test router connection with intelligent multi-port and VPN fallback
+// POST - Test router connection directly to target host & port without guessing
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   
@@ -46,124 +46,90 @@ export async function POST(request: Request) {
       }).catch(() => null)
     }
 
-    // 2. Candidate Hosts (utamakan VPN IP jika tersedia, fallback ke ipAddress)
-    const rawHosts = [
-      ipAddress?.trim(),
-      vpnClient?.vpnIp?.trim(),
-    ].filter(Boolean) as string[]
-    const candidateHosts = Array.from(new Set(rawHosts))
+    // 2. Direct Target Host (utamakan VPN Tunnel IP jika terhubung ke VPN Client)
+    const vpnIp = vpnClient?.vpnIp?.trim()
+    const enteredIp = ipAddress?.trim()
+    const primaryHost = vpnIp || enteredIp
+    const secondaryHost = vpnIp && enteredIp && vpnIp !== enteredIp ? enteredIp : null
 
-    // 3. Candidate Credentials (utamakan input admin, fallback ke kredensial vpnClient)
-    const credPairs: Array<{ user: string; pass: string; label: string }> = []
-    const addCred = (u?: string | null, p?: string | null, label = '') => {
-      if (!u) return
-      const trimmedUser = u.trim()
-      const passVal = p || ''
-      if (!trimmedUser) return
-      if (!credPairs.some(c => c.user === trimmedUser && c.pass === passVal)) {
-        credPairs.push({ user: trimmedUser, pass: passVal, label })
-      }
-    }
-
-    addCred(username, password, 'admin_input')
-    if (vpnClient) {
-      addCred(vpnClient.apiUsername, vpnClient.apiPassword, 'vpn_api')
-      addCred(vpnClient.username, vpnClient.password, 'vpn_tunnel')
-    }
-    addCred('admin', password, 'default_admin')
-    if (password) {
-      addCred(username, '', 'empty_pass')
-    }
-
-    // 4. Candidate Ports (utamakan port isian admin, fallback ke API target VPN, 8520, 8728, 8729)
-    const adminPort = parseInt(port) || parseInt(apiPort) || 8728
+    // 3. Direct Target Port: Persis dinamis sesuai isian admin / target VPN (tanpa fallback tebak-tebak port)
     const vpnApiTarget = (vpnClient?.publicPorts as any)?.services?.api?.target
-    const rawPorts = [
-      adminPort,
-      apiPort ? parseInt(apiPort) : null,
-      vpnApiTarget ? parseInt(vpnApiTarget) : null,
-      8520,
-      8728,
-      8729,
-    ].filter(Boolean) as number[]
-    const candidatePorts = Array.from(new Set(rawPorts))
+    const targetPort = parseInt(port) || parseInt(apiPort) || (vpnApiTarget ? parseInt(vpnApiTarget) : 8728)
+    const isTls = targetPort === 8729
 
-    console.log(`[RouterTest] Testing MikroTik connection for host: ${candidateHosts.join(', ')} | ports: ${candidatePorts.join(', ')} | user: ${username}`)
+    // 4. Kredensial: Persis dinamis sesuai isian admin
+    const user = username.trim()
+    const pass = password !== undefined && password !== null ? password : (vpnClient?.apiPassword || '')
+
+    console.log(`[RouterTest] Testing MikroTik connection directly to ${primaryHost}:${targetPort} (user: ${user})...`)
 
     let lastError = 'Koneksi gagal'
     let lastDiagnosis = 'unknown'
 
-    // 5. Intelligent Multi-Host, Multi-Cred, Multi-Port Test Loop
-    for (const host of candidateHosts) {
-      for (const cred of credPairs) {
-        for (const testPort of candidatePorts) {
-          const isTls = testPort === 8729
-          const mtik = new MikroTikConnection({
-            host,
-            username: cred.user,
-            password: cred.pass,
-            port: testPort,
-            timeout: 3500, // 3.5s per attempt for fast responsive probing
-            tls: isTls,
+    const hostsToTry = [primaryHost, ...(secondaryHost ? [secondaryHost] : [])]
+
+    for (const host of hostsToTry) {
+      const mtik = new MikroTikConnection({
+        host,
+        username: user,
+        password: pass,
+        port: targetPort,
+        timeout: 6000,
+        tls: isTls,
+      })
+
+      try {
+        const result = await mtik.testConnection()
+        if (result.success) {
+          console.log(`[RouterTest] SUCCESS on ${host}:${targetPort} using ${user}! Identity: ${result.identity}`)
+          return NextResponse.json({
+            success: true,
+            identity: result.identity,
+            message: `Koneksi berhasil terhubung ke MikroTik (${result.identity})`,
+            usedHost: host,
+            usedPort: targetPort,
+            usedTls: isTls,
+            usedUser: user,
           })
-
-          try {
-            const result = await mtik.testConnection()
-            if (result.success) {
-              console.log(`[RouterTest] SUCCESS on ${host}:${testPort} using ${cred.user} (${cred.label})! Identity: ${result.identity}`)
-              return NextResponse.json({
-                success: true,
-                identity: result.identity,
-                message: `Koneksi berhasil terhubung ke MikroTik (${result.identity})`,
-                usedHost: host,
-                usedPort: testPort,
-                usedTls: isTls,
-                usedUser: cred.user,
-                testedPorts: candidatePorts,
-              })
-            } else {
-              lastError = result.message || lastError
-            }
-          } catch (err: any) {
-            lastError = err?.message || String(err)
-          }
-
-          // Evaluate failure signature
-          if (lastError.includes('timed out') || lastError.includes('firewall') || lastError.includes('unreachable')) {
-            lastDiagnosis = 'firewall_block'
-          } else if (lastError.includes('ECONNREFUSED') || lastError.includes('refused')) {
-            lastDiagnosis = 'port_refused'
-          } else if (lastError.includes('wrong password') || lastError.includes('cannot log in') || lastError.includes('invalid user')) {
-            lastDiagnosis = 'auth_failed'
-          }
+        } else {
+          lastError = result.message || lastError
         }
+      } catch (err: any) {
+        lastError = err?.message || String(err)
+      }
+
+      // Evaluate failure signature
+      if (lastError.includes('timed out') || lastError.includes('firewall') || lastError.includes('unreachable')) {
+        lastDiagnosis = 'firewall_block'
+      } else if (lastError.includes('ECONNREFUSED') || lastError.includes('refused')) {
+        lastDiagnosis = 'port_refused'
+      } else if (lastError.includes('wrong password') || lastError.includes('cannot log in') || lastError.includes('invalid user')) {
+        lastDiagnosis = 'auth_failed'
       }
     }
 
-    // 6. Generate dynamic fix script if all attempts failed
-    const chosenPort = adminPort || 8520
-    const chosenHost = candidateHosts[0] || '10.200.0.1'
-    const vpsVpnIp = chosenHost.includes('.')
-      ? chosenHost.substring(0, chosenHost.lastIndexOf('.')) + '.1'
+    // Generate dynamic fix script if failed
+    const vpsVpnIp = primaryHost.includes('.')
+      ? primaryHost.substring(0, primaryHost.lastIndexOf('.')) + '.1'
       : '10.200.0.1'
 
     let fixScript = `# --- Perintah Fix Service API & Firewall MikroTik ---\n`
-    fixScript += `/ip service set api port=${chosenPort} disabled=no address=""\n`
-    fixScript += `/ip firewall filter add chain=input action=accept protocol=tcp dst-port=${chosenPort},8728 comment="Allow EugineBill VPS API" place-before=0\n`
+    fixScript += `/ip service set api port=${targetPort} disabled=no address=""\n`
+    fixScript += `/ip firewall filter add chain=input action=accept protocol=tcp dst-port=${targetPort} comment="Allow EugineBill VPS API" place-before=0\n`
     if (vpnClient) {
       const iface = vpnClient.vpnType === 'WIREGUARD' ? 'wg0-euginebill' : `ebl2-${vpnClient.name}`
       fixScript += `/ip firewall filter add chain=input action=accept in-interface="${iface}" place-before=0 comment="Allow EugineBill VPN Remote Access"\n`
     } else {
-      fixScript += `/ip firewall filter add chain=input src-address=${vpsVpnIp} protocol=tcp dst-port=${chosenPort},8728 action=accept place-before=0 comment="Allow EugineBill VPS API"\n`
+      fixScript += `/ip firewall filter add chain=input src-address=${vpsVpnIp} protocol=tcp dst-port=${targetPort} action=accept place-before=0 comment="Allow EugineBill VPS API"\n`
     }
 
     return NextResponse.json({
       success: false,
-      message: lastError,
+      message: `${lastError} (Host: ${primaryHost}, Port: ${targetPort})`,
       diagnosis: lastDiagnosis,
       fixScript,
-      testedPorts: candidatePorts,
-      testedHosts: candidateHosts,
+      usedHost: primaryHost,
+      usedPort: targetPort,
     })
 
   } catch (error: any) {
@@ -175,4 +141,3 @@ export async function POST(request: Request) {
     })
   }
 }
-

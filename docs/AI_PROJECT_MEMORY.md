@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.31
+- **Version**: 2.40.33
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -20,7 +20,33 @@
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
 
-### Recent Patch Log (September 19, 2026 — v2.40.31: Non-Blocking Router Storage & Intelligent Multi-Port / VPN API Probing)
+### Recent Patch Log (September 19, 2026 — v2.40.33: Direct & Dynamic MikroTik API, Zero Port Guessing, 15s Headroom & Unified Payment Un-Isolation)
+
+- **Hard Invariant: Direct & Dynamic MikroTik API Routing (STRICTLY NO PORT GUESSING)**:
+  - DILARANG KERAS menggunakan perulangan tebak-tebak port (*candidate ports loop: 8520, 8728, 8729*) atau melakukan mutasi diam-diam (*auto-heal overwrite*) pada `router.port` di database!
+  - Menghubungi MikroTik API HARUS selalu langsung ke host dan port yang dikonfigurasi admin atau target API VPN (`primaryHost:targetPort`):
+    - Jika admin mengonfigurasi port 8520, sistem WAJIB menghubungi port 8520. Jika 8728, hubungi 8728. Jika 9004, hubungi 9004.
+    - Host utama diutamakan IP Tunnel VPN internal (`vpnClient.vpnIp`) jika router terhubung ke VPN Client, dengan fallback ke `router.ipAddress`.
+  - Pada status check (`routers/status`), periksa HANYA host dan port yang dikonfigurasi router. DILARANG mengubah `router.port` di database hanya karena port lain merespons.
+
+- **Hard Invariant: Command Timeout 15 Detik & Clean Socket Disposal (`src/server/services/mikrotik/client.ts`)**:
+  - Default timeout eksekusi perintah RouterOS dinaikkan menjadi **15.000 ms (15 detik)** untuk memberikan kelonggaran transmisi di atas jaringan VPN internet.
+  - Setiap kali terjadi timeout pada `execute()`, socket TCP kotor WAJIB langsung ditutup (`this.conn?.close(); this.conn = null;`), agar tag listener yang menggantung tidak mencemari antrean perintah berikutnya (*prevent channel pollution*).
+  - Selalu sertakan `clearTimeout(timer)` untuk mencegah kebocoran timer di Node.js.
+
+- **Hard Invariant: Lightweight Secret Queries (`?.proplist`)**:
+  - Saat memeriksa secret di MikroTik, SELALU gunakan filter hemat properti: `?.proplist=.id,name,profile,disabled` atau `?.proplist=.id,name`.
+  - DILARANG memanggil `/ppp/secret/print` tanpa filter properti pada alur transaksi aktif, karena RouterOS akan me-serialize 30+ atribut memori internal yang lambat dan memicu timeout.
+
+- **Hard Invariant: Unified Payment Un-Isolation Pipeline (`PPPSecretService.unisolateUser`)**:
+  - Seluruh alur pembayaran (manual payment approval, payment gateway webhook, QRIS notification, tandai lunas invoice, auto-renewal cron, hingga status toggle) WAJIB memanggil `PPPSecretService.unisolateUser(user.id, user.routerId)`.
+  - `unisolateUser` melakukan 4 tindakan atomik secara berurutan:
+    1. Memperbarui secret MikroTik: menyetel `=disabled=no` DAN `=profile=${normalProfile}` (dengan auto-fallback ke `profile=default` jika profil kustom tidak ada).
+    2. Menendang sesi aktif (`/ppp/active/remove`) agar ONT pelanggan langsung re-konek seketika.
+    3. Menghapus IP dan komentar pelanggan dari `/ip firewall address-list` (`list=isolir`).
+    4. Memperbarui status pelanggan di database menjadi `'active'`.
+
+### Recent Patch Log (September 19, 2026 — v2.40.31: Non-Blocking Router Storage & Safe Direct Input)
 
 - **Hard Invariant: Non-Blocking Router Database Storage**:
   - DILARANG mengembalikan HTTP 400 atau menggagalkan penyimpanan router (`POST /api/network/routers` atau `PUT`) hanya karena uji koneksi MikroTik API timeout atau gagal firewall!

@@ -21,13 +21,13 @@ export class MikroTikConnection {
     this.config = {
       ...config,
       port,
-      timeout: config.timeout || 10000,
+      timeout: config.timeout || 15000,
       tls,
     }
   }
 
   async connect(): Promise<void> {
-    const timeoutMs = this.config.timeout || 10000
+    const timeoutMs = this.config.timeout || 15000
     const connectionConfig: any = {
       host: this.config.host,
       user: this.config.username,
@@ -103,17 +103,36 @@ export class MikroTikConnection {
     }
   }
 
-  // Public method to execute RouterOS commands with timeout safety
+  // Public method to execute RouterOS commands with timeout safety and socket lifecycle hygiene
   async execute(command: string, params?: string[], customTimeoutMs?: number): Promise<any> {
     if (!this.conn) {
       throw new Error('Not connected to MikroTik')
     }
-    const timeoutMs = customTimeoutMs || this.config.timeout || 8000;
-    const writePromise = this.conn.write(command, params || []);
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`MikroTik command timed out after ${timeoutMs / 1000}s: ${command}`)), timeoutMs)
-    );
-    return await Promise.race([writePromise, timeoutPromise]);
+    const timeoutMs = customTimeoutMs || this.config.timeout || 15000;
+    let timer: NodeJS.Timeout | null = null;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        // When timed out, close dirty socket so subsequent commands do not desync
+        try {
+          this.conn?.close();
+        } catch { /* ignore */ }
+        this.conn = null;
+        reject(new Error(`MikroTik command timed out after ${timeoutMs / 1000}s: ${command}`));
+      }, timeoutMs);
+    });
+
+    try {
+      const res = await Promise.race([
+        this.conn.write(command, params || []),
+        timeoutPromise,
+      ]);
+      if (timer) clearTimeout(timer);
+      return res;
+    } catch (err: any) {
+      if (timer) clearTimeout(timer);
+      throw err;
+    }
   }
 
   async testConnection(): Promise<{ success: boolean; identity?: string; message: string }> {

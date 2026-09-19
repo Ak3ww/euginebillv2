@@ -3,35 +3,12 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
 import { logActivity } from '@/server/services/activity-log.service';
-import { RouterOSAPI } from 'node-routeros';
+import { PPPSecretService } from '@/server/services/mikrotik/ppp-secret.service';
 
 export const dynamic = 'force-dynamic';
 
 // Tanggal target: 6 September 2026 pukul 23:59:59 WIB (disimpan di Prisma UTC)
 const TARGET_DATE = new Date('2026-09-06T23:59:59.999Z');
-
-async function connectToMikroTik(router: any, timeoutMs = 8000) {
-  const host = router.ipAddress && router.ipAddress !== router.nasname ? router.ipAddress : (router.ipAddress || router.nasname);
-  const port = router.port || 8728;
-  const tls = port === 8729;
-
-  const conn = new RouterOSAPI({
-    host,
-    user: router.username,
-    password: router.password,
-    port,
-    timeout: 8,
-    ...(tls ? { tls: { rejectUnauthorized: false } } : {})
-  });
-
-  const connectPromise = conn.connect();
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Timeout koneksi ${timeoutMs / 1000}s ke MikroTik ${host}:${port}`)), timeoutMs)
-  );
-
-  await Promise.race([connectPromise, timeoutPromise]);
-  return conn;
-}
 
 export async function POST(request: Request) {
   try {
@@ -53,7 +30,7 @@ export async function POST(request: Request) {
       where: { status: 'isolated' },
       include: {
         profile: { select: { id: true, name: true, groupName: true, mikrotikProfileName: true } },
-        router: { select: { id: true, name: true, ipAddress: true, username: true, password: true, port: true, nasname: true } },
+        router: { include: { vpnClient: true } },
       }
     });
 
@@ -61,79 +38,19 @@ export async function POST(request: Request) {
     let mikrotikFailed = 0;
 
     if (isolatedUsers.length > 0) {
-      // Kelompokkan user per router untuk optimasi koneksi TCP
-      const usersByRouter = new Map<string, { router: any; users: typeof isolatedUsers }>();
-
+      // Sinkronisasi MikroTik menggunakan PPPSecretService (dinamis, aman, VPN-aware, 15s headroom)
       for (const u of isolatedUsers) {
-        if (u.router) {
-          const rid = u.router.id;
-          if (!usersByRouter.has(rid)) {
-            usersByRouter.set(rid, { router: u.router, users: [] });
-          }
-          usersByRouter.get(rid)!.users.push(u);
-        }
-      }
-
-      // Sinkronisasi MikroTik
-      for (const [routerId, { router, users }] of usersByRouter.entries()) {
-        let conn: any = null;
         try {
-          conn = await connectToMikroTik(router);
-
-          const secrets = await conn.write('/ppp/secret/print') || [];
-          const activeSessions = await conn.write('/ppp/active/print') || [];
-          const addressListEntries = await conn.write('/ip/firewall/address-list/print', ['?list=isolir']) || [];
-
-          const activeMap = new Map<string, any>();
-          for (const s of activeSessions) {
-            if (s.name) activeMap.set(s.name, s);
+          const res = await PPPSecretService.unisolateUser(u.id, u.router?.id);
+          if (res.success) {
+            mikrotikSuccess++;
+          } else {
+            mikrotikFailed++;
+            console.warn(`[Unisolate-All] Gagal un-isolir ${u.username}: ${res.message}`);
           }
-
-          const secretMap = new Map<string, any>();
-          for (const s of secrets) {
-            if (s.name) secretMap.set(s.name, s);
-          }
-
-          for (const user of users) {
-            const normalProfile = user.profile?.mikrotikProfileName || user.profile?.name || user.profile?.groupName || 'default';
-            try {
-              // Pulihkan Secret
-              const existingSecret = secretMap.get(user.username);
-              if (existingSecret && existingSecret['.id']) {
-                await conn.write('/ppp/secret/set', [
-                  `=.id=${existingSecret['.id']}`,
-                  `=disabled=no`,
-                  `=profile=${normalProfile}`
-                ]);
-              }
-
-              // Kick Sesi Aktif
-              const activeSess = activeMap.get(user.username);
-              if (activeSess && activeSess['.id']) {
-                await conn.write('/ppp/active/remove', [`=.id=${activeSess['.id']}`]);
-              }
-
-              // Bersihkan Address-List Isolir
-              const userActiveIp = activeSess?.address || user.ipAddress;
-              for (const entry of addressListEntries) {
-                const matchIp = userActiveIp && entry.address === userActiveIp;
-                const matchComment = entry.comment && entry.comment.includes(user.username);
-                if ((matchIp || matchComment) && entry['.id']) {
-                  await conn.write('/ip/firewall/address-list/remove', [`=.id=${entry['.id']}`]);
-                }
-              }
-
-              mikrotikSuccess++;
-            } catch (err) {
-              mikrotikFailed++;
-              console.error(`[Unisolate-All] Error MikroTik for ${user.username}:`, err);
-            }
-          }
-
-          try { await conn.close(); } catch {}
-        } catch (routerErr) {
-          console.error(`[Unisolate-All] Cannot connect to router ${router.ipAddress}:`, routerErr);
-          mikrotikFailed += users.length;
+        } catch (err: any) {
+          mikrotikFailed++;
+          console.error(`[Unisolate-All] Exception un-isolir ${u.username}:`, err?.message || err);
         }
       }
 

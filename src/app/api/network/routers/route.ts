@@ -237,47 +237,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Intelligent Connection Probe (Non-blocking):
-    // Prioritaskan port yang diisi admin, auto-probe candidate ports jika timeout/refused.
-    // TIDAK PERNAH memblokir penyimpanan router ke database jika test gagal (agar router tersimpan).
-    let detectedPort = portInt;
+    // Direct Connection Probe (Non-blocking):
+    // Cek langsung ke host & port persis yang diisi admin — tanpa tebak-tebak port candidate.
+    // TIDAK PERNAH memblokir penyimpanan router ke database jika test gagal (agar router tetap tersimpan).
     let connectionWarning: string | null = null;
     let fixScript: string | null = null;
 
     if (!isGateway) {
       try {
-        const candidatePorts = Array.from(new Set([portInt, 8520, 8728, 8729]));
-        let connected = false;
-
-        for (const probePort of candidatePorts) {
-          try {
-            const probeConn = new RouterOSAPI({
-              host: ipAddress,
-              user: username,
-              password: password,
-              port: probePort,
-              timeout: 3,
-              tls: probePort === 8729,
-            });
-            await probeConn.connect();
-            detectedPort = probePort;
-            connected = true;
-            probeConn.close();
-            break;
-          } catch {
-            // Coba port berikutnya
-          }
-        }
-
-        if (!connected) {
-          connectionWarning = `Router tersimpan, namun koneksi MikroTik API ke ${ipAddress}:${portInt} saat ini belum terhubung. Pastikan firewall dan service API MikroTik telah diaktifkan.`;
-          fixScript = `/ip service set api port=${portInt} disabled=no address=""\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=${portInt},8728 comment="Allow EugineBill VPS API" place-before=0`;
-        }
+        const probeConn = new RouterOSAPI({
+          host: ipAddress,
+          user: username,
+          password: password,
+          port: portInt,
+          timeout: 4,
+          tls: portInt === 8729,
+        });
+        await probeConn.connect();
+        try { probeConn.close(); } catch {}
       } catch (err: any) {
-        connectionWarning = `Router tersimpan (status koneksi API belum terverifikasi: ${err.message})`;
+        connectionWarning = `Router tersimpan, namun koneksi MikroTik API ke ${ipAddress}:${portInt} saat ini belum terhubung (${err?.message || err}). Pastikan service API MikroTik aktif pada port ${portInt}.`;
+        fixScript = `/ip service set api port=${portInt} disabled=no address=""\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=${portInt},8728 comment="Allow EugineBill VPS API" place-before=0`;
       }
     }
-
 
     // Save to database
     // Note: 'server' field left NULL - it's for FreeRADIUS virtual_server name, not RADIUS IP
@@ -291,7 +273,7 @@ export async function POST(request: NextRequest) {
         ipAddress,         // IP untuk koneksi API MikroTik
         username: username || '',  // Empty string for gateway type
         password: password || '',  // Empty string for gateway type
-        port: detectedPort || portInt,
+        port: portInt,
         apiPort: parseInt(apiPort) || 8729,
         secret: secret || 'secret123',
         // server: NULL - untuk FreeRADIUS virtual_server name
@@ -311,7 +293,7 @@ export async function POST(request: NextRequest) {
     // Terapkan port forwarding VPS langsung dari isian admin jika terhubung ke VPN Client
     if (router.vpnClientId) {
       applyAdminPortForwarding(router.vpnClientId, {
-        api: detectedPort || portInt,
+        api: portInt,
         apiSsl: parseInt(apiPort) || undefined,
         winbox: parseInt(winboxPort) || undefined,
       }).catch(e => console.warn('[routers] applyAdminPortForwarding error on POST:', e.message));
@@ -380,40 +362,28 @@ export async function PUT(request: NextRequest) {
     const isGateway = effectiveType === 'gateway';
 
     // Test connection only for MikroTik routers with changed credentials
-    // Skip when vpnClientId is set: IP is a VPN tunnel IP managed by the system,
-    // the connection test is not reliable from arbitrary network contexts.
-    let updatedDetectedPort: number | undefined = undefined;
-    if (!isGateway && (username || password || port)) {
+    // Test connection directly on specified host:port if credentials/port changed
+    if (!isGateway && (username || password || port || ipAddress)) {
       try {
         const targetHost = ipAddress || currentRouter.ipAddress;
         const targetUser = username || currentRouter.username;
         const targetPass = password !== undefined ? password : currentRouter.password;
         const targetPort = port ? parseInt(port.toString()) : (currentRouter.port || 8728);
-        const candidatePorts = Array.from(new Set([targetPort, 8520, 8728, 8729]));
 
-        for (const probePort of candidatePorts) {
-          try {
-            const probeConn = new RouterOSAPI({
-              host: targetHost,
-              user: targetUser,
-              password: targetPass,
-              port: probePort,
-              timeout: 3,
-              tls: probePort === 8729,
-            });
-            await probeConn.connect();
-            updatedDetectedPort = probePort;
-            probeConn.close();
-            break;
-          } catch {
-            // Coba port berikutnya
-          }
-        }
+        const probeConn = new RouterOSAPI({
+          host: targetHost,
+          user: targetUser,
+          password: targetPass,
+          port: targetPort,
+          timeout: 4,
+          tls: targetPort === 8729,
+        });
+        await probeConn.connect();
+        try { probeConn.close(); } catch {}
       } catch (connError: any) {
         console.warn('[routers] PUT connection probe warning (non-fatal):', connError?.message);
       }
     }
-
 
     // Note: 'server' field is for FreeRADIUS virtual_server name, not RADIUS IP
     // Don't update it here - RADIUS Server IP is from environment variable
@@ -428,7 +398,7 @@ export async function PUT(request: NextRequest) {
         ...(ipAddress && { ipAddress }),
         ...(username && { username }),
         ...(password && { password }),
-        ...(port && { port: updatedDetectedPort || parseInt(port.toString()) }),
+        ...(port && { port: parseInt(port.toString()) }),
         ...(apiPort && { apiPort: parseInt(apiPort.toString()) }),
         ...(secret && { secret }),
         ...(isActive !== undefined && { isActive }),

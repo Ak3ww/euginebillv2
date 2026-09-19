@@ -1762,16 +1762,10 @@ export async function handleInvoicePayment(
                 console.error('CoA disconnect failed:', coaError);
               }
             } else {
-              // MIKROTIK SYNC FALLBACK
-              if (user.routerId) {
-                const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
-                const syncResult = await PPPSecretService.syncSecret(user.id);
-                console.log(`✅ Mikrotik Sync Secret for reactivation:`, syncResult);
-                
-                const mkProfileName = activeProfile.mikrotikProfileName || activeProfile.name;
-                await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, mkProfileName);
-                console.log(`✅ Mikrotik user disconnected to apply active profile: ${mkProfileName}`);
-              }
+              // MIKROTIK DIRECT UN-ISOLATION (Local Auth / Non-RADIUS mode)
+              const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+              const unisolateResult = await PPPSecretService.unisolateUser(user.id, user.routerId || undefined);
+              console.log(`✅ Mikrotik Unisolate Result for reactivation:`, unisolateResult);
             }
 
             // Remove user from MikroTik firewall isolir address-list (Dual-Mode: RADIUS & Non-RADIUS)

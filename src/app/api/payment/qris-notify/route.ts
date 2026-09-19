@@ -189,10 +189,9 @@ export async function POST(request: NextRequest) {
           .catch(err => console.error('[QRIS Notify] Address-list un-isolir error:', err?.message));
 
         const company = await prisma.company.findFirst({ select: { radiusPppoeEnabled: true } });
-        if (!company?.radiusPppoeEnabled && user.routerId && user.profile) {
+        if (!company?.radiusPppoeEnabled) {
           const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
-          const normalProfile = user.profile.mikrotikProfileName || user.profile.name;
-          await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, normalProfile);
+          await PPPSecretService.unisolateUser(user.id, user.routerId || undefined);
         } else if (company?.radiusPppoeEnabled) {
           const { disconnectPPPoEUser } = await import('@/server/services/radius/coa-handler.service');
           await disconnectPPPoEUser(user.username);

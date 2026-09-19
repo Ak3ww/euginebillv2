@@ -853,20 +853,15 @@ export async function PUT(request: NextRequest) {
             const isRadius = company?.radiusPppoeEnabled ?? false;
 
             if (!isRadius) {
-              if (user.routerId) {
-                const mikrotikProfileName = targetProfile?.mikrotikProfileName || targetProfile?.name || profile.mikrotikProfileName || profile.name;
-                const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
-                await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, mikrotikProfileName);
-                console.log(`  - MikroTik: Profile set to ${mikrotikProfileName}`);
+              const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service');
+              const unisolateRes = await PPPSecretService.unisolateUser(user.id, user.routerId || undefined);
+              console.log(`  - MikroTik un-isolation:`, unisolateRes);
 
-                try {
-                  const { removeUserFromMikrotikAddressList } = await import('@/server/services/radius/coa-handler.service');
-                  removeUserFromMikrotikAddressList(user.username, user.routerId, 'isolir')
-                    .catch(err => console.error('[Invoice Pay] Address-list un-isolir error:', err?.message));
-                } catch (_) {}
-              } else {
-                console.log(`  - MikroTik: Cannot update profile (no routerId)`);
-              }
+              try {
+                const { removeUserFromMikrotikAddressList } = await import('@/server/services/radius/coa-handler.service');
+                removeUserFromMikrotikAddressList(user.username, user.routerId, 'isolir')
+                  .catch(err => console.error('[Invoice Pay] Address-list un-isolir error:', err?.message));
+              } catch (_) {}
             } else {
               if (shouldActivate) {
                 // Remove forced reject (if any) from previous SUSPENDED state

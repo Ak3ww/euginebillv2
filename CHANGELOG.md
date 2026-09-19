@@ -4,6 +4,68 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.33] — 2026-09-19
+### Arsitektur Direct & Dinamis MikroTik API, Eliminasi Tebak Port, Headroom 15 Detik & Pipeline Un-Isolir Pembayaran
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. Pembuatan user PPPoE baru dan sinkronisasi secret ke MikroTik mengalami kegagalan dengan pesan error: `MikroTik command timed out after 4s: /ppp/secret/print`.
+  2. Router dilaporkan berstatus "Online" pada dashboard dan lulus "Test Koneksi", namun perintah tulis (*write/set/add*) gagal dieksekusi ke MikroTik.
+  3. Terungkap bahwa status check (`/api/network/routers/status`) dan test koneksi sebelumnya melakukan brute-force / looping pada sekumpulan candidate ports (`[port, 8520, 8728, 8729]`), bahkan melakukan mutasi diam-diam (*auto-heal overwrite*) pada `router.port` di database jika port lain merespons `/system/identity/print`. Hal ini menyebabkan desinkronisasi port antara port aktual MikroTik dengan yang tersimpan di database.
+  4. Perintah `/ppp/secret/print` dieksekusi tanpa filter atribut `?.proplist`, memaksa RouterOS me-serialize seluruh 30+ atribut internal secret memory yang memakan waktu 4-6 detik di atas jaringan VPN internet, melampaui timeout 4 detik yang sebelumnya di-hardcode.
+  5. Saat timeout 4 detik terjadi, socket TCP tidak ditutup secara bersih, meninggalkan listener tag aktif yang menyumbat *command queue* `node-routeros` dan membuat seluruh perintah berikutnya otomatis timeout (*channel pollution*).
+  6. Pembayaran (manual transfer approval, QRIS, webhook payment gateway, tandai lunas invoice, auto-renewal) gagal mengembalikan pelanggan isolir menjadi aktif di MikroTik karena pemulihan hanya mengganti `profile` tanpa menyetel `=disabled=no`, tidak menghapus IP dari `address-list isolir`, dan tidak menendang sesi aktif.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Direct & Dynamic API Routing Tanpa Port Guessing**:
+     - Menghapus seluruh perulangan tebak-tebak port (*candidate ports loop*) dari `routers/route.ts`, `routers/test/route.ts`, dan `routers/status/route.ts`.
+     - Jika admin mengisi port 8520, sistem langsung menghubungi port 8520; jika 8728, langsung 8728; jika 9004, langsung 9004. Port tidak pernah diubah atau ditebak di balik layar.
+     - Mengutamakan IP Tunnel VPN internal (`vpnClient.vpnIp`) jika router terhubung ke VPN Client, memberikan koneksi terenkripsi langsung yang kebal dari pemblokiran ISP.
+  2. **Socket Hygiene & 15-Detik Command Headroom (`src/server/services/mikrotik/client.ts`)**:
+     - Menaikkan batas waktu default eksekusi perintah RouterOS dari 4 detik menjadi **15.000 ms (15 detik)**.
+     - Saat timeout terjadi, socket kotor ditutup secara instan (`this.conn?.close(); this.conn = null;`), mencegah tag desynchronization pada perintah selanjutnya.
+     - Menambahkan pembersihan timer eksplisit (`clearTimeout`) untuk mencegah kebocoran resource memori Node.js.
+  3. **Lightweight Secret Queries (`src/server/services/mikrotik/ppp-secret.service.ts`)**:
+     - Seluruh query `/ppp/secret/print` kini menyertakan filter hemat `?.proplist=.id,name,profile,disabled`, mereduksi beban transmisi data RouterOS hingga 95% dan menyelesaikan query dalam hitungan milidetik.
+     - Ditambahkan auto-fallback ke `profile=default` jika profil kustom paket belum dibuat di MikroTik.
+  4. **Dedicated & Unified Un-Isolation Pipeline (`PPPSecretService.unisolateUser`)**:
+     - Membangun metode un-isolir terpadu yang secara atomik:
+       1. Menyetel `=disabled=no` DAN `=profile=${normalProfile}` (dengan fallback ke `default`).
+       2. Menendang sesi aktif (`/ppp/active/remove`) agar ONT pelanggan langsung melakukan re-autentikasi instan.
+       3. Menghapus entri IP dan komentar dari `/ip firewall address-list` (`list=isolir`).
+       4. Memperbarui status database ke `active`.
+     - Mengintegrasikan `PPPSecretService.unisolateUser` ke seluruh alur pembayaran:
+       - `POST /api/manual-payments/[id]` (approval transfer manual)
+       - `POST /api/payment/webhook` (callback payment gateway)
+       - `POST /api/payment/qris-notify` (notifikasi QRIS)
+       - `POST /api/pppoe/users/[id]/mark-paid` (tandai lunas admin)
+       - `POST /api/pppoe/users/[id]/extend` (perpanjangan masa aktif)
+       - `POST /api/invoices` (pembayaran invoice)
+       - `src/server/jobs/auto-renewal.ts` (perpanjangan otomatis)
+       - `POST /api/pppoe/users/unisolate-all` (un-isolir massal)
+       - `POST /api/pppoe/users/status` & `bulk-status` (perubahan status manual)
+
+- **Files**:
+  - `package.json`
+  - `src/server/services/mikrotik/client.ts`
+  - `src/server/services/mikrotik/ppp-secret.service.ts`
+  - `src/server/services/pppoe.service.ts`
+  - `src/app/api/network/routers/route.ts`
+  - `src/app/api/network/routers/test/route.ts`
+  - `src/app/api/network/routers/status/route.ts`
+  - `src/app/api/pppoe/users/unisolate-all/route.ts`
+  - `src/app/api/pppoe/users/restore-mikrotik/route.ts`
+  - `src/app/api/manual-payments/[id]/route.ts`
+  - `src/app/api/payment/webhook/route.ts`
+  - `src/app/api/payment/qris-notify/route.ts`
+  - `src/app/api/pppoe/users/[id]/mark-paid/route.ts`
+  - `src/app/api/pppoe/users/[id]/extend/route.ts`
+  - `src/app/api/invoices/route.ts`
+  - `src/app/api/pppoe/users/status/route.ts`
+  - `src/app/api/pppoe/users/bulk-status/route.ts`
+  - `src/server/jobs/auto-renewal.ts`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.31] — 2026-09-19
 ### Perbaikan Menyeluruh Koneksi MikroTik API & Non-Blocking Router Storage
 

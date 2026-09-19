@@ -256,13 +256,8 @@ async function payInvoiceFromBalance(user: any, invoice: any) {
         const company = await prisma.company.findFirst()
         const isRadius = company?.radiusPppoeEnabled ?? false
         if (!isRadius) {
-          if (user.routerId) {
-            const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service')
-            const mikrotikProfileName = user.profile?.mikrotikProfileName || user.profile?.name
-            if (mikrotikProfileName) {
-              await PPPSecretService.setProfileAndDisconnect(user.routerId, user.username, mikrotikProfileName)
-            }
-          }
+          const { PPPSecretService } = await import('@/server/services/mikrotik/ppp-secret.service')
+          await PPPSecretService.unisolateUser(user.id, user.routerId || undefined)
         } else {
           await restoreUserInRADIUS(user.username, user.profile?.groupName, user.ipAddress)
         }

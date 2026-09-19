@@ -30,93 +30,72 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Check status for each router with multi-port & VPN fallback
+    // Check status for each router directly on configured host & port (no guessing / port mutation)
     const statusMap: Record<string, { online: boolean; identity?: string; uptime?: string }> = {};
 
     await Promise.all(
       routers.map(async (router) => {
-        const candidateHosts = Array.from(new Set([
-          router.ipAddress?.trim(),
-          router.vpnClient?.vpnIp?.trim(),
-          router.nasname?.trim(),
-        ].filter(Boolean) as string[]));
+        // Direct Host: Utamakan VPN Tunnel IP jika router terhubung via VPN, else ipAddress
+        const vpnIp = router.vpnClient?.vpnIp?.trim();
+        const configuredIp = router.ipAddress?.trim() || router.nasname?.trim();
+        const primaryHost = vpnIp || configuredIp;
+        const secondaryHost = vpnIp && configuredIp && vpnIp !== configuredIp ? configuredIp : null;
 
+        // Direct Port: Persis port yang diisi admin di router, atau target API VPN
         const vpnTarget = (router.vpnClient?.publicPorts as any)?.services?.api?.target;
-        const candidatePorts = Array.from(new Set([
-          router.port,
-          vpnTarget ? parseInt(vpnTarget) : null,
-          8520,
-          8728,
-          8729,
-        ].filter(Boolean) as number[]));
+        const targetPort = router.port || (vpnTarget ? parseInt(vpnTarget) : 8728);
+        const isTls = targetPort === 8729;
 
-        const creds = [
-          { user: router.username, pass: router.password },
-          ...(router.vpnClient?.apiUsername ? [{ user: router.vpnClient.apiUsername, pass: router.vpnClient.apiPassword || '' }] : []),
-          ...(router.vpnClient?.username ? [{ user: router.vpnClient.username, pass: router.vpnClient.password || '' }] : []),
-        ].filter(c => c.user);
+        // Kredensial dinamis
+        const user = (router.username || router.vpnClient?.apiUsername || 'admin').trim();
+        const pass = router.password !== undefined && router.password !== null ? router.password : (router.vpnClient?.apiPassword || '');
 
         let isOnline = false;
         let identityName = 'Unknown';
         let uptimeVal = 'Unknown';
-        let matchedPort: number | null = null;
 
-        hostLoop: for (const host of candidateHosts) {
-          for (const cred of creds) {
-            for (const probePort of candidatePorts) {
-              try {
-                const conn = new RouterOSAPI({
-                  host,
-                  user: cred.user,
-                  password: cred.pass,
-                  port: probePort,
-                  timeout: 3,
-                  tls: probePort === 8729,
-                });
+        const hostsToTry = [primaryHost, ...(secondaryHost ? [secondaryHost] : [])].filter(Boolean) as string[];
 
-                await conn.connect();
+        for (const host of hostsToTry) {
+          try {
+            const conn = new RouterOSAPI({
+              host,
+              user,
+              password: pass,
+              port: targetPort,
+              timeout: 4,
+              tls: isTls,
+            });
 
-                let identity = null;
-                let resource = null;
-                try {
-                  identity = await conn.write('/system/identity/print');
-                } catch { /* ignore */ }
-                try {
-                  resource = await conn.write('/system/resource/print');
-                } catch { /* ignore */ }
+            await conn.connect();
 
-                try { conn.close(); } catch { /* ignore */ }
+            let identity = null;
+            let resource = null;
+            try {
+              identity = await conn.write('/system/identity/print');
+            } catch { /* ignore */ }
+            try {
+              resource = await conn.write('/system/resource/print');
+            } catch { /* ignore */ }
 
-                isOnline = true;
-                matchedPort = probePort;
-                identityName = identity?.[0]?.name || identity?.[0]?.['name'] || 'Unknown';
-                uptimeVal = resource?.[0]?.uptime || resource?.[0]?.['uptime'] || 'Unknown';
-                break hostLoop;
-              } catch {
-                // Next candidate
-              }
-            }
+            try { conn.close(); } catch { /* ignore */ }
+
+            isOnline = true;
+            identityName = identity?.[0]?.name || identity?.[0]?.['name'] || 'Unknown';
+            uptimeVal = resource?.[0]?.uptime || resource?.[0]?.['uptime'] || 'Unknown';
+            break;
+          } catch {
+            // Next host attempt
           }
         }
 
-        if (isOnline) {
-          statusMap[router.id] = {
-            online: true,
+        statusMap[router.id] = {
+          online: isOnline,
+          ...(isOnline && {
             identity: identityName,
             uptime: uptimeVal,
-          };
-          // Auto-heal router.port if it connected on a different port
-          if (matchedPort && router.port !== matchedPort) {
-            await prisma.router.update({
-              where: { id: router.id },
-              data: { port: matchedPort },
-            }).catch(() => {});
-          }
-        } else {
-          statusMap[router.id] = {
-            online: false,
-          };
-        }
+          }),
+        };
       })
     );
 
