@@ -156,7 +156,7 @@ export class PPPSecretService {
     let host = ''
 
     try {
-      const res = await this.connectToRouter(targetRouter, 5000)
+      const res = await this.connectToRouter(targetRouter, 15000)
       conn = res.conn
       connectedPort = res.connectedPort
       host = res.host
@@ -166,13 +166,13 @@ export class PPPSecretService {
       const isSecretEnabled = ['ACTIVE', 'PENDING_INSTALLATION', 'PENDING'].includes(statusUpper)
       const secretPassword = user.password || user.portalPassword || 'eugine0909'
 
-      // 1. Ensure profile exists on MikroTik (lightweight check with ?.proplist)
+      // 1. Ensure profile exists on MikroTik (clean query)
       let targetProfile = profileName
       if (profileName !== 'default') {
         try {
           const existingProfiles = await conn.execute(
             '/ppp/profile/print',
-            [`?name=${profileName}`, '?.proplist=.id,name'],
+            [`?name=${profileName}`],
             10000
           )
           if (!existingProfiles || existingProfiles.length === 0) {
@@ -182,23 +182,28 @@ export class PPPSecretService {
               if (rateLimit && rateLimit !== '0M/0M') createParams.push(`=rate-limit=${rateLimit}`)
               await conn.execute('/ppp/profile/add', createParams, 10000)
               console.log(`[PPPSecretService] Auto-created profile '${profileName}' on MikroTik`)
+              targetProfile = profileName
             } catch (createErr: any) {
-              console.warn(`[PPPSecretService] Auto-create profile '${profileName}' failed (${createErr?.message}), fallback to 'default'`)
-              targetProfile = 'default'
+              const createMsg = String(createErr?.message || '')
+              if (createMsg.includes('already exists') || createMsg.includes('already have')) {
+                targetProfile = profileName
+              } else {
+                console.warn(`[PPPSecretService] Auto-create profile '${profileName}' failed (${createMsg}), fallback to 'default'`)
+                targetProfile = 'default'
+              }
             }
           }
         } catch (checkErr: any) {
-          console.warn(`[PPPSecretService] Profile check skipped/failed (${checkErr?.message}), fallback to 'default'`)
-          targetProfile = 'default'
+          console.warn(`[PPPSecretService] Profile check skipped/failed (${checkErr?.message})`)
         }
       }
 
-      // 2. Check if secret exists (lightweight query with ?.proplist)
+      // 2. Check if secret exists (clean query without invalid ?.proplist)
       let existing: any[] = []
       try {
         existing = await conn.execute(
           '/ppp/secret/print',
-          [`?name=${user.username}`, '?.proplist=.id,name,profile,disabled'],
+          [`?name=${user.username}`],
           12000
         )
       } catch (printErr: any) {
@@ -251,7 +256,7 @@ export class PPPSecretService {
             // Secret already exists, fetch ID and update
             const fetchAgain = await conn.execute(
               '/ppp/secret/print',
-              [`?name=${user.username}`, '?.proplist=.id'],
+              [`?name=${user.username}`],
               10000
             )
             if (fetchAgain && fetchAgain.length > 0) {
@@ -279,7 +284,7 @@ export class PPPSecretService {
         try {
           const activeSessions = await conn.execute(
             '/ppp/active/print',
-            [`?name=${user.username}`, '?.proplist=.id'],
+            [`?name=${user.username}`],
             8000
           )
           if (activeSessions && activeSessions.length > 0) {
@@ -377,7 +382,7 @@ export class PPPSecretService {
     let conn: MikroTikConnection | null = null
 
     try {
-      const res = await this.connectToRouter(targetRouter, 10000)
+      const res = await this.connectToRouter(targetRouter, 15000)
       conn = res.conn
 
       // 1. Find and update existing secret
@@ -385,7 +390,7 @@ export class PPPSecretService {
       try {
         const secrets = await conn.execute(
           '/ppp/secret/print',
-          [`?name=${user.username}`, '?.proplist=.id,name,profile,disabled'],
+          [`?name=${user.username}`],
           12000
         )
         if (secrets && secrets.length > 0) {
@@ -444,7 +449,7 @@ export class PPPSecretService {
       try {
         const activeSessions = await conn.execute(
           '/ppp/active/print',
-          [`?name=${user.username}`, '?.proplist=.id'],
+          [`?name=${user.username}`],
           8000
         )
         if (activeSessions && activeSessions.length > 0) {
@@ -461,7 +466,7 @@ export class PPPSecretService {
       try {
         const addressList = await conn.execute(
           '/ip/firewall/address-list/print',
-          [`?list=isolir`, '?.proplist=.id,address,comment'],
+          [`?list=isolir`],
           8000
         )
         if (addressList && addressList.length > 0) {
@@ -521,12 +526,12 @@ export class PPPSecretService {
 
     let conn: MikroTikConnection | null = null
     try {
-      const res = await this.connectToRouter(router, 5000)
+      const res = await this.connectToRouter(router, 15000)
       conn = res.conn
 
       const existing = await conn.execute(
         '/ppp/secret/print',
-        [`?name=${username}`, '?.proplist=.id,name'],
+        [`?name=${username}`],
         12000
       )
 
@@ -560,7 +565,7 @@ export class PPPSecretService {
       // Kick active connection to force reconnect with new profile
       const active = await conn.execute(
         '/ppp/active/print',
-        [`?name=${username}`, '?.proplist=.id'],
+        [`?name=${username}`],
         8000
       )
       if (active && active.length > 0) {
@@ -595,12 +600,12 @@ export class PPPSecretService {
 
     let conn: MikroTikConnection | null = null
     try {
-      const res = await this.connectToRouter(router, 5000)
+      const res = await this.connectToRouter(router, 15000)
       conn = res.conn
 
       const existing = await conn.execute(
         '/ppp/secret/print',
-        [`?name=${username}`, '?.proplist=.id'],
+        [`?name=${username}`],
         12000
       )
       if (existing && existing.length > 0) {
@@ -610,7 +615,7 @@ export class PPPSecretService {
       }
       const active = await conn.execute(
         '/ppp/active/print',
-        [`?name=${username}`, '?.proplist=.id'],
+        [`?name=${username}`],
         8000
       )
       if (active && active.length > 0) {

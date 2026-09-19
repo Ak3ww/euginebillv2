@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { showSuccess, showError } from '@/lib/sweetalert';
+import { showSuccess, showError, showWarning } from '@/lib/sweetalert';
 import { ArrowLeft, MapPin, Map, Eye, EyeOff, Loader2, X, ChevronRight, ChevronLeft, Wifi, WifiOff, Radio, User, Wrench, Settings, CreditCard, CheckCircle2, Clock, Calendar, AlertCircle, Info } from 'lucide-react';
 import MapPicker from '@/components/MapPicker';
 import { ModalInput, ModalSelect, ModalLabel } from '@/components/cyberpunk';
@@ -194,7 +194,7 @@ export default function NewPppoeUserPage() {
         }),
       };
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s safety timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s safety timeout to accommodate MikroTik remote API connection
 
       const res = await fetch('/api/pppoe/users', {
         method: 'POST',
@@ -212,7 +212,11 @@ export default function NewPppoeUserPage() {
       }
 
       if (res.ok) {
-        await showSuccess('Pelanggan berhasil ditambahkan');
+        if (data.warning) {
+          await showWarning(data.warning);
+        } else {
+          await showSuccess('Pelanggan berhasil ditambahkan dan disinkronkan ke MikroTik');
+        }
         router.push('/admin/pppoe/users');
       } else {
         await showError(data.error || 'Gagal menyimpan pelanggan');

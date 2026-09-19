@@ -4,6 +4,44 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.34] — 2026-09-19
+### Perbaikan Fatal Sintaks Query RouterOS API (Eliminasi ?.proplist), Headroom Koneksi 15 Detik & Transparansi Error MikroTik ke UI
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. Pembuatan akun PPPoE baru (contoh: ID Pelanggan 20441451, username `test`, router MIKROTIK CIBINONG SITE 10.200.0.2) berhasil tersimpan di database dengan status "Pending Offline", namun secret **sama sekali tidak tertulis ke MikroTik**.
+  2. Investigasi mendalam menemukan akar masalah fatal pada sintaks perintah API RouterOS:
+     - Dalam protokol API MikroTik (RouterOS API protocol), setiap kata yang diawali dengan karakter tanda tanya (`?`) diterjemahkan secara mutlak sebagai **Query Filter / Predicate**.
+     - Parameter `?.proplist=.id,name,profile,disabled` yang dikirimkan ke RouterOS diperlakukan sebagai pencarian entri yang memiliki atribut properti bernama `.proplist`. Karena atribut `.proplist` tidak pernah ada pada data `/ppp/secret` ataupun `/ppp/profile`, RouterOS selalu mengembalikan array kosong (`[]`)!
+     - Akibatnya:
+       - Pengecekan profil mengira profil tidak ada, mencoba membuat profil baru yang gagal dengan error `already have such profile`, lalu menurunkan target profil ke `default`.
+       - Pengecekan secret mengira secret tidak ada (`existing = []`), lalu memanggil `/ppp/secret/add`. Jika secret sudah ada di MikroTik, operasi gagal dengan `already have user with this name`. Saat mencoba mengambil ID dengan `?.proplist=.id`, query kembali menghasilkan `[]` sehingga pembaruan rahasia (*set*) batal dilakukan!
+  3. Pada fungsi `createPppoeUser` (`src/server/services/pppoe.service.ts`), error sinkronisasi MikroTik ditelan diam-diam dalam blok `try...catch` tanpa memunculkan pesan peringatan apa pun kepada admin, membuat admin tidak mengetahui jika secret gagal ditulis.
+  4. Batas waktu koneksi awal (`connectToRouter`) sebelumnya hanya 5-10 detik, yang dapat memicu timeout prematur pada link VPN internet. Selain itu, form frontend pendaftaran pelanggan baru memiliki timeout 15 detik yang berpotensi memutus request sebelum MikroTik selesai merespons.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Eliminasi Total Parameter Sintaks Tidak Valid `?.proplist`**:
+     - Menghapus parameter `?.proplist` dari seluruh pemanggilan `conn.execute()` di `src/server/services/mikrotik/ppp-secret.service.ts`, `src/app/api/pppoe/users/status/route.ts`, dan `src/app/api/pppoe/users/bulk-status/route.ts`.
+     - Pencarian dilakukan bersih dengan query spesifik seperti `['?name=' + username]` atau `['?list=isolir']`. Karena pencarian berdasarkan nama unik menghasilkan maksimal 1 record (< 300 byte), query berjalan sangat cepat (milidetik) dan 100% kompatibel di seluruh versi RouterOS v6 maupun v7.
+  2. **Headroom Koneksi 15 Detik & Logika Deteksi Profil/Secret yang Tangguh**:
+     - Menaikkan batas timeout koneksi `connectToRouter` menjadi 15 detik (15.000 ms) di seluruh operasi secret (`syncSecretDetailed`, `unisolateUser`, `setProfileAndDisconnect`, `removeSecret`).
+     - Jika auto-create profil mendeteksi error `already have such profile` atau `already exists`, target profil dipertahankan sesuai profil paket aslinya (bukan diturunkan ke `default`).
+     - Jika secret sudah ada di router, penanganan error langsung mengambil ID dengan query bersih dan menjalankan `/ppp/secret/set`.
+  3. **Transparansi Error MikroTik ke UI Admin**:
+     - Fungsi `createPppoeUser` kini memanggil `PPPSecretService.syncSecretDetailed(user.id)` dan mengembalikan `mikrotikSynced` serta `mikrotikError`.
+     - Route API `POST /api/pppoe/users` menyertakan properti `warning` dalam respon JSON jika sinkronisasi MikroTik gagal.
+     - Halaman formulir admin `src/app/admin/pppoe/users/new/page.tsx` kini menaikkan timeout fetch menjadi 30 detik dan menampilkan notifikasi peringatan (*warning toast*) jika secret gagal disinkronkan, sehingga admin segera mengetahui penyebab kegagalan (misal router offline, password salah, dsb).
+
+- **Files**:
+  - `package.json`
+  - `src/server/services/mikrotik/ppp-secret.service.ts`
+  - `src/server/services/pppoe.service.ts`
+  - `src/app/api/pppoe/users/route.ts`
+  - `src/app/api/pppoe/users/status/route.ts`
+  - `src/app/api/pppoe/users/bulk-status/route.ts`
+  - `src/app/admin/pppoe/users/new/page.tsx`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.33] — 2026-09-19
 ### Arsitektur Direct & Dinamis MikroTik API, Eliminasi Tebak Port, Headroom 15 Detik & Pipeline Un-Isolir Pembayaran
 

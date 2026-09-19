@@ -191,7 +191,7 @@ export async function PUT(request: Request) {
         } else {
           try {
             const { conn } = await PPPSecretService.connectToRouter(user.router);
-            const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`, '?.proplist=.id'], 12000);
+            const existing = await conn.execute('/ppp/secret/print', [`?name=${user.username}`], 12000);
             if (existing && existing.length > 0) {
               if (status === 'stop' || status === 'blocked') {
                 await conn.execute('/ppp/secret/set', [
@@ -207,7 +207,7 @@ export async function PUT(request: Request) {
                 ], 12000);
               }
             }
-            const active = await conn.execute('/ppp/active/print', [`?name=${user.username}`, '?.proplist=.id'], 8000);
+            const active = await conn.execute('/ppp/active/print', [`?name=${user.username}`], 8000);
             if (active && active.length > 0) {
               for (const session of active) {
                 if (session['.id']) await conn.execute('/ppp/active/remove', [`=.id=${session['.id']}`], 6000);

@@ -46,7 +46,10 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await createPppoeUser(body, session, request);
-    return created({ success: true, ...result });
+    const warning = (!result.mikrotikSynced && result.mikrotikError)
+      ? `Pelanggan tersimpan di database, tetapi gagal sinkronisasi ke MikroTik: ${result.mikrotikError}`
+      : undefined;
+    return created({ success: true, ...result, warning });
   } catch (error: unknown) {
     const err = error as { code?: string; message?: string };
     if (err.code === 'DUPLICATE_USERNAME') return conflict(err.message!);

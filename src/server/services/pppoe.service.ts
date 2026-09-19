@@ -409,6 +409,9 @@ export async function createPppoeUser(
 
   // Sync - skip for static/MAC-only customers
   let radiusSynced = false;
+  let mikrotikSynced = false;
+  let mikrotikError: string | undefined = undefined;
+
   if (!noPppoeAccount && password) {
     if (isRadiusEnabled) {
       try {
@@ -434,44 +437,41 @@ export async function createPppoeUser(
 
         // Also sync to MikroTik API
         try {
-          const syncPromise = PPPSecretService.syncSecret(user.id);
-          const timeoutPromise = new Promise<boolean>((resolve) =>
-            setTimeout(() => {
-              console.warn(`[createPppoeUser] MikroTik syncSecret timed out after 12s for ${user.username}`);
-              resolve(false);
-            }, 12000)
-          );
-          await Promise.race([syncPromise, timeoutPromise]);
-        } catch (e) {
+          const syncRes = await PPPSecretService.syncSecretDetailed(user.id);
+          if (syncRes.success) {
+            mikrotikSynced = true;
+            console.log(`[createPppoeUser] Successfully synced secret to MikroTik for ${user.username}`);
+          } else {
+            mikrotikError = syncRes.message;
+            console.warn(`[createPppoeUser] MikroTik syncSecret failed for ${user.username}: ${syncRes.message}`);
+          }
+        } catch (e: any) {
+          mikrotikError = e?.message || String(e);
           console.error('MikroTik API secret sync error during PSB:', e);
         }
       } catch (syncError) {
         console.error('RADIUS sync error:', syncError);
       }
     } else {
-        // Fallback to MikroTik API (guarded by 18s timeout)
-        try {
-          const syncPromise = PPPSecretService.syncSecret(user.id);
-          const timeoutPromise = new Promise<boolean>((resolve) =>
-            setTimeout(() => {
-              console.warn(`[createPppoeUser] MikroTik syncSecret timed out after 18s for ${user.username}`);
-              resolve(false);
-            }, 18000)
-          );
-          const syncSuccess = await Promise.race([syncPromise, timeoutPromise]);
-          if (syncSuccess) {
-            await prisma.pppoeUser.update({
-              where: { id: user.id },
-              data: { syncedToRadius: true, lastSyncAt: new Date() },
-            });
-            radiusSynced = true;
-            console.log(`[createPppoeUser] Successfully synced secret to MikroTik for ${user.username}`);
-          } else {
-            console.warn(`[createPppoeUser] MikroTik syncSecret returned false or timed out for ${user.username}`);
-          }
-        } catch (e) {
-          console.error('MikroTik API secret sync error during PSB:', e);
+      // Local Auth Mode: MikroTik API is primary
+      try {
+        const syncRes = await PPPSecretService.syncSecretDetailed(user.id);
+        if (syncRes.success) {
+          await prisma.pppoeUser.update({
+            where: { id: user.id },
+            data: { syncedToRadius: true, lastSyncAt: new Date() },
+          });
+          radiusSynced = true;
+          mikrotikSynced = true;
+          console.log(`[createPppoeUser] Successfully synced secret to MikroTik for ${user.username}`);
+        } else {
+          mikrotikError = syncRes.message;
+          console.warn(`[createPppoeUser] MikroTik syncSecret failed for ${user.username}: ${syncRes.message}`);
         }
+      } catch (e: any) {
+        mikrotikError = e?.message || String(e);
+        console.error('MikroTik API secret sync error during PSB:', e);
+      }
     }
   } else if (noPppoeAccount && ipAddress) {
     if (isRadiusEnabled) {
@@ -772,7 +772,12 @@ export async function createPppoeUser(
     console.error('Activity log error:', logError);
   }
 
-  return { user: { ...user, syncedToRadius: radiusSynced }, radiusSynced };
+  return {
+    user: { ...user, syncedToRadius: radiusSynced },
+    radiusSynced,
+    mikrotikSynced,
+    mikrotikError,
+  };
 }
 
 // ─── Update ───────────────────────────────────────────────────────────────────

@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.33
+- **Version**: 2.40.34
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,22 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.34: RouterOS API Query Syntax Bugfix, No ?.proplist, 15s Connect Headroom & UI Warning Feedback)
+
+- **Hard Invariant: Never Use `?.proplist` in RouterOS API Queries (FATAL API SYNTAX TRAP)**:
+  - Dalam protokol API MikroTik, SEMUA kata berawalan tanda tanya (`?`) adalah **query filter / predicate**.
+  - Jika mengirimkan `?.proplist=.id,name`, RouterOS memfilternya sebagai: *cari record di mana field `.proplist` bernilai `.id,name`*. Karena tidak ada record yang memiliki field `.proplist`, RouterOS **selalu mengembalikan array kosong `[]`**.
+  - Hal ini menyebabkan pengecekan profil dan pengecekan secret selalu menyangka entri tidak ada, memicu bentrokan `already have such profile` / `already have user with this name`, lalu gagal mengupdate secret.
+  - **Aturan Baku**: Untuk query entri individual berbasis nama (seperti `?name=${username}`), DILARANG menambahkan `?.proplist`. Cukup kirim `['?name=' + username]` secara bersih. Karena RouterOS hanya mengembalikan 1 record (<300 byte), query sangat ringan, cepat (milidetik), dan 100% reliabel di RouterOS v6 maupun v7.
+
+- **Hard Invariant: Connection Headroom 15 Detik & Frontend 30 Detik**:
+  - `PPPSecretService.connectToRouter` menggunakan batas waktu 15 detik (15.000 ms) agar latency internet tunnel VPN tidak memutus koneksi API sebelum handshake selesai.
+  - Formulir pendaftaran admin (`/admin/pppoe/users/new`) menggunakan safety timeout 30 detik untuk memberikan ruang bagi operasi DB + pengecekan profil + penulisan secret MikroTik.
+
+- **Hard Invariant: Transparansi Sinkronisasi MikroTik ke UI**:
+  - `createPppoeUser` tidak boleh menelan kegagalan penulisan secret MikroTik. Hasil sinkronisasi (`mikrotikSynced`, `mikrotikError`) dikembalikan ke caller.
+  - API `POST /api/pppoe/users` mengembalikan pesan `warning` jika user tersimpan di DB namun gagal sinkron ke MikroTik, dan UI admin menampilkan notifikasi peringatan (*warning toast*) secara gamblang.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.33: Direct & Dynamic MikroTik API, Zero Port Guessing, 15s Headroom & Unified Payment Un-Isolation)
 
