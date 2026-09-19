@@ -4,6 +4,23 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.43] — 2026-09-19
+### Final Clean Repository Release: Penghapusan Script One-Time Bulk Sync Pasca-Sinkronisasi Sukses
+
+- **Latar Belakang / Kebutuhan (Issue & Context)**:
+  1. Proses sinkronisasi paket billing dan secret pelanggan MikroTik & FreeRADIUS telah selesai dieksekusi dengan sukses dan seluruh akun aktif telah termigrasi dengan profil kecepatan yang sesuai.
+  2. Pengguna meminta script one-time `scripts/sync-all-to-mikrotik.js` dihapus agar repositori 100% bersih dan siap ditarik (*pull / sync*) ke seluruh client satu per satu tanpa menyisakan file migrasi sementara.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. Menghapus script one-time `scripts/sync-all-to-mikrotik.js`.
+  2. Repositori kini berada dalam kondisi *Pure Clean Production State*, bebas dari skrip migrasi sementara, siap untuk ditribusikan / di-pull oleh seluruh client dan VPS cabang.
+
+- **Files**:
+  - `package.json`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+  - Deleted: `scripts/sync-all-to-mikrotik.js`
+
 ## [2.40.42] — 2026-09-19
 ### Repository Deep Clean: Pembersihan Menyeluruh File Sampah, Dead Code, Duplikat, & Perampingan Repo (~30+ MB)
 
