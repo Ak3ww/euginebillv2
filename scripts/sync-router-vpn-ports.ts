@@ -1,4 +1,4 @@
-﻿import { prisma } from '../src/server/db/client';
+import { prisma } from '../src/server/db/client';
 
 async function main() {
   console.log('[sync-router-vpn-ports] Starting router port auto-synchronization...');
@@ -11,7 +11,7 @@ async function main() {
   for (const r of routers) {
     const vpnApiTarget = (r.vpnClient?.publicPorts as any)?.services?.api?.target;
     if (vpnApiTarget && r.port !== vpnApiTarget) {
-      console.log([sync-router-vpn-ports] Updating router '' API port:  -> );
+      console.log(`[sync-router-vpn-ports] Updating router '${r.name}' API port: ${r.port} -> ${vpnApiTarget}`);
       await prisma.router.update({
         where: { id: r.id },
         data: { port: vpnApiTarget },
@@ -20,7 +20,7 @@ async function main() {
     }
   }
 
-  console.log([sync-router-vpn-ports] Completed.  router(s) synchronized.);
+  console.log(`[sync-router-vpn-ports] Completed. ${syncedCount} router(s) synchronized.`);
 }
 
 main()
@@ -28,6 +28,7 @@ main()
     console.error('[sync-router-vpn-ports] Error:', e.message);
   })
   .finally(async () => {
-    await prisma.\();
+    await prisma.$disconnect();
     process.exit(0);
   });
+
