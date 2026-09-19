@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
             data: {
               status: 'AVAILABLE',
               currentCustomerId: null,
-              notes: `${m.notes ? m.notes + ' • ' : ''}Auto-healed: Customer sebelumnya sudah tidak aktif/dihapus`,
+              notes: `Auto-healed: Customer sebelumnya sudah tidak aktif/dihapus`.slice(0, 190),
             },
           });
           healedOrphansCount++;
@@ -322,13 +322,13 @@ export async function POST(req: NextRequest) {
             status: 'IN_USE',
             currentCustomerId: user.id,
             installedAt: new Date(),
-            notes: `Bulk-reseeded untuk pelanggan ${user.username} (${user.name})`,
+            notes: `Bulk-reseeded untuk pelanggan ${user.username} (${user.name})`.slice(0, 190),
           },
           update: {
             status: 'IN_USE',
             currentCustomerId: user.id,
             ...(mac ? { macAddress: mac } : {}),
-            notes: `Bulk-reseeded untuk pelanggan ${user.username} (${user.name})`,
+            notes: `Bulk-reseeded untuk pelanggan ${user.username} (${user.name})`.slice(0, 190),
           },
         });
 

@@ -4,6 +4,31 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.22] — 2026-09-19
+### Perbaikan Kolom Notes Overflow & Penegakan OLT Sebagai Single Source of Truth Vendor/Model Modem
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. **Error Prisma Update Kolom `notes` Terlalu Panjang**:
+     - Saat admin melakukan sinkronisasi ONU dari seluruh OLT aktif ke inventori via modal (`SyncOltModal.tsx`), proses crash dengan error Prisma:
+       `Invalid prisma.inventoryAsset.update() invocation: The provided value for the column is too long for the column's type. Column: notes`.
+     - Hal ini disebabkan oleh penggabungan teks catatan (`notes`) berulang kali tanpa batas (`${existingAsset.notes ? existingAsset.notes + ' • ' : ''}${generatedNote}`) pada tabel MySQL `inventory_assets` yang tipe datanya masih `VARCHAR(191)`.
+  2. **Deteksi Vendor Tidak Tersinkron ke Inventori**:
+     - Sistem mendeteksi otomatis total 342 ONU (ZTE: 245, VSOL: 34, Skyworth: 24, HSGQ: 28, Huawei: 9, FiberHome), namun data vendor pada 298 aset yang sudah ada di inventori tidak diperbarui karena adanya filter proteksi lama `if (!existingAsset.vendor || existingAsset.vendor === 'Generic')`. Aset yang sudah memiliki vendor lama/Unknown diabaikan dan tidak pernah tersinkron dari OLT.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Penegakan OLT Sebagai Single Source of Truth (`src/server/services/olt-inventory-sync.service.ts`)**:
+     - Mengubah aturan pembaruan vendor dan model: jika OLT mendeteksi vendor valid (ZTE, VSOL, Skyworth, HSGQ, Huawei, FiberHome), sistem secara langsung meng-override dan menyinkronkan `vendor` dan `model` pada inventori (`inventoryAsset`).
+  2. **Auto-Heal Skema Tabel & Truncation Aman**:
+     - Menjalankan migrasi otomatis `ALTER TABLE inventory_assets MODIFY notes TEXT` di awal sinkronisasi OLT (`syncAllOltsToInventory`).
+     - Sebagai pertahanan ganda (*defense-in-depth*), seluruh pengisian kolom `notes` dan `location` pada `olt-inventory-sync.service.ts` dan `reconcile-customer-ont/route.ts` dipotong aman menggunakan `.slice(0, 190)`, serta menghapus rantai konkatenasi string tak terbatas.
+  3. **Batch Resilience & Error Isolation**:
+     - Setiap iterasi sinkronisasi ONU dibungkus dalam blok `try...catch` terisolasi sehingga jika terdapat satu record ONU yang bermasalah, proses sinkronisasi 342 ONU lainnya tetap berjalan lancar hingga selesai.
+
+- **Files**:
+  - `src/server/services/olt-inventory-sync.service.ts`
+  - `src/app/api/admin/inventory/reconcile-customer-ont/route.ts`
+  - `package.json`
+
 ## [2.40.21] — 2026-09-19
 ### Presisi Pemanggilan API MikroTik Sesuai Isian Admin & Perbaikan Penulisan PPP Secret Pasang Baru
 

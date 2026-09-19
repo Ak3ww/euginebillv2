@@ -117,7 +117,7 @@ export async function syncOnuToInventory(input: SyncOnuInput): Promise<SyncResul
         data: {
           status: 'USED_GOOD',
           currentCustomerId: null,
-          notes: `${prevAsset.notes ? prevAsset.notes + ' • ' : ''}Auto-swap: Digantikan oleh modem ${cleanSn}`,
+          notes: `Auto-swap: Digantikan oleh modem ${cleanSn}`.slice(0, 190),
           updatedAt: new Date(),
         },
       });
@@ -168,17 +168,19 @@ export async function syncOnuToInventory(input: SyncOnuInput): Promise<SyncResul
     ? 'IN_USE' // Fasum is considered in-use in the field
     : 'AVAILABLE';
 
-  const defaultLocation = input.location
+  const defaultLocation = (input.location
     ? `${input.oltName || 'OLT'} Port ${input.location}`
-    : input.oltName || 'Gudang Utama';
+    : input.oltName || 'Gudang Utama').slice(0, 190);
 
-  const generatedNote = input.customerId
+  const rawNote = input.customerId
     ? `Terpasang di pelanggan • OLT ${input.oltName || ''} (${input.location || ''})`
     : isFasum
-    ? `Fasum / Lapangan: "${input.description}" • OLT ${input.oltName || ''} (${input.location || ''})`
+    ? `Fasum / Lapangan: "${input.description || ''}" • OLT ${input.oltName || ''} (${input.location || ''})`
     : input.description
     ? `Unassigned di OLT ${input.oltName || ''}: "${input.description}" (${input.location || ''})`
     : `Terdeteksi di OLT ${input.oltName || ''} (${input.location || ''})`;
+
+  const generatedNote = rawNote.slice(0, 190);
 
   if (existingAsset) {
     assetId = existingAsset.id;
@@ -188,23 +190,26 @@ export async function syncOnuToInventory(input: SyncOnuInput): Promise<SyncResul
       updatedAt: new Date(),
     };
 
-    if (!existingAsset.vendor || existingAsset.vendor === 'Generic') {
+    // OLT is single source of truth: always sync vendor & model from OLT detection
+    if (detected.vendor && detected.vendor !== 'Generic') {
       updateData.vendor = detected.vendor;
-    }
-    if (!existingAsset.model || existingAsset.model.toLowerCase().includes('generic')) {
+      updateData.model = detected.model;
+    } else if (!existingAsset.vendor || existingAsset.vendor === 'Generic') {
+      updateData.vendor = detected.vendor;
       updateData.model = detected.model;
     }
-    if (input.macAddress && !existingAsset.macAddress) {
+
+    if (input.macAddress) {
       updateData.macAddress = input.macAddress;
     }
     if (input.customerId && !existingAsset.installedAt) {
       updateData.installedAt = input.installedAt || new Date();
     }
-    if (!existingAsset.location || existingAsset.location === 'Warehouse / Gudang Utama') {
+    if (defaultLocation) {
       updateData.location = defaultLocation;
     }
-    if (generatedNote && (!existingAsset.notes || !existingAsset.notes.includes(input.oltName || ''))) {
-      updateData.notes = `${existingAsset.notes ? existingAsset.notes + ' • ' : ''}${generatedNote}`;
+    if (generatedNote) {
+      updateData.notes = generatedNote;
     }
 
     await prisma.inventoryAsset.update({
@@ -306,7 +311,7 @@ export async function dismantleCustomerDevice(
       data: {
         status: 'USED_GOOD',
         currentCustomerId: null,
-        notes: `${asset.notes ? asset.notes + ' • ' : ''}Dicabut dari pelanggan (Dismantle): ${reason}`,
+        notes: `Dicabut dari pelanggan (Dismantle): ${reason}`.slice(0, 190),
         updatedAt: now,
       },
     });
@@ -330,13 +335,13 @@ export async function dismantleCustomerDevice(
     dismantledCount++;
   }
 
-  // 2. Unassign customer from all OLT ONUs
+  // 2. Also clear customer assignment from OLT ONU record
   await prisma.oltOnuStatus.updateMany({
     where: { customerId },
     data: { customerId: null },
   }).catch(() => {});
 
-  // 3. Free ODP port assignment
+  // 3. Clear ODP assignment
   await prisma.odpCustomerAssignment.deleteMany({
     where: { customerId },
   }).catch(() => {});
@@ -439,6 +444,9 @@ export async function syncAllOltsToInventory(): Promise<{
   linkedCustomerCount: number;
   fasumCount: number;
 }> {
+  // Auto-heal table schema on MySQL: ensure notes column is TEXT to avoid varchar length limits
+  await prisma.$executeRawUnsafe(`ALTER TABLE inventory_assets MODIFY notes TEXT`).catch(() => {});
+
   const onus = await prisma.oltOnuStatus.findMany({
     include: {
       olt: { select: { id: true, name: true, vendor: true } },
@@ -453,25 +461,29 @@ export async function syncAllOltsToInventory(): Promise<{
   for (const onu of onus) {
     if (!onu.serialNumber && !onu.macAddress) continue;
 
-    const isFasum = !onu.customerId && isFasumDescription(onu.description);
-    if (isFasum) fasumCount++;
+    try {
+      const isFasum = !onu.customerId && isFasumDescription(onu.description);
+      if (isFasum) fasumCount++;
 
-    const res = await syncOnuToInventory({
-      serialNumber: onu.serialNumber || onu.macAddress!,
-      macAddress: onu.macAddress,
-      customerId: onu.customerId,
-      oltVendor: onu.olt?.vendor,
-      oltName: onu.olt?.name,
-      location: `${onu.frame}/${onu.slot}/${onu.port}:${onu.onuId}`,
-      description: onu.description,
-      isOnline: onu.status === 'online',
-      installedAt: onu.updatedAt,
-    });
+      const res = await syncOnuToInventory({
+        serialNumber: onu.serialNumber || onu.macAddress!,
+        macAddress: onu.macAddress,
+        customerId: onu.customerId,
+        oltVendor: onu.olt?.vendor,
+        oltName: onu.olt?.name,
+        location: `${onu.frame}/${onu.slot}/${onu.port}:${onu.onuId}`,
+        description: onu.description,
+        isOnline: onu.status === 'online',
+        installedAt: onu.updatedAt,
+      });
 
-    if (res) {
-      if (res.isNew) createdCount++;
-      else updatedCount++;
-      if (res.customerId) linkedCustomerCount++;
+      if (res) {
+        if (res.isNew) createdCount++;
+        else updatedCount++;
+        if (res.customerId) linkedCustomerCount++;
+      }
+    } catch (err: any) {
+      console.error(`[syncAllOltsToInventory] Error syncing ONU ${onu.serialNumber || onu.macAddress}:`, err.message);
     }
   }
 

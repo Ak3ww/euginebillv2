@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.21
+- **Version**: 2.40.22
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,19 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.22: OLT Single Source of Truth for Vendor/Model & Inventory Notes Auto-Heal)
+
+- **Architectural Invariant: OLT is Single Source of Truth for Modem Vendor and Model**:
+  - Deteksi perangkat ONT/ONU berbasis prefix SN ITU-T (ZTE, VSOL, Skyworth, HSGQ, Huawei, FiberHome) pada OLT merupakan kebenaran tunggal (*single source of truth*).
+  - Pada saat sinkronisasi (`syncOnuToInventory`), jika OLT mendeteksi vendor valid (`detected.vendor !== 'Generic'`), sistem WAJIB secara aktif menimpa/meng-update kolom `vendor` dan `model` pada inventori (`inventoryAsset`). Dilarang memproteksi/mengabaikan pembaruan dengan asumsi aset lama sudah memiliki nilai vendor jika nilai lama tersebut tidak sinkron dengan deteksi fisik OLT.
+
+- **Architectural Invariant: Safe String Truncation & MySQL Text Auto-Heal for Inventory Notes**:
+  - Kolom `notes` dan `location` pada tabel MySQL `inventory_assets` harus kebal terhadap string overflow (`The provided value for the column is too long for the column's type`).
+  - Dilarang menggabungkan string catatan secara rekursif (`${asset.notes} • ${newNote}`) tanpa batas.
+  - Setiap penulisan ke kolom `notes` dan `location` WAJIB dipotong aman dengan `.slice(0, 190)`.
+  - Fungsi batch sync OLT (`syncAllOltsToInventory`) menyertakan instruksi `ALTER TABLE inventory_assets MODIFY notes TEXT` secara otomatis agar database MySQL lama meng-upgrade tipe kolom menjadi `TEXT`.
+  - Setiap iterasi unit ONU dalam batch OLT wajib berada di dalam `try...catch` mandiri agar anomali pada satu unit tidak menggagalkan sinkronisasi unit lainnya.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.21: Strict Router API Port Respect, Resilient PPP Secret Creation & Auto-Profile Sync)
 
