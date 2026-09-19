@@ -103,7 +103,11 @@ export default function NewPppoeUserPage() {
       fetch('/api/pppoe/areas').then(r => r.json()),
     ]).then(([profilesData, routersData, areasData]) => {
       setProfiles(profilesData.profiles || []);
-      setRouters(routersData.routers || []);
+      const rList = routersData.routers || [];
+      setRouters(rList);
+      if (rList.length > 0) {
+        setFormData(prev => ({ ...prev, routerId: prev.routerId || rList[0].id }));
+      }
       setAreas(areasData.areas || []);
     }).catch(console.error);
   }, []);
@@ -331,12 +335,12 @@ export default function NewPppoeUserPage() {
                   {hasPppoeAccount ? (
                     <>
                       <p className="text-xs font-semibold text-foreground flex items-center gap-1"><Wifi className="w-3 h-3" /> Punya Akun PPPoE</p>
-                      <p className="text-[10px] text-muted-foreground">Login ke router via PPPoE dengan username &amp; password</p>
+                      <p className="text-[10px] text-muted-foreground">Login ke router via PPPoE dengan username &amp; password (ditulis ke MikroTik /ppp/secret)</p>
                     </>
                   ) : (
                     <>
                       <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1"><WifiOff className="w-3 h-3" /> Tanpa Akun PPPoE (IP Statis / MAC)</p>
-                      <p className="text-[10px] text-amber-600 dark:text-amber-500">Username PPPoE/Hotspot di-generate otomatis. Cocok untuk pelanggan IP statis atau MAC-based.</p>
+                      <p className="text-[10px] text-amber-600 dark:text-amber-500">Akun PPPoE TIDAK dibuat di MikroTik. Khusus pelanggan IP statis murni atau MAC binding.</p>
                     </>
                   )}
                 </div>
@@ -537,11 +541,12 @@ export default function NewPppoeUserPage() {
                     <ModalInput type="text" value={formData.ipAddress} onChange={(e) => field('ipAddress', e.target.value)} placeholder="Kosongkan jika dinamis" />
                   </div>
                   <div>
-                    <ModalLabel>NAS / Router</ModalLabel>
+                    <ModalLabel required>NAS / Router</ModalLabel>
                     <ModalSelect value={formData.routerId} onChange={(e) => field('routerId', e.target.value)}>
-                      <option value="">— Otomatis —</option>
-                      {routers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                      {routers.length === 0 && <option value="">— Tidak ada router —</option>}
+                      {routers.map(r => <option key={r.id} value={r.id}>{r.name} ({r.ipAddress})</option>)}
                     </ModalSelect>
+                    <p className="text-[9px] text-muted-foreground mt-1">Router MikroTik tujuan penulisan secret</p>
                   </div>
                 </div>
               </div>

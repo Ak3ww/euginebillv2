@@ -4,6 +4,44 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.21] — 2026-09-19
+### Presisi Pemanggilan API MikroTik Sesuai Isian Admin & Perbaikan Penulisan PPP Secret Pasang Baru
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. **Secret PPPoE Baru Tidak Tertulis ke MikroTik pada Mode Local Auth**:
+     - Saat admin membuat pelanggan PPPoE baru dengan router `MIKROTIK CIBINONG SITE` (`10.200.0.2:8520`) dalam mode Local Auth (`authMode: 'local'`), secret tidak tertulis ke `/ppp/secret` MikroTik.
+     - Form pendaftaran pelanggan (`/admin/pppoe/users/new`) sebelumnya menyetel dropdown "NAS / Router" ke string kosong (`— Otomatis —`). Saat disimpan, backend menerima `routerId: null`, sehingga `PPPSecretService.syncSecret` langsung berhenti (`return false`) tanpa mengirim paket ke MikroTik.
+     - Penentuan port API pada `PPPSecretService` sebelumnya menggunakan percabangan kondisional yang berpotensi membypass isian `router.port` yang dikonfigurasi admin.
+     - Timeout eksekusi API pada saat pembuatan pelanggan dibatasi hanya 4 detik, yang rentan timeout di koneksi WireGuard VPN.
+     - Jika profile paket belum pernah di-sync ke MikroTik, pemanggilan `/ppp/secret/add` gagal total karena MikroTik menolak secret dengan `profile not found`.
+     - Tombol re-sync ke MikroTik pada tabel daftar pelanggan dibungkus syarat `company.radiusPppoeEnabled`, sehingga tidak muncul untuk sistem yang menggunakan Local Auth mode.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Strict Router Port Resolution (`src/server/services/mikrotik/ppp-secret.service.ts`)**:
+     - Memprioritaskan 100% isian admin pada `router.port` (`targetRouter.port || vpnTargetPort || 8728`) tanpa syarat pengecekan boolean `!== 8728` yang dapat mendistorsi port.
+     - Resolusi host router diperkuat: `host = targetRouter.ipAddress || targetRouter.nasname`.
+     - Timeout koneksi API dinaikkan menjadi 8 detik untuk stabilitas koneksi VPN.
+  2. **Otomatisasi Profile & Support IP Statis di `PPPSecretService`**:
+     - Menambahkan verifikasi profile sebelum menambahkan secret: jika profile paket belum ada di MikroTik, sistem secara otomatis membuat `/ppp/profile` dengan rate-limit sesuai paket (`uploadSpeed/downloadSpeed`), atau fallback ke `default` jika gagal, sehingga penulisan `/ppp/secret` tidak pernah gagal.
+     - Menyertakan parameter `=remote-address=${user.ipAddress}` jika pelanggan memiliki IP statis.
+  3. **Auto-Select Router & Klarifikasi Mode pada Form Pasang Baru (`src/app/admin/pppoe/users/new/page.tsx`)**:
+     - Saat memuat daftar router, form kini otomatis memilih router aktif pertama ke `formData.routerId`.
+     - Menghapus opsi ambigu "— Otomatis —" dan menggantinya dengan pilihan eksplisit nama dan IP router.
+     - Memperjelas teks toggle "Punya Akun PPPoE" (ON: ditulis ke `/ppp/secret` MikroTik vs OFF: khusus IP statis murni / MAC binding tanpa akun PPPoE).
+  4. **Peningkatan Toleransi Timeout Pembuatan Pelanggan (`src/server/services/pppoe.service.ts`)**:
+     - Timeout race pada `createPppoeUser` dinaikkan dari 4 detik menjadi 12 detik agar proses sinkronisasi melalui VPN tidak di-abort prematur.
+     - Menambahkan auto-resolve `routerId` pada backend: jika form tidak menyertakan `routerId`, backend otomatis mengaitkan pelanggan ke router aktif.
+  5. **Universal Sync Route & UI Action (`src/app/api/pppoe/users/[id]/sync-radius/route.ts` & `src/app/admin/pppoe/users/page.tsx`)**:
+     - Endpoint sinkronisasi pelanggan kini memanggil `PPPSecretService.syncSecret(user.id)` secara independen dari status FreeRADIUS, menjamin secret selalu tertulis ke MikroTik.
+     - Tombol sync pada mobile card dan tabel desktop kini selalu tampil untuk semua pengguna, baik mode Local Auth maupun FreeRADIUS.
+
+- **Files**:
+  - `src/server/services/mikrotik/ppp-secret.service.ts`
+  - `src/server/services/pppoe.service.ts`
+  - `src/app/admin/pppoe/users/new/page.tsx`
+  - `src/app/admin/pppoe/users/page.tsx`
+  - `src/app/api/pppoe/users/[id]/sync-radius/route.ts`
+
 ## [2.40.20] — 2026-09-17
 ### Resolusi Sinkronisasi Port API MikroTik Kustom (8520) & Penghapusan Deny SNMP pada OLT VSOL V1600GS-ZF
 

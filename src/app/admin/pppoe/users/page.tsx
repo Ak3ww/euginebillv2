@@ -843,9 +843,9 @@ export default function PppoeUsersPage() {
     try {
       const res = await fetch(`/api/pppoe/users/${user.id}/sync-radius`, { method: 'POST' });
       const result = await res.json();
-      if (res.ok) { await showSuccess(`${user.username} berhasil di-sync ke RADIUS`); loadData(); }
-      else { await showError(result.error || 'Gagal sync ke RADIUS'); }
-    } catch { await showError('Gagal sync ke RADIUS'); }
+      if (res.ok) { await showSuccess(result.message || `${user.username} berhasil di-sync`); loadData(); }
+      else { await showError(result.error || result.message || 'Gagal sync'); }
+    } catch { await showError('Gagal sync ke MikroTik / RADIUS'); }
   };
 
   const handleMarkAllPaid = async (userId: string, userName: string) => {
@@ -1700,9 +1700,7 @@ export default function PppoeUsersPage() {
                     </div>
 
                     <div className="flex items-center gap-1 pt-1 flex-wrap">
-                      {company.radiusPppoeEnabled && (
-                        <button onClick={() => handleSyncToRadius(user)} className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Sync RADIUS" title="Sync RADIUS"><RefreshCw className="h-3.5 w-3.5 pointer-events-none" /></button>
-                      )}
+                      <button onClick={() => handleSyncToRadius(user)} className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Sync MikroTik / RADIUS" title="Sync MikroTik / RADIUS"><RefreshCw className="h-3.5 w-3.5 pointer-events-none" /></button>
                       <button
                         onClick={() => handleStatusChange(user.id, user.status === 'isolated' ? 'active' : 'isolated')}
                         className={`compact-action p-1.5 rounded cursor-pointer flex items-center justify-center focus:outline-none ${user.status === 'isolated' ? 'text-success hover:bg-success/10' : 'text-orange-500 hover:bg-orange-500/10'}`}
@@ -1898,17 +1896,15 @@ export default function PppoeUsersPage() {
                               <Wrench className="h-3.5 w-3.5 pointer-events-none" />
                             </button>
                           )}
-                          {/* Sync ke RADIUS */}
-                          {company.radiusPppoeEnabled && (
-                            <button
-                              onClick={() => handleSyncToRadius(user)}
-                              className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer focus:outline-none"
-                              aria-label="Sync ke RADIUS"
-                              title="Sync ke RADIUS"
-                            >
-                              <RefreshCw className="h-3.5 w-3.5 pointer-events-none" />
-                            </button>
-                          )}
+                          {/* Sync ke MikroTik / RADIUS */}
+                          <button
+                            onClick={() => handleSyncToRadius(user)}
+                            className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer focus:outline-none"
+                            aria-label="Sync ke MikroTik / RADIUS"
+                            title="Sync ke MikroTik / RADIUS"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5 pointer-events-none" />
+                          </button>
                           {/* Isolir */}
                           <button
                             onClick={() => handleStatusChange(user.id, user.status === 'isolated' ? 'active' : 'isolated')}

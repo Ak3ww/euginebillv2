@@ -354,9 +354,21 @@ export async function createPppoeUser(
     }
   }
 
+  // Auto-resolve router if not provided
+  let resolvedRouterId = routerId || null;
+  if (!resolvedRouterId) {
+    const activeRouters = await prisma.router.findMany({
+      where: { isActive: true },
+      take: 2,
+    });
+    if (activeRouters.length === 1) {
+      resolvedRouterId = activeRouters[0].id;
+    }
+  }
+
   // Verify router
-  if (routerId) {
-    const router = await prisma.router.findUnique({ where: { id: routerId } });
+  if (resolvedRouterId) {
+    const router = await prisma.router.findUnique({ where: { id: resolvedRouterId } });
     if (!router) throw Object.assign(new Error('Router not found'), { code: 'NOT_FOUND' });
   }
 
@@ -369,7 +381,7 @@ export async function createPppoeUser(
       password,
       portalPassword: finalPortalPassword,
       profileId,
-      routerId: routerId || null,
+      routerId: resolvedRouterId,
       areaId: areaId || null,
       name: resolvedName,
       phone: resolvedPhone,
@@ -420,33 +432,31 @@ export async function createPppoeUser(
         });
         radiusSynced = true;
 
-        // Also sync to MikroTik API if routerId is set
-        if (routerId) {
-          try {
-            const syncPromise = PPPSecretService.syncSecret(user.id);
-            const timeoutPromise = new Promise<boolean>((resolve) =>
-              setTimeout(() => {
-                console.warn(`[createPppoeUser] MikroTik syncSecret timed out after 4s for ${user.username}`);
-                resolve(false);
-              }, 4000)
-            );
-            await Promise.race([syncPromise, timeoutPromise]);
-          } catch (e) {
-            console.error('MikroTik API secret sync error during PSB:', e);
-          }
+        // Also sync to MikroTik API
+        try {
+          const syncPromise = PPPSecretService.syncSecret(user.id);
+          const timeoutPromise = new Promise<boolean>((resolve) =>
+            setTimeout(() => {
+              console.warn(`[createPppoeUser] MikroTik syncSecret timed out after 12s for ${user.username}`);
+              resolve(false);
+            }, 12000)
+          );
+          await Promise.race([syncPromise, timeoutPromise]);
+        } catch (e) {
+          console.error('MikroTik API secret sync error during PSB:', e);
         }
       } catch (syncError) {
         console.error('RADIUS sync error:', syncError);
       }
     } else {
-      // Fallback to MikroTik API (guarded by 4s timeout so slow or offline router never hangs PSB)
+      // Fallback to MikroTik API (guarded by 12s timeout)
       try {
         const syncPromise = PPPSecretService.syncSecret(user.id);
         const timeoutPromise = new Promise<boolean>((resolve) =>
           setTimeout(() => {
-            console.warn(`[createPppoeUser] MikroTik syncSecret timed out after 4s for ${user.username}`);
+            console.warn(`[createPppoeUser] MikroTik syncSecret timed out after 12s for ${user.username}`);
             resolve(false);
-          }, 4000)
+          }, 12000)
         );
         const syncSuccess = await Promise.race([syncPromise, timeoutPromise]);
         if (syncSuccess) {
@@ -455,6 +465,9 @@ export async function createPppoeUser(
             data: { syncedToRadius: true, lastSyncAt: new Date() },
           });
           radiusSynced = true;
+          console.log(`[createPppoeUser] Successfully synced secret to MikroTik for ${user.username}`);
+        } else {
+          console.warn(`[createPppoeUser] MikroTik syncSecret returned false or timed out for ${user.username}`);
         }
       } catch (e) {
         console.error('MikroTik API secret sync error during PSB:', e);

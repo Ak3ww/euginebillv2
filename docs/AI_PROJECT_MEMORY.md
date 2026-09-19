@@ -10,15 +10,37 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.20
+- **Version**: 2.40.21
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
-- **Last Updated**: September 17, 2026
+- **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
 - **Turnkey 1-Command Installer**: `curl -fsSL https://raw.githubusercontent.com/Ak3ww/euginebillv2/main/scripts/install.sh | sudo bash`
 
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.21: Strict Router API Port Respect, Resilient PPP Secret Creation & Auto-Profile Sync)
+
+- **Architectural Invariant: Strict Respect for Admin-Defined Router API Port (`router.port`)**:
+  - Apa yang admin ketik di form Router (`/admin/network/routers` -> field "Port API") disimpan ke kolom `router.port` di tabel database `nas`.
+  - Pemanggilan MikroTik API pada `PPPSecretService` (`syncSecret`, `setProfileAndDisconnect`, `removeSecret`) WAJIB memprioritaskan secara langsung `targetRouter.port || vpnTargetPort || 8728` tanpa syarat perbandingan boolean `!== 8728` yang dapat merusak atau membypass nilai port yang ditulis admin.
+  - Host MikroTik wajib memprioritaskan `router.ipAddress || router.nasname`.
+  - Timeout koneksi API dinaikkan dari 4 detik ke 8-12 detik untuk mengakomodasi latensi tunnel WireGuard VPN.
+
+- **Architectural Invariant: Resilient PPP Secret & Auto-Profile Fallback**:
+  - Pada MikroTik, pembuatan akun `/ppp/secret/add` akan gagal total dan melempar exception jika profile paket (`profileName`) belum terdaftar di `/ppp/profile` MikroTik.
+  - `PPPSecretService.syncSecret` WAJIB memverifikasi keberadaan profile terlebih dahulu. Jika belum ada, sistem secara otomatis mengeksekusi `/ppp/profile/add` dengan rate-limit (`uploadSpeed/downloadSpeed`) sesuai paket pelanggan, atau fallback ke `default` jika gagal, sehingga pembuatan secret tidak pernah gagal.
+  - Jika pelanggan memiliki IP statis (`user.ipAddress`), wajib menyertakan parameter `=remote-address=${user.ipAddress}` pada secret.
+
+- **Architectural Invariant: Auto-Resolve Router on PPPoE Customer Creation (`createPppoeUser`)**:
+  - Form pasang baru pelanggan (`/admin/pppoe/users/new`) saat memuat data wajib otomatis memilih router aktif ke `formData.routerId`.
+  - Backend `createPppoeUser` WAJIB meng-auto-resolve `routerId` jika form mengirimkan nilai kosong/null: jika hanya ada 1 router aktif di database, sistem langsung mengaitkan pelanggan ke router tersebut agar proses penulisan secret tidak berhenti di `return false`.
+  - Toggle "Punya Akun PPPoE" (ON: ditulis ke `/ppp/secret` MikroTik vs OFF: pelanggan IP statis murni / MAC binding tanpa akun PPPoE) memiliki teks yang jelas dan tegas agar admin tidak keliru menonaktifkannya saat ingin membuat akun PPPoE.
+
+- **Architectural Invariant: Universal Re-Sync Action (`/api/pppoe/users/[id]/sync-radius`)**:
+  - Endpoint sinkronisasi pelanggan per ID WAJIB memanggil `PPPSecretService.syncSecret(user.id)` secara mandiri tanpa tergantung apakah FreeRADIUS aktif atau tidak.
+  - Tombol sync pada antarmuka admin (mobile card & desktop table) wajib selalu tampil untuk semua pengguna, baik mode Local Auth maupun FreeRADIUS.
 
 ### Recent Patch Log (September 17, 2026 — v2.40.20: Dynamic MikroTik API Port Resolution & VSOL SNMP Fix)
 
