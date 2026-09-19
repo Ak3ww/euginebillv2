@@ -4,6 +4,42 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.26] — 2026-09-19
+### Sanitasi Bersih Repositori (Purge One-Time Scripts, Sensitive Fixtures, & Dead Code) untuk Rilis Distribusi Klien
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. Repositori proyek sebelumnya masih memuat puluhan skrip perbaikan sekali pakai (*one-time / scratch scripts*), file debug historis, folder patch sementara, dan file spreadsheet data uji pelanggan dari sesi perbaikan lama.
+  2. Untuk memastikan repositori GitHub dalam kondisi murni, bersih, profesional, dan siap didistribusikan / di-sync ke klien tanpa menyertakan sampah teknis atau file data sensitif.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Pembersihan Skrip & File Scratch di Root**:
+     - Menghapus 30+ file scratch/debug di root: file 0-byte (`230`, `Build`, `audit_routing.sh`), skrip tes/inspeksi (`check-false-success-wa.js`, `check-qrin*.js`, `check.js`, `check_admin.py`, `check_config.py`, `count-customers.js`, `find-*.js`, `fix*.js`, `generate_invoice_page.*`, `test-api.ts`, `test-id.js`, `test_login.sh`, `test_otp.py`, `verify_session.py`, `vps_audit.py`, `qrin-docs.txt`).
+     - Menghapus folder sementara: `baileys_whatsapp_patch/` dan `scratch/`.
+     - Merelokasi dokumentasi ke folder `docs/`: `AUDIT_REPORT.md` -> `docs/AUDIT_REPORT.md`, `docs.md` -> `docs/notifications/WHATSAPP_TEMPLATES.md`.
+  2. **Pembersihan Skrip One-Time di `scripts/`**:
+     - Menghapus direktori `scripts/archive/` (20 file skrip lama).
+     - Menghapus file spreadsheet pelanggan `scripts/Daftar_Pelanggan_Per_Wilayah.xlsx`.
+     - Menghapus skrip one-time: `audit-and-fix-unpaid-customers.js`, `cek-kp-tegal.js`, `check-najwa.js`, `check-user-invoices.js`, `cleanup-citeureup-secrets.js`, `cleanup-duplicate-psb-invoices.ts`, `fix-installed-customers.js`, `fix-psb-october-expiry.ts`, `fix-rahmat-hidayat.js`, `fix-september-invoices.js`, `import-new-customers.js`, `isolate-unpaid-today.js`, `push-vpn-citeureup.js`, `restore-all-secrets-to-mikrotik.*`, `restore-cibinong-secrets.js`, `restore-kp-tegal-live.js`, `set-kp-tegal-no-isolation.ts`, `unisolate-all-and-set-date-6.js`.
+     - Menghapus seed SQL one-time: `prisma/seeds/insert_2_new_customers.sql`.
+  3. **Pembersihan Endpoint API One-Time**:
+     - Menghapus route handler yang tidak lagi digunakan oleh UI:
+       - `src/app/api/admin/areas/seed-exact-from-excel/route.ts`
+       - `src/app/api/admin/areas/seed-kmb/route.ts`
+       - `src/app/api/admin/pppoe/activate-and-seed/route.ts`
+       - `src/app/api/admin/pppoe/fix-passwords/route.ts`
+       - `src/app/api/admin/pppoe/fix-phone-numbers/route.ts`
+       - `src/app/api/admin/routers/assign-cibinong/route.ts`
+       - `src/app/api/admin/invoices/restore-from-wa/route.ts`
+  4. **Pembersihan `package.json` & Pembaruan `.gitignore`**:
+     - Menghapus perintah script yang sudah tidak ada: `db:seed:new-customers` dan `db:set-kp-tegal-no-isolation`.
+     - Memperbarui aturan `.gitignore` agar file scratch masa depan tidak ter-commit.
+
+- **Files**:
+  - `package.json`
+  - `.gitignore`
+  - `docs/AUDIT_REPORT.md`
+  - `docs/notifications/WHATSAPP_TEMPLATES.md`
+
 ## [2.40.25] — 2026-09-19
 ### Prioritas Kredensial Multi-Sumber (Router & VPN Client), Port Auto-Resolution, & Unifikasi Koneksi MikroTik
 

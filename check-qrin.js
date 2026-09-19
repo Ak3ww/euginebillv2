@@ -1,1 +1,0 @@
-fetch('https://qrin.web.id/api/get-payment-method', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token_qrin: 'dummy' }) }).then(r=>r.json()).then(console.log);
