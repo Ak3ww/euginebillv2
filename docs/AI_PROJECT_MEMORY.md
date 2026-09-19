@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.39
+- **Version**: 2.40.40
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,12 @@
 ---
 
 ## Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.40: Bulk Sync Tool for Packages & Customers to MikroTik)
+
+- **Hard Invariant: High-Volume Synchronization via Dedicated CLI (`scripts/sync-all-to-mikrotik.js`)**:
+  - Untuk sinkronisasi ratusan/ribuan secret pelanggan sekaligus, jangan mengandalkan single HTTP request dari browser karena batas timeout browser/reverse-proxy (30-60 detik).
+  - Gunakan `node scripts/sync-all-to-mikrotik.js [ROUTER] [--kick] [--dry-run]` yang berjalan langsung di thread Node.js VPS dengan caching profil dan bulk query sehingga proses selesai dalam hitungan detik.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.39: RouterOS v7.18+ "!empty" API Reply Patch)
 

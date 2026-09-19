@@ -4,6 +4,32 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.40] — 2026-09-19
+### Tool CLI Bulk Sync Paket & Semua Pelanggan Billing ke MikroTik & FreeRADIUS (One-Command VPS Execution)
+
+- **Latar Belakang / Kebutuhan (Issue & Context)**:
+  1. Pengguna membutuhkan cara praktis dan cepat untuk menyinkronkan ulang seluruh profil paket dan akun pelanggan dari database billing ke router MikroTik langsung melalui terminal Linux VPS tanpa batasan timeout browser.
+  2. Paket lama sebelumnya masih menggunakan profil `default` karena belum dipetakan secara akurat antara tabel `pppoe_profiles` dengan profil MikroTik yang ada di router.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Pengembangan Tool CLI Bulk Sync (`scripts/sync-all-to-mikrotik.js`)**:
+     - **Fase 1: Auto-Detect & Map Paket Billing ke Profil MikroTik**:
+       Mencocokkan nama paket, `groupName`, `mikrotikProfileName`, atau kecepatan Mbps (misal `50 Mbps`, `75 Mbps`, `100 Mbps`). Jika profil belum ada di MikroTik, skrip otomatis membuat `/ppp/profile/add` dengan rate-limit dan aturan session yang benar.
+     - **Fase 2: Bulk Sync Seluruh Pelanggan (`/ppp/secret`)**:
+       Memperbarui atau menambahkan semua pelanggan ke `/ppp/secret` dengan status isolir, profil paket terkini, static IP (jika ada), dan password yang sesuai.
+     - **Fase 3: FreeRADIUS Auto-Sync**:
+       Jika mode RADIUS aktif di `company`, tabel `radcheck`, `radusergroup`, dan `radreply` ikut disinkronkan secara atomik.
+     - **Fase 4: Dukungan Flag `--kick`**:
+       Opsi untuk memutus sesi aktif secara otomatis (`/ppp/active/remove`) agar seluruh modem ONT pelanggan langsung re-koneksi dan menerapkan profil kecepatan paket baru secara realtime tanpa perlu restart manual.
+     - **Fase 5: Dukungan Flag `--dry-run`**:
+       Simulasi aman tanpa melakukan penulisan ke router atau database.
+
+- **Files**:
+  - `package.json`
+  - `scripts/sync-all-to-mikrotik.js`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.39] — 2026-09-19
 ### Solusi Final Crash RouterOS v7.18+ / v7.24+: Penanganan Reply "!empty" pada node-routeros (Zero Exception)
 
