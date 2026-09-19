@@ -405,6 +405,7 @@ export default function PppoeUsersPage() {
   const [syncSelectedUsers, setSyncSelectedUsers] = useState<Set<string>>(new Set());
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
+  const [syncingUserId, setSyncingUserId] = useState<string | null>(null);
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [invoiceCounts, setInvoiceCounts] = useState<Record<string, number>>({});
   const [extending, setExtending] = useState<string | null>(null);
@@ -840,6 +841,7 @@ export default function PppoeUsersPage() {
   };
 
   const handleSyncToRadius = async (user: PppoeUser) => {
+    setSyncingUserId(user.id);
     try {
       const res = await fetch(`/api/pppoe/users/${user.id}/sync-radius`, { method: 'POST' });
       const result = await res.json();
@@ -855,6 +857,8 @@ export default function PppoeUsersPage() {
       }
     } catch {
       await showError('Gagal sync ke MikroTik / RADIUS');
+    } finally {
+      setSyncingUserId(null);
     }
   };
 
@@ -1710,7 +1714,7 @@ export default function PppoeUsersPage() {
                     </div>
 
                     <div className="flex items-center gap-1 pt-1 flex-wrap">
-                      <button onClick={() => handleSyncToRadius(user)} className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none" aria-label="Sync MikroTik / RADIUS" title="Sync MikroTik / RADIUS"><RefreshCw className="h-3.5 w-3.5 pointer-events-none" /></button>
+                      <button onClick={() => handleSyncToRadius(user)} disabled={syncingUserId === user.id} className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer flex items-center justify-center focus:outline-none disabled:opacity-50" aria-label="Sync MikroTik / RADIUS" title="Sync MikroTik / RADIUS"><RefreshCw className={`h-3.5 w-3.5 pointer-events-none ${syncingUserId === user.id ? 'animate-spin text-blue-600' : ''}`} /></button>
                       <button
                         onClick={() => handleStatusChange(user.id, user.status === 'isolated' ? 'active' : 'isolated')}
                         className={`compact-action p-1.5 rounded cursor-pointer flex items-center justify-center focus:outline-none ${user.status === 'isolated' ? 'text-success hover:bg-success/10' : 'text-orange-500 hover:bg-orange-500/10'}`}
@@ -1909,11 +1913,12 @@ export default function PppoeUsersPage() {
                           {/* Sync ke MikroTik / RADIUS */}
                           <button
                             onClick={() => handleSyncToRadius(user)}
-                            className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer focus:outline-none"
+                            disabled={syncingUserId === user.id}
+                            className="compact-action p-1.5 text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer focus:outline-none disabled:opacity-50"
                             aria-label="Sync ke MikroTik / RADIUS"
                             title="Sync ke MikroTik / RADIUS"
                           >
-                            <RefreshCw className="h-3.5 w-3.5 pointer-events-none" />
+                            <RefreshCw className={`h-3.5 w-3.5 pointer-events-none ${syncingUserId === user.id ? 'animate-spin text-blue-600' : ''}`} />
                           </button>
                           {/* Isolir */}
                           <button

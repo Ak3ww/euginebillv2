@@ -4,6 +4,40 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.37] — 2026-09-19
+### Eliminasi Timeout "Waktu proses habis": Pembatasan 3.5 Detik Connect, Multi-Candidate Fallback & Headroom Frontend 45s
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. Saat membuat pelanggan baru atau sinkronisasi secret di `/admin/pppoe/users/new`, browser memunculkan error: `Waktu proses habis (timeout). Silakan periksa daftar pelanggan.`
+  2. Investigasi menunjukkan `connectToRouter` dipanggil dengan timeout 15 detik (`15000ms`). Jika host/port pertama tidak merespon (misal karena firewall input MikroTik memblokir koneksi API dari IP VPN VPS `10.200.0.1`), sistem menunggu 15 detik penuh, lalu mencoba host alternatif selama 15 detik lagi (total 30 detik).
+  3. Pada tepat detik ke-30, `AbortController` di frontend (`new/page.tsx`) memicu abort timeout dan menampilkan pesan `Waktu proses habis (timeout)`, memutus request sebelum response server selesai dikirim.
+  4. Tombol manual Sync pada tabel pelanggan juga tidak menampilkan indikator loading sehingga admin tidak mengetahui status proses yang sedang berjalan di latar belakang.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Pembatasan Ketat Timeout Koneksi MikroTik (`3500ms`)**:
+     - Membatasi waktu tunggu per kandidat target menjadi maksimal 3.5 detik (`Math.min(timeoutMsPerTarget || 3500, 5000)`). Jika port/host tidak merespon dalam 3.5 detik melalui tunnel VPN, sistem segera beralih ke target alternatif berikutnya tanpa menahan thread/browser.
+     - Total durasi maksimum untuk 2 kandidat target adalah ~7 detik, jauh di bawah batas timeout browser manapun.
+  2. **Struktur Multi-Kandidat Tangguh (`connectToRouter` di `ppp-secret.service.ts`)**:
+     - Kandidat 1: Konfigurasi Router persis isian admin (IP admin, port admin, user/pass admin).
+     - Kandidat 2: Konfigurasi VPN Client (jika router terhubung dengan tunnel VPN, menggunakan `vpnIp`, target API VPN, dan kredensial API VPN).
+     - Kandidat 3: Port default 8728 pada host utama jika port kustom yang dikonfigurasi gagal dihubungi.
+  3. **Headroom Timeout Frontend 45 Detik (`src/app/admin/pppoe/users/new/page.tsx`)**:
+     - Menaikkan safety abort timer dari 30 detik menjadi 45 detik untuk menjamin browser tidak pernah membatalkan request sebelum server mengembalikan respons yang jelas.
+  4. **Indikator Loading Realtime pada Tombol Sync (`src/app/admin/pppoe/users/page.tsx`)**:
+     - Menambahkan state `syncingUserId` dan animasi `animate-spin` pada icon Refresh tombol Sync di tabel desktop maupun kartu mobile.
+  5. **Pengamanan Timeout Perintah RouterOS (`src/server/services/mikrotik/client.ts`)**:
+     - Membungkus `execute()` dengan safe timeout timer yang dapat dibersihkan (`clearTimeout`) tanpa pernah merusak atau menolkan instance socket `this.conn`.
+
+- **Files**:
+  - `package.json`
+  - `src/server/services/mikrotik/client.ts`
+  - `src/server/services/mikrotik/ppp-secret.service.ts`
+  - `src/app/admin/pppoe/users/new/page.tsx`
+  - `src/app/admin/pppoe/users/page.tsx`
+  - `src/app/api/pppoe/users/restore-mikrotik/route.ts`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.36] — 2026-09-19
 ### Perbaikan Socket Desync "Not connected to MikroTik", Prioritas IP Admin & Pembersihan Query Profile
 

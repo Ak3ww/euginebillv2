@@ -21,13 +21,13 @@ export class MikroTikConnection {
     this.config = {
       ...config,
       port,
-      timeout: config.timeout || 15000,
+      timeout: config.timeout || 4000,
       tls,
     }
   }
 
   async connect(): Promise<void> {
-    const timeoutMs = this.config.timeout || 15000
+    const timeoutMs = this.config.timeout || 4000
     const connectionConfig: any = {
       host: this.config.host,
       user: this.config.username,
@@ -57,10 +57,15 @@ export class MikroTikConnection {
       // node-routeros "timeout" is a socket idle timeout and does NOT cover
       // the TCP connection phase — an unreachable host can hang for minutes.
       const connectPromise = this.conn.connect()
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Connection timed out after ${timeoutMs / 1000}s — host unreachable or firewall blocking`)), timeoutMs)
-      )
-      await Promise.race([connectPromise, timeoutPromise])
+      let timerId: any
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timerId = setTimeout(() => reject(new Error(`Connection timed out after ${timeoutMs / 1000}s — host unreachable or firewall blocking`)), timeoutMs)
+      })
+      try {
+        await Promise.race([connectPromise, timeoutPromise])
+      } finally {
+        clearTimeout(timerId)
+      }
       console.log('MikroTik connection successful!')
     } catch (error) {
       console.error('MikroTik connection error:', error)
@@ -103,12 +108,25 @@ export class MikroTikConnection {
     }
   }
 
-  // Public method to execute RouterOS commands
-  async execute(command: string, params?: string[], _customTimeoutMs?: number): Promise<any> {
+  // Public method to execute RouterOS commands with safe timeout
+  async execute(command: string, params?: string[], customTimeoutMs: number = 8000): Promise<any> {
     if (!this.conn) {
       throw new Error('Not connected to MikroTik')
     }
-    return await this.conn.write(command, params || [])
+    let timerId: any
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timerId = setTimeout(() => {
+        reject(new Error(`MikroTik command '${command}' timed out after ${customTimeoutMs / 1000}s`))
+      }, customTimeoutMs)
+    })
+    try {
+      return await Promise.race([
+        this.conn.write(command, params || []),
+        timeoutPromise,
+      ])
+    } finally {
+      clearTimeout(timerId)
+    }
   }
 
   async testConnection(): Promise<{ success: boolean; identity?: string; message: string }> {

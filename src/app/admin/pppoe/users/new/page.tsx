@@ -194,7 +194,7 @@ export default function NewPppoeUserPage() {
         }),
       };
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s safety timeout to accommodate MikroTik remote API connection
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s safety timeout to accommodate MikroTik remote API connection
 
       const res = await fetch('/api/pppoe/users', {
         method: 'POST',

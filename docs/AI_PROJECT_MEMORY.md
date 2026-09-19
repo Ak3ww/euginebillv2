@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.36
+- **Version**: 2.40.37
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -18,7 +18,26 @@
 
 ---
 
-## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+## Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.37: 3.5s Connection Timeout Cap, Multi-Candidate Resilient Fallback & 45s Frontend Headroom)
+
+- **Hard Invariant: Connection Timeout Cap 3.5 Detik per Kandidat Target (`connectToRouter`)**:
+  - DILARANG menyetel timeout koneksi MikroTik sebesar 15 detik. Jika host/port unreachable atau firewalled, dua kali percobaan menghabiskan 30 detik (15s + 15s) dan memicu `AbortError` di browser pengguna (`Waktu proses habis`).
+  - Nilai timeout per kandidat dibatasi maksimal 3.5 detik (`3500ms`). Waktu TCP SYN + auth MikroTik normal melalui VPN hanya memakan waktu <100ms.
+  - Total durasi maksimum pencarian 2 kandidat tidak akan pernah melebihi 7 detik.
+
+- **Hard Invariant: Multi-Candidate Structured Fallback**:
+  - Target 1: Konfigurasi Router persis isian admin (`router.ipAddress:router.port` dengan `router.username:router.password`).
+  - Target 2: Konfigurasi VPN Client jika terhubung (`vpnClient.vpnIp:vpnApiTarget` dengan `vpnClient.apiUsername:vpnClient.apiPassword`).
+  - Target 3: Port default 8728 jika port kustom admin gagal.
+  - Tidak ada tebak-tebak port acak dan tidak ada mutasi data `router.port` di database.
+
+- **Hard Invariant: Headroom Frontend 45 Detik (`new/page.tsx`)**:
+  - Safety abort timer di frontend dinaikkan ke 45 detik agar browser tidak pernah mendahului timeout backend.
+
+- **Hard Invariant: Safe Clearable Timer pada `execute()` di `client.ts`**:
+  - Pemanggilan `execute()` dilindungi `Promise.race` dengan timeout 8 detik yang selalu dibersihkan (`clearTimeout`), tanpa pernah menolkan `this.conn` saat timer kedaluwarsa.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.36: Native RouterOS Execute, Clean Profile Resolution & Admin IP Priority)
 

@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
       let connObj: any = null;
       try {
-        const { conn } = await PPPSecretService.connectToRouter(router, 10000);
+        const { conn } = await PPPSecretService.connectToRouter(router, 3500);
         connObj = conn;
         const api = conn.raw;
         if (!api) throw new Error('Koneksi MikroTik API raw tidak tersedia');

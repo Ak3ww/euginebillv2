@@ -28,7 +28,7 @@ export class PPPSecretService {
       vpnClientId?: string | null
       vpnClient?: any
     },
-    timeoutMsPerPort: number = 5000
+    timeoutMsPerTarget: number = 3500
   ): Promise<{ conn: MikroTikConnection; connectedPort: number; host: string }> {
     // 0. Auto-resolve vpnClient jika belum dimuat oleh caller
     let vpnClient = router.vpnClient
@@ -47,68 +47,84 @@ export class PPPSecretService {
       }
     }
 
-    // 1. Host: Utamakan IP konfigurasi router (persis isian admin), fallback ke VPN IP jika ada
-    const configuredIp = router.ipAddress?.trim() || router.nasname?.trim()
-    const vpnIp = vpnClient?.vpnIp?.trim()
-    const primaryHost = configuredIp || vpnIp
-    const secondaryHost = configuredIp && vpnIp && configuredIp !== vpnIp ? vpnIp : null
+    const timeoutMs = Math.min(timeoutMsPerTarget || 3500, 5000)
 
-    if (!primaryHost) {
-      throw new Error(`Router '${router.name || 'Unknown'}' tidak memiliki IP Address atau VPN IP`)
+    interface Candidate {
+      host: string
+      port: number
+      user: string
+      pass: string
+      tls: boolean
+      label: string
     }
 
-    // 2. Port: Persis dinamis sesuai isian client (router.port / apiPort / target port VPN) — tanpa tebak-tebak port lain!
-    const vpnApiTarget = (vpnClient?.publicPorts as any)?.services?.api?.target
-    const targetPort = router.port || (router as any).apiPort || vpnApiTarget || 8728
-    const isTls = targetPort === 8729
-
-    // 3. Kredensial: Persis dinamis sesuai isian client
-    const user = (router.username || vpnClient?.apiUsername || 'admin').trim()
-    const pass = (router.password && router.password.trim().length > 0) ? router.password : (vpnClient?.apiPassword || '')
-
-    console.log(`[PPPSecretService] Menghubungi MikroTik ke ${primaryHost}:${targetPort} (user: ${user})...`)
-
-    const conn = new MikroTikConnection({
-      host: primaryHost,
-      username: user,
-      password: pass,
-      port: targetPort,
-      tls: isTls,
-      timeout: timeoutMsPerPort || 10000,
-    })
-
-    try {
-      await conn.connect()
-      console.log(`[PPPSecretService] Berhasil terhubung ke MikroTik ${primaryHost}:${targetPort} (${user})!`)
-      return { conn, connectedPort: targetPort, host: primaryHost }
-    } catch (err: any) {
-      try { await conn.disconnect() } catch { /* ignore */ }
-      const errMsg = err.message || String(err)
-      console.warn(`[PPPSecretService] Gagal konek ke ${primaryHost}:${targetPort}: ${errMsg}`)
-
-      // Jika host utama gagal dan ada IP alternatif (misal configuredIp jika primaryHost adalah vpnIp), coba pada port yang SAMA
-      if (secondaryHost) {
-        console.log(`[PPPSecretService] Mencoba host alternatif ${secondaryHost}:${targetPort}...`)
-        const secConn = new MikroTikConnection({
-          host: secondaryHost,
-          username: user,
-          password: pass,
-          port: targetPort,
-          tls: isTls,
-          timeout: timeoutMsPerPort || 10000,
-        })
-        try {
-          await secConn.connect()
-          console.log(`[PPPSecretService] Berhasil terhubung ke MikroTik via host alternatif ${secondaryHost}:${targetPort}!`)
-          return { conn: secConn, connectedPort: targetPort, host: secondaryHost }
-        } catch (secErr: any) {
-          try { await secConn.disconnect() } catch { /* ignore */ }
-          throw new Error(`Gagal konek ke MikroTik ${primaryHost}:${targetPort} (${errMsg}) maupun ${secondaryHost}:${targetPort} (${secErr.message || secErr})`)
-        }
+    const candidates: Candidate[] = []
+    const addCandidate = (host: string | null | undefined, port: number | null | undefined, user: string | null | undefined, pass: string | null | undefined, label: string) => {
+      const h = host?.trim()
+      const p = port || 8728
+      const u = (user || 'admin').trim()
+      const pwd = pass || ''
+      if (!h || !p || !u) return
+      const isTls = p === 8729
+      const key = `${h}:${p}:${u}:${pwd}`
+      if (!candidates.some(c => `${c.host}:${c.port}:${c.user}:${c.pass}` === key)) {
+        candidates.push({ host: h, port: p, user: u, pass: pwd, tls: isTls, label })
       }
-
-      throw new Error(`Gagal terhubung ke MikroTik ${primaryHost}:${targetPort}: ${errMsg}`)
     }
+
+    // Candidate 1: Router config persis yang diisi admin
+    const configuredIp = router.ipAddress?.trim() || router.nasname?.trim()
+    const configuredPort = router.port || (router as any).apiPort || undefined
+    addCandidate(configuredIp, configuredPort, router.username, router.password, 'router-config')
+
+    // Candidate 2: VPN Client config (jika router terhubung dengan VPN Client)
+    if (vpnClient) {
+      const vpnApiTarget = (vpnClient?.publicPorts as any)?.services?.api?.target
+      const vpnPort = vpnApiTarget ? parseInt(vpnApiTarget) : (configuredPort || 8728)
+      addCandidate(
+        vpnClient.vpnIp,
+        vpnPort,
+        vpnClient.apiUsername || router.username,
+        vpnClient.apiPassword || router.password,
+        'vpn-client'
+      )
+    }
+
+    // Candidate 3: Jika port kustom gagal, coba port default 8728 pada host utama
+    if (configuredIp && configuredPort && configuredPort !== 8728) {
+      addCandidate(configuredIp, 8728, router.username, router.password, 'router-default-8728')
+    }
+
+    if (candidates.length === 0) {
+      throw new Error(`Router '${router.name || 'Unknown'}' tidak memiliki konfigurasi IP Address atau VPN`)
+    }
+
+    const errors: string[] = []
+
+    for (const cand of candidates) {
+      console.log(`[PPPSecretService] Menghubungi MikroTik via ${cand.label} ke ${cand.host}:${cand.port} (${cand.user})...`)
+      const conn = new MikroTikConnection({
+        host: cand.host,
+        username: cand.user,
+        password: cand.pass,
+        port: cand.port,
+        tls: cand.tls,
+        timeout: timeoutMs,
+      })
+
+      try {
+        await conn.connect()
+        console.log(`[PPPSecretService] Berhasil terhubung ke MikroTik ${cand.host}:${cand.port} (${cand.user}) via ${cand.label}!`)
+        return { conn, connectedPort: cand.port, host: cand.host }
+      } catch (err: any) {
+        try { await conn.disconnect() } catch {}
+        const msg = err.message || String(err)
+        console.warn(`[PPPSecretService] Gagal via ${cand.label} (${cand.host}:${cand.port}): ${msg}`)
+        errors.push(`${cand.label} [${cand.host}:${cand.port}]: ${msg}`)
+      }
+    }
+
+    throw new Error(`Gagal terhubung ke MikroTik '${router.name || 'Unknown'}': ${errors.join(' | ')}`)
   }
 
   /**
@@ -156,7 +172,7 @@ export class PPPSecretService {
     let host = ''
 
     try {
-      const res = await this.connectToRouter(targetRouter, 15000)
+      const res = await this.connectToRouter(targetRouter, 3500)
       conn = res.conn
       connectedPort = res.connectedPort
       host = res.host
@@ -353,7 +369,7 @@ export class PPPSecretService {
     let conn: MikroTikConnection | null = null
 
     try {
-      const res = await this.connectToRouter(targetRouter, 15000)
+      const res = await this.connectToRouter(targetRouter, 3500)
       conn = res.conn
 
       // 1. Find and update existing secret
@@ -497,7 +513,7 @@ export class PPPSecretService {
 
     let conn: MikroTikConnection | null = null
     try {
-      const res = await this.connectToRouter(router, 15000)
+      const res = await this.connectToRouter(router, 3500)
       conn = res.conn
 
       const existing = await conn.execute(
@@ -571,7 +587,7 @@ export class PPPSecretService {
 
     let conn: MikroTikConnection | null = null
     try {
-      const res = await this.connectToRouter(router, 15000)
+      const res = await this.connectToRouter(router, 3500)
       conn = res.conn
 
       const existing = await conn.execute(
