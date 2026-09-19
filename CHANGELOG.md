@@ -4,6 +4,45 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.42] — 2026-09-19
+### Repository Deep Clean: Pembersihan Menyeluruh File Sampah, Dead Code, Duplikat, & Perampingan Repo (~30+ MB)
+
+- **Latar Belakang / Kebutuhan (Issue & Context)**:
+  1. Pengguna meminta pembersihan menyeluruh (*full clean up*) terhadap seluruh file yang sudah tidak digunakan lagi (script one-time, installer lama, dead components, build artifacts, dan dokumentasi duplikat/usang) agar ukuran clone/pull pada client dan VPS ramping, bersih, dan cepat.
+  2. Ditemukan file binary Windows `bin/server.exe` (~27 MB) dan dump OID SNMP `ZTE_OID_TABLE.md` (~2.6 MB) yang mengotori root, serta file-file komponen UI yang sudah orphaned dan seed duplikat yang tidak lagi terpakai.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Pembersihan Root & Build Artifacts (Menghemat ~27+ MB)**:
+     - Menghapus binary lokal `bin/server.exe` (26.8 MB).
+     - Menghapus build artifact `tsconfig.tsbuildinfo` (481 KB).
+     - Menghapus konfigurasi testing usang `nginx-frontend.conf` dan log sensitif lama `INSTALLATION_INFO.txt`.
+     - Merelokasi dump SNMP 28.128 baris `ZTE_OID_TABLE.md` ke direktori dokumentasi referensi `docs/references/`.
+     - Menghapus dead script `scripts/migrate-sku.ts` (sudah diserap penuh ke `scripts/run-migrations.ts`).
+  2. **Pembersihan Dokumentasi Usang, Duplikat & Temp Prompts (Menghemat ~600+ KB)**:
+     - Menghapus duplikat beku `docs/getting-started/CHANGELOG.md` (~293 KB).
+     - Menghapus prompt AI sementara: `docs/GO_MIGRATION_PROMPT.md`, `docs/EMG_INVENTORY_DOCUMENT_NUMBERING_SPEC.md`.
+     - Menghapus duplikat dokumentasi lama: `docs/ISOLATION_SYSTEM.md`, `docs/README.md`, `docs/SECURITY_FIXES_APPLIED.md`, `docs/AUDIT_REPORT.md`.
+     - Menghapus roadmap/restrukturisasi lampau yang sudah 100% selesai: `docs/MAINTENANCE_ROADMAP.md`, `docs/RESTRUCTURING_GUIDE.md`, `docs/ROADMAP_RESTRUCTURING.md`, direktori `docs/restructuring/`.
+     - Menghapus dokumentasi sub-project non-aktif: `docs/mobile-app/` (Expo native lama yang telah digantikan PWA Web Push) dan duplikat rusak mojibake `docs/mikrotik/MIKROTIK_RADIUS_COA_COMPLETE_SETUP.md`.
+  3. **Pembersihan Aset Publik & Stray Payments**:
+     - Menghapus file boilerplate default Next.js (`file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg`).
+     - Membersihkan stray upload lokal yang melanggar aturan persistent storage: `public/uploads/payments/`.
+     - Menghapus gambar dummy dan duplikat tak terpakai: `public/images/customer_card_bg.png`, `public/images/qris-official-eugine.png`, `public/images/eugine-logo.png`.
+  4. **Pembersihan Dead Components, Utilities & Seeds**:
+     - Menghapus scratch note `src/app/walkthrough.md`.
+     - Menghapus file seed duplikat `prisma/seeds/whatsapp-manual-payment-templates.ts` (sudah dimerge ke `whatsapp-templates.ts`).
+     - Menghapus utility mati tanpa referensi: `src/lib/score-card-canvas.ts`, `src/server/services/company.service.ts`.
+     - Menghapus komponen UI yang tidak pernah di-import (orphaned): `OntRemoteViewerModal.tsx`, `FreeRadiusStatusCard.tsx`, `TrafficMonitor.tsx`, `TrafficChartMonitor.tsx`, `NetworkTopologyMap.tsx`, `AssignCustomerDialog.tsx`, `EditAssignmentDialog.tsx`, `SplicePointsSection.tsx`, `SplitterSection.tsx`, serta direktori `src/components/genieacs/`.
+  5. **Perbaikan Skrip Package.json**:
+     - Memperbaiki path `"db:seed:templates"` ke `prisma/seeds/isolation-templates.ts`.
+     - Menghapus perintah `"db:fix-radius"` yang merujuk pada migration sql yang tidak ada.
+
+- **Files**:
+  - `package.json`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+  - 50+ file dead/unused dieliminasi secara aman (verified `tsc --noEmit` exit code 0).
+
 ## [2.40.41] — 2026-09-19
 ### Hardened Bulk Sync Shield: Zero OFF to MikroTik, Proteksi Ganti User, & Auto-Heal Pelanggan Lunas
 

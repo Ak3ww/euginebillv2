@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.41
+- **Version**: 2.40.42
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,14 @@
 ---
 
 ## Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.42: Repository Deep Clean, Dead Code & Asset Elimination)
+
+- **Hard Invariant: Lean Repository Clones & Zero Build Weight**:
+  - Binary compile Go (`bin/server.exe` 26.8 MB) dan cache compiler (`*.tsbuildinfo`) DILARANG di-commit ke repositori Git.
+  - Dump OID SNMP skala puluhan ribu baris (`ZTE_OID_TABLE.md` 2.6 MB) dipindahkan dari root ke `docs/references/`.
+  - Seluruh file prompt AI sementara (`*_PROMPT.md`, `*_SPEC.md`) dan roadmap kadaluarsa yang telah 100% selesai dieliminasi agar tidak membingungkan pengembang dan agen AI di masa mendatang.
+  - Seluruh file upload runtime wajib mengarah ke `/var/data/EugineBill/uploads/` via persistent storage helper `getUploadDir()`, tidak boleh ada file stray testing di `public/uploads/`.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.41: Hardened Bulk Sync Shield, Zero-OFF & PPPoE Reuse Protection)
 
