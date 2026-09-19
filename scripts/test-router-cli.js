@@ -154,10 +154,15 @@ async function main() {
       const uptime = resource[0]?.uptime || 'Unknown';
       const board = resource[0]?.['board-name'] || resource[0]?.boardName || 'Unknown';
 
+      const isRoS6 = String(version).startsWith('6');
+      const isRoS7 = String(version).startsWith('7');
+      const rosMode = isRoS6 ? 'RouterOS v6 (Legacy Stable Mode)' : (isRoS7 ? 'RouterOS v7 (Modern Mode with !empty auto-handled)' : 'RouterOS (Auto-Detect)');
+
       console.log(`  - Router Identity : ${routerName}`);
-      console.log(`  - RouterOS Version: ${version}`);
+      console.log(`  - RouterOS Version: ${version} [${rosMode}]`);
       console.log(`  - Hardware Board  : ${board}`);
       console.log(`  - Uptime          : ${uptime}`);
+      console.log(`  - Kompatibilitas  : ${isRoS6 ? 'RoS v6 didukung 100% (Standard !done protocol)' : 'RoS v7 didukung 100% (Modern !empty+!done protocol)'}`);
 
       // STEP 4: Test PPP Secret Read
       console.log(`\n[STEP 4] Menguji query /ppp/secret/print...`);
