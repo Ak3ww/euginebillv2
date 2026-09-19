@@ -33,9 +33,8 @@ export class MikroTikConnection {
       user: this.config.username,
       password: this.config.password,
       port: this.config.port,
-      // Do NOT set timeout here — node-routeros throws an empty string on its own timeout.
-      // We use Promise.race below to enforce our own timeout with a proper error message.
-      timeout: 9999,
+      // Socket timeout in seconds for node-routeros (10s)
+      timeout: 10,
     }
     // Enable TLS for API-SSL (port 8729). MikroTik uses self-signed certs by default.
     if (this.config.tls) {

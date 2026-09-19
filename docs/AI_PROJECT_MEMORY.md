@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.37
+- **Version**: 2.40.38
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,18 @@
 ---
 
 ## Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.38: MikroTik Port 8520 Diagnostic Tool Expansion & CLI Customer Sync)
+
+- **Hard Invariant: Field-Tested Connection Proofing (Zero Blind Guesses)**:
+  - Pengujian live dengan `scripts/test-router-cli.js` membuktikan bahwa koneksi ke router MikroTik CCR2116 port `8520` merespon dalam waktu **5ms** dan berhasil membaca 378 secrets dan 11 profiles.
+  - Setiap kali ada kendala integrasi router, gunakan `node scripts/test-router-cli.js <nama_atau_ip> [--sync <username>]` untuk membuktikan konektivitas jaringan, autentikasi user API, kemampuan baca profile, serta kemampuan tulis secret sebelum menyalahkan konfigurasi router.
+
+- **Hard Invariant: Socket Timeout 10s (`client.ts`)**:
+  - Konfigurasi `timeout` pada objek `node-routeros` disetel ke 10 detik untuk mencegah socket TCP menggantung indefinitely saat terjadi socket teardown.
+
+- **Hard Invariant: Case-Insensitive Profile Exception Recovery**:
+  - Pada `ppp-secret.service.ts`, penangkapan error penolakan profil selalu menggunakan format huruf kecil: `toLowerCase().includes('profile')`. Hal ini menjamin secret selalu berhasil ditulis dengan fallback ke profil `default` terlepas dari perbedaan kapitalisasi respon RouterOS.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.37: 3.5s Connection Timeout Cap, Multi-Candidate Resilient Fallback & 45s Frontend Headroom)
 

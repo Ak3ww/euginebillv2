@@ -217,7 +217,8 @@ export class PPPSecretService {
           ], 12000)
           console.log(`[PPPSecretService] Updated existing secret for '${user.username}' on MikroTik (${host}:${connectedPort})`)
         } catch (setErr: any) {
-          if (targetProfile !== 'default' && String(setErr?.message).includes('profile')) {
+          const setMsg = String(setErr?.message || '').toLowerCase()
+          if (targetProfile !== 'default' && setMsg.includes('profile')) {
             // Profile failed, retry with default profile
             secretParams[1] = '=profile=default'
             await conn.execute('/ppp/secret/set', [
@@ -238,7 +239,7 @@ export class PPPSecretService {
           ], 12000)
           console.log(`[PPPSecretService] Added new secret for '${user.username}' on MikroTik (${host}:${connectedPort})`)
         } catch (addErr: any) {
-          const addMsg = String(addErr?.message || '')
+          const addMsg = String(addErr?.message || '').toLowerCase()
           if (addMsg.includes('already exists') || addMsg.includes('already have')) {
             // Secret already exists, fetch ID and update
             const fetchAgain = await conn.execute(

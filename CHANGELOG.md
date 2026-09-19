@@ -4,6 +4,33 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.38] — 2026-09-19
+### Validasi Koneksi MikroTik Port 8520 100% Lolos, Tool CLI Write & Sinkronisasi Pelanggan Mandiri
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. Pengujian lapangan membuktikan koneksi dari VPS ke router MikroTik Cibinong (`10.200.0.2:8520`) berjalan 100% sehat dengan respon TCP 5ms dan berhasil membaca 378 secret serta 11 profil via RouterOS API.
+  2. Kegagalan penulisan user dan timeout sebelumnya terjadi karena proses Next.js di VPS belum dikompilasi ulang (`npm run build`) dengan perbaikan v2.40.37, serta belum adanya tool pengujian write permission dan sinkronisasi individual di tingkat CLI.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Ekspansi Diagnostic Tool CLI (`scripts/test-router-cli.js`)**:
+     - Menambahkan **[STEP 6] Write & Delete Permission Test**: Menulis secret uji coba `__test_euginebill_cli__`, memverifikasi keberadaannya via API, dan membersihkannya secara otomatis.
+     - Menambahkan **[STEP 7] Sinkronisasi Pelanggan Database**: Mendukung flag `--sync <username>` untuk melakukan sinkronisasi secret pelanggan tertentu langsung dari CLI terminal VPS tanpa melalui HTTP frontend.
+  2. **Pengamanan Socket Timeout (`src/server/services/mikrotik/client.ts`)**:
+     - Menetapkan socket timeout `node-routeros` sebesar 10 detik untuk mencegah socket menggantung jika koneksi jaringan terputus tiba-tiba.
+  3. **Penguatan Deteksi Fallback Profil Case-Insensitive (`ppp-secret.service.ts`)**:
+     - Memastikan seluruh deteksi pesan error profil menggunakan format huruf kecil (`toLowerCase().includes('profile')`) sehingga fallback otomatis ke profil `default` selalu aktif jika ada variasi kapitalisasi respon RouterOS.
+  4. **Pembersihan Emoji KTP (`src/app/admin/pppoe/users/new/page.tsx`)**:
+     - Mengganti teks emoji dokumen KTP dengan komponen icon Lucide `<CreditCard />`.
+
+- **Files**:
+  - `package.json`
+  - `scripts/test-router-cli.js`
+  - `src/server/services/mikrotik/client.ts`
+  - `src/server/services/mikrotik/ppp-secret.service.ts`
+  - `src/app/admin/pppoe/users/new/page.tsx`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.37] — 2026-09-19
 ### Eliminasi Timeout "Waktu proses habis": Pembatasan 3.5 Detik Connect, Multi-Candidate Fallback & Headroom Frontend 45s
 

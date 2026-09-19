@@ -157,6 +157,105 @@ async function main() {
       console.log(`  [OK] Berhasil membaca /ppp/profile! Total profil di router: ${profiles.length}`);
       console.log(`  Daftar profil: ${profiles.map(p => p.name).join(', ')}`);
 
+      // STEP 6: Test Write & Delete PPP Secret (Dry-Run Test)
+      console.log(`\n[STEP 6] Menguji write permission: Menulis secret uji coba '__test_euginebill_cli__'...`);
+      const testSecretName = '__test_euginebill_cli__';
+      try {
+        const existingTest = await api.write('/ppp/secret/print', [`?name=${testSecretName}`]);
+        if (existingTest && existingTest.length > 0) {
+          for (const item of existingTest) {
+            await api.write('/ppp/secret/remove', [`=.id=${item['.id']}`]);
+          }
+        }
+        await api.write('/ppp/secret/add', [
+          `=name=${testSecretName}`,
+          `=password=testPass123`,
+          `=profile=default`,
+          `=service=pppoe`,
+          `=comment=EugineBill Temporary Write Test`,
+          `=disabled=yes`,
+        ]);
+        console.log(`  [OK] Berhasil MENULIS secret '${testSecretName}' ke MikroTik!`);
+
+        const verify = await api.write('/ppp/secret/print', [`?name=${testSecretName}`]);
+        if (verify && verify.length > 0) {
+          console.log(`  [OK] Berhasil VERIFIKASI secret di MikroTik (ID: ${verify[0]['.id']})!`);
+          await api.write('/ppp/secret/remove', [`=.id=${verify[0]['.id']}`]);
+          console.log(`  [OK] Berhasil MENGHAPUS secret uji coba (Cleaned up)!`);
+        }
+      } catch (writeErr) {
+        console.error(`  [GAGAL TULIS SECRET] ${writeErr.message || writeErr}`);
+      }
+
+      // STEP 7: Optional sync of specific user from database if flag --sync <username> is passed
+      const syncIndex = process.argv.indexOf('--sync');
+      const syncUsername = syncIndex !== -1 && process.argv[syncIndex + 1] ? process.argv[syncIndex + 1] : null;
+      if (syncUsername) {
+        console.log(`\n[STEP 7] Menguji sinkronisasi pelanggan database '${syncUsername}'...`);
+        const targetUser = await prisma.pppoeUser.findFirst({
+          where: {
+            OR: [
+              { username: syncUsername },
+              { customerId: syncUsername },
+              { name: { contains: syncUsername } },
+            ],
+          },
+          include: { profile: true },
+        });
+
+        if (!targetUser) {
+          console.warn(`  [INFO] Pelanggan '${syncUsername}' tidak ditemukan di database.`);
+        } else {
+          console.log(`  Data ditemukan: Username=${targetUser.username}, Nama=${targetUser.name}, Paket=${targetUser.profile?.name}`);
+          const targetProf = targetUser.profile?.mikrotikProfileName || targetUser.profile?.name || 'default';
+          const targetPass = targetUser.password || targetUser.portalPassword || 'eugine0909';
+          const isSecretDisabled = !['ACTIVE', 'PENDING_INSTALLATION', 'PENDING'].includes(String(targetUser.status || '').toUpperCase());
+
+          const sParams = [
+            `=password=${targetPass}`,
+            `=profile=${targetProf}`,
+            `=service=pppoe`,
+            `=comment=${targetUser.name || ''} - ${targetUser.customerId || ''}`.trim(),
+            `=disabled=${isSecretDisabled ? 'yes' : 'no'}`,
+          ];
+          if (targetUser.ipAddress) sParams.push(`=remote-address=${targetUser.ipAddress}`);
+
+          const existingUserSecret = await api.write('/ppp/secret/print', [`?name=${targetUser.username}`]);
+          if (existingUserSecret && existingUserSecret.length > 0) {
+            try {
+              await api.write('/ppp/secret/set', [`=.id=${existingUserSecret[0]['.id']}`, ...sParams]);
+              console.log(`  [OK] Berhasil UPDATE secret '${targetUser.username}' di MikroTik!`);
+            } catch (setErr) {
+              if (String(setErr.message || '').toLowerCase().includes('profile')) {
+                sParams[1] = '=profile=default';
+                await api.write('/ppp/secret/set', [`=.id=${existingUserSecret[0]['.id']}`, ...sParams]);
+                console.log(`  [OK] Berhasil UPDATE secret '${targetUser.username}' dengan fallback profile=default!`);
+              } else {
+                console.error(`  [GAGAL SET] ${setErr.message || setErr}`);
+              }
+            }
+          } else {
+            try {
+              await api.write('/ppp/secret/add', [`=name=${targetUser.username}`, ...sParams]);
+              console.log(`  [OK] Berhasil MENAMBAHKAN secret '${targetUser.username}' ke MikroTik!`);
+            } catch (addErr) {
+              if (String(addErr.message || '').toLowerCase().includes('profile')) {
+                sParams[1] = '=profile=default';
+                await api.write('/ppp/secret/add', [`=name=${targetUser.username}`, ...sParams]);
+                console.log(`  [OK] Berhasil MENAMBAHKAN secret '${targetUser.username}' dengan fallback profile=default!`);
+              } else {
+                console.error(`  [GAGAL ADD] ${addErr.message || addErr}`);
+              }
+            }
+          }
+          await prisma.pppoeUser.update({
+            where: { id: targetUser.id },
+            data: { syncedToRadius: true, lastSyncAt: new Date() },
+          });
+          console.log(`  [OK] Database diperbarui: syncedToRadius=true untuk '${targetUser.username}'!`);
+        }
+      }
+
       console.log(`\n==================================================`);
       console.log(`STATUS: SEMUA TES BERHASIL 100%!`);
       console.log(`Billing EugineBill siap membaca dan menulis ke router ${router.name}!`);

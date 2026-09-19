@@ -594,7 +594,9 @@ export default function NewPppoeUserPage() {
                 </div>
               </div>
               <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">🪪 Dokumen KTP (opsional)</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <CreditCard className="w-3.5 h-3.5 text-primary" /> Dokumen KTP (opsional)
+                </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <ModalLabel>No. NIK</ModalLabel>
