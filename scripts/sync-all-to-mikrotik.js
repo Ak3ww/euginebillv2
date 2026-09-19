@@ -1,17 +1,23 @@
 #!/usr/bin/env node
 
 /**
- * EugineBill — Bulk Sync Tool (Billing -> MikroTik & RADIUS)
+ * EugineBill — Safe Bulk Sync Tool (Billing -> MikroTik & FreeRADIUS)
  * 
- * Fitur:
- * 1. Sinkronisasi Paket/Profil: Memetakan & membuat /ppp/profile di MikroTik sesuai paket billing.
- * 2. Sinkronisasi Pelanggan: Menulis/memperbarui semua /ppp/secret pelanggan di MikroTik.
- * 3. Sinkronisasi FreeRADIUS: Memperbarui tabel radcheck, radusergroup, dan radreply (jika RADIUS aktif).
- * 4. Opsional --kick: Memutus sesi aktif agar ONT pelanggan langsung menerapkan kecepatan baru.
+ * Perlindungan Keras (Hard Invariants & Safety Shields):
+ * 1. ZERO OFF TO MIKROTIK: Akun berstatus stop, stopped, suspended, dismantled,
+ *    atau berakhiran '-OFF-', '-STOP-', '-CABUT-' DILARANG KERAS dimasukkan ke MikroTik!
+ * 2. SHIELD GANTI USER: Jika ada akun lama OFF dan username dasarnya sudah dipakai oleh
+ *    pelanggan baru, akun baru 100% terlindungi dan tidak akan tertimpa akun lama.
+ * 3. SHIELD SUDAH BAYAR / ANTI-ISOLIR SALAH: Jika pelanggan berstatus 'isolated' di DB
+ *    tetapi invoice terakhirnya LUNAS (PAID) atau expiredAt masih di masa depan,
+ *    profil di MikroTik OTOMATIS dipulihkan ke paket aslinya (bukan isolir) dan DB disembuhkan ke 'active'.
+ * 4. ROUTER SCOPING: Memisahkan secara ketat router Cibinong (EMG) vs Citeureup (EMGC).
+ * 5. PROFILE MAPPING: Memetakan nama paket billing ke profil MikroTik (20 Mbps, 50 Mbps, dll).
  * 
  * Penggunaan:
- *   node scripts/sync-all-to-mikrotik.js [ROUTER_NAME_OR_IP] [--kick] [--dry-run]
+ *   node scripts/sync-all-to-mikrotik.js [ROUTER_KEYWORD] [--dry-run] [--kick]
  * Contoh:
+ *   node scripts/sync-all-to-mikrotik.js CIBINONG --dry-run
  *   node scripts/sync-all-to-mikrotik.js CIBINONG
  *   node scripts/sync-all-to-mikrotik.js CIBINONG --kick
  */
@@ -19,7 +25,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { RouterOSAPI, Channel } = require('node-routeros');
 
-// Patch node-routeros Channel for RouterOS 7.18+ !empty reply compatibility
+// Patch node-routeros Channel for RouterOS 7.18+ / 7.24+ !empty reply compatibility
 if (Channel && Channel.prototype && !Channel.prototype._ros7EmptyPatched) {
   Channel.prototype._ros7EmptyPatched = true;
   const proto = Channel.prototype;
@@ -35,6 +41,42 @@ if (Channel && Channel.prototype && !Channel.prototype._ros7EmptyPatched) {
 
 const prisma = new PrismaClient();
 
+const EXCLUDED_STATUSES = new Set([
+  'stop', 'stopped', 'suspended', 'dismantled', 'dismantle',
+  'terminated', 'cancelled', 'inactive', 'pending', 'pending_installation',
+  'blocked', 'cabut'
+]);
+
+function isUserOff(user) {
+  if (!user) return true;
+  const st = String(user.status || '').toLowerCase().trim();
+  if (EXCLUDED_STATUSES.has(st)) return true;
+  if (user.isActive === false) return true;
+
+  const uNameUpper = String(user.username || '').toUpperCase();
+  if (
+    uNameUpper.includes('-OFF-') ||
+    uNameUpper.includes('-STOP-') ||
+    uNameUpper.includes('-CABUT-') ||
+    uNameUpper.includes('_OFF_') ||
+    uNameUpper.includes('(OFF)')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function getBaseUsername(username) {
+  if (!username) return '';
+  return String(username)
+    .replace(/-OFF-.*$/i, '')
+    .replace(/-STOP-.*$/i, '')
+    .replace(/-CABUT-.*$/i, '')
+    .replace(/_OFF_.*$/i, '')
+    .trim();
+}
+
 function normalizeSpeedStr(str) {
   if (!str) return '';
   return str.toLowerCase().replace(/\s+/g, '');
@@ -47,11 +89,12 @@ async function main() {
   const searchTerm = args.find(a => !a.startsWith('--')) || 'CIBINONG';
 
   console.log('\n================================================================');
-  console.log('       EUGINEBILL — BULK SYNC BILLING -> MIKROTIK & RADIUS      ');
+  console.log('       EUGINEBILL — SAFE BULK SYNC BILLING -> MIKROTIK          ');
+  console.log('       (DILENGKAPI SAFETY SHIELD ANTI-OFF & GANTI USER)         ');
   console.log('================================================================');
   console.log(`Target Router Filter : "${searchTerm}"`);
-  console.log(`Mode Operasi         : ${isDryRun ? 'DRY-RUN (Simulasi tanpa menulis)' : 'LIVE SYNC (Tulis ke Router & DB)'}`);
-  console.log(`Kick Active Sessions : ${isKick ? 'YA (--kick aktif, ONT reconnect otomatis)' : 'TIDAK (Tanpa kick session)'}\n`);
+  console.log(`Mode Operasi         : ${isDryRun ? 'DRY-RUN (Simulasi aman, TANPA menulis ke router)' : 'LIVE SYNC (Tulis ke MikroTik & DB)'}`);
+  console.log(`Kick Active Sessions : ${isKick ? 'YA (--kick aktif, ONT reconnect otomatis)' : 'TIDAK (Pertahankan koneksi ONT)'}\n`);
 
   // 1. Cari Router
   const routers = await prisma.router.findMany({
@@ -79,8 +122,10 @@ async function main() {
   const configuredPort = router.port || (router.vpnClient?.publicPorts)?.services?.api?.target || 8728;
   const apiUser = router.username || router.vpnClient?.apiUsername || 'admin';
   const apiPass = router.password || router.vpnClient?.apiPassword || '';
+  const isCiteureupRouter = router.name.toLowerCase().includes('citeureup') || router.name.toLowerCase().includes('ctp');
 
   console.log(`Router Terpilih : ${router.name}`);
+  console.log(`Tipe Site       : ${isCiteureupRouter ? 'CITEUREUP (Prefix EMGC)' : 'CIBINONG / UTAMA (Prefix EMG)'}`);
   console.log(`Host / Port API : ${configuredHost}:${configuredPort}`);
   console.log(`User API        : ${apiUser}`);
   console.log(`----------------------------------------------------------------\n`);
@@ -110,13 +155,13 @@ async function main() {
   console.log(`  - RouterOS Version : ${rosVersion}`);
 
   // 3. Sinkronisasi Profil / Paket (pppoe_profiles <-> /ppp/profile)
-  console.log(`\n[FASE 2] Memeriksa dan Menyinkronkan Paket / Profil PPPoE...`);
+  console.log(`\n[FASE 2] Memeriksa dan Memetakan Paket Profil PPPoE...`);
   const dbProfiles = await prisma.pppoeProfile.findMany({ where: { isActive: true } });
   const mtkProfiles = await api.write('/ppp/profile/print').catch(() => []);
   const mtkProfileNames = mtkProfiles.map(p => p.name);
 
-  console.log(`  Total profil di MikroTik : ${mtkProfiles.length} profil (${mtkProfileNames.join(', ')})`);
-  console.log(`  Total paket di Billing   : ${dbProfiles.length} paket\n`);
+  console.log(`  Profil eksisting di MikroTik : ${mtkProfiles.length} profil (${mtkProfileNames.join(', ')})`);
+  console.log(`  Paket aktif di Billing       : ${dbProfiles.length} paket\n`);
 
   const profileMap = new Map(); // dbProfile.id -> mikrotikProfileName
 
@@ -206,58 +251,186 @@ async function main() {
   // 4. Periksa Company RADIUS Settings
   const company = await prisma.company.findFirst();
   const isRadiusEnabled = company?.radiusEnabled || company?.radiusPppoeEnabled || false;
-  console.log(`\n[FASE 3] Mode FreeRADIUS Global: ${isRadiusEnabled ? 'AKTIF (radcheck/radusergroup/radreply ikut disinkronkan)' : 'NON-AKTIF (Direct MikroTik Local Auth Mode)'}`);
+  console.log(`\n[FASE 3] Mode FreeRADIUS Global: ${isRadiusEnabled ? 'AKTIF' : 'NON-AKTIF (Direct MikroTik Local Auth Mode)'}`);
 
-  // 5. Sinkronisasi Pelanggan
-  console.log(`\n[FASE 4] Mengambil daftar pelanggan PPPoE dari database...`);
-  const users = await prisma.pppoeUser.findMany({
-    where: {
-      OR: [
-        { routerId: router.id },
-        { routerId: null },
-      ],
+  // 5. Query Seluruh Pelanggan & Lakukan Audit / Filtering Super Ketat
+  console.log(`\n[FASE 4] Menarik dan Menganalisis Database Pelanggan...`);
+  const allUsersInDb = await prisma.pppoeUser.findMany({
+    include: {
+      profile: true,
+      router: true,
     },
-    include: { profile: true },
     orderBy: { username: 'asc' },
   });
 
-  console.log(`  Ditemukan ${users.length} pelanggan untuk router ${router.name}.\n`);
-
-  // Ambil semua secret eksisting dari MikroTik sekaligus (efisien, 1 query)
-  console.log(`  Mengambil cache secret eksisting dari MikroTik...`);
-  const existingSecrets = await api.write('/ppp/secret/print').catch(() => []);
-  const secretMap = new Map(); // username -> secret item
-  existingSecrets.forEach(s => {
-    if (s.name) secretMap.set(s.name, s);
+  // Filter router Cibinong vs Citeureup
+  const routerScopedUsers = allUsersInDb.filter(u => {
+    if (isCiteureupRouter) {
+      const rName = (u.router?.name || '').toLowerCase();
+      return rName.includes('citeureup') || u.routerId === router.id || u.username.toUpperCase().startsWith('EMGC');
+    } else {
+      const rName = (u.router?.name || '').toLowerCase();
+      if (rName.includes('citeureup')) return false;
+      if (u.username.toUpperCase().startsWith('EMGC')) return false;
+      return u.routerId === router.id || (!u.routerId && u.username.toUpperCase().startsWith('EMG'));
+    }
   });
-  console.log(`  Cache secret MikroTik terkumpul: ${secretMap.size} akun.\n`);
+
+  console.log(`  Total data pelanggan terasosiasi dengan router ${router.name}: ${routerScopedUsers.length} akun.`);
+
+  // Pisahkan Pelanggan Aktif vs Pelanggan OFF
+  const activeCandidates = [];
+  const offUsers = [];
+
+  for (const u of routerScopedUsers) {
+    if (isUserOff(u)) {
+      offUsers.push(u);
+    } else {
+      activeCandidates.push(u);
+    }
+  }
+
+  console.log(`  - Akun Calon Aktif / Terdaftar : ${activeCandidates.length} akun`);
+  console.log(`  - Akun Berstatus OFF / Berhenti : ${offUsers.length} akun (DILINDUNGI & TIDAK DIMASUKKAN KE MIKROTIK)`);
+
+  // Bangun Map username aktif untuk mendeteksi "Ganti User" / Reuse Shield
+  const activeUserMap = new Map(); // lowercase username -> user object
+  for (const u of activeCandidates) {
+    activeUserMap.set(u.username.toLowerCase(), u);
+  }
+
+  // 6. Audit Akun OFF: Deteksi "Ganti User" & Akun OFF yang Ternyata Sudah Bayar
+  console.log(`\n[FASE 5] Menjalankan Audit Keamanan Akun OFF (Safety Shield & Anomaly Detection)...`);
+  const now = new Date();
+  let gantiUserDetected = 0;
+  let offTapiBayarDetected = 0;
+
+  for (const offU of offUsers) {
+    const baseU = getBaseUsername(offU.username);
+    const activeReuser = activeUserMap.get(baseU.toLowerCase());
+
+    // Cek apakah username dasar sudah dipakai orang lain
+    if (activeReuser && activeReuser.id !== offU.id) {
+      gantiUserDetected++;
+      console.log(`  [SHIELD GANTI USER] Akun OFF '${offU.username}' (${offU.name})`);
+      console.log(`    -> Username dasar '${baseU}' kini AKTIF digunakan oleh: '${activeReuser.name}' (ID: ${activeReuser.customerId || activeReuser.id}).`);
+      console.log(`    -> STATUS: Akun lama DIABAIKAN, akun baru DILINDUNGI PENUH agar tidak tertimpa!\n`);
+    }
+
+    // Cek apakah akun OFF memiliki masa aktif yang belum habis atau tagihan yang lunas
+    const hasUnexpiredDate = offU.expiredAt && new Date(offU.expiredAt) > now;
+    const latestPaidInvoice = await prisma.invoice.findFirst({
+      where: {
+        pppoeUserId: offU.id,
+        status: 'PAID',
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { invoiceNumber: true, period: true, paidAt: true },
+    }).catch(() => null);
+
+    if (hasUnexpiredDate || latestPaidInvoice) {
+      offTapiBayarDetected++;
+      console.log(`  [PERINGATAN AUDIT - OFF TAPI ADA PEMBAYARAN]`);
+      console.log(`    Akun     : ${offU.username} (Nama: ${offU.name}, Telp: ${offU.phone || '-'})`);
+      console.log(`    Status DB: ${offU.status} | ExpiredAt: ${offU.expiredAt ? new Date(offU.expiredAt).toLocaleDateString('id-ID') : 'N/A'}`);
+      if (latestPaidInvoice) {
+        console.log(`    Tagihan  : ${latestPaidInvoice.invoiceNumber} (Periode: ${latestPaidInvoice.period}, LUNAS: ${latestPaidInvoice.paidAt ? new Date(latestPaidInvoice.paidAt).toLocaleDateString('id-ID') : 'Ya'})`);
+      }
+      if (activeReuser) {
+        console.log(`    PERHATIAN: Username '${baseU}' sudah dipakai orang lain! User ini harus diberikan username baru lewat Admin Portal.`);
+      } else {
+        console.log(`    SARAN    : User ini belum digantikan orang lain. Aktifkan kembali lewat Admin Portal (/admin/pppoe/stopped) jika ingin dimasukkan ke MikroTik.`);
+      }
+      console.log('    ------------------------------------------------------------');
+    }
+  }
+
+  if (gantiUserDetected === 0 && offTapiBayarDetected === 0) {
+    console.log(`  [OK] Tidak ada konflik anomali ganti user yang mencurigakan pada akun OFF.`);
+  }
+
+  // 7. Ambil Cache Secret Eksisting MikroTik
+  console.log(`\n[FASE 6] Mengambil Cache Secret Eksisting dari MikroTik...`);
+  const existingSecrets = await api.write('/ppp/secret/print').catch(() => []);
+  const mtkSecretMap = new Map(); // lowercase name -> secret object
+  let existingOffSecretsInMtk = 0;
+
+  for (const s of existingSecrets) {
+    if (s.name) {
+      mtkSecretMap.set(s.name.toLowerCase(), s);
+      const sUpper = s.name.toUpperCase();
+      if (sUpper.includes('-OFF-') || sUpper.includes('-STOP-') || sUpper.includes('-CABUT-')) {
+        existingOffSecretsInMtk++;
+      }
+    }
+  }
+
+  console.log(`  Total secret di MikroTik        : ${existingSecrets.length} akun`);
+  console.log(`  Secret MikroTik bertanda '-OFF-': ${existingOffSecretsInMtk} akun (DIBIARKAN / TIDAK DISINKRONKAN)`);
+
+  // 8. Sinkronisasi Pelanggan Aktif Saja (DENGAN PROTEKSI SUDAH BAYAR / ANTI-ISOLIR SALAH)
+  console.log(`\n[FASE 7] Memulai Sinkronisasi ${activeCandidates.length} Pelanggan Aktif ke MikroTik...`);
+  console.log('----------------------------------------------------------------');
 
   let addedCount = 0;
   let updatedCount = 0;
-  let skippedCount = 0;
+  let protectedFromIsolirCount = 0;
   let failedCount = 0;
   let radiusCount = 0;
   let kickedCount = 0;
 
-  console.log(`Memulai sinkronisasi ${users.length} pelanggan...`);
-  console.log('----------------------------------------------------------------');
-
-  for (let i = 0; i < users.length; i++) {
-    const u = users[i];
-    const progress = `[${i + 1}/${users.length}]`;
-    const username = u.username;
-    const password = u.password || u.portalPassword || 'eugine0909';
+  for (let i = 0; i < activeCandidates.length; i++) {
+    const u = activeCandidates[i];
+    const progress = `[${i + 1}/${activeCandidates.length}]`;
+    const username = u.username.trim();
+    const password = u.password || u.portalPassword || '123456';
     const assignedProfile = profileMap.get(u.profileId) || u.profile?.mikrotikProfileName || u.profile?.name || 'default';
-    
-    // Status handling
-    const stUpper = String(u.status || '').toUpperCase();
-    const isIsolated = stUpper === 'ISOLATED';
-    const isBlockedOrStop = ['BLOCKED', 'STOP', 'SUSPENDED'].includes(stUpper);
-    const targetProfile = isIsolated ? (mtkProfileNames.includes('isolir') ? 'isolir' : assignedProfile) : assignedProfile;
-    const isSecretDisabled = isBlockedOrStop;
+
+    // Periksa status dan bukti pembayaran (Anti-Isolir salah)
+    const stLower = String(u.status || '').toLowerCase();
+    const isDbMarkedIsolated = stLower === 'isolated';
+
+    let targetProfile = assignedProfile;
+    let isSecretDisabled = false;
+    let autoHealedToActive = false;
+
+    if (isDbMarkedIsolated) {
+      // Periksa apakah user ini sebetulnya sudah bayar atau expiredAt masih valid
+      const hasValidExpiry = u.expiredAt && new Date(u.expiredAt) > now;
+      const latestInvoice = await prisma.invoice.findFirst({
+        where: { pppoeUserId: u.id },
+        orderBy: { createdAt: 'desc' },
+        select: { status: true, period: true },
+      }).catch(() => null);
+
+      const isPaid = latestInvoice?.status === 'PAID';
+
+      if (hasValidExpiry || isPaid) {
+        // 🛡️ USER SUDAH BAYAR / EXPIRED BELUM HABIS -> JANGAN DIISOLIR!
+        targetProfile = assignedProfile;
+        isSecretDisabled = false;
+        protectedFromIsolirCount++;
+        autoHealedToActive = true;
+
+        if (!isDryRun) {
+          await prisma.pppoeUser.update({
+            where: { id: u.id },
+            data: { status: 'active', autoIsolationEnabled: false },
+          }).catch(() => {});
+        }
+      } else {
+        // Benar-benar menunggak & belum bayar
+        targetProfile = mtkProfileNames.includes('isolir') ? 'isolir' : assignedProfile;
+        isSecretDisabled = false;
+      }
+    } else {
+      // Normal aktif
+      targetProfile = assignedProfile;
+      isSecretDisabled = false;
+    }
 
     const comment = `${u.name || ''} - ${u.customerId || ''}`.trim();
-    const existingMtkSecret = secretMap.get(username);
+    const existingMtkSecret = mtkSecretMap.get(username.toLowerCase());
 
     // FreeRADIUS Sync jika aktif
     if (isRadiusEnabled && !isDryRun) {
@@ -285,7 +458,8 @@ async function main() {
     }
 
     if (isDryRun) {
-      console.log(`${progress} (DRY-RUN) ${username} | Paket: ${targetProfile} | Disabled: ${isSecretDisabled ? 'YES' : 'NO'}`);
+      const healNotice = autoHealedToActive ? ' [🛡️ PULIHKAN: SUDAH BAYAR / BATAL ISOLIR]' : '';
+      console.log(`${progress} (DRY-RUN) ${username} | Paket: "${targetProfile}" | Status: ${u.status}${healNotice}`);
       continue;
     }
 
@@ -300,14 +474,15 @@ async function main() {
 
     try {
       if (existingMtkSecret) {
-        // Update secret
+        // Update secret eksisting di MikroTik
         try {
           await api.write('/ppp/secret/set', [
             `=.id=${existingMtkSecret['.id']}`,
             ...sParams,
           ]);
           updatedCount++;
-          console.log(`${progress} [UPDATE] ${username} -> Profil: "${targetProfile}" (Status: ${u.status})`);
+          const healNotice = autoHealedToActive ? ' (🛡️ BATAL ISOLIR: SUDAH BAYAR)' : '';
+          console.log(`${progress} [UPDATE] ${username} -> Profil: "${targetProfile}"${healNotice}`);
         } catch (setErr) {
           if (String(setErr.message || '').toLowerCase().includes('profile')) {
             sParams[1] = '=profile=default';
@@ -319,14 +494,15 @@ async function main() {
           }
         }
       } else {
-        // Add new secret
+        // Tambah secret baru di MikroTik
         try {
           await api.write('/ppp/secret/add', [
             `=name=${username}`,
             ...sParams,
           ]);
           addedCount++;
-          console.log(`${progress} [TAMBAH] ${username} -> Profil: "${targetProfile}" (Status: ${u.status})`);
+          const healNotice = autoHealedToActive ? ' (🛡️ BATAL ISOLIR: SUDAH BAYAR)' : '';
+          console.log(`${progress} [TAMBAH] ${username} -> Profil: "${targetProfile}"${healNotice}`);
         } catch (addErr) {
           if (String(addErr.message || '').toLowerCase().includes('profile')) {
             sParams[1] = '=profile=default';
@@ -339,7 +515,7 @@ async function main() {
         }
       }
 
-      // Update routerId & synced status in DB
+      // Update routerId & status sinkronisasi di database
       await prisma.pppoeUser.update({
         where: { id: u.id },
         data: {
@@ -349,7 +525,7 @@ async function main() {
         },
       }).catch(() => {});
 
-      // Kick active session if requested
+      // Kick active session jika diminta (--kick)
       if (isKick) {
         try {
           const activeSess = await api.write('/ppp/active/print', [`?name=${username}`]);
@@ -373,16 +549,19 @@ async function main() {
   console.log('\n================================================================');
   console.log('                 RINGKASAN SINKRONISASI SELESAI                 ');
   console.log('================================================================');
-  console.log(`Router Target          : ${router.name} (${configuredHost}:${configuredPort})`);
-  console.log(`Total Pelanggan        : ${users.length}`);
-  console.log(`Secret Baru Ditambahkan: ${addedCount}`);
-  console.log(`Secret Diperbarui      : ${updatedCount}`);
-  console.log(`Gagal Disinkronkan     : ${failedCount}`);
+  console.log(`Router Target                  : ${router.name} (${configuredHost}:${configuredPort})`);
+  console.log(`Total Pelanggan Aktif Disinkron: ${activeCandidates.length}`);
+  console.log(`Total Akun OFF Dilewati (SKIP) : ${offUsers.length} (AMAN 0% masuk MikroTik)`);
+  console.log(`Akun Terlindungi dari Isolir   : ${protectedFromIsolirCount} (Sudah bayar/belum expired)`);
+  console.log(`Konflik Ganti User Terdeteksi  : ${gantiUserDetected} (Pelanggan baru dilindungi)`);
+  console.log(`Secret Baru Ditambahkan        : ${addedCount}`);
+  console.log(`Secret Diperbarui              : ${updatedCount}`);
+  console.log(`Gagal Disinkronkan             : ${failedCount}`);
   if (isRadiusEnabled) {
-    console.log(`Record RADIUS Tersinkron : ${radiusCount}`);
+    console.log(`Record RADIUS Tersinkron       : ${radiusCount}`);
   }
   if (isKick) {
-    console.log(`Sesi Aktif Di-Kick     : ${kickedCount} pelanggan (ONT auto-reconnect speed baru)`);
+    console.log(`Sesi Aktif Di-Kick             : ${kickedCount} pelanggan (ONT reconnect speed baru)`);
   }
   console.log('================================================================\n');
 }

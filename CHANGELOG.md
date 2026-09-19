@@ -4,6 +4,33 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.41] — 2026-09-19
+### Hardened Bulk Sync Shield: Zero OFF to MikroTik, Proteksi Ganti User, & Auto-Heal Pelanggan Lunas
+
+- **Latar Belakang / Kebutuhan (Issue & Context)**:
+  1. Pengguna memberikan peringatan keras bahwa pada database terdapat akun-akun yang berstatus OFF / berhenti namun sudah melakukan pembayaran (lunas), akun OFF yang masa aktifnya belum habis, serta akun-akun lama yang username dasarnya sudah digantikan oleh pelanggan baru (*Ganti User / PPPoE Reuse*).
+  2. Eksekusi sinkronisasi massal DILARANG KERAS memasukkan akun berstatus OFF ke dalam secret MikroTik, DILARANG mengisolir atau mendisable pelanggan yang sudah membayar, dan DILARANG menimpa pelanggan baru yang menggunakan kode EMG yang sama.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Strict Zero-OFF Policy ke MikroTik (`scripts/sync-all-to-mikrotik.js`)**:
+     - Seluruh akun dengan status `stop`, `stopped`, `suspended`, `dismantled`, `dismantle`, `terminated`, `cancelled`, `inactive`, `blocked`, atau username mengandung pola `-OFF-`, `-STOP-`, `-CABUT-`, `_OFF_`, `(OFF)` **100% DILEWATI (SKIP)** dan tidak akan pernah ditulis atau dimasukkan ke MikroTik maupun FreeRADIUS.
+  2. **Safety Shield Ganti User (PPPoE Username Reuse Protection)**:
+     - Skrip secara otomatis memetakan seluruh pelanggan aktif dan membandingkannya dengan `baseUsername` akun-akun OFF.
+     - Jika username dasar telah digunakan oleh pelanggan baru, skrip secara otomatis melindungi pelanggan baru tersebut dan mengabaikan akun lama, mencegah tertimpanya password, profil, atau ID pelanggan baru.
+  3. **Auto-Heal & Perlindungan Anti-Isolir Salah (Sudah Bayar / Expired Belum Habis)**:
+     - Untuk seluruh akun calon aktif, skrip memeriksa riwayat tagihan (`status === 'PAID'`) dan masa aktif (`expiredAt > now`).
+     - Jika sebuah akun di database tercatat berstatus `isolated` namun terbukti sudah lunas atau masa aktifnya masih berlaku, skrip otomatis membatalkan profil isolir, menerapkan profil paket aslinya di MikroTik, dan menyembuhkan (*auto-heal*) status di database menjadi `active`.
+  4. **Audit Anomali & Rekomendasi Administratif Realtime**:
+     - Skrip menampilkan laporan deteksi anomali: mendata secara transparan jika ada akun OFF yang terdeteksi memiliki tagihan lunas agar admin dapat mereaktivasi akun tersebut secara resmi melalui portal tanpa merusak data pelanggan baru.
+  5. **Scoping Ketat Router Cibinong vs Citeureup**:
+     - Memastikan router Cibinong hanya menyinkronkan prefix `EMG` (tanpa `C`) dan menolak seluruh user Citeureup (`EMGC*`), begitupun sebaliknya.
+
+- **Files**:
+  - `package.json`
+  - `scripts/sync-all-to-mikrotik.js`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.40] — 2026-09-19
 ### Tool CLI Bulk Sync Paket & Semua Pelanggan Billing ke MikroTik & FreeRADIUS (One-Command VPS Execution)
 

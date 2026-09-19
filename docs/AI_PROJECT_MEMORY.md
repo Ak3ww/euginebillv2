@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.40
+- **Version**: 2.40.41
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,20 @@
 ---
 
 ## Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.41: Hardened Bulk Sync Shield, Zero-OFF & PPPoE Reuse Protection)
+
+- **Hard Invariant: ZERO OFF TO MIKROTIK (Absolut)**:
+  - Seluruh akun pelanggan yang berstatus `stop`, `stopped`, `suspended`, `dismantled`, `dismantle`, `terminated`, `cancelled`, `inactive`, `blocked`, `cabut`, atau username mengandung `-OFF-`, `-STOP-`, `-CABUT-`, `_OFF_`, `(OFF)` DILARANG KERAS dimasukkan atau disinkronkan ke dalam secret MikroTik.
+  - Akun-akun ini harus 100% dilewati (`SKIP`) saat sinkronisasi massal, dan tidak boleh disentuh/ditulis ulang.
+
+- **Hard Invariant: PPPoE Username Reuse Shield ("Ganti User Protection")**:
+  - Ketika pelanggan lama berhenti, sistem mengarsipkan username menjadi `EMGxxx-OFF-yyyy` untuk melepas username bersih `EMGxxx` bagi pelanggan baru.
+  - Skrip bulk sync (`scripts/sync-all-to-mikrotik.js`) secara cerdas memeriksa apakah `baseUsername` akun OFF sudah digunakan oleh pelanggan baru yang aktif. Jika ya, akun baru dilindungi secara penuh dan akun lama diabaikan, mencegah tertimpanya kredensial pelanggan baru oleh riwayat lama.
+
+- **Hard Invariant: Anti-Isolir Salah (Auto-Heal Pelanggan yang Sudah Bayar)**:
+  - Sebelum menetapkan profil `isolir` pada pelanggan yang berstatus `isolated` di database, sistem wajib memeriksa riwayat pembayaran (`status === 'PAID'`) dan masa aktif (`expiredAt > now`).
+  - Jika pelanggan terbukti sudah membayar atau masa aktifnya belum berakhir, sistem otomatis membatalkan isolir, menyematkan profil paket aslinya, dan menyembuhkan (*auto-heal*) status di database menjadi `active`.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.40: Bulk Sync Tool for Packages & Customers to MikroTik)
 
