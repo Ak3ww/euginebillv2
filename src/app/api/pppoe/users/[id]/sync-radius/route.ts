@@ -51,9 +51,13 @@ export async function POST(
 
     // 2. Sync to MikroTik router /ppp secret
     let mikrotikSynced = false;
+    let mikrotikDetail = '';
     try {
-      mikrotikSynced = await PPPSecretService.syncSecret(user.id);
-    } catch (mtkError) {
+      const syncRes = await PPPSecretService.syncSecretDetailed(user.id);
+      mikrotikSynced = syncRes.success;
+      mikrotikDetail = syncRes.message;
+    } catch (mtkError: any) {
+      mikrotikDetail = mtkError.message || String(mtkError);
       console.error(`Failed to sync user ${username} to MikroTik:`, mtkError);
     }
 
@@ -63,16 +67,16 @@ export async function POST(
       data: { syncedToRadius: true, lastSyncAt: new Date() },
     });
 
-    let message = `${username} berhasil di-sync ke MikroTik`;
+    let message = `${username} berhasil di-sync ke MikroTik (${mikrotikDetail})`;
     if (isRadiusEnabled && mikrotikSynced) {
-      message = `${username} berhasil di-sync ke MikroTik & RADIUS`;
+      message = `${username} berhasil di-sync ke MikroTik & RADIUS (${mikrotikDetail})`;
     } else if (isRadiusEnabled && !mikrotikSynced) {
-      message = `${username} tersinkron ke RADIUS (MikroTik API belum terhubung)`;
+      message = `${username} tersinkron ke RADIUS, tetapi MikroTik gagal: ${mikrotikDetail}`;
     } else if (!mikrotikSynced) {
-      message = `${username} tersimpan di database, tetapi koneksi MikroTik API gagal/timeout`;
+      message = `${username} tersimpan di DB, tetapi MikroTik gagal: ${mikrotikDetail}`;
     }
 
-    return ok({ success: mikrotikSynced || isRadiusEnabled, message, mikrotikSynced });
+    return ok({ success: mikrotikSynced || isRadiusEnabled, message, mikrotikSynced, detail: mikrotikDetail });
   } catch (error) {
     console.error('Sync user error:', error);
     return serverError();

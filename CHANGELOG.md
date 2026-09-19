@@ -4,6 +4,36 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.24] — 2026-09-19
+### Auto-Healing Multi-Port MikroTik API (8520/8728) & Transparansi Diagnostik Kegagalan Koneksi
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. **Error "EMG309 tersimpan di database, tetapi koneksi MikroTik API gagal/timeout"**:
+     - Saat admin membuat atau menyinkronkan pelanggan baru (`EMG309`) ke MikroTik Cibinong Site (`10.200.0.2:8520`), proses sync gagal dan memunculkan pesan error generik.
+     - **Akar Masalah**:
+       a. `PPPSecretService.syncSecret` sebelumnya hanya mencoba port tunggal yang tercatat di database (`targetRouter.port` = 8520). Jika service API pada MikroTik masih berjalan di port default `8728` (atau sebaliknya belum dialihkan ke `8520`), atau port `8520` diblokir oleh filter firewall MikroTik, koneksi langsung timeout tanpa mencoba port alternatif.
+       b. Seluruh pesan error asli dari RouterOS API (`ECONNREFUSED`, `ETIMEDOUT`, atau `cannot log in`) ditelan di dalam blok `catch` dan diganti dengan pesan statis `koneksi MikroTik API gagal/timeout`, sehingga menyembunyikan penyebab kegagalan sebenarnya.
+       c. Panduan firewall di UI modal router sebelumnya menampilkan perintah firewall usang dengan `src-address=172.16.212.1`, padahal IP tunnel WireGuard VPS aktual adalah `10.200.0.1`.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Konektor Cerdas Multi-Port Auto-Healing (`PPPSecretService.connectToRouter`)**:
+     - Sistem kini secara otomatis menguji urutan port prioritas: `[configuredPort, 8728, 8520, vpnTargetPort]`.
+     - Jika port kustom `8520` belum aktif/timeout, sistem langsung mencoba port default `8728`. Jika berhasil, sistem **secara otomatis meng-update `router.port = 8728` di database** sehingga seluruh proses berikutnya (isolasi, unisolir, auto-swap) langsung menggunakan port yang terbukti aktif tanpa intervensi admin.
+     - Diterapkan secara serentak pada `syncSecret`, `setProfileAndDisconnect`, dan `removeSecret`.
+  2. **Transparansi Diagnostik & Detail Respon API (`sync-radius/route.ts`)**:
+     - Memperkenalkan `syncSecretDetailed()` yang mengembalikan detail status, port yang terhubung, dan deskripsi error teknis RouterOS.
+     - Endpoint `/api/pppoe/users/[id]/sync-radius` kini menampilkan penyebab teknis yang sebenarnya ke layar (apakah timeout port, password salah, atau firewall block).
+  3. **Koreksi IP Firewall Dinamis di UI Router (`routers/page.tsx`)**:
+     - Perintah firewall pada modal router kini menghitung IP subnet VPN VPS secara dinamis (misal `10.200.0.1`) dan menyertakan instruksi pembukaan port API lengkap:
+       `/ip firewall filter add chain=input src-address=10.200.0.1 protocol=tcp dst-port=8520,8728 action=accept place-before=0 comment="Allow VPS API"`
+       `/ip service set api port=8520 disabled=no address=""`
+
+- **Files**:
+  - `src/server/services/mikrotik/ppp-secret.service.ts`
+  - `src/app/api/pppoe/users/[id]/sync-radius/route.ts`
+  - `src/app/admin/network/routers/page.tsx`
+  - `package.json`
+
 ## [2.40.23] — 2026-09-19
 ### Sinkronisasi Otomatis Chunk Statis Standalone & Pemulihan Cerdas ChunkLoadError
 

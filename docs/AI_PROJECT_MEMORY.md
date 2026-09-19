@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.23
+- **Version**: 2.40.24
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,15 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.24: Multi-Port Auto-Healing MikroTik API & Transparent Sync Diagnostics)
+
+- **Architectural Invariant: Multi-Port Auto-Healing MikroTik Connection (`PPPSecretService.connectToRouter`)**:
+  - Jangan pernah hanya bergantung pada satu port API MikroTik tunggal tanpa mekanisme fallback.
+  - Setiap pemanggilan router MikroTik WAJIB menguji candidate ports secara berurutan: `[configuredPort, 8728, 8520, vpnTargetPort]`.
+  - Jika port yang berhasil terhubung berbeda dari `router.port` yang tercatat di database, sistem WAJIB secara otomatis meng-update `prisma.router.update({ where: { id: router.id }, data: { port: workingPort } })` (*auto-healing*), sehingga query selanjutnya tidak membuang waktu mencoba port yang salah.
+  - Dilarang menelan error asli dari RouterOS API di dalam `catch` tanpa mengembalikannya ke caller (`syncSecretDetailed`). Admin berhak melihat detail penyebab teknis kegagalan (apakah timeout/firewall drop, port refused, atau password salah).
+  - Skrip firewall MikroTik yang disarankan sistem wajib menggunakan IP gateway tunnel VPN dinamis (`10.200.0.1`), DILARANG KERAS men-hardcode IP statis yang tidak sesuai seperti `172.16.212.1`.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.23: Standalone Static Chunk Sync Invariant & ChunkLoadError Recovery)
 
