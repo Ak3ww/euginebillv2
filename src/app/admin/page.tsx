@@ -40,6 +40,9 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
+  Sparkles,
+  ArrowRight,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/cyberpunk/CyberToast';
@@ -96,6 +99,8 @@ interface DashboardStats {
   unpaidInvoicesCount: number;
   totalAllTimeRevenue: number;
   totalAllTimeRevenueFormatted: string;
+  routerCount?: number;
+  customerCount?: number;
 }
 
 interface UpcomingInvoice {
@@ -249,6 +254,31 @@ export default function AdminDashboard() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
   const [periodLabel, setPeriodLabel] = useState<string>('');
+  const [wizardDismissed, setWizardDismissed] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isDismissed = localStorage.getItem('euginebill_wizard_dismissed') === 'true' ||
+                          localStorage.getItem('euginebill_wizard_completed') === 'true';
+      setWizardDismissed(isDismissed);
+    }
+  }, []);
+
+  const handleDismissWizard = useCallback(() => {
+    setWizardDismissed(true);
+    try {
+      localStorage.setItem('euginebill_wizard_dismissed', 'true');
+    } catch (e) {
+      console.error('Failed to set wizard dismissed:', e);
+    }
+  }, []);
+
+  const isNewBilling = Boolean(
+    stats &&
+    (stats.customerCount ?? stats.totalPppoeUsers) === 0 &&
+    (stats.routerCount ?? 0) === 0
+  );
+
   const { t } = useTranslation();
   const { addToast, confirm } = useToast();
 
@@ -630,6 +660,52 @@ export default function AdminDashboard() {
             </button>
           </div>
         </div>
+
+        {/* Onboarding Welcome Banner for New Billing */}
+        {!loading && isNewBilling && !wizardDismissed && (
+          <div className="relative overflow-hidden rounded-xl border border-blue-200 bg-blue-50/60 dark:border-blue-900/50 dark:bg-blue-950/20 p-4 sm:p-6 transition-all shadow-sm">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="p-2.5 bg-blue-100 dark:bg-blue-900/40 rounded-xl text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-semibold text-blue-950 dark:text-blue-100">
+                      Selamat Datang di EugineBill ISP Billing Engine
+                    </h3>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-300/40">
+                      Setup Awal
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-blue-800/80 dark:text-blue-200/70 max-w-2xl leading-relaxed">
+                    Sistem billing Anda masih baru dan belum memiliki router MikroTik atau pelanggan aktif. 
+                    Gunakan <strong>Setup Wizard</strong> untuk menghubungkan VPN, konfigurasi router, sinkronisasi paket, dan WhatsApp notifikasi secara terpadu hanya dalam beberapa langkah mudah.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 self-end md:self-center shrink-0 w-full md:w-auto justify-end">
+                <Button
+                  onClick={() => router.push('/setup')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm gap-1.5 text-xs sm:text-sm h-9 px-4"
+                >
+                  <span>Mulai Setup Wizard</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleDismissWizard}
+                  className="text-blue-600 hover:text-blue-900 hover:bg-blue-100/60 dark:text-blue-400 dark:hover:text-blue-200 dark:hover:bg-blue-900/40 h-9 w-9"
+                  title="Tutup banner"
+                  aria-label="Tutup banner"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Grid - 4 columns */}
         {loading ? (

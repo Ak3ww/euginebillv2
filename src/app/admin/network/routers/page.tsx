@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { showSuccess, showError, showConfirm } from '@/lib/sweetalert';
 import { useToast } from '@/components/cyberpunk/CyberToast';
 import { useTranslation } from '@/hooks/useTranslation';
+import { copyToClipboard as copyToClipboardUtil } from '@/lib/clipboard';
 import { Server, Plus, Trash2, Edit, CheckCircle, XCircle, Copy, Loader2, Shield, Radio, Wifi, Activity, RefreshCw, Settings, X, ChevronDown, ChevronUp, Info, Cable, FileCode, AlertTriangle, CheckCircle2, Terminal, ArrowRight, ExternalLink, Router } from 'lucide-react';
 
 interface Router {
@@ -89,6 +90,7 @@ export default function RouterPage() {
     success: boolean
     message: string
     identity?: string
+    fixScript?: string
   } | null>(null)
   const [testing, setTesting] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -238,42 +240,35 @@ export default function RouterPage() {
           password: formData.password,
           port: parseInt(formData.port) || 8728,
           apiPort: parseInt(formData.apiPort) || 8729,
+          vpnClientId: formData.vpnClientId || undefined,
         }),
       })
 
       const result = await response.json()
 
       if (result.success) {
-        // Jika berhasil pakai port berbeda dari yang diset (misalnya fallback ke SSL 8729),
+        // Jika berhasil pakai port berbeda dari yang diset (misalnya fallback ke 8520 atau 8728),
         // otomatis update form port ke port yang berhasil
         if (result.usedPort && result.usedPort !== parseInt(formData.port)) {
           setFormData(prev => ({
             ...prev,
-            port: result.usedTls ? prev.apiPort : result.usedPort.toString(),
-            apiPort: result.usedTls ? result.usedPort.toString() : prev.apiPort,
+            port: result.usedPort.toString(),
           }))
         }
         setTestResult(result)
         const portInfo = result.usedTls ? ` (port ${result.usedPort} SSL)` : ` (port ${result.usedPort})`
         showSuccess(t('network.connectionSuccessfulTo').replace('{identity}', result.identity) + portInfo)
-      } else if (formData.vpnClientId) {
-        // VPN client: ping sudah berhasil, API gagal = MikroTik firewall memblokir
-        const apiPort = parseInt(formData.port) || 8728
-        const apiSslPort = parseInt(formData.apiPort) || 8729
-        const vpsVpnIp = formData.ipAddress.includes('.')
-          ? formData.ipAddress.substring(0, formData.ipAddress.lastIndexOf('.')) + '.1'
-          : '10.200.0.1'
-        const firewallCmd = `/ip firewall filter add chain=input src-address=${vpsVpnIp} protocol=tcp dst-port=${apiPort},8728,${apiSslPort} action=accept place-before=0 comment="Allow VPS API"`
-        setTestResult({ success: true, message: result.message, identity: 'VPN (ping OK, API pending)' })
-        showSuccess(`VPN terhubung (Sukses)\n\nAPI port ${apiPort} diblokir firewall MikroTik. Jalankan perintah ini di terminal MikroTik:\n\n${firewallCmd}\n\n/ip service set api port=${apiPort} disabled=no address=""`)
       } else {
-        setTestResult(result)
+        const apiPort = parseInt(formData.port) || 8728
+        const fixScript = result.fixScript || `/ip service set api port=${apiPort} disabled=no address=""\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=${apiPort},8728 place-before=0 comment="Allow EugineBill VPS API"`
+
+        setTestResult({ ...result, fixScript })
         const diagMsg = result.diagnosis === 'port_refused'
-          ? `${result.message}\n\nPort ditolak (ECONNREFUSED) — pastikan /ip service api sudah enabled dan port benar.`
+          ? `${result.message}\n\nPort ${apiPort} ditolak (ECONNREFUSED) — pastikan /ip service api sudah enabled dan port benar.`
           : result.diagnosis === 'auth_failed'
-          ? `${result.message}\n\nUsername/password salah — cek credentials di /ip service.`
+          ? `${result.message}\n\nUsername/password salah — cek kredensial user API.`
           : result.diagnosis === 'firewall_block'
-          ? `${result.message}\n\nKoneksi timeout — firewall memblokir port ini.`
+          ? `${result.message}\n\nKoneksi timeout — firewall MikroTik memblokir port ${apiPort}.`
           : result.message
         showError(diagMsg)
       }
@@ -287,11 +282,6 @@ export default function RouterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!editingRouter && !testResult?.success) {
-      showError(t('network.testConnectionFirst'))
-      return
-    }
 
     setCreating(true)
 
@@ -309,7 +299,11 @@ export default function RouterPage() {
       const data = await response.json()
 
       if (response.ok) {
-        showSuccess(editingRouter ? t('network.routerUpdated') : t('network.routerCreated'))
+        if (data.warning) {
+          showSuccess(`${editingRouter ? 'Router diperbarui' : 'Router berhasil disimpan!'}\n\n${data.warning}`)
+        } else {
+          showSuccess(editingRouter ? t('network.routerUpdated') : t('network.routerCreated'))
+        }
         setShowModal(false)
         setEditingRouter(null)
         resetForm()
@@ -328,6 +322,7 @@ export default function RouterPage() {
       setCreating(false)
     }
   }
+
 
   const resetForm = () => {
     setFormData({
@@ -458,8 +453,8 @@ export default function RouterPage() {
     }
   }
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text)
+  const copyToClipboard = async (text: string, label: string) => {
+    await copyToClipboardUtil(text)
     showSuccess(t('network.copiedToClipboard').replace('{label}', label))
   }
 
@@ -1211,6 +1206,18 @@ export default function RouterPage() {
                       placeholder="8728"
                     />
                     <p className="text-xs text-muted-foreground mt-1">Port API MikroTik (default 8728)</p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const port = formData.port || '8728'
+                        const cmd = `/ip service set api port=${port} disabled=no address=""\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=${port},8728 comment="Allow EugineBill VPS API" place-before=0`
+                        await copyToClipboardUtil(cmd)
+                        addToast({ type: 'success', title: `Script port ${port} & firewall disalin!` })
+                      }}
+                      className="mt-1.5 text-[11px] text-cyan-400 hover:underline flex items-center gap-1 font-mono"
+                    >
+                      <Copy className="w-3 h-3" /> Salin script port {formData.port || '8728'} untuk MikroTik
+                    </button>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[#00f7ff] mb-2">Winbox Port</label>
@@ -1293,6 +1300,28 @@ export default function RouterPage() {
                             {testResult.identity && <p className="text-xs text-green-400 mt-1">{t('network.routerPrefix')}: {testResult.identity}</p>}
                           </div>
                         </div>
+                        {testResult.fixScript && (
+                          <div className="mt-3 pt-2.5 border-t border-border/40">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-xs font-semibold text-foreground">Perintah Terminal MikroTik:</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (testResult.fixScript) {
+                                    navigator.clipboard.writeText(testResult.fixScript)
+                                    addToast({ type: 'success', title: 'Perintah Terminal MikroTik disalin!' })
+                                  }
+                                }}
+                                className="text-xs px-2 py-1 bg-muted hover:bg-accent border border-border rounded flex items-center gap-1 font-medium text-foreground transition-colors"
+                              >
+                                <Copy className="w-3 h-3" /> Salin Perintah
+                              </button>
+                            </div>
+                            <pre className="p-2 bg-zinc-950 text-emerald-400 font-mono text-xs rounded border border-border overflow-x-auto whitespace-pre-wrap">
+                              {testResult.fixScript}
+                            </pre>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

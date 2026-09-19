@@ -47,6 +47,8 @@ import {
   UserCog,
   Eye,
   EyeOff,
+  BookOpen,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/store';
@@ -365,7 +367,16 @@ const menuGroups: MenuGroup[] = [
           { titleKey: 'nav.cloudflare_tunnel', href: '/admin/settings/cloudflare-tunnel', requiredPermission: 'settings.view' },
           { titleKey: 'nav.subdomainRouting', href: '/admin/settings/subdomain', requiredPermission: 'settings.view' },
           { titleKey: 'nav.downloadApk', href: '/admin/download-apk', requiredPermission: 'settings.view' },
+          { titleKey: 'Setup Wizard', href: '/setup', badge: 'Wizard', requiredPermission: 'settings.view' },
+          { titleKey: 'Panduan Setup Awal', href: '/docs' },
         ],
+      },
+      {
+        titleKey: 'Setup Wizard',
+        icon: <Sparkles className="w-4 h-4" />,
+        href: '/setup',
+        badge: 'Baru',
+        requiredPermission: 'settings.view',
       },
     ],
   },
@@ -560,6 +571,11 @@ function NavItem({ item, pendingCount, manualPaymentsCount, unreadNotifications,
                       {manualPaymentsCount}
                     </span>
                   )}
+                  {child.badge && child.badge !== 'pending' && child.badge !== 'manualPayments' && (
+                    <span className="bg-brand-500/15 text-brand-600 dark:text-brand-400 border border-brand-500/30 text-[9px] font-semibold px-1.5 py-0.5 rounded-md">
+                      {child.badge}
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>
@@ -623,6 +639,11 @@ function NavItem({ item, pendingCount, manualPaymentsCount, unreadNotifications,
           {badgeCount > 0 && (
             <span className="ml-auto flex-shrink-0 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md min-w-[18px] text-center shadow-[0_0_8px_rgba(255,0,0,0.5)] animate-pulse">
               {badgeCount > 99 ? '99+' : badgeCount}
+            </span>
+          )}
+          {item.badge && item.badge !== 'notifications' && (
+            <span className="ml-auto flex-shrink-0 bg-brand-500/15 text-brand-600 dark:text-brand-400 border border-brand-500/30 text-[9px] font-semibold px-1.5 py-0.5 rounded-md">
+              {item.badge}
             </span>
           )}
         </>
@@ -1208,6 +1229,24 @@ function AdminLayoutContent({
               >
                 {isDark ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4" />}
               </button>
+              <Link
+                href="/setup"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20 hover:bg-brand-500/20 transition-all duration-200"
+                title="Setup Wizard"
+                aria-label="Setup Wizard"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-brand-500" />
+                <span className="hidden md:inline">Setup Wizard</span>
+              </Link>
+              <Link
+                href="/docs"
+                target="_blank"
+                className="p-2 rounded-lg hover:bg-primary/20 text-muted-foreground hover:text-primary transition-colors border border-transparent hover:border-primary/30"
+                title="Panduan Setup & Dokumentasi"
+                aria-label="Dokumentasi"
+              >
+                <BookOpen className="w-4 h-4 text-blue-500" />
+              </Link>
               <NotificationDropdown />
             </div>
           </div>

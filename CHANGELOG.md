@@ -4,6 +4,157 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.31] — 2026-09-19
+### Perbaikan Menyeluruh Koneksi MikroTik API & Non-Blocking Router Storage
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. Pengguna melaporkan bahwa saat menambahkan router (contoh: router "MG309"), penyimpanan ke database gagal dan koneksi MikroTik API timeout.
+  2. Endpoint `/api/network/routers` sebelumnya memblokir penyimpanan dengan error HTTP 400 jika uji koneksi API gagal, sehingga router tidak tersimpan ke database dan admin kehilangan input data.
+  3. Endpoint `/api/network/routers/test` hanya menguji port tunggal secara kaku dan tidak me-resolve IP VPN tunnel atau port alternatif (seperti 8520, 8728, 8729 SSL, atau port API target VPN Client).
+  4. Form penambahan router di frontend memblokir tombol "Simpan Router" jika test koneksi belum berhasil.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Non-Blocking Router Storage (`src/app/api/network/routers/route.ts`)**:
+     - Mengubah probe koneksi pada `POST` dan `PUT` menjadi non-blocking probe. Router **selalu berhasil disimpan ke database** sekalipun MikroTik masih dalam proses booting atau firewall belum dibuka di sisi router.
+     - Mengembalikan pesan peringatan ramah dan dynamic `fixScript` jika koneksi masih offline sehingga admin langsung dapat menempelkannya di terminal Winbox.
+  2. **Intelligent Multi-Port & VPN Probing (`src/app/api/network/routers/test/route.ts`)**:
+     - Menguji port yang diisi admin sebagai prioritas utama, dengan fallback cerdas ke candidate ports (`[port, apiPort, vpnApiTarget, 8520, 8728, 8729]`).
+     - Me-resolve `vpnClientId` dan `vpnIp` secara otomatis untuk router yang berada di balik VPN tunnel.
+     - Menguji kombinasi kredensial admin dan kredensial API VPN client secara paralel dengan timeout 3.5 detik per kandidat.
+     - Mengembalikan informasi akurat (`usedPort`, `usedHost`, `usedTls`, `usedUser`, `identity`) jika berhasil.
+  3. **Multi-Port Probing pada Status Checker (`src/app/api/network/routers/status/route.ts`)**:
+     - Mendukung router yang berjalan di custom port (8520) dan VPN IP, serta melakukan auto-heal pada `router.port` di database saat koneksi berhasil.
+  4. **Pembaruan UI Data Router (`src/app/admin/network/routers/page.tsx`)**:
+     - Mengirimkan parameter `vpnClientId` saat melakukan test koneksi.
+     - Menghapus validasi pemblokir tombol submit sehingga admin dapat menyimpan router kapan saja.
+     - Mengintegrasikan universal copy clipboard `copyToClipboardUtil` pada tombol salin script port & firewall.
+
+- **Files**:
+  - `package.json`
+  - `src/app/api/network/routers/test/route.ts`
+  - `src/app/api/network/routers/route.ts`
+  - `src/app/api/network/routers/status/route.ts`
+  - `src/app/admin/network/routers/page.tsx`
+  - `src/app/setup/page.tsx`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
+## [2.40.30] — 2026-09-19
+
+### Penyatuan Rute Setup Wizard (/setup) & Penghapusan /admin/easy-setup
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. Pengguna menghendaki penyederhanaan arsitektur rute agar tidak terpecah antara `/setup`, `/admin/setup`, dan `/admin/easy-setup`.
+  2. Dibutuhkan satu pusat onboarding wizard terpadu di `/setup` yang menangani inisialisasi awal instans (jika belum diinisialisasi) sekaligus wizard jaringan 6 langkah lengkap (jika sudah diinisialisasi dan admin terautentikasi).
+  3. Rute legacy `/admin/easy-setup` dihapus dan rute `/admin/setup` dialihkan secara transparan ke `/setup`.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Pusat Wizard Terpadu (`src/app/setup/page.tsx`)**:
+     - Menggabungkan penanganan status belum diinisialisasi (`!isInitialized`) dan sudah diinisialisasi (`isInitialized`) dalam satu halaman cerdas.
+     - **Mode Pre-Init**: Menyajikan form inisialisasi Superadmin, Profil ISP, dan default billing (`POST /api/setup`).
+     - **Mode Post-Init Terautentikasi**: Menyajikan Stepper Interaktif 6 langkah (Profil ISP, Koneksi MikroTik WireGuard/L2TP/Direct IP + Script Dinamis + Live Connection Test, Paket PPPoE, Pelanggan Trial, WhatsApp Bot, Payment Gateway, dan Kartu Opsional Fiber Optik OLT/ODC/ODP).
+     - **Mode Post-Init Belum Login**: Menampilkan layar bersih dengan tombol redirect ke `/admin/login?callbackUrl=/setup`.
+     - **Banner Sistem Aktif**: Jika sistem telah memiliki router atau pelanggan aktif, menampilkan banner ramah bahwa sistem operasional telah berjalan namun wizard tetap dapat dipakai untuk rekonfigurasi.
+  2. **Redirect & Sanitasi Rute**:
+     - `src/app/admin/setup/page.tsx`: Berfungsi sebagai auto-redirect ke `/setup`.
+     - Direktori `src/app/admin/easy-setup`: Dihapus secara bersih dari codebase.
+     - Tombol onboarding di dashboard admin (`src/app/admin/page.tsx`) langsung mengarahkan ke `/setup`.
+
+- **Files**:
+  - `package.json`
+  - `src/app/setup/page.tsx`
+  - `src/app/admin/setup/page.tsx`
+  - `src/app/admin/page.tsx`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
+## [2.40.29] — 2026-09-19
+### Integrasi Navigasi & Titik Masuk (Entry Points) Easy Setup Wizard
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. Pengguna memerlukan alur onboarding yang mudah dan titik masuk (*entry points*) yang terstruktur untuk mengakses fitur Easy Setup Wizard.
+  2. Banner onboarding tidak boleh mengganggu sistem billing yang sudah berjalan lama atau sudah memiliki router MikroTik dan pelanggan aktif.
+  3. Dibutuhkan navigasi yang rapi di topbar header, sidebar navigasi admin, panduan dokumentasi (`/docs`), serta halaman dashboard tanpa adanya text emoji (*Strictly Lucide React Icons*).
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Integrasi Sidebar & Topbar (`src/app/admin/AdminClientLayout.tsx`)**:
+     - Menambahkan menu item "Setup Wizard" di sidebar navigasi admin (pada grup manajemen dan sub-menu pengaturan) mengarah langsung ke `/setup` dilengkapi ikon `<Sparkles className="w-4 h-4" />` serta badge "Baru" dan "Wizard".
+     - Menambahkan tombol shortcut "Setup Wizard" di header topbar bersebelahan dengan link Dokumentasi `/docs` mengarah langsung ke `/setup` agar selalu mudah diakses oleh admin kapan pun.
+     - Mendukung custom badge string pada `NavItem` tanpa mempengaruhi badge notifikasi numerik.
+  2. **Kondisional Onboarding Banner (`src/app/admin/page.tsx` & `src/app/admin/dashboard/page.tsx`)**:
+     - Menambahkan Welcome Onboarding Banner dengan desain Shadcn UI clean (`border-blue-200 bg-blue-50/60 dark:bg-blue-950/20`) yang menyapa admin ISP baru dengan tombol langsung menuju `/setup`.
+     - Menerapkan aturan ketat: **Hanya muncul pada billing baru** (`customerCount === 0 && routerCount === 0`). Jika sudah ada router atau pelanggan, banner otomatis tidak ditampilkan sama sekali.
+     - Mendukung dismiss manual dengan penyimpanan status ke `localStorage` (`euginebill_wizard_dismissed` / `euginebill_wizard_completed`).
+     - Menyediakan rute alias di `src/app/admin/dashboard/page.tsx` yang me-render `AdminDashboard` untuk kompatibilitas tautan langsung.
+  3. **Optimasi Dashboard Stats Endpoint (`src/app/api/dashboard/stats/route.ts`)**:
+     - Menambahkan agregasi cepat `routerCount` dan `customerCount` pada payload statistik dashboard agar deteksi billing baru berjalan instan tanpa request tambahan.
+  4. **Call-To-Action di Halaman Docs (`src/app/docs/page.tsx`)**:
+     - Menambahkan card Call-to-Action interaktif di bawah header dokumentasi: *"Ingin setup langsung dipandu langkah demi langkah secara interaktif? Buka Setup Wizard."* dengan tombol direct link menuju `/setup`.
+
+- **Files**:
+  - `package.json`
+  - `src/app/admin/AdminClientLayout.tsx`
+  - `src/app/admin/page.tsx`
+  - `src/app/admin/dashboard/page.tsx`
+  - `src/app/api/dashboard/stats/route.ts`
+  - `src/app/docs/page.tsx`
+
+## [2.40.28] — 2026-09-19
+### Default Light Mode Enforced, Universal Clipboard Copy Fallback, & Master Client Onboarding Docs (/docs)
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. Tema bawaan sistem sebelumnya dapat beralih ke dark mode jika perangkat/OS pengguna menggunakan prefers-color-scheme dark, sedangkan pengguna menginginkan tampilan bawaan default murni Light Mode untuk stabilitas tampilan klien.
+  2. Tombol *copy to clipboard* di beberapa menu gagal berfungsi ketika billing diakses melalui IP publik / HTTP tanpa sertifikat SSL (`window.isSecureContext === false`), di mana API modern `navigator.clipboard` menjadi `undefined`.
+  3. Dibutuhkan panduan onboarding lengkap langkah demi langkah (*easy setup*) yang bisa diakses langsung oleh klien billing di rute `/docs` maupun via file dokumentasi offline di `docs/`.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Strict Default Light Mode**:
+     - Memperbarui `src/hooks/useTheme.ts` dan `themeScript` di `src/app/layout.tsx` sehingga tema bawaan awal selalu Light Mode (`false`), kecuali pengguna secara sadar mengklik toggle tema di UI.
+  2. **Universal Clipboard Engine (`src/lib/clipboard.ts`)**:
+     - Membangun utility `copyToClipboard` yang mencoba modern Async Clipboard API, dan secara otomatis melakukan fallback ke `document.createElement('textarea')` + `document.execCommand('copy')` jika diakses via HTTP / IP langsung.
+     - Memasang polyfill global di `src/components/client-providers.tsx` agar semua panggilan legacy `navigator.clipboard.writeText(...)` di seluruh aplikasi langsung memiliki kemampuan fallback tanpa error.
+  3. **Master Onboarding Docs (/docs & Markdown)**:
+     - Membuat halaman dokumentasi interaktif baru di `src/app/docs/page.tsx` dengan layout Shadcn, tab step-by-step, fitur pencarian, dan tombol salin 1-klik yang diuji 100%.
+     - Menambahkan navigasi langsung ke `/docs` pada topbar header dan sidebar menu pengaturan di `src/app/admin/AdminClientLayout.tsx`.
+     - Menyusun panduan komprehensif Bahasa Indonesia di `docs/PANDUAN_SETUP_AWAL_CLIENT_BILLING.md` yang merinci setup MikroTik VPN, OLT VSOL/ZTE & VLAN 20/30, katalog paket, registrasi pelanggan pertama, WhatsApp gateway bot, dan payment gateway.
+
+- **Files**:
+  - `package.json`
+  - `src/lib/clipboard.ts`
+  - `src/components/client-providers.tsx`
+  - `src/hooks/useTheme.ts`
+  - `src/app/layout.tsx`
+  - `src/app/docs/page.tsx`
+  - `src/app/admin/AdminClientLayout.tsx`
+  - `src/app/admin/network/routers/page.tsx`
+  - `docs/PANDUAN_SETUP_AWAL_CLIENT_BILLING.md`
+
+## [2.40.27] — 2026-09-19
+### Integrasi Dinamis Port API MikroTik & Firewall Filter Lintas UI dan Generator Skrip VPN
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. Pengguna memerlukan kepastian bahwa konfigurasi port API MikroTik dan aturan firewall filter RouterOS bersifat 100% dinamis mengikuti isian admin dan IP alokasi VPN, bukan nilai statis atau hardcoded.
+  2. Ketika melakukan pengujian koneksi router di halaman Data Router (`/admin/network/routers`) dan port API diblokir oleh filter firewall MikroTik, admin memerlukan perintah perbaikan langsung yang mudah disalin dari modal UI tanpa bergantung pada pop-up toast sementara.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Dynamic MikroTik API Service & Firewall Filter pada Setup VPN Client**:
+     - Memperbarui skrip RouterOS untuk WireGuard, L2TP, dan SSTP di `src/app/admin/network/vpn-client/page.tsx`, `vps-wg-peer/route.ts`, `vps-l2tp-peer/route.ts`, dan `vpn-client/route.ts` agar menyertakan aturan filter input TCP dinamis:
+       `:do { /ip firewall filter add chain=input action=accept protocol=tcp dst-port=${apiTarget},8728 comment="Allow EugineBill VPS API" place-before=0 } on-error={}`.
+     - Menggunakan variabel dinamis `${apiTarget}` (sesuai target port yang dipilih admin, fallback 8728) dan `${winboxTarget}`.
+  2. **1-Click Copy Helper & Real-Time Dynamic Update di Data Router**:
+     - Menambahkan tombol pintas dinamis di bawah input field `Port API` pada modal Tambah/Edit Router di `src/app/admin/network/routers/page.tsx` yang langsung mengkalkulasi script RouterOS secara real-time saat port diubah (`formData.port`).
+     - Memperluas state `testResult` dengan properti `fixScript` dinamis yang menampilkan box terminal code snippet siap salin ketika koneksi router mengalami timeout, port refused, atau firewall block.
+  3. **Verifikasi & Integritas Type**:
+     - Memastikan seluruh tipe TypeScript lolos tanpa error (`tsc --noEmit` exit code 0).
+
+- **Files**:
+  - `package.json`
+  - `src/app/admin/network/routers/page.tsx`
+  - `src/app/admin/network/vpn-client/page.tsx`
+  - `src/app/api/network/vpn-client/route.ts`
+  - `src/app/api/network/vps-l2tp-peer/route.ts`
+  - `src/app/api/network/vps-wg-peer/route.ts`
+
 ## [2.40.26] — 2026-09-19
 ### Sanitasi Bersih Repositori (Purge One-Time Scripts, Sensitive Fixtures, & Dead Code) untuk Rilis Distribusi Klien
 

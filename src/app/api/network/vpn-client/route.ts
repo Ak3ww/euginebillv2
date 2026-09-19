@@ -193,7 +193,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { name, description, vpnServerId, vpnType: rawVpnType, customVpnIp } = await request.json()
+    const { name, description, vpnServerId, vpnType: rawVpnType, customVpnIp, apiPort } = await request.json()
     const normalizedType = String(rawVpnType || 'l2tp').toLowerCase()
     const vpnType: 'l2tp' | 'pptp' | 'sstp' | 'wireguard' =
       normalizedType === 'pptp' || normalizedType === 'sstp' || normalizedType === 'wireguard' ? normalizedType as any : 'l2tp'
@@ -487,11 +487,12 @@ ${radiusSection}
 
 # --- STEP 4: Konfigurasi Port Layanan MikroTik Aktif & Bebas Restriksi IP ---
 :do { /ip service set winbox port=8291 address="" disabled=no } on-error={}
-:do { /ip service set api port=8728 address="" disabled=no } on-error={}
+:do { /ip service set api port=${apiPort || 8728} address="" disabled=no } on-error={}
 :do { /ip service set www port=80 address="" disabled=no } on-error={}
 :do { /ip service set ssh address="" disabled=no } on-error={}
 
-# --- STEP 5: Izinkan Akses Masuk VPN di Baris Teratas Firewall Filter MikroTik ---
+# --- STEP 5: Izinkan Akses Masuk API & VPN di Baris Teratas Firewall Filter MikroTik ---
+:do { /ip firewall filter add chain=input action=accept protocol=tcp dst-port=${apiPort || 8728},8728 comment="Allow EugineBill VPS API" place-before=0 } on-error={}
 :do { /ip firewall filter add chain=input action=accept in-interface=${ifaceName} place-before=0 comment="Allow EugineBill VPN Remote Access" } on-error={}
 
 # --- STEP 6: Tunggu koneksi (5 detik) ---

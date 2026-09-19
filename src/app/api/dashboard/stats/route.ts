@@ -50,14 +50,20 @@ export async function GET(request: NextRequest) {
     const periodLabel = `${MONTH_NAMES_ID[selectedMonth]} ${selectedYear}`;
     const isCurrentMonth = (selectedYear === now.getUTCFullYear() && selectedMonth === now.getUTCMonth());
 
-    // ==================== 1. Total PPPoE Users ====================
+    // ==================== 1. Total PPPoE Users & Routers ====================
     let totalPppoeUsers = 0;
+    let customerCount = 0;
+    let routerCount = 0;
     try {
-      totalPppoeUsers = await prisma.pppoeUser.count({
-        where: { status: { notIn: ['stop', 'suspended'] } },
-      });
+      [totalPppoeUsers, customerCount, routerCount] = await Promise.all([
+        prisma.pppoeUser.count({
+          where: { status: { notIn: ['stop', 'suspended'] } },
+        }),
+        prisma.pppoeUser.count(),
+        prisma.router.count(),
+      ]);
     } catch (e) {
-      console.error('[Dashboard] Error counting pppoeUser:', e);
+      console.error('[Dashboard] Error counting pppoeUser / routers:', e);
     }
 
     // ==================== 2 & 3. Active Sessions (PPPoE & Hotspot separate) ====================
@@ -516,6 +522,8 @@ export async function GET(request: NextRequest) {
     return {
       stats: {
         totalPppoeUsers,
+        customerCount,
+        routerCount,
         activePppoeUsers,
         activeSessionsPPPoE,
         activeSessionsHotspot,

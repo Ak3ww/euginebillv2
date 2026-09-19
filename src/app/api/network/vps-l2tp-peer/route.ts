@@ -469,7 +469,8 @@ function generateL2tpScript({ serverIp, username, password, apiUsername, ipsecPs
 :do { /ip service set www port=${wwwTarget} address="" disabled=no } on-error={}
 :do { /ip service set ssh address="" disabled=no } on-error={}
 
-# 5. Izinkan Akses Masuk VPN di Baris Teratas Firewall Filter MikroTik
+# 5. Izinkan Akses Masuk API & VPN di Baris Teratas Firewall Filter MikroTik
+:do { /ip firewall filter add chain=input action=accept protocol=tcp dst-port=${apiTarget},8728 comment="Allow EugineBill VPS API" place-before=0 } on-error={}
 :do { /ip firewall filter add chain=input action=accept in-interface=${ifaceName} place-before=0 comment="Allow EugineBill VPN Remote Access" } on-error={}
 
 # ============================================================

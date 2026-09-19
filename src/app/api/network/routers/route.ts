@@ -237,34 +237,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Test connection to MikroTik (skip for gateway type AND skip when vpnClientId is set)
-    // When vpnClientId is set, the IP is a VPN tunnel address managed by the system.
-    // The API connection is still valid but MikroTik firewall may need manual configuration.
-    // This is consistent with the PUT handler which also skips test when vpnClientId is set.
-    if (!isGateway && !vpnClientId) {
-      try {
-        const conn = new RouterOSAPI({
-          host: ipAddress,
-          user: username,
-          password: password,
-          port: portInt,
-          timeout: 5,
-          tls: false,
-        });
+    // Intelligent Connection Probe (Non-blocking):
+    // Prioritaskan port yang diisi admin, auto-probe candidate ports jika timeout/refused.
+    // TIDAK PERNAH memblokir penyimpanan router ke database jika test gagal (agar router tersimpan).
+    let detectedPort = portInt;
+    let connectionWarning: string | null = null;
+    let fixScript: string | null = null;
 
-        await conn.connect();
-      
-        // Get router identity
-        const identity = await conn.write('/system/identity/print');
-        
-        conn.close();
-      } catch (apiError: any) {
-        return NextResponse.json(
-          { error: `Failed to connect to router: ${apiError.message}` },
-          { status: 400 }
-        );
+    if (!isGateway) {
+      try {
+        const candidatePorts = Array.from(new Set([portInt, 8520, 8728, 8729]));
+        let connected = false;
+
+        for (const probePort of candidatePorts) {
+          try {
+            const probeConn = new RouterOSAPI({
+              host: ipAddress,
+              user: username,
+              password: password,
+              port: probePort,
+              timeout: 3,
+              tls: probePort === 8729,
+            });
+            await probeConn.connect();
+            detectedPort = probePort;
+            connected = true;
+            probeConn.close();
+            break;
+          } catch {
+            // Coba port berikutnya
+          }
+        }
+
+        if (!connected) {
+          connectionWarning = `Router tersimpan, namun koneksi MikroTik API ke ${ipAddress}:${portInt} saat ini belum terhubung. Pastikan firewall dan service API MikroTik telah diaktifkan.`;
+          fixScript = `/ip service set api port=${portInt} disabled=no address=""\n/ip firewall filter add chain=input action=accept protocol=tcp dst-port=${portInt},8728 comment="Allow EugineBill VPS API" place-before=0`;
+        }
+      } catch (err: any) {
+        connectionWarning = `Router tersimpan (status koneksi API belum terverifikasi: ${err.message})`;
       }
     }
+
 
     // Save to database
     // Note: 'server' field left NULL - it's for FreeRADIUS virtual_server name, not RADIUS IP
@@ -278,7 +291,7 @@ export async function POST(request: NextRequest) {
         ipAddress,         // IP untuk koneksi API MikroTik
         username: username || '',  // Empty string for gateway type
         password: password || '',  // Empty string for gateway type
-        port: portInt,
+        port: detectedPort || portInt,
         apiPort: parseInt(apiPort) || 8729,
         secret: secret || 'secret123',
         // server: NULL - untuk FreeRADIUS virtual_server name
@@ -298,7 +311,7 @@ export async function POST(request: NextRequest) {
     // Terapkan port forwarding VPS langsung dari isian admin jika terhubung ke VPN Client
     if (router.vpnClientId) {
       applyAdminPortForwarding(router.vpnClientId, {
-        api: portInt,
+        api: detectedPort || portInt,
         apiSsl: parseInt(apiPort) || undefined,
         winbox: parseInt(winboxPort) || undefined,
       }).catch(e => console.warn('[routers] applyAdminPortForwarding error on POST:', e.message));
@@ -311,8 +324,8 @@ export async function POST(request: NextRequest) {
         userId: (session?.user as any)?.id,
         username: (session?.user as any)?.username || 'Admin',
         userRole: (session?.user as any)?.role,
-        action: 'ADD_ROUTER',
-        description: `Added new router: ${name}`,
+        action: 'CREATE_ROUTER',
+        description: `Created router: ${name} (${ipAddress})`,
         module: 'network',
         status: 'success',
         request,
@@ -330,6 +343,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       router,
+      warning: connectionWarning || undefined,
+      fixScript: fixScript || undefined,
       message: isGateway ? 'Gateway added successfully' : 'Router added and connection test successful',
     });
   } catch (error: any) {
@@ -367,30 +382,38 @@ export async function PUT(request: NextRequest) {
     // Test connection only for MikroTik routers with changed credentials
     // Skip when vpnClientId is set: IP is a VPN tunnel IP managed by the system,
     // the connection test is not reliable from arbitrary network contexts.
-    const effectiveVpnClientId = vpnClientId !== undefined ? vpnClientId : currentRouter.vpnClientId
-    if (!isGateway && !effectiveVpnClientId && (username || password || port)) {
+    let updatedDetectedPort: number | undefined = undefined;
+    if (!isGateway && (username || password || port)) {
       try {
-        const conn = new RouterOSAPI({
-          host: ipAddress || currentRouter.ipAddress,
-          user: username || currentRouter.username,
-          password: password || currentRouter.password,
-          port: port || currentRouter.port || 8728,
-          timeout: 5,
-          tls: false,
-        });
+        const targetHost = ipAddress || currentRouter.ipAddress;
+        const targetUser = username || currentRouter.username;
+        const targetPass = password !== undefined ? password : currentRouter.password;
+        const targetPort = port ? parseInt(port.toString()) : (currentRouter.port || 8728);
+        const candidatePorts = Array.from(new Set([targetPort, 8520, 8728, 8729]));
 
-        await conn.connect();
-        conn.close();
+        for (const probePort of candidatePorts) {
+          try {
+            const probeConn = new RouterOSAPI({
+              host: targetHost,
+              user: targetUser,
+              password: targetPass,
+              port: probePort,
+              timeout: 3,
+              tls: probePort === 8729,
+            });
+            await probeConn.connect();
+            updatedDetectedPort = probePort;
+            probeConn.close();
+            break;
+          } catch {
+            // Coba port berikutnya
+          }
+        }
       } catch (connError: any) {
-        return NextResponse.json(
-          { 
-            error: 'Failed to connect with new credentials', 
-            details: connError.message 
-          },
-          { status: 400 }
-        );
+        console.warn('[routers] PUT connection probe warning (non-fatal):', connError?.message);
       }
     }
+
 
     // Note: 'server' field is for FreeRADIUS virtual_server name, not RADIUS IP
     // Don't update it here - RADIUS Server IP is from environment variable
@@ -405,7 +428,7 @@ export async function PUT(request: NextRequest) {
         ...(ipAddress && { ipAddress }),
         ...(username && { username }),
         ...(password && { password }),
-        ...(port && { port: parseInt(port.toString()) }),
+        ...(port && { port: updatedDetectedPort || parseInt(port.toString()) }),
         ...(apiPort && { apiPort: parseInt(apiPort.toString()) }),
         ...(secret && { secret }),
         ...(isActive !== undefined && { isActive }),

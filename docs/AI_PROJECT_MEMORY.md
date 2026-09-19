@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.26
+- **Version**: 2.40.31
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,68 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.31: Non-Blocking Router Storage & Intelligent Multi-Port / VPN API Probing)
+
+- **Hard Invariant: Non-Blocking Router Database Storage**:
+  - DILARANG mengembalikan HTTP 400 atau menggagalkan penyimpanan router (`POST /api/network/routers` atau `PUT`) hanya karena uji koneksi MikroTik API timeout atau gagal firewall!
+  - Router WAJIB selalu tersimpan ke dalam database agar admin tidak kehilangan data inputannya (seperti kasus router "MG309").
+  - Jika koneksi API belum terhubung, simpan router sebagai offline/aktif dan sertakan `warning` serta `fixScript` dinamis pada JSON response agar admin dapat menyalin perintah pembukaan firewall dan port service ke terminal Winbox.
+  - Form UI penambahan router di `src/app/admin/network/routers/page.tsx` DILARANG memblokir tombol submit ketika test connection belum selesai atau gagal.
+
+- **Hard Invariant: Intelligent Multi-Port & VPN Probing on Test & Status**:
+  - Endpoint `/api/network/routers/test` dan `/api/network/routers/status` WAJIB menggunakan multi-port and VPN candidate fallback:
+    1. Utamakan port yang diisi admin (`port`, misal `8520`).
+    2. Fallback cerdas ke candidate ports: `[adminPort, apiPort, vpnTargetPort, 8520, 8728, 8729]`.
+    3. Auto-resolve `vpnClient` untuk mendapatkan `vpnIp` jika router terhubung via VPN tunnel.
+    4. Uji kredensial admin dan kredensial API VPN client secara berurutan dengan timeout cepat (3-3.5 detik per kandidat).
+    5. Jika port alternatif berhasil (misal 8520 saat DB mencatat 8728), lakukan **auto-heal** pada `router.port` di database agar panggilan berikutnya instan.
+
+### Recent Patch Log (September 19, 2026 — v2.40.30: Unified Setup Wizard (/setup) & /admin/easy-setup Removal)
+
+- **Architectural Invariant: Unified Setup Wizard Engine (/setup)**:
+  - Seluruh rute wizard inisialisasi ISP dipusatkan secara tunggal di `/setup` (`src/app/setup/page.tsx`). DILARANG membuat pecahan rute terpisah seperti `/admin/easy-setup`.
+  - Halaman `/setup` secara cerdas mendukung 2 mode:
+    1. **Pre-Initialization (`!isInitialized`)**: Menangani setup awal Superadmin, Identitas Brand ISP, dan default billing.
+    2. **Post-Initialization (`isInitialized`)**: Menangani Stepper Interaktif 6 langkah terpadu (Profil ISP, Koneksi MikroTik WireGuard/L2TP/Direct IP + Generator Skrip Dinamis + Test Live Connection, Paket PPPoE, Pelanggan Trial Secret, Bot WhatsApp Baileys, Payment Gateway, dan Kartu Opsional Fiber Optik OLT/ODC/ODP).
+  - Rute `/admin/setup` berfungsi sebagai auto-redirect langsung ke `/setup`.
+  - Direktori `/admin/easy-setup` dihapus secara permanen dari repository.
+  - Akses navigasi dari sidebar admin (`AdminClientLayout.tsx`), shortcut header topbar, dan CTA dokumentasi (`src/app/docs/page.tsx`) WAJIB mengarah langsung ke `/setup`.
+  - Rute `/admin/setup` hanya berfungsi sebagai redirect transparan ke `/setup`.
+
+- **Architectural Invariant: Strict New-Billing-Only Onboarding Display**:
+  - Banner onboarding dan panduan setup awal di dashboard admin (`src/app/admin/page.tsx`) HANYA boleh dimunculkan jika instance terdeteksi sebagai **Billing Baru**:
+    `(stats.customerCount ?? stats.totalPppoeUsers) === 0 && (stats.routerCount ?? 0) === 0`.
+  - Jika billing sudah memiliki minimal 1 router MikroTik atau 1 pelanggan aktif/terdaftar, banner onboarding DILARANG KERAS dimunculkan agar tidak mengganggu operasional ISP yang sudah berjalan (*running production*).
+  - Status dismiss banner tersimpan di `localStorage` (`euginebill_wizard_dismissed` / `euginebill_wizard_completed`) sehingga penutupan banner oleh admin bersifat permanen.
+
+- **Architectural Invariant: Zero Text Emojis Across All Portals**:
+  - Seluruh komponen badge, tombol, dan banner navigasi WAJIB menggunakan icon komponen resmi Lucide React (`<Sparkles />`, `<ArrowRight />`, `<X />`, `<BookOpen />`, dll.), dilarang keras menggunakan text emoji Unicode.
+
+### Recent Patch Log (September 19, 2026 — v2.40.28: Default Light Mode, Universal Clipboard Fallback & Master Client Onboarding Docs)
+
+- **Architectural Invariant: Strict Default Light Mode**:
+  - Seluruh portal (Admin, Agent, Technician, Customer) WAJIB menggunakan tema bawaan Light Mode secara default saat pertama kali dimuat.
+  - Hook `useTheme` DILARANG mengadopsi dark mode dari OS/browser (`matchMedia prefers-color-scheme dark`) secara implisit tanpa klik sadar dari pengguna via toggle tema di UI.
+  - Script SSR inline di `src/app/layout.tsx` WAJIB mengeset `dataset.theme = 'light'` dan menghapus kelas `dark` pada initial render jika belum ada preferensi tersimpan di `localStorage`.
+
+- **Architectural Invariant: Universal Clipboard Copy Fallback (`src/lib/clipboard.ts`)**:
+  - DILARANG memanggil `navigator.clipboard.writeText(...)` mentah tanpa mekanisme fallback.
+  - Browser modern menolak `navigator.clipboard` (menjadi `undefined` atau melempar `NotAllowedError`) jika aplikasi diakses melalui IP publik langsung / HTTP tanpa HTTPS (`window.isSecureContext === false`).
+  - Sistem WAJIB menggunakan fungsi pembungkus universal `copyToClipboard` dan memasang polyfill global via `setupClipboardPolyfill()` di `ClientProviders` yang secara otomatis melakukan fallback transparan ke elemen `textarea` tersembunyi + `document.execCommand('copy')`.
+
+- **Architectural Invariant: Interactive Onboarding Documentation (`/docs` & Markdown)**:
+  - Rute `/docs` adalah gerbang dokumentasi resmi interaktif client-facing yang menguraikan konfigurasi 6 langkah onboarding ISP (Router VPN, OLT VSOL/ZTE VLAN 20/30, Paket Layanan, Dial-up ONT, WhatsApp Bot Baileys, dan Payment Gateway).
+  - Navigasi menuju `/docs` wajib dapat diakses dengan mudah via topbar header dan submenu Pengaturan di dashboard admin.
+
+### Recent Patch Log (September 19, 2026 — v2.40.27: Dynamic MikroTik API Port & Firewall Filter Invariant)
+
+- **Architectural Invariant: 100% Dynamic API Ports and Firewall Filter Rules**:
+  - DILARANG men-hardcode port API (misal `8728` atau `8520`) ataupun IP tunnel VPN pada skrip RouterOS yang di-generate sistem.
+  - Port API target (`apiTarget` / `apiPort`) dan gateway VPN (`vpsVpnIp`) WAJIB dihitung dan disuntikkan secara dinamis ke seluruh skrip setup (WireGuard, L2TP, SSTP, serta helper form router).
+  - Skrip setup VPN dan penanganan firewall filter wajib menyertakan:
+    `:do { /ip firewall filter add chain=input action=accept protocol=tcp dst-port=${apiTarget},8728 comment="Allow EugineBill VPS API" place-before=0 } on-error={}`.
+  - Pada UI Data Router (`/admin/network/routers`), tombol 1-klik copy skrip port & firewall wajib mengkalkulasi command secara real-time mengikuti isian form `formData.port`. Box hasil tes koneksi wajib menampilkan `fixScript` copyable jika koneksi terhambat firewall.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.26: Production Repository Sanitization & One-Time Scripts Purge)
 

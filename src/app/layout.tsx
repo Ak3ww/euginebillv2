@@ -94,8 +94,14 @@ if ('serviceWorker' in navigator) {
 
 const themeScript = `(() => {
   try {
-    document.documentElement.classList.remove('dark');
-    document.documentElement.dataset.theme = 'light';
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.dataset.theme = 'dark';
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.dataset.theme = 'light';
+    }
   } catch (_) {
     // no-op
   }
