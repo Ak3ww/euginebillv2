@@ -1,4 +1,5 @@
 import 'server-only'
+import './patch-routeros'
 import { RouterOSAPI } from 'node-routeros'
 
 export interface MikroTikConfig {

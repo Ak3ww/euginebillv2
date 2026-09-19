@@ -4,6 +4,35 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.39] — 2026-09-19
+### Solusi Final Crash RouterOS v7.18+ / v7.24+: Penanganan Reply "!empty" pada node-routeros (Zero Exception)
+
+- **Latar Belakang / Akar Masalah Fundamental (The Root Cause)**:
+  1. Pengujian lapangan pada router CCR2116 (RouterOS 7.24.2) memunculkan crash fatal:
+     `RosException: Tried to process unknown reply: !empty at Channel.onUnknown (node_modules/node-routeros/dist/Channel.js:163:15)`.
+  2. Mulai MikroTik RouterOS v7.18+, MikroTik memperkenalkan jenis reply baru `!empty` pada API socket binary. Setiap kali ada query atau perintah pencarian yang mengembalikan 0 hasil (contoh: `/ppp/secret/print ?name=user_baru`, `/ppp/active/print ?name=...`, `/ip/hotspot/user/print`), MikroTik mengirimkan kalimat `!empty` yang kemudian diikuti oleh kalimat `!done`.
+  3. Pustaka `node-routeros` (v1.6.8) hanya mengenal reply `!re`, `!done`, dan `!trap`. Ketika menerima `!empty`, `Channel.js` melempar exception `UNKNOWNREPLY` yang langsung membunuh channel koneksi dan menyebabkan promise reject, mengakibatkan proses tambah pelanggan atau sinkronisasi secret selalu gagal/timeout saat memeriksa keberadaan user baru!
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Runtime Monkey-Patch Native (`src/server/services/mikrotik/patch-routeros.ts`)**:
+     - Mengintersepsi method `Channel.prototype.processPacket` secara in-memory. Jika paket kalimat diawali dengan `!empty`, pustaka mengabaikan penanda tersebut dan tetap menunggu paket `!done` berikutnya.
+     - Ketika `!done` tiba, promise otomatis resolve dengan array kosong `[]` secara mulus tanpa error.
+  2. **Injeksi Otomatis pada Client MikroTik (`src/server/services/mikrotik/client.ts`)**:
+     - Mengimpor `patch-routeros` di awal `client.ts` sehingga seluruh endpoint API Next.js (PPPoE, Hotspot, Sessions, OLT) otomatis kebal terhadap balasan `!empty`.
+  3. **Penyempurnaan Tool CLI (`scripts/test-router-cli.js`)**:
+     - Menanamkan in-memory patch langsung di script CLI diagnostik sehingga pengujian baca, tulis, maupun hapus secret berjalan lancar 100%.
+  4. **Patch Disk Otomatis (`scripts/patch-node-routeros.js` & `package.json`)**:
+     - Menyediakan script patch fisik untuk `node_modules/node-routeros/dist/Channel.js` dan mendaftarkannya pada hook `"prebuild"` serta `"postinstall"` di `package.json`.
+
+- **Files**:
+  - `package.json`
+  - `scripts/patch-node-routeros.js`
+  - `src/server/services/mikrotik/patch-routeros.ts`
+  - `src/server/services/mikrotik/client.ts`
+  - `scripts/test-router-cli.js`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.38] — 2026-09-19
 ### Validasi Koneksi MikroTik Port 8520 100% Lolos, Tool CLI Write & Sinkronisasi Pelanggan Mandiri
 

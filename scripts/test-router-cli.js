@@ -8,7 +8,20 @@
 
 const net = require('net');
 const { PrismaClient } = require('@prisma/client');
-const { RouterOSAPI } = require('node-routeros');
+const { RouterOSAPI, Channel } = require('node-routeros');
+
+// Patch node-routeros Channel for RouterOS 7.18+ !empty reply compatibility
+if (Channel && Channel.prototype && !Channel.prototype._ros7EmptyPatched) {
+  Channel.prototype._ros7EmptyPatched = true;
+  const originalProcessPacket = Channel.prototype.processPacket;
+  Channel.prototype.processPacket = function (packet) {
+    if (packet && packet.length > 0 && packet[0] === '!empty') {
+      packet.shift();
+      return;
+    }
+    return originalProcessPacket.call(this, packet);
+  };
+}
 
 const prisma = new PrismaClient();
 

@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.38
+- **Version**: 2.40.39
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,13 @@
 ---
 
 ## Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.39: RouterOS v7.18+ "!empty" API Reply Patch)
+
+- **Hard Invariant: RouterOS v7.18+ "!empty" Reply Compatibility**:
+  - Pada MikroTik RouterOS v7.18+ (termasuk v7.24.2 pada CCR2116), query yang tidak menghasilkan record data mengembalikan kalimat `!empty` sebelum `!done`.
+  - Pustaka `node-routeros` tidak mengenal `!empty` dan melempar `RosException('UNKNOWNREPLY', { reply: '!empty' })` yang membunuh koneksi.
+  - Patch in-memory (`src/server/services/mikrotik/patch-routeros.ts`) dan patch disk (`scripts/patch-node-routeros.js`) WAJIB aktif di seluruh codebase agar kalimat `!empty` dikonsumsi secara hening tanpa memicu exception, sehingga channel menunggu kalimat `!done` dan mengembalikan `[]`.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.38: MikroTik Port 8520 Diagnostic Tool Expansion & CLI Customer Sync)
 

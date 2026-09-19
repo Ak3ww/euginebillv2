@@ -1,10 +1,12 @@
 {
   "name": "EugineBill-radius",
-  "version": "2.40.38",
+  "version": "2.40.39",
   "private": false,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/patch-node-routeros.js",
     "build": "cross-env NODE_OPTIONS='--max-old-space-size=1536 --max-semi-space-size=64' NEXT_TELEMETRY_DISABLED=1 next build && node scripts/postbuild.js",
+    "postinstall": "node scripts/patch-node-routeros.js",
     "sync:readme-changelog": "node scripts/sync-readme-changelog.mjs",
     "sync:standalone": "node scripts/postbuild.js",
     "postbuild": "node scripts/postbuild.js",
