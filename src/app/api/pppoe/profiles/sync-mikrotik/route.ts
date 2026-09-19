@@ -3,6 +3,7 @@ import { prisma } from '@/server/db/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { RouterOSAPI } from 'node-routeros';
+import { PPPSecretService } from '@/server/services/mikrotik/ppp-secret.service';
 
 const CMD_TIMEOUT = 12_000; // 12 seconds per command
 
@@ -56,13 +57,10 @@ export async function PUT(request: NextRequest) {
 
     const { routerId } = await request.json();
     const router = routerId
-      ? await prisma.router.findUnique({ where: { id: routerId } })
-      : await prisma.router.findFirst({ where: { isActive: true } });
+      ? await prisma.router.findUnique({ where: { id: routerId }, include: { vpnClient: true } })
+      : await prisma.router.findFirst({ where: { isActive: true }, include: { vpnClient: true } });
 
     if (!router) return NextResponse.json({ error: 'Router tidak ditemukan' }, { status: 404 });
-
-    const host = router.ipAddress || router.nasname;
-    const portsToTry = [router.port || 8728, router.apiPort || 8729].filter((p, i, arr) => arr.indexOf(p) === i);
 
     type PortResult = {
       port: number; success: boolean; identity?: string;
@@ -70,80 +68,72 @@ export async function PUT(request: NextRequest) {
       pppWrite?: boolean; pppWriteError?: string;
       error?: string;
     };
-    const results: PortResult[] = [];
 
-    for (const port of portsToTry) {
-      const useTls = port === 8729 || (router.apiPort && port === router.apiPort && port !== (router.port || 8728));
-      const apiOpts: any = { host, port, user: router.username, password: router.password, timeout: 10 };
-      if (useTls) apiOpts.tls = { rejectUnauthorized: false };
-      const api = new RouterOSAPI(apiOpts);
-      const r: PortResult = { port, success: false };
+    try {
+      const { conn, connectedPort, host } = await PPPSecretService.connectToRouter(router);
+      const identity = await conn.execute('/system/identity/print');
+      const identityName = identity[0]?.name || 'unknown';
+
+      let pppRead = false;
+      let pppReadError = '';
       try {
-        await Promise.race([
-          api.connect(),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`Timeout 10s`)), 10000)),
-        ]);
-
-        // Test 1: identity
-        const identity = await api.write('/system/identity/print');
-        r.identity = identity[0]?.name || 'unknown';
-        r.success = true;
-
-        // Test 2: PPP profile read
-        try {
-          const profiles = await api.write('/ppp/profile/print');
-          r.pppRead = true;
-          r.pppReadError = `OK (${Array.isArray(profiles) ? profiles.length : '?'} profiles)`;
-        } catch (e: any) {
-          r.pppRead = false;
-          r.pppReadError = e?.message || String(e);
-        }
-
-        // Test 3: PPP profile write (try to add then immediately remove a test profile)
-        const testProfileName = `__EugineBill_test_${Date.now()}`;
-        try {
-          const addResult = await api.write('/ppp/profile/add', [`=name=${testProfileName}`]);
-          // If add succeeded, clean up
-          try {
-            const testProfile = await api.write('/ppp/profile/print');
-            const found = Array.isArray(testProfile) ? testProfile.find((p: any) => p['name'] === testProfileName) : null;
-            if (found) await api.write('/ppp/profile/remove', [`=.id=${found['.id']}`]);
-          } catch { /* ignore cleanup error */ }
-          r.pppWrite = true;
-          r.pppWriteError = 'OK';
-        } catch (e: any) {
-          r.pppWrite = false;
-          r.pppWriteError = e?.message || String(e);
-        }
-
-        await api.close();
+        const profiles = await conn.execute('/ppp/profile/print');
+        pppRead = true;
+        pppReadError = `OK (${Array.isArray(profiles) ? profiles.length : '?'} profiles)`;
       } catch (e: any) {
-        try { await api.close(); } catch { /* ignore */ }
-        r.error = e?.message || String(e);
+        pppReadError = e?.message || String(e);
       }
-      results.push(r);
+
+      let pppWrite = true;
+      let pppWriteError = 'OK';
+      const testProfileName = `__EugineBill_test_${Date.now()}`;
+      try {
+        await conn.execute('/ppp/profile/add', [`=name=${testProfileName}`]);
+        try {
+          const testProfile = await conn.execute('/ppp/profile/print');
+          const found = Array.isArray(testProfile) ? testProfile.find((p: any) => p['name'] === testProfileName) : null;
+          if (found) await conn.execute('/ppp/profile/remove', [`=.id=${found['.id']}`]);
+        } catch { /* ignore cleanup error */ }
+      } catch (e: any) {
+        pppWrite = false;
+        pppWriteError = e?.message || String(e);
+      }
+
+      await conn.disconnect();
+
+      const results: PortResult[] = [{
+        port: connectedPort,
+        success: true,
+        identity: identityName,
+        pppRead,
+        pppReadError,
+        pppWrite,
+        pppWriteError,
+      }];
+
+      return NextResponse.json({
+        success: true,
+        host,
+        user: router.username,
+        routerName: router.name || router.nasname,
+        results,
+        hint: null,
+      });
+    } catch (e: any) {
+      const errMsg = e?.message || String(e);
+      return NextResponse.json({
+        success: false,
+        host: router.ipAddress || router.nasname,
+        user: router.username,
+        routerName: router.name || router.nasname,
+        results: [{
+          port: router.port || 8728,
+          success: false,
+          error: errMsg,
+        }],
+        hint: `Tidak bisa konek ke ${router.ipAddress || router.nasname}: ${errMsg}`,
+      }, { status: 502 });
     }
-
-    const bestResult = results.find(r => r.success);
-    const anySuccess = !!bestResult;
-
-    let hint: string | null = null;
-    if (!anySuccess) {
-      hint = `Tidak bisa konek ke ${host}.\nPastikan:\n1. /ip service api enabled=yes di MikroTik\n2. Port ${portsToTry.join('/')} tidak diblokir firewall\n3. IP dan kredensial benar`;
-    } else if (bestResult && !bestResult.pppRead) {
-      hint = `Koneksi berhasil tapi tidak bisa baca /ppp/profile.\nPastikan user "${router.username}" di MikroTik ada di group dengan policy=read,write,api`;
-    } else if (bestResult && !bestResult.pppWrite) {
-      hint = `Bisa baca tapi tidak bisa menulis /ppp/profile.\nPastikan user "${router.username}" di MikroTik ada di group dengan policy=write`;
-    }
-
-    return NextResponse.json({
-      success: anySuccess,
-      host,
-      user: router.username,
-      routerName: router.name || router.nasname,
-      results,
-      hint,
-    }, { status: anySuccess ? 200 : 502 });
   } catch (error) {
     console.error('Test router error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -186,139 +176,117 @@ export async function POST(request: NextRequest) {
     }
 
     const routerList = targetIds
-      ? await prisma.router.findMany({ where: { id: { in: targetIds }, isActive: true }, orderBy: { name: 'asc' } })
-      : await prisma.router.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+      ? await prisma.router.findMany({ where: { id: { in: targetIds }, isActive: true }, include: { vpnClient: true }, orderBy: { name: 'asc' } })
+      : await prisma.router.findMany({ where: { isActive: true }, include: { vpnClient: true }, orderBy: { name: 'asc' } });
 
     if (routerList.length === 0) {
       return NextResponse.json({ error: 'Tidak ada router aktif ditemukan. Tambahkan router di menu NAS/Router terlebih dahulu.' }, { status: 404 });
     }
 
     const connectAndSync = async (router: typeof routerList[0]): Promise<{ routerId: string; routerName: string; success: boolean; action?: string; message?: string; error?: string; debug: string[]; warnings: string[] }> => {
-      const host = router.ipAddress || router.nasname;
-      const primaryPort = router.port || 8728;
-      const fallbackPort = router.apiPort || 8729;
-
-      const tryPort = async (port: number): Promise<{ port: number; action: string; profileName: string; debug: string[]; warnings: string[] }> => {
-        // port 8729 is API-SSL — requires TLS; port 8728 is plain API
-        const useTls = port === 8729 || (router.apiPort && port === router.apiPort && port !== router.port);
-        const apiOpts: any = { host, port, user: router.username, password: router.password, timeout: 15 };
-        if (useTls) apiOpts.tls = { rejectUnauthorized: false };
-        const api = new RouterOSAPI(apiOpts);
-        const debug: string[] = [];
-        const warnings: string[] = [];
-
-        await Promise.race([
-          api.connect(),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`Connection timed out (15s) to ${host}:${port}`)), 15000)),
-        ]);
-        debug.push(`✅ Connected to ${host}:${port} (user: ${router.username})`);
-
-        try {
-          // STEP 1: Ensure IP pool exists (create if needed) before touching PPP profile
-          if (resolvedIpPoolName) {
-            const poolPrintResult = await apiCmd(api, '/ip/pool/print', [], 'pool/print');
-            if (!poolPrintResult.ok) throw new Error(`Gagal baca daftar pool: ${poolPrintResult.error}`);
-
-            const allPools: any[] = poolPrintResult.data || [];
-            const existingPool = allPools.find((p: any) => p['name'] === resolvedIpPoolName);
-            debug.push(`🏊 Pools di MikroTik: ${allPools.length}, target: "${resolvedIpPoolName}", exists: ${!!existingPool}`);
-
-            if (!existingPool) {
-              if (!resolvedPoolRanges) {
-                throw new Error(
-                  `Pool "${resolvedIpPoolName}" tidak ditemukan di MikroTik. ` +
-                  `Isi kolom "IP Range Pool" di modal untuk membuat pool baru secara otomatis.`
-                );
-              }
-              debug.push(`➕ Membuat pool "${resolvedIpPoolName}" dengan ranges="${resolvedPoolRanges}"`);
-              const createPoolResult = await apiCmd(api, '/ip/pool/add', [`=name=${resolvedIpPoolName}`, `=ranges=${resolvedPoolRanges}`], 'pool/add');
-              if (!createPoolResult.ok) throw new Error(`Gagal buat pool "${resolvedIpPoolName}": ${createPoolResult.error}`);
-              debug.push(`✅ Pool "${resolvedIpPoolName}" berhasil dibuat`);
-              warnings.push(`Pool "${resolvedIpPoolName}" (${resolvedPoolRanges}) dibuat otomatis di MikroTik`);
-            } else {
-              debug.push(`✅ Pool "${resolvedIpPoolName}" sudah ada, skip buat pool`);
-            }
-          }
-
-          // STEP 2: Create/update PPP profile
-          const printResult = await apiCmd(api, '/ppp/profile/print', [], 'profile/print');
-          if (!printResult.ok) throw new Error(`Gagal baca profile list: ${printResult.error}`);
-
-          const allProfiles: any[] = printResult.data || [];
-          const existingProfile = allProfiles.find((p: any) => p['name'] === resolvedMikrotikProfileName);
-          debug.push(`📋 Profiles di MikroTik: ${allProfiles.length}, target: "${resolvedMikrotikProfileName}", exists: ${!!existingProfile}`);
-
-          const sharedUserLimit = profile.sharedUser ? 'no' : 'yes';
-          let action: string;
-
-          if (existingProfile) {
-            const profileId = existingProfile['.id'];
-            debug.push(`🔄 Update existing profile id=${profileId}`);
-            const updateParams: string[] = [`=.id=${profileId}`, `=rate-limit=${rateLimit}`, `=only-one=${sharedUserLimit}`];
-            if (resolvedIpPoolName) updateParams.push(`=remote-address=${resolvedIpPoolName}`);
-            if (resolvedLocalAddress) updateParams.push(`=local-address=${resolvedLocalAddress}`);
-            const updateResult = await apiCmd(api, '/ppp/profile/set', updateParams, 'profile/set');
-            if (!updateResult.ok) throw new Error(`Gagal update PPP profile: ${updateResult.error}`);
-            action = 'updated';
-          } else {
-            debug.push(`➕ Creating new PPP profile`);
-            const createParams: string[] = [`=name=${resolvedMikrotikProfileName}`, `=rate-limit=${rateLimit}`, `=only-one=${sharedUserLimit}`];
-            if (resolvedIpPoolName) createParams.push(`=remote-address=${resolvedIpPoolName}`);
-            if (resolvedLocalAddress) createParams.push(`=local-address=${resolvedLocalAddress}`);
-            const createResult = await apiCmd(api, '/ppp/profile/add', createParams, 'profile/add');
-            if (!createResult.ok) throw new Error(`Gagal buat PPP profile: ${createResult.error}`);
-            action = 'created';
-          }
-
-          // Verify local-address was stored
-          if (resolvedLocalAddress) {
-            const verifyResult = await apiCmd(api, '/ppp/profile/print', [`?name=${resolvedMikrotikProfileName}`], 'profile/verify');
-            if (verifyResult.ok && Array.isArray(verifyResult.data)) {
-              const storedProfile = verifyResult.data.find((p: any) => p['name'] === resolvedMikrotikProfileName);
-              const storedLocalAddr = storedProfile?.['local-address'] || '';
-              if (storedLocalAddr && storedLocalAddr !== '0.0.0.0') {
-                debug.push(`✅ local-address tersimpan di MikroTik: ${storedLocalAddr}`);
-              } else {
-                warnings.push(`⚠️ local-address "${resolvedLocalAddress}" tidak tersimpan di PPP profile MikroTik.`);
-                debug.push(`⚠️ local-address tidak tersimpan (tersimpan: "${storedLocalAddr || 'kosong'}")`);
-              }
-            }
-          }
-
-          await api.close();
-          return { port, action, profileName: resolvedMikrotikProfileName, debug, warnings };
-        } catch (e) {
-          try { await api.close(); } catch { /* ignore */ }
-          throw e;
-        }
-      };
+      const debug: string[] = [];
+      const warnings: string[] = [];
+      let conn: any = null;
 
       try {
-        let syncResult: { port: number; action: string; profileName: string; debug: string[]; warnings: string[] };
-        try {
-          syncResult = await tryPort(primaryPort);
-        } catch (e1: any) {
-          if (fallbackPort === primaryPort) throw e1;
-          syncResult = await tryPort(fallbackPort);
+        const { conn: mikrotikConn, connectedPort, host } = await PPPSecretService.connectToRouter(router);
+        conn = mikrotikConn;
+        const api = conn.raw;
+        debug.push(`Connected to ${host}:${connectedPort} (router: ${router.name})`);
+
+        // STEP 1: Ensure IP pool exists (create if needed) before touching PPP profile
+        if (resolvedIpPoolName) {
+          const poolPrintResult = await apiCmd(api, '/ip/pool/print', [], 'pool/print');
+          if (!poolPrintResult.ok) throw new Error(`Gagal baca daftar pool: ${poolPrintResult.error}`);
+
+          const allPools: any[] = poolPrintResult.data || [];
+          const existingPool = allPools.find((p: any) => p['name'] === resolvedIpPoolName);
+          debug.push(`Pools di MikroTik: ${allPools.length}, target: "${resolvedIpPoolName}", exists: ${!!existingPool}`);
+
+          if (!existingPool) {
+            if (!resolvedPoolRanges) {
+              throw new Error(
+                `Pool "${resolvedIpPoolName}" tidak ditemukan di MikroTik. ` +
+                `Isi kolom "IP Range Pool" di modal untuk membuat pool baru secara otomatis.`
+              );
+            }
+            debug.push(`Membuat pool "${resolvedIpPoolName}" dengan ranges="${resolvedPoolRanges}"`);
+            const createPoolResult = await apiCmd(api, '/ip/pool/add', [`=name=${resolvedIpPoolName}`, `=ranges=${resolvedPoolRanges}`], 'pool/add');
+            if (!createPoolResult.ok) throw new Error(`Gagal buat pool "${resolvedIpPoolName}": ${createPoolResult.error}`);
+            debug.push(`Pool "${resolvedIpPoolName}" berhasil dibuat`);
+            warnings.push(`Pool "${resolvedIpPoolName}" (${resolvedPoolRanges}) dibuat otomatis di MikroTik`);
+          } else {
+            debug.push(`Pool "${resolvedIpPoolName}" sudah ada, skip buat pool`);
+          }
         }
-        const actionLabel = syncResult.action === 'created' ? 'dibuat' : 'diperbarui';
+
+        // STEP 2: Create/update PPP profile
+        const printResult = await apiCmd(api, '/ppp/profile/print', [], 'profile/print');
+        if (!printResult.ok) throw new Error(`Gagal baca profile list: ${printResult.error}`);
+
+        const allProfiles: any[] = printResult.data || [];
+        const existingProfile = allProfiles.find((p: any) => p['name'] === resolvedMikrotikProfileName);
+        debug.push(`Profiles di MikroTik: ${allProfiles.length}, target: "${resolvedMikrotikProfileName}", exists: ${!!existingProfile}`);
+
+        const sharedUserLimit = profile.sharedUser ? 'no' : 'yes';
+        let action: string;
+
+        if (existingProfile) {
+          const profileId = existingProfile['.id'];
+          debug.push(`Update existing profile id=${profileId}`);
+          const updateParams: string[] = [`=.id=${profileId}`, `=rate-limit=${rateLimit}`, `=only-one=${sharedUserLimit}`];
+          if (resolvedIpPoolName) updateParams.push(`=remote-address=${resolvedIpPoolName}`);
+          if (resolvedLocalAddress) updateParams.push(`=local-address=${resolvedLocalAddress}`);
+          const updateResult = await apiCmd(api, '/ppp/profile/set', updateParams, 'profile/set');
+          if (!updateResult.ok) throw new Error(`Gagal update PPP profile: ${updateResult.error}`);
+          action = 'updated';
+        } else {
+          debug.push(`Creating new PPP profile`);
+          const createParams: string[] = [`=name=${resolvedMikrotikProfileName}`, `=rate-limit=${rateLimit}`, `=only-one=${sharedUserLimit}`];
+          if (resolvedIpPoolName) createParams.push(`=remote-address=${resolvedIpPoolName}`);
+          if (resolvedLocalAddress) createParams.push(`=local-address=${resolvedLocalAddress}`);
+          const createResult = await apiCmd(api, '/ppp/profile/add', createParams, 'profile/add');
+          if (!createResult.ok) throw new Error(`Gagal buat PPP profile: ${createResult.error}`);
+          action = 'created';
+        }
+
+        // Verify local-address was stored
+        if (resolvedLocalAddress) {
+          const verifyResult = await apiCmd(api, '/ppp/profile/print', [`?name=${resolvedMikrotikProfileName}`], 'profile/verify');
+          if (verifyResult.ok && Array.isArray(verifyResult.data)) {
+            const storedProfile = verifyResult.data.find((p: any) => p['name'] === resolvedMikrotikProfileName);
+            const storedLocalAddr = storedProfile?.['local-address'] || '';
+            if (storedLocalAddr && storedLocalAddr !== '0.0.0.0') {
+              debug.push(`local-address tersimpan di MikroTik: ${storedLocalAddr}`);
+            } else {
+              warnings.push(`local-address "${resolvedLocalAddress}" tidak tersimpan di PPP profile MikroTik.`);
+              debug.push(`local-address tidak tersimpan (tersimpan: "${storedLocalAddr || 'kosong'}")`);
+            }
+          }
+        }
+
+        await conn.disconnect();
+        const actionLabel = action === 'created' ? 'dibuat' : 'diperbarui';
         return {
           routerId: router.id,
           routerName: router.name || router.nasname,
           success: true,
-          action: syncResult.action,
-          message: `✅ ${router.name} (${host}:${syncResult.port}): profile "${resolvedMikrotikProfileName}" ${actionLabel}`,
-          debug: syncResult.debug,
-          warnings: syncResult.warnings,
+          action,
+          message: `${router.name} (${host}:${connectedPort}): profile "${resolvedMikrotikProfileName}" ${actionLabel}`,
+          debug,
+          warnings,
         };
       } catch (e: any) {
+        if (conn) {
+          try { await conn.disconnect(); } catch { /* ignore */ }
+        }
         return {
           routerId: router.id,
           routerName: router.name || router.nasname,
           success: false,
           error: e?.message || String(e),
-          debug: [],
-          warnings: [],
+          debug,
+          warnings,
         };
       }
     };

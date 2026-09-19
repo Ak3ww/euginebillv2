@@ -4,6 +4,40 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.25] — 2026-09-19
+### Prioritas Kredensial Multi-Sumber (Router & VPN Client), Port Auto-Resolution, & Unifikasi Koneksi MikroTik
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. **Koneksi MikroTik API Gagal / Timeout pada Pelanggan (EMG309)**:
+     - Pada sinkronisasi user dan router (misal `MIKROTIK CIBINONG SITE` `10.200.0.2`), koneksi API MikroTik dapat gagal jika port kustom (`8520`) atau kredensial yang digunakan tidak cocok dengan apa yang dikonfigurasi admin atau data `vpnClient`.
+     - Admin menegaskan prinsip: Service API di MikroTik sudah aktif, sistem billing harus langsung menembak API MikroTik secara presisi menggunakan isian router dan kredensial di VPN client tanpa meminta pengguna menambahkan firewall filter atau script tambahan di MikroTik.
+  2. **Inkonsistensi Koneksi MikroTik di Berbagai Endpoint**:
+     - Beberapa rute (`pppoe/users/sync-mikrotik`, `pppoe/profiles/sync-mikrotik`) sebelumnya masih menggunakan inisialisasi `new RouterOSAPI` langsung dengan fallback manual terbatas dan mengabaikan relasi `vpnClient` (IP VPN tunnel dan kredensial API VPN).
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Prioritas Kredensial & Auto-Resolusi Relasi VPN (`PPPSecretService.connectToRouter`)**:
+     - Sistem membangun daftar kandidat kredensial tanpa duplikasi:
+       - Prioritas 1: Kredensial yang dikonfigurasi langsung oleh admin di form Router (`router.username`, `router.password`).
+       - Prioritas 2: Kredensial API pada `vpnClient` (`apiUsername`, `apiPassword`).
+       - Prioritas 3: Kredensial tunnel pada `vpnClient` (`username`, `password`).
+     - Jika objek router belum menyertakan relasi `vpnClient`, sistem otomatis melakukan query resolusi via `vpnClientId` atau pencocokan IP VPN tunnel (`vpnIp`).
+  2. **Prioritas Port Cerdas & Auto-Healing Database**:
+     - Menguji port kandidat secara berurutan: `router.port` (isian admin, misal 8520) -> `vpnApiTarget` -> `8520` -> `8728`.
+     - Ketika koneksi berhasil pada kredensial atau port alternatif, sistem secara otomatis meng-update (`auto-heal`) field `port`, `username`, dan `password` pada tabel `router` di database.
+  3. **Unifikasi Koneksi MikroTik di Rute Pengguna & Profil PPPoE**:
+     - Refaktor `src/app/api/pppoe/users/sync-mikrotik/route.ts` dan `src/app/api/pppoe/profiles/sync-mikrotik/route.ts` untuk menggunakan `PPPSecretService.connectToRouter`.
+     - Mengekspos getter `raw` pada `MikroTikConnection` (`src/server/services/mikrotik/client.ts`) untuk mendukung helper perintah seperti `apiCmd`.
+  4. **Pembersihan Pesan Error & Eliminasi Text Emojis**:
+     - Membersihkan pesan error internal dari `src/server/services/mikrotik/client.ts` agar tidak menyarankan script firewall manual.
+     - Menghapus text emoji dari respons API sinkronisasi profil sesuai standar workspace rules.
+
+- **Files**:
+  - `src/server/services/mikrotik/ppp-secret.service.ts`
+  - `src/server/services/mikrotik/client.ts`
+  - `src/app/api/pppoe/users/sync-mikrotik/route.ts`
+  - `src/app/api/pppoe/profiles/sync-mikrotik/route.ts`
+  - `package.json`
+
 ## [2.40.24] — 2026-09-19
 ### Auto-Healing Multi-Port MikroTik API (8520/8728) & Transparansi Diagnostik Kegagalan Koneksi
 

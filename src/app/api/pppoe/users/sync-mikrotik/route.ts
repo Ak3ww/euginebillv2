@@ -1,8 +1,8 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/server/auth/config';
 import { prisma } from '@/server/db/client';
-import { RouterOSAPI } from 'node-routeros';
+import { PPPSecretService } from '@/server/services/mikrotik/ppp-secret.service';
 import { generateUniqueReferralCode } from '@/server/services/referral.service';
 
 async function generateCustomerId(): Promise<string> {
@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
     // Get router info
     const router = await prisma.router.findUnique({
       where: { id: routerId },
+      include: { vpnClient: true },
     });
 
     if (!router) {
@@ -79,25 +80,18 @@ export async function GET(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // Connect to MikroTik — try plaintext port first, fall back to SSL port
-    const apiHost = router.ipAddress || router.nasname;
-    const apiPortPlain = router.port || 8728;
-    const apiPortSsl = (router as any).apiPort || 8729;
-
-    let api: any;
+    // Connect to MikroTik using prioritized credentials and port resolution
+    let secrets: MikrotikPPPoESecret[] = [];
     try {
-      api = new RouterOSAPI({ host: apiHost, port: apiPortPlain, user: router.username, password: router.password, timeout: 10 });
-      await api.connect();
-    } catch {
-      // Plaintext port failed — try SSL
-      api = new RouterOSAPI({ host: apiHost, port: apiPortSsl, user: router.username, password: router.password, timeout: 15, tls: { rejectUnauthorized: false } } as any);
-      await api.connect();
+      const { conn } = await PPPSecretService.connectToRouter(router);
+      secrets = (await conn.execute('/ppp/secret/print')) as MikrotikPPPoESecret[];
+      await conn.disconnect();
+    } catch (connErr: any) {
+      return NextResponse.json({
+        success: false,
+        error: connErr.message || String(connErr),
+      }, { status: 502 });
     }
-
-    // Get PPPoE secrets
-    const secrets = await api.write('/ppp/secret/print') as MikrotikPPPoESecret[];
-
-    await api.close();
 
     // Get existing users from database
     const existingUsers = await prisma.pppoeUser.findMany({
@@ -174,6 +168,7 @@ export async function POST(request: NextRequest) {
     // Get router info
     const router = await prisma.router.findUnique({
       where: { id: routerId },
+      include: { vpnClient: true },
     });
 
     if (!router) {
@@ -195,25 +190,18 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // Connect to MikroTik — try plaintext port first, fall back to SSL port
-    const apiHost2 = router.ipAddress || router.nasname;
-    const apiPortPlain2 = router.port || 8728;
-    const apiPortSsl2 = (router as any).apiPort || 8729;
-
-    let api: any;
+    // Connect to MikroTik using prioritized credentials and port resolution
+    let secrets: MikrotikPPPoESecret[] = [];
     try {
-      api = new RouterOSAPI({ host: apiHost2, port: apiPortPlain2, user: router.username, password: router.password, timeout: 10 });
-      await api.connect();
-    } catch {
-      // Plaintext port failed — try SSL
-      api = new RouterOSAPI({ host: apiHost2, port: apiPortSsl2, user: router.username, password: router.password, timeout: 15, tls: { rejectUnauthorized: false } } as any);
-      await api.connect();
+      const { conn } = await PPPSecretService.connectToRouter(router);
+      secrets = (await conn.execute('/ppp/secret/print')) as MikrotikPPPoESecret[];
+      await conn.disconnect();
+    } catch (connErr: any) {
+      return NextResponse.json({
+        success: false,
+        error: connErr.message || String(connErr),
+      }, { status: 502 });
     }
-
-    // Get PPPoE secrets
-    const secrets = await api.write('/ppp/secret/print') as MikrotikPPPoESecret[];
-
-    await api.close();
 
     // Filter by selected usernames if provided
     const secretsToImport = selectedUsernames?.length > 0

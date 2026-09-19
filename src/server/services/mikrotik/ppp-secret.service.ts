@@ -25,61 +25,117 @@ export class PPPSecretService {
       port?: number | null
       username?: string | null
       password?: string | null
+      vpnClientId?: string | null
       vpnClient?: any
     },
-    timeoutMsPerPort: number = 4000
+    timeoutMsPerPort: number = 3000
   ): Promise<{ conn: MikroTikConnection; connectedPort: number; host: string }> {
-    const host = router.ipAddress || router.nasname || (router.vpnClient?.vpnIp as string | undefined)
-    if (!host) {
-      throw new Error(`Router '${router.name || 'Unknown'}' tidak memiliki IP Address atau NAS Name`)
+    // 0. Auto-resolve vpnClient jika belum dimuat oleh caller
+    let vpnClient = router.vpnClient
+    if (!vpnClient) {
+      if ((router as any).vpnClientId) {
+        vpnClient = await prisma.vpnClient.findUnique({
+          where: { id: (router as any).vpnClientId },
+        }).catch(() => null)
+      } else {
+        const targetIp = router.ipAddress || router.nasname
+        if (targetIp) {
+          vpnClient = await prisma.vpnClient.findFirst({
+            where: { vpnIp: targetIp },
+          }).catch(() => null)
+        }
+      }
     }
 
-    const vpnTargetPort = (router.vpnClient?.publicPorts as any)?.services?.api?.target
-    const configuredPort = router.port || vpnTargetPort || 8728
+    // 1. Host: utamakan IP VPN tunnel, fallback ke ipAddress / nasname
+    const host = vpnClient?.vpnIp || router.ipAddress || router.nasname
+    if (!host) {
+      throw new Error(`Router '${router.name || 'Unknown'}' tidak memiliki IP Address atau VPN IP`)
+    }
 
-    // Candidate ports in prioritized order (deduplicated)
+    // 2. Kredensial:
+    // Utamakan apa yang ditulis admin di Router form, lalu kredensial API vpnClient, lalu tunnel vpnClient
+    const credPairs: Array<{ user: string; pass: string; label: string }> = []
+    const addCred = (user: string | null | undefined, pass: string | null | undefined, label: string) => {
+      if (!user) return
+      const trimmedUser = user.trim()
+      const trimmedPass = pass || ''
+      if (!trimmedUser) return
+      const exists = credPairs.some(c => c.user === trimmedUser && c.pass === trimmedPass)
+      if (!exists) {
+        credPairs.push({ user: trimmedUser, pass: trimmedPass, label })
+      }
+    }
+
+    // 2a. Kredensial router yang dikonfigurasi admin
+    addCred(router.username, router.password, 'router')
+
+    // 2b. Kredensial API di vpnClient (apiUsername / apiPassword)
+    addCred(vpnClient?.apiUsername, vpnClient?.apiPassword, 'vpnClient.api')
+
+    // 2c. Kredensial tunnel vpnClient (username / password)
+    addCred(vpnClient?.username, vpnClient?.password, 'vpnClient.tunnel')
+
+    // 2d. Default fallback
+    if (credPairs.length === 0) {
+      addCred('admin', '', 'default')
+    }
+
+    // 3. Port: port router (isian admin), target API vpnClient, 8520, 8728
+    const vpnApiTarget = (vpnClient?.publicPorts as any)?.services?.api?.target
     const candidatePorts: number[] = Array.from(
-      new Set([configuredPort, 8728, 8520, vpnTargetPort].filter(Boolean) as number[])
+      new Set([router.port, vpnApiTarget, 8520, 8728].filter(Boolean) as number[])
     )
 
     const errors: string[] = []
 
-    for (const port of candidatePorts) {
-      const conn = new MikroTikConnection({
-        host,
-        username: router.username || 'admin',
-        password: router.password || '',
-        port,
-        tls: false,
-        timeout: timeoutMsPerPort,
-      })
+    for (const cred of credPairs) {
+      for (const port of candidatePorts) {
+        const conn = new MikroTikConnection({
+          host,
+          username: cred.user,
+          password: cred.pass,
+          port,
+          tls: false,
+          timeout: timeoutMsPerPort,
+        })
 
-      try {
-        console.log(`[PPPSecretService] Mencoba koneksi MikroTik API: ${host}:${port} (user: ${router.username})...`)
-        await conn.connect()
-        console.log(`[PPPSecretService] Berhasil terhubung ke MikroTik ${host}:${port}!`)
+        try {
+          console.log(`[PPPSecretService] Mencoba MikroTik API ke ${host}:${port} (user: ${cred.user}, sumber: ${cred.label})...`)
+          await conn.connect()
+          console.log(`[PPPSecretService] Berhasil terhubung ke MikroTik ${host}:${port} menggunakan kredensial ${cred.label} (${cred.user})!`)
 
-        // If connected on a different port than router.port, auto-heal router.port in DB
-        if (router.id && router.port !== port) {
-          await prisma.router.update({
-            where: { id: router.id },
-            data: { port },
-          }).catch(() => {})
-          console.log(`[PPPSecretService] Auto-healed router.port di database -> ${port}`)
+          // Auto-heal router.port di database jika port yang aktif berbeda
+          if (router.id && router.port !== port) {
+            await prisma.router.update({
+              where: { id: router.id },
+              data: { port },
+            }).catch(() => {})
+            console.log(`[PPPSecretService] Auto-healed router.port di database -> ${port}`)
+          }
+
+          // Auto-heal router username/password jika berhasil menggunakan kredensial vpnClient
+          if (router.id && cred.label.startsWith('vpnClient') && (router.username !== cred.user || router.password !== cred.pass)) {
+            await prisma.router.update({
+              where: { id: router.id },
+              data: { username: cred.user, password: cred.pass },
+            }).catch(() => {})
+            console.log(`[PPPSecretService] Auto-healed kredensial router dari ${cred.label} -> ${cred.user}`)
+          }
+
+          return { conn, connectedPort: port, host }
+        } catch (err: any) {
+          const errMsg = err.message || String(err)
+          errors.push(`[${cred.label} ${cred.user}@${port}]: ${errMsg}`)
+          console.warn(`[PPPSecretService] Gagal konek ke ${host}:${port} (${errMsg})`)
+          try { await conn.disconnect() } catch { /* ignore */ }
         }
-
-        return { conn, connectedPort: port, host }
-      } catch (err: any) {
-        const errMsg = err.message || String(err)
-        errors.push(`Port ${port}: ${errMsg}`)
-        console.warn(`[PPPSecretService] Gagal konek ke ${host}:${port} (${errMsg})`)
-        try { await conn.disconnect() } catch { /* ignore */ }
       }
     }
 
     const combinedError = errors.join('; ')
     throw new Error(
-      `Gagal terhubung ke MikroTik ${host} (Port dicoba: ${candidatePorts.join(', ')}): ${combinedError}. Pastikan: (1) Service API aktif di MikroTik (/ip service enable api; /ip service set api port=${configuredPort} address=""), (2) Firewall MikroTik mengizinkan port ${candidatePorts.join('/')} dari VPS: /ip firewall filter add chain=input action=accept protocol=tcp dst-port=${candidatePorts.join(',')} place-before=0 comment="Allow EugineBill API"`
+      `Gagal terhubung ke MikroTik ${host} (Port dicoba: ${candidatePorts.join(', ')}): ${combinedError}`
     )
   }
 

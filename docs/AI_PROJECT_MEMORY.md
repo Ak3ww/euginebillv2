@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.24
+- **Version**: 2.40.25
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,18 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.25: Multi-Source Credential Priority, Smart Port Resolution & Unified MikroTik Engine)
+
+- **Architectural Invariant: Zero Extra Terminal Scripts & Direct Multi-Source Credential Priority**:
+  - DILARANG meminta pengguna menambahkan aturan firewall atau script terminal tambahan di MikroTik jika service API (`/ip service`) sudah aktif.
+  - Sistem billing WAJIB langsung menembak API MikroTik menggunakan daftar kandidat kredensial multi-sumber yang diuji secara berurutan dan terdeduplikasi:
+    1. **Prioritas 1 (Isian Admin)**: Kredensial pada record `router` (`router.username`, `router.password`).
+    2. **Prioritas 2 (Kredensial API VPN)**: Kredensial `apiUsername` dan `apiPassword` pada relasi `vpnClient`.
+    3. **Prioritas 3 (Kredensial Tunnel VPN)**: Kredensial `username` dan `password` pada relasi `vpnClient`.
+  - Jika objek `router` yang dioper oleh pemanggil belum menyertakan objek `vpnClient`, sistem WAJIB secara otomatis melakukan lookup ke database via `router.vpnClientId` atau pencocokan IP VPN tunnel (`router.ipAddress == vpnClient.vpnIp`).
+  - **Auto-Healing**: Begitu koneksi MikroTik berhasil menggunakan salah satu kredensial `vpnClient` atau port kandidat alternatif (`[router.port, vpnApiTarget, 8520, 8728]`), sistem WAJIB secara otomatis memperbarui record `router` di database (`port`, `username`, `password`) agar koneksi berikutnya instan tanpa perlu fallback ulang.
+  - **Unified Connection Engine**: Seluruh endpoint interaksi MikroTik (`PPPSecretService`, `pppoe/users/sync-mikrotik`, `pppoe/profiles/sync-mikrotik`) WAJIB menggunakan engine `connectToRouter` terpusat yang sama.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.24: Multi-Port Auto-Healing MikroTik API & Transparent Sync Diagnostics)
 

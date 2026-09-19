@@ -81,10 +81,14 @@ export class MikroTikConnection {
       }
       // node-routeros may throw empty string — provide meaningful fallback
       if (!msg || msg === '{}') {
-        msg = `connection timed out or port unreachable (check MikroTik firewall: /ip firewall filter print)`
+        msg = `connection timed out or port unreachable`
       }
       throw new Error(`Failed to connect to MikroTik (${this.config.host}:${this.config.port}): ${msg}`)
     }
+  }
+
+  get raw(): RouterOSAPI | null {
+    return this.conn
   }
 
   async disconnect(): Promise<void> {
