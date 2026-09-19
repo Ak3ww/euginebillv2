@@ -4,6 +4,33 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.35] — 2026-09-19
+### Konsolidasi Integrasi MikroTik & Billing: Eliminasi Auto-Heal Mutasi Port, Sinkronisasi Kredensial Tangguh & Feedback Error Sync UI
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. Komparasi mendalam dengan commit stabil `9031d28` dan `e144a1d` menunjukkan bahwa pada versi-versi stabil tersebut, integrasi MikroTik bekerja langsung dan tidak pernah mengubah konfigurasi port di database.
+  2. Ditemukan adanya loop auto-heal tersembunyi pada `GET /api/network/routers` yang menimpa `router.port` menjadi target port VPN jika port bernilai default 8728, menyebabkan mutasi port tanpa persetujuan admin.
+  3. Pengecekan password pada `connectToRouter` dan endpoint status/test router sebelumnya menganggap string kosong `""` sebagai password valid sehingga gagal melakukan fallback ke kredensial VPN yang benar.
+  4. Tombol manual "Sync" pada daftar pelanggan (`/admin/pppoe/users`) menampilkan notifikasi sukses meskipun MikroTik mengembalikan kegagalan koneksi/auth (`mikrotikSynced: false`).
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Eliminasi Total Auto-Heal Mutasi Port (`src/app/api/network/routers/route.ts`)**:
+     - Menghapus perulangan auto-heal yang mengubah `router.port` di database saat `GET /api/network/routers`. Port router di database kini 100% konsisten dan persis sesuai isian admin.
+  2. **Resolusi Kredensial Tangguh (`connectToRouter`, `test`, `status`)**:
+     - Memperbaiki resolusi password: jika `router.password` bernilai string kosong `""` atau tidak terdefinisi, sistem otomatis mengambil password dari profil VPN client terkait (`vpnClient.apiPassword`).
+  3. **Feedback Transparan pada Tombol Manual Sync (`src/app/admin/pppoe/users/page.tsx`)**:
+     - Handler `handleSyncToRadius` kini memeriksa flag `result.mikrotikSynced`. Jika sinkronisasi MikroTik gagal, UI langsung memunculkan notifikasi error dengan alasan kegagalan yang presisi (misal: port unreachable, user/password salah, atau timeout), bukan menampilkan notifikasi sukses semu.
+
+- **Files**:
+  - `package.json`
+  - `src/app/api/network/routers/route.ts`
+  - `src/app/api/network/routers/test/route.ts`
+  - `src/app/api/network/routers/status/route.ts`
+  - `src/server/services/mikrotik/ppp-secret.service.ts`
+  - `src/app/admin/pppoe/users/page.tsx`
+  - `CHANGELOG.md`
+  - `docs/AI_PROJECT_MEMORY.md`
+
 ## [2.40.34] — 2026-09-19
 ### Perbaikan Fatal Sintaks Query RouterOS API (Eliminasi ?.proplist), Headroom Koneksi 15 Detik & Transparansi Error MikroTik ke UI
 

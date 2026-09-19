@@ -843,9 +843,19 @@ export default function PppoeUsersPage() {
     try {
       const res = await fetch(`/api/pppoe/users/${user.id}/sync-radius`, { method: 'POST' });
       const result = await res.json();
-      if (res.ok) { await showSuccess(result.message || `${user.username} berhasil di-sync`); loadData(); }
-      else { await showError(result.error || result.message || 'Gagal sync'); }
-    } catch { await showError('Gagal sync ke MikroTik / RADIUS'); }
+      if (res.ok) {
+        if (result.mikrotikSynced === false) {
+          await showError(result.message || 'Gagal sync ke MikroTik');
+        } else {
+          await showSuccess(result.message || `${user.username} berhasil di-sync`);
+        }
+        loadData();
+      } else {
+        await showError(result.error || result.message || 'Gagal sync');
+      }
+    } catch {
+      await showError('Gagal sync ke MikroTik / RADIUS');
+    }
   };
 
   const handleMarkAllPaid = async (userId: string, userName: string) => {

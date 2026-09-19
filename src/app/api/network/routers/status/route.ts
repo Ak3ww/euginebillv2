@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
         // Kredensial dinamis
         const user = (router.username || router.vpnClient?.apiUsername || 'admin').trim();
-        const pass = router.password !== undefined && router.password !== null ? router.password : (router.vpnClient?.apiPassword || '');
+        const pass = (router.password && router.password.trim().length > 0) ? router.password : (router.vpnClient?.apiPassword || '');
 
         let isOnline = false;
         let identityName = 'Unknown';

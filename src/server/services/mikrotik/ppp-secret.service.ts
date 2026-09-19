@@ -64,7 +64,7 @@ export class PPPSecretService {
 
     // 3. Kredensial: Persis dinamis sesuai isian client
     const user = (router.username || vpnClient?.apiUsername || 'admin').trim()
-    const pass = router.password !== undefined && router.password !== null ? router.password : (vpnClient?.apiPassword || '')
+    const pass = (router.password && router.password.trim().length > 0) ? router.password : (vpnClient?.apiPassword || '')
 
     console.log(`[PPPSecretService] Menghubungi MikroTik ke ${primaryHost}:${targetPort} (user: ${user})...`)
 

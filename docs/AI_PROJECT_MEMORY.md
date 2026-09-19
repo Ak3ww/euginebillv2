@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.34
+- **Version**: 2.40.35
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,13 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.35: Zero Auto-Heal Port Mutation, Robust Credential Fallback & Accurate Manual Sync UI)
+
+- **Hard Invariant: Never Mutate Router Port on GET Endpoints (NO AUTO-HEAL OVERWRITES)**:
+  - DILARANG KERAS menempatkan mutasi data (`prisma.router.update`) di dalam endpoint pembacaan data (`GET /api/network/routers`).
+  - Nilai `router.port` yang dikonfigurasi admin bersifat sakral. Jangan pernah menggantinya secara otomatis dengan `vpnClient.publicPorts` atau port lainnya.
+  - Resolusi kredensial password wajib memeriksa panjang string: jika `router.password` adalah string kosong `""`, sistem harus otomatis fallback ke `vpnClient.apiPassword`.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.34: RouterOS API Query Syntax Bugfix, No ?.proplist, 15s Connect Headroom & UI Warning Feedback)
 

@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
     // 4. Kredensial: Persis dinamis sesuai isian admin
     const user = username.trim()
-    const pass = password !== undefined && password !== null ? password : (vpnClient?.apiPassword || '')
+    const pass = (password && password.trim().length > 0) ? password : (vpnClient?.apiPassword || '')
 
     console.log(`[RouterTest] Testing MikroTik connection directly to ${primaryHost}:${targetPort} (user: ${user})...`)
 

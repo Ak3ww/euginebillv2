@@ -122,17 +122,6 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Auto-heal / sync router port from VPN client target if router.port is default 8728
-    for (const r of routers) {
-      const vpnApiTarget = (r.vpnClient?.publicPorts as any)?.services?.api?.target;
-      if (vpnApiTarget && r.port !== vpnApiTarget && r.port === 8728) {
-        await prisma.router.update({
-          where: { id: r.id },
-          data: { port: vpnApiTarget },
-        }).catch(() => {});
-        r.port = vpnApiTarget;
-      }
-    }
     
     // Load VPN clients
     const vpnClients = await prisma.vpnClient.findMany({
