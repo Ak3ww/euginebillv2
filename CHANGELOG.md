@@ -4,6 +4,31 @@ All notable changes to EugineBill RADIUS are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.23] — 2026-09-19
+### Sinkronisasi Otomatis Chunk Statis Standalone & Pemulihan Cerdas ChunkLoadError
+
+- **Latar Belakang / Masalah (Issue & Context)**:
+  1. **ChunkLoadError & 404 pada `_next/static/chunks/*.js` Pasca Build VPS**:
+     - Setelah menjalankan `npm run build:low-mem`, halaman web di browser menampilkan error `ChunkLoadError: Failed to load chunk /_next/static/chunks/fcb3bac7ed906f53.js from module 964893` dan `Refused to execute script ... MIME type ('text/plain') is not executable`. Halaman crash dengan pesan `Terjadi Kesalahan`.
+     - **Akar Masalah**: Pada npm, hook siklus hidup `postbuild` HANYA dieksekusi secara otomatis setelah perintah `npm run build`. Saat build dijalankan menggunakan `npm run build:low-mem` atau `npm run build:vps`, npm sama sekali TIDAK menjalankan `postbuild`. Akibatnya, file-file chunk baru yang baru saja dikompilasi di `.next/static` TIDAK tersalin ke dalam direktori produksi `.next/standalone/.next/static/`. Server standalone PM2 (`server.js`) yang membaca dari direktori standalone merespons request chunk tersebut dengan 404 `text/plain`.
+  2. **Error Boundary Tidak Memulihkan Chunk Error Secara Otomatis**:
+     - `global-error.tsx` sebelumnya hanya memanggil `reset()` (re-render komponen React). Ketika chunk JS baru tidak ditemukan, tombol "Coba Lagi" tetap gagal karena browser tidak me-reload dokumen HTML untuk mengambil hash bundle terbaru.
+
+- **Solusi Arsitektural & Perubahan Teknis**:
+  1. **Skrip Sinkronisasi Mandiri `scripts/postbuild.js`**:
+     - Membuat modul sinkronisasi aset standalone yang andal, menyalin `.next/static` -> `.next/standalone/.next/static/`, `public/` -> `.next/standalone/public/` (mengecualikan runtime `uploads/`), `.env`, `node_modules/.prisma`, dan direktori `prisma/`.
+  2. **Perantaian Eksplisit pada Seluruh Perintah Build (`package.json`)**:
+     - Seluruh perintah build (`build`, `build:vps`, `build:low-mem`, `build:turbo`) kini secara eksplisit dirantai dengan `&& node scripts/postbuild.js`, ditambah deklarasi hook `postbuild:low-mem` dan `postbuild:vps` serta shortcut perintah `npm run sync:standalone`. Hal ini menjamin aset standalone 100% selalu tersinkronisasi apa pun varian build yang dipanggil.
+  3. **Auto-Recovery & UI Error Boundary di Dashboard Admin (`src/app/admin/error.tsx` & `src/app/global-error.tsx`)**:
+     - Menambahkan deteksi `ChunkLoadError` pada `global-error.tsx` dan `src/app/admin/error.tsx`: jika browser mengalami kendala chunk akibat deployment/rebuild baru di server, sistem otomatis melakukan auto-reload 1 kali melalui `sessionStorage` untuk mengambil file JS terbaru secara transparan.
+     - Menyediakan tombol "Muat Ulang Halaman" yang mengeksekusi `window.location.reload()`, bukan sekadar re-render lokal.
+
+- **Files**:
+  - `scripts/postbuild.js`
+  - `package.json`
+  - `src/app/global-error.tsx`
+  - `src/app/admin/error.tsx`
+
 ## [2.40.22] — 2026-09-19
 ### Perbaikan Kolom Notes Overflow & Penegakan OLT Sebagai Single Source of Truth Vendor/Model Modem
 

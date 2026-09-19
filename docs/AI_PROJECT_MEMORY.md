@@ -10,7 +10,7 @@
 
 **EugineBill Radius** adalah sistem billing & network management ISP/RTRW.NET berbasis web dengan integrasi FreeRADIUS 3.x, MikroTik Local Auth Mode, Built-in WireGuard & L2TP VPN Server, ONT Remote Proxy, Native WhatsApp Baileys Bot, dan Multi-Portal PWA.
 
-- **Version**: 2.40.22
+- **Version**: 2.40.23
 - **Status**: Commercial Turnkey Release (Ready to Rent / Sell as Managed Single-Tenant VPS)
 - **Last Updated**: September 19, 2026
 - **GitHub**: https://github.com/Ak3ww/euginebillv2 (public)
@@ -19,6 +19,18 @@
 ---
 
 ## 🧠 Master Patch Log & Hard Architecture Lessons (v2.40.x)
+
+### Recent Patch Log (September 19, 2026 — v2.40.23: Standalone Static Chunk Sync Invariant & ChunkLoadError Recovery)
+
+- **Architectural Invariant: Mandatory Explicit Chaining for Standalone Assets (`scripts/postbuild.js`)**:
+  - Pada Next.js standalone mode (`output: 'standalone'`), Next.js TIDAK menyalin `.next/static` atau `public/` ke dalam direktori `.next/standalone/`. File-file tersebut harus disalin secara manual.
+  - Pada npm, hook lifecycle `postbuild` HANYA berjalan otomatis setelah `npm run build`. Perintah custom seperti `npm run build:low-mem` atau `npm run build:vps` TIDAK PERNAH memicu `postbuild`.
+  - Oleh karena itu, SEMUA perintah build (`build`, `build:vps`, `build:low-mem`, `build:turbo`) WAJIB dirantai secara eksplisit menggunakan `&& node scripts/postbuild.js` pada `package.json`. Hal ini mencegah kegagalan 404 pada chunk script JS (`/_next/static/chunks/*.js` returning 404 `text/plain`).
+  - Untuk perbaikan instan tanpa rebuild ulang, cukup jalankan `npm run sync:standalone` atau `node scripts/postbuild.js` lalu restart PM2.
+
+- **Architectural Invariant: ChunkLoadError Recovery in Error Boundaries**:
+  - Saat deployment baru dilakukan di VPS, browser pengguna yang sedang membuka aplikasi mungkin masih memiliki referensi ke hash chunk lama atau meminta chunk baru sebelum tab direfresh.
+  - `src/app/global-error.tsx` dan `src/app/admin/error.tsx` WAJIB menangani `ChunkLoadError` secara cerdas dengan mendeteksi error pesan chunk, memicu auto-reload 1 kali melalui `sessionStorage`, dan menyediakan tombol "Muat Ulang Halaman" yang memanggil `window.location.reload()`.
 
 ### Recent Patch Log (September 19, 2026 — v2.40.22: OLT Single Source of Truth for Vendor/Model & Inventory Notes Auto-Heal)
 
